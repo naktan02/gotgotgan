@@ -5,7 +5,8 @@ physical PostGIS runtime. The source-only declaration pins one `linux/amd64` ima
 no host database port. The `place` database requires only `postgis` initially and uses its own private
 network, data volume, role secrets, backup, restore, upgrade, and rollback lifecycle.
 
-An isolated digest smoke proved PostgreSQL 17.11 and PostGIS 3.5.7. This is image evidence, not an
-active deployment claim. Activation still requires separate roles, migrations, runtime-role denial,
-spatial-index, backup, isolated restore, and rollback verification. A future shared-runtime move must
-not change Place schema or domain interfaces.
+An isolated digest smoke and disposable integration suite prove PostgreSQL 17.11/PostGIS 3.5.7,
+separate roles, migrations, runtime-role denial, spatial-index use, and the source-only HTTP Pool
+composition. This is source evidence, not an active deployment claim. Activation still requires
+backup, isolated restore, key recovery, deployment rollback, and environment promotion. A future
+shared-runtime move must not change Place schema or domain interfaces.

@@ -7,14 +7,36 @@ const targets = [
   new URL('../fixtures/family-navigation.active.test.v1.json', import.meta.url),
   new URL('../../../deploy/identity/oidc-client.json', import.meta.url),
   new URL('../../../deploy/database-runtime.json', import.meta.url),
+  new URL('../../../deploy/application-runtime.json', import.meta.url),
+  new URL('../membership/membership-policy.v1.schema.json', import.meta.url),
 ]
 
-const [openApi, familySchema, fixture, activeFixture, oidcClient, databaseRuntime] = await Promise.all(
+const [
+  openApi,
+  familySchema,
+  fixture,
+  activeFixture,
+  oidcClient,
+  databaseRuntime,
+  applicationRuntime,
+  membershipPolicySchema,
+] = await Promise.all(
   targets.map(async (target) => JSON.parse(await readFile(target, 'utf8'))),
 )
 
 const failures = []
 if (openApi.openapi !== '3.1.0') failures.push('HTTP contract must use OpenAPI 3.1.0')
+if (
+  membershipPolicySchema.$id !== 'urn:place:membership-policy:v1' ||
+  membershipPolicySchema.additionalProperties !== false ||
+  membershipPolicySchema.properties?.schemaVersion?.const !==
+    'place-membership-policy.v1'
+) {
+  failures.push('Membership policy contract identity or strictness drifted')
+}
+if (openApi.paths['/readyz']?.get?.responses?.['503'] === undefined) {
+  failures.push('Process readiness must publish an unavailable response')
+}
 if (familySchema.$id !== 'urn:place:family-navigation:v1:consumer') {
   failures.push('family navigation consumer schema id drifted')
 }
@@ -181,6 +203,30 @@ if (
   databaseRuntime.backup.isolatedRestoreRequired !== true
 ) {
   failures.push('Place database runtime must require PostGIS and isolated database restore')
+}
+if (
+  applicationRuntime.schemaVersion !== 'place-application-runtime.v1' ||
+  applicationRuntime.deliveryState !== 'source-only' ||
+  applicationRuntime.publicProcess !== 'web'
+) {
+  failures.push('Place application runtime must remain a source-only Web-fronted declaration')
+}
+if (
+  applicationRuntime.processes?.web?.healthPath !== '/healthz' ||
+  applicationRuntime.processes?.web?.readinessPath !== '/readyz' ||
+  applicationRuntime.processes?.backend?.healthPath !== '/healthz' ||
+  applicationRuntime.processes?.backend?.readinessPath !== '/readyz' ||
+  applicationRuntime.processes?.backend?.exposure !== 'internal' ||
+  applicationRuntime.processes?.worker?.exposure !== 'internal'
+) {
+  failures.push('Place process health, readiness, and exposure ownership drifted')
+}
+if (
+  applicationRuntime.connections?.browserToBackend !== 'forbidden' ||
+  applicationRuntime.connections?.webToBackend !== 'server-to-server' ||
+  applicationRuntime.connections?.crossProjectDatabase !== 'forbidden'
+) {
+  failures.push('Place application connections must preserve browser and database isolation')
 }
 const databaseSecretFileEnvironments = [
   databaseRuntime.configuration.administratorPasswordFileEnvironment,

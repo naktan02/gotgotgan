@@ -87,6 +87,9 @@ export async function createOidcProcessRuntime(config: OidcProcessRuntimeConfig)
     await pool.query('SELECT 1')
     const store = new PostgresOidcStore(pool, config.encryption)
     return {
+      ready: async (): Promise<void> => {
+        await pool.query('SELECT 1')
+      },
       bff: createOidcBff({
         config: config.bffConfig,
         provider: config.provider,

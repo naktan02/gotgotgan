@@ -23,6 +23,10 @@ opposite HTTP methods are not exposed. Unit boundary tests separately prove that
 the access token from the server session, uses a fixed backend endpoint, and excludes it from the
 browser response.
 
+The same test verifies `/readyz` remains healthy when those optional integrations are explicitly
+disabled. Production readiness denial and recovery are covered at the Web process interface; a full
+public-path success E2E remains gated on provisioned Identity and Gateway.
+
 Backend HTTP interface tests cover current-consent projection, onboarding creation, idempotent
 existing-member resolution, missing bearer evidence, unsupported browser authority fields, malformed
 JSON, stale consent, and sanitized persistence failure. They also cover the authority-management

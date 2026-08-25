@@ -8,6 +8,11 @@ Stage 1 implements only HTTP lifecycle and an explicit worker `--check`; it does
 Future failure recovery persists job and evidence state before retry. Process death must not imply
 success or permit simultaneous ownership after lease expiry.
 
+Backend `source-only` mode owns Fastify only. Backend `production` mode validates all configuration,
+constructs the verifier, connects one bounded Pool, and performs an initial query before becoming
+ready. Startup failure closes the Pool. Runtime readiness repeats a minimal query and sanitizes
+failure; liveness stays independent. Shutdown closes Fastify before the Pool and is idempotent.
+
 The source-only Web OIDC process composition owns pool creation, readiness, and asynchronous close.
 OIDC transactions are one-time database records and sessions fail closed on expiry. The source-only
 runtime deletes abandoned expired transactions and sessions in independently bounded batches of at

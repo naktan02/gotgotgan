@@ -27,6 +27,13 @@ export function createMembershipBackendClient(config: MembershipBackendClientCon
   const request = config.request ?? fetch
   const signal = () => AbortSignal.timeout(config.timeoutMilliseconds)
   return {
+    ready(): Promise<Response> {
+      return request(new URL('/readyz', origin), {
+        cache: 'no-store',
+        redirect: 'error',
+        signal: signal(),
+      })
+    },
     currentConsents(): Promise<Response> {
       return request(new URL('/v1/membership-consents/current', origin), {
         cache: 'no-store',

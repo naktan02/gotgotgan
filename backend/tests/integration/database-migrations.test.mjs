@@ -85,6 +85,7 @@ test('database preparation confines runtime authority and persists Place access 
   let runtimePool
   let oidcRuntimeA
   let oidcRuntimeB
+  let httpRuntime
 
   try {
     const administratorPasswordFile = path.join(secretDirectory, 'administrator-password')
@@ -409,6 +410,95 @@ test('database preparation confines runtime authority and persists Place access 
     })
     assert.deepEqual(hiddenUnknownMembership, { status: 'forbidden' })
 
+    const { createProductionHttpRuntime } = await import(
+      '../../dist/entrypoints/http/production-runtime.js'
+    )
+    const productionPrincipal = {
+      issuer: `urn:place:test:${suffix}`,
+      subject: 'production-http-subject',
+    }
+    const productionConsents = [
+      { document: 'terms-of-service', version: '2026-08-26' },
+      { document: 'privacy-policy', version: '2026-08-26' },
+    ]
+    httpRuntime = await createProductionHttpRuntime(
+      {
+        listener: { host: 'runtime-owned.invalid', port: 4312 },
+        database: {
+          connectionString: runtimeUrl,
+          maxConnections: 2,
+          idleTimeoutMilliseconds: 30_000,
+          connectionTimeoutMilliseconds: 5_000,
+        },
+        authentication: {
+          mode: 'oidc',
+          oidc: {
+            issuer: 'https://identity.example',
+            audience: 'place-backend',
+            jwksUri: 'https://identity.example/oauth/v2/keys',
+            algorithms: ['RS256'],
+            requiredScopes: ['place.read'],
+          },
+        },
+        membershipPolicy: {
+          requiredConsents: productionConsents,
+          initialUserGrade: 'newcomer',
+          initialProductTier: 'free',
+        },
+      },
+      {
+        createPrincipalVerifier: () => ({
+          verify: async (token) => {
+            if (token !== 'production-http-token') throw new Error('invalid token')
+            return productionPrincipal
+          },
+        }),
+        nextMembershipId: () => '01991e65-19ca-738a-8652-6e4bb4a63a79',
+        now: () => new Date('2026-08-26T01:00:00.000Z'),
+      },
+    )
+
+    const readyResponse = await httpRuntime.application.inject({
+      method: 'GET',
+      url: '/readyz',
+    })
+    assert.equal(readyResponse.statusCode, 200)
+    assert.deepEqual(readyResponse.json(), { service: 'place', state: 'ok' })
+
+    const consentsResponse = await httpRuntime.application.inject({
+      method: 'GET',
+      url: '/v1/membership-consents/current',
+    })
+    assert.equal(consentsResponse.statusCode, 200)
+    assert.deepEqual(consentsResponse.json(), { consents: productionConsents })
+
+    const onboardingResponse = await httpRuntime.application.inject({
+      method: 'POST',
+      url: '/v1/memberships/onboarding',
+      headers: { authorization: 'Bearer production-http-token' },
+      payload: { acceptedConsents: productionConsents },
+    })
+    assert.equal(onboardingResponse.statusCode, 201)
+    assert.deepEqual(onboardingResponse.json(), {
+      status: 'created',
+      membershipId: '01991e65-19ca-738a-8652-6e4bb4a63a79',
+      authorityRole: 'member',
+      userGrade: 'newcomer',
+      productTier: 'free',
+    })
+    assert.equal(onboardingResponse.body.includes('production-http-token'), false)
+
+    const membershipResponse = await httpRuntime.application.inject({
+      method: 'GET',
+      url: '/v1/me',
+      headers: { authorization: 'Bearer production-http-token' },
+    })
+    assert.equal(membershipResponse.statusCode, 200)
+    assert.equal(
+      membershipResponse.json().membershipId,
+      '01991e65-19ca-738a-8652-6e4bb4a63a79',
+    )
+
     const { createOidcProcessRuntime } = await import(
       '../../../apps/web/src/platform/auth/oidc-process-runtime.ts'
     )
@@ -673,6 +763,7 @@ test('database preparation confines runtime authority and persists Place access 
       "UPDATE browser_auth.sessions SET expires_at = now() WHERE id = 'session-opaque-id'",
     )
   } finally {
+    await httpRuntime?.close().catch(() => undefined)
     await oidcRuntimeB?.close().catch(() => undefined)
     await oidcRuntimeA?.close().catch(() => undefined)
     await runtimePool?.end().catch(() => undefined)

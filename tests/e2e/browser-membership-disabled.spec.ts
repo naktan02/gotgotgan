@@ -18,6 +18,10 @@ async function expectUnavailable(response: APIResponse): Promise<void> {
 test('browser membership fails closed while the server runtime is inactive', async ({
   request,
 }) => {
+  const readiness = await request.get('/readyz')
+  expect(readiness.status()).toBe(200)
+  expect(await readiness.json()).toEqual({ service: 'place-web', state: 'ok' })
+
   await expectUnavailable(await request.get('/api/membership-consents/current'))
   await expectUnavailable(
     await request.post('/api/memberships/onboarding', {

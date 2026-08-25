@@ -21,6 +21,9 @@
         "responses": {
           "200": {
             "description": "Process can accept traffic"
+          },
+          "503": {
+            "description": "One or more required process dependencies are unavailable"
           }
         }
       }

@@ -19,6 +19,7 @@ describe('Next membership lifecycle', () => {
 
   it('installs one backend client from deployment-owned configuration', async () => {
     const backend = {
+      ready: async () => new Response(null),
       currentConsents: async () => new Response(null),
       onboard: async () => new Response(null),
     }
@@ -49,6 +50,7 @@ describe('Next membership lifecycle', () => {
   it('rejects ambiguous activation and invalid bounded configuration', async () => {
     const dependencies = {
       createBackend: () => ({
+        ready: async () => new Response(null),
         currentConsents: async () => new Response(null),
         onboard: async () => new Response(null),
       }),

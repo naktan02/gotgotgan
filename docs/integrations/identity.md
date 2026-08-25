@@ -36,3 +36,8 @@ The Web BFF now has a fixed server-side onboarding client and resolves the beare
 opaque-cookie session; the token never enters a browser response. This requires no Place-specific
 Identity table or login change. Production activation, client provisioning, and public Gateway
 validation remain intentionally absent.
+
+The Backend production composition now installs the resource-server verifier from injected issuer,
+audience, JWKS URI, and scopes; it still performs no network discovery at configuration time and
+cannot use test auth. This closes the Place-owned composition gate only. Provisioning the client,
+mounting its generated secret, and verifying the real issuer remain Identity-owned integration work.

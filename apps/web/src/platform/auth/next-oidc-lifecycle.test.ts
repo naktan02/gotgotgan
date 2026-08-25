@@ -113,6 +113,7 @@ describe('Next OIDC process lifecycle', () => {
       }),
     }
     const runtime = {
+      ready: async () => undefined,
       bff: {
         start: async () => new Response(null),
         callback: async () => new Response(null),
@@ -191,6 +192,7 @@ describe('Next OIDC process lifecycle', () => {
         }),
       }),
       createRuntime: async () => ({
+        ready: async () => undefined,
         bff: {
           start: async () => new Response(null),
           callback: async () => new Response(null),

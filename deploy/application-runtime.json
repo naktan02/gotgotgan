@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "place-application-runtime.v1",
+  "deliveryState": "source-only",
+  "publicProcess": "web",
+  "processes": {
+    "web": {
+      "exposure": "gateway-candidate",
+      "healthPath": "/healthz",
+      "readinessPath": "/readyz",
+      "configurationGroups": [
+        "web-listener",
+        "oidc-client",
+        "membership-backend"
+      ],
+      "secretFileRoles": [
+        "database-url",
+        "oidc-client-secret",
+        "oidc-encryption-keyring"
+      ]
+    },
+    "backend": {
+      "exposure": "internal",
+      "healthPath": "/healthz",
+      "readinessPath": "/readyz",
+      "configurationGroups": [
+        "backend-listener",
+        "oidc-resource-server",
+        "membership-policy",
+        "database-pool"
+      ],
+      "secretFileRoles": [
+        "database-url"
+      ]
+    },
+    "worker": {
+      "exposure": "internal",
+      "activation": "optional",
+      "configurationGroups": [],
+      "secretFileRoles": []
+    }
+  },
+  "connections": {
+    "browserToBackend": "forbidden",
+    "webToBackend": "server-to-server",
+    "crossProjectDatabase": "forbidden"
+  },
+  "activationGates": [
+    "immutable-artifact",
+    "database-migration-and-restore",
+    "identity-client-provisioning",
+    "gateway-route-and-rollback",
+    "public-browser-e2e"
+  ]
+}

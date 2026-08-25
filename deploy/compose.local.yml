@@ -1,0 +1,8 @@
+services:
+  web:
+    ports:
+      - "${PLACE_WEB_PUBLISHED_PORT:?PLACE_WEB_PUBLISHED_PORT is required}:${PLACE_WEB_PORT:?PLACE_WEB_PORT is required}"
+
+  backend:
+    ports:
+      - "${PLACE_HTTP_PUBLISHED_PORT:?PLACE_HTTP_PUBLISHED_PORT is required}:${PLACE_HTTP_PORT:?PLACE_HTTP_PORT is required}"

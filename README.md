@@ -15,8 +15,11 @@ signal-owned pool closure, and reviewed fail-closed browser auth handlers also e
 platform interfaces. Strict backend transports publish current consents, consent-gated onboarding,
 and audited authority-role administration. The Web BFF owns browser consent/onboarding routes and a
 fixed server-to-server backend client so access tokens remain outside browser payloads. These routes
-fail closed or remain unregistered until their process dependencies are explicitly supplied. There
-is no active application database connection, provider account, map credential,
+fail closed or remain unregistered until their process dependencies are explicitly supplied. A
+source-only production backend composition now loads protected database/policy configuration,
+installs OIDC verification and PostgreSQL access adapters, owns readiness and shutdown, and registers
+all reviewed access transports. Web readiness aggregates only explicitly activated OIDC and Backend
+dependencies. There is no active application environment, provider account, map credential,
 Identity client, Gateway route, or AI Tool connection.
 
 ## Repository boundaries

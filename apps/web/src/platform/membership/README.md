@@ -4,8 +4,8 @@ This folder owns the browser-to-backend membership boundary. It is infrastructur
 membership screens, not a business-domain implementation.
 
 - `membership-backend-client.ts` accepts one deployment-owned origin and bounded timeout, uses only
-  fixed current-consent/onboarding paths, rejects redirects, and sends bearer evidence only for
-  onboarding.
+  fixed readiness/current-consent/onboarding paths, rejects redirects, and sends bearer evidence
+  only for onboarding.
 - `browser-membership-http.ts` owns strict browser request validation, server-session resolution,
   backend projection validation, hardened response headers, and sanitized correlated failures.
 - `next-membership-lifecycle.ts` owns explicit fail-closed activation and one process-wide stateless

@@ -7,12 +7,21 @@ does not change module ownership.
 The source-only runtime exposes local health/readiness scaffolds and the Stage 2 shell/access code.
 Gateway, Identity, provider, map, family navigation, and AI delivery states remain `not-integrated`
 or `integration-gated` as routed in the workspace plan. The Place-owned physical PostGIS runtime is
-declared source-only and is not yet connected to a deployed Web, backend, or worker process. A
-source-only Node instrumentation hook can explicitly enable the Web OIDC composition, readiness-check
+declared source-only and is not yet connected to a deployed Web, backend, or worker environment. A
+source-only backend production composition now creates one bounded Pool, installs the access
+PostgreSQL adapter and OIDC verifier, registers all access transports, and owns readiness/close. It
+is selected only by explicit process mode with complete protected configuration. A source-only Node
+instrumentation hook can explicitly enable the Web OIDC composition, readiness-check
 its bounded database pool before server readiness, schedule bounded cleanup, and close it on process
 signals. Reviewed browser auth routes consume that runtime. Membership BFF routes use an independently
 activated stateless backend client plus the auth session interface and fail closed if either required
 runtime is absent. No active external route or provisioned Identity flow is implied.
+
+`deploy/application-runtime.json` fixes Web as the only future Gateway-facing process. Backend and
+Worker remain internal; browsers cannot select or call Backend directly. The Compose base publishes
+no host ports, `compose.local.yml` adds explicit standalone ports, and `compose.production.yml`
+mounts symbolic secret/config roles and the Place data network without embedding an address or
+credential.
 
 One digest-pinned multi-stage Dockerfile produces separate `web-runtime` and `backend-runtime`
 targets. The worker uses the backend image with a different command. Compose requires every host and

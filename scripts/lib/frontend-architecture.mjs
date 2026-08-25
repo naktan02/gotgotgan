@@ -13,6 +13,7 @@ const allowed = {
 const forbiddenBuckets = ['components', 'services', 'stores', 'hooks']
 const allowedPlatformDependencies = new Map([
   ['membership', new Set(['auth'])],
+  ['process-readiness', new Set(['auth', 'membership'])],
 ])
 const importPattern = /(?:from\s+|import\s*(?:\(\s*)?)['"]([^'"]+)['"]/g
 

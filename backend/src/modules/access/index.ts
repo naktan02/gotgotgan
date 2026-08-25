@@ -72,3 +72,11 @@ export {
   type AccessHttpDependencies,
 } from './transport/http/register-access-http.js'
 export { PostgresAccessStore } from './adapters/persistence/postgres-access-store.js'
+export {
+  readAuthRuntimeConfig,
+  type AuthRuntimeConfig,
+} from './adapters/identity/auth-runtime-config.js'
+export {
+  createRemoteOidcPrincipalVerifier,
+  type OidcPrincipalVerifierConfig,
+} from './adapters/identity/oidc-principal-verifier.js'

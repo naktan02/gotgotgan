@@ -9,8 +9,20 @@ services:
       HOSTNAME: ${PLACE_WEB_HOST:?PLACE_WEB_HOST is required}
       PORT: ${PLACE_WEB_PORT:?PLACE_WEB_PORT is required}
       PLACE_FAMILY_NAVIGATION_MANIFEST: ${PLACE_FAMILY_NAVIGATION_MANIFEST:-}
-    ports:
-      - "${PLACE_WEB_PUBLISHED_PORT:?PLACE_WEB_PUBLISHED_PORT is required}:${PLACE_WEB_PORT:?PLACE_WEB_PORT is required}"
+      PLACE_OIDC_RUNTIME_ENABLED: ${PLACE_OIDC_RUNTIME_ENABLED:-false}
+      PLACE_MEMBERSHIP_RUNTIME_ENABLED: ${PLACE_MEMBERSHIP_RUNTIME_ENABLED:-false}
+    expose:
+      - "${PLACE_WEB_PORT:?PLACE_WEB_PORT is required}"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:'+process.env.PORT+'/readyz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
     restart: unless-stopped
 
   backend:
@@ -20,8 +32,19 @@ services:
     environment:
       PLACE_HTTP_HOST: ${PLACE_HTTP_HOST:?PLACE_HTTP_HOST is required}
       PLACE_HTTP_PORT: ${PLACE_HTTP_PORT:?PLACE_HTTP_PORT is required}
-    ports:
-      - "${PLACE_HTTP_PUBLISHED_PORT:?PLACE_HTTP_PUBLISHED_PORT is required}:${PLACE_HTTP_PORT:?PLACE_HTTP_PORT is required}"
+      PLACE_HTTP_RUNTIME_MODE: ${PLACE_HTTP_RUNTIME_MODE:-source-only}
+    expose:
+      - "${PLACE_HTTP_PORT:?PLACE_HTTP_PORT is required}"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:'+process.env.PLACE_HTTP_PORT+'/readyz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
     restart: unless-stopped
 
   worker-check:

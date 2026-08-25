@@ -25,3 +25,10 @@ interface. They cover administrator success, owner-only denial, last-owner prote
 non-disclosure, optimistic conflict, and mutation/audit atomicity. Production pool composition and
 browser-session persistence now have source and real-PostgreSQL evidence; route activation and live
 Identity/Gateway protocol evidence remain separate work.
+
+The same real PostGIS suite constructs the production Backend runtime through its public process
+interface. It proves initial readiness, current-consent publication, verifier injection, membership
+creation, `/v1/me` resolution, server-token non-disclosure, and runtime-owned close using the least-
+privilege Pool. Web readiness tests aggregate activated OIDC and Backend dependencies; source-only
+Playwright confirms disabled optional integrations remain ready without claiming a live Identity
+flow.

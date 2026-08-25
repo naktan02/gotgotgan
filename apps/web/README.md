@@ -15,5 +15,6 @@ source-only start, callback, and POST-only logout handlers fail closed while the
 A colocated membership platform exposes thin current-consent and onboarding routes, resolves bearer
 evidence from the server-side session, and calls only fixed backend paths. It revalidates safe
 projections and has an independent fail-closed runtime so auth does not depend on membership
-internals. It exposes no tokens or internal endpoints. Identity/Gateway
+internals. Process readiness checks the OIDC database and internal Backend only when their deployment
+flags are enabled and publishes no dependency details. It exposes no tokens or internal endpoints. Identity/Gateway
 provisioning, search, maps, and provider imports remain explicitly not integrated.

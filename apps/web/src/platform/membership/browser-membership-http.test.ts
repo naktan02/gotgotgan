@@ -23,6 +23,7 @@ describe('browser membership HTTP', () => {
     const http = createBrowserMembershipHttp({
       resolveAuthRuntime: () => undefined,
       resolveMembershipBackend: () => ({
+        ready: async () => new Response(),
         currentConsents: async () =>
           Response.json({
             consents: [
@@ -50,6 +51,7 @@ describe('browser membership HTTP', () => {
         bff: { resolveSession: async () => undefined },
       }),
       resolveMembershipBackend: () => ({
+        ready: async () => new Response(),
         currentConsents: async () => new Response(),
         onboard: async () => {
           backendCalled = true
@@ -90,6 +92,7 @@ describe('browser membership HTTP', () => {
         },
       }),
       resolveMembershipBackend: () => ({
+        ready: async () => new Response(),
         currentConsents: async () => new Response(),
         onboard: async (token) => {
           observedTokens.push(token)
@@ -145,6 +148,7 @@ describe('browser membership HTTP', () => {
         },
       }),
       resolveMembershipBackend: () => ({
+        ready: async () => new Response(),
         currentConsents: async () => new Response(),
         onboard: async () => new Response(),
       }),

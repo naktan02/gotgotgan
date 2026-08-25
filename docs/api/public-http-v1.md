@@ -7,6 +7,12 @@ return only public projections.
 Product endpoints are added by their owning module transport and published in OpenAPI. The root HTTP
 entrypoint registers them and owns lifecycle only.
 
+`GET /healthz` reports process liveness and does not depend on PostgreSQL, Identity, or another
+process. `GET /readyz` reports 503 with a bounded `unavailable` projection when an explicitly required
+dependency cannot serve traffic. Backend production readiness checks its Pool; Web production
+readiness checks its OIDC Pool and internal Backend. Neither response exposes a dependency address,
+credential, or exception.
+
 The Web process owns reviewed browser-auth handlers at `GET /api/auth/oidc/start`,
 `GET /api/auth/oidc/callback`, and `POST /api/auth/logout`. They delegate to the confidential BFF,
 set no-store and browser hardening headers, return correlated safe problems, and never expose tokens,
@@ -47,3 +53,8 @@ authority-management store. It derives the acting member from bearer evidence, a
 path identifier and `nextRole`, and delegates all administrator/owner, stale-role, and final-owner
 decisions to the access use case. Unauthorized callers receive 403 before target lookup. Outcomes
 are safe projections or stable 404/409/503 problems; raw principal and audit details are excluded.
+
+The backend production composition registers these reviewed access transports together only after
+protected configuration, OIDC verifier construction, and an initial PostgreSQL readiness query
+succeed. `source-only` mode registers none of them. This is deployable source, not evidence of an
+active Identity client or Gateway route.
