@@ -425,11 +425,20 @@ test('database preparation confines runtime authority and persists Place access 
       transactionTtlSeconds: 300,
       sessionTtlSeconds: 3600,
     }
+    let oidcNow = new Date('2026-08-25T12:10:00.000Z')
     const entropy = [
       'transaction-opaque-id',
       'oauth-state-secret',
       'nonce-secret',
       'pkce-verifier-secret',
+      'expired-transaction-a',
+      'expired-state-a',
+      'expired-nonce-a',
+      'expired-pkce-a',
+      'expired-transaction-b',
+      'expired-state-b',
+      'expired-nonce-b',
+      'expired-pkce-b',
     ]
     oidcRuntimeA = await createOidcProcessRuntime({
       database: {
@@ -440,13 +449,14 @@ test('database preparation confines runtime authority and persists Place access 
       },
       encryption,
       bffConfig: oidcConfig,
+      cleanupBatchSize: 1,
       provider: {
         buildAuthorizationUrl: async () => 'https://identity.example/oauth/v2/authorize',
         exchangeAuthorizationCode: async () => { throw new Error('not used') },
       },
       randomValue: () => entropy.shift(),
       calculatePkceChallenge: async () => 'pkce-challenge',
-      now: () => new Date('2026-08-25T12:10:00.000Z'),
+      now: () => oidcNow,
     })
     const startResponse = await oidcRuntimeA.bff.start()
     assert.equal(startResponse.status, 302)
@@ -464,6 +474,7 @@ test('database preparation confines runtime authority and persists Place access 
       },
       encryption,
       bffConfig: oidcConfig,
+      cleanupBatchSize: 1,
       provider: {
         buildAuthorizationUrl: async () => { throw new Error('not used') },
         exchangeAuthorizationCode: async () => ({
@@ -474,7 +485,7 @@ test('database preparation confines runtime authority and persists Place access 
       },
       randomValue: () => 'session-opaque-id',
       calculatePkceChallenge: async () => { throw new Error('not used') },
-      now: () => new Date('2026-08-25T12:10:00.000Z'),
+      now: () => oidcNow,
     })
     const callbackRequest = new Request(
       'https://place.example/api/auth/oidc/callback?code=code&state=oauth-state-secret',
@@ -522,8 +533,19 @@ test('database preparation confines runtime authority and persists Place access 
       expiresAt: '2026-08-25T12:40:00.000Z',
     })
     assert.equal((await oidcRuntimeA.bff.callback(callbackRequest)).status, 400)
-    assert.equal((await oidcRuntimeB.bff.logout(sessionRequest)).status, 303)
+    assert.equal((await oidcRuntimeA.bff.start()).status, 302)
+    assert.equal((await oidcRuntimeA.bff.start()).status, 302)
+    oidcNow = new Date('2026-08-25T12:50:00.000Z')
+    assert.deepEqual(await oidcRuntimeA.cleanupExpired(), {
+      transactionsDeleted: 1,
+      sessionsDeleted: 1,
+    })
+    assert.deepEqual(await oidcRuntimeA.cleanupExpired(), {
+      transactionsDeleted: 1,
+      sessionsDeleted: 0,
+    })
     assert.equal(await oidcRuntimeA.bff.resolveSession(sessionRequest), undefined)
+    assert.equal((await oidcRuntimeB.bff.logout(sessionRequest)).status, 303)
 
     const rolesResult = await administratorClient.query(
       `

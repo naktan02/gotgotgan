@@ -218,6 +218,50 @@ export class PostgresOidcStore implements OidcTransactionStore, BrowserSessionSt
     await this.#pool.query('DELETE FROM browser_auth.sessions WHERE id = $1', [id])
   }
 
+  async cleanupExpired(
+    now: Date,
+    batchSize: number,
+  ): Promise<Readonly<{ transactionsDeleted: number; sessionsDeleted: number }>> {
+    if (
+      !Number.isFinite(now.getTime()) ||
+      !Number.isInteger(batchSize) ||
+      batchSize <= 0 ||
+      batchSize > 1_000
+    ) {
+      throw new Error('OIDC store cleanup configuration is invalid')
+    }
+    const transactionsDeleted = await this.#deleteExpired(
+      'oidc_transactions',
+      now,
+      batchSize,
+    )
+    const sessionsDeleted = await this.#deleteExpired('sessions', now, batchSize)
+    return { transactionsDeleted, sessionsDeleted }
+  }
+
+  async #deleteExpired(
+    table: 'oidc_transactions' | 'sessions',
+    now: Date,
+    batchSize: number,
+  ): Promise<number> {
+    const result = await this.#pool.query(
+      `
+        WITH expired AS (
+          SELECT id
+          FROM browser_auth.${table}
+          WHERE expires_at <= $1
+          ORDER BY expires_at, id
+          LIMIT $2
+        )
+        DELETE FROM browser_auth.${table} records
+        USING expired
+        WHERE records.id = expired.id
+      `,
+      [now.toISOString(), batchSize],
+    )
+    return result.rowCount ?? 0
+  }
+
   #encrypt(kind: StoredKind, id: string, expiresAt: string, value: unknown) {
     exactIsoTimestamp(expiresAt)
     const initializationVector = copyBytes(randomBytes(12))

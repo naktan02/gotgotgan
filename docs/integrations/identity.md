@@ -19,5 +19,6 @@ unprovisioned input, not evidence of an active connection. The web BFF core and 
 adapter implement Authorization Code + PKCE S256 with state and nonce. Login transactions, access
 tokens, refresh tokens, and sessions remain server-side; the browser receives only host-bound opaque
 cookies. Encrypted PostgreSQL storage now atomically consumes transactions and shares sessions across
-Web replicas. Route activation still waits for Next route composition, protected runtime configuration,
-bounded expiry cleanup, Identity provisioning, and Gateway validation.
+Web replicas. Protected secret-file loading and bounded expiry cleanup exist as source-only Web
+interfaces. Route activation still waits for actual Next route/lifecycle composition, Identity
+provisioning, and Gateway validation.

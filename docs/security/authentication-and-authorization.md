@@ -31,8 +31,10 @@ contain opaque identifiers only. Logout deletes server-side session state before
 In-memory stores are not an allowed production composition. The PostgreSQL adapter encrypts complete
 transaction and token payloads with AES-256-GCM before storage, binds their kind/ID/expiry/key ID as
 authenticated data, atomically consumes transactions, and supports retained decryption keys during
-rotation. The Web process factory owns a bounded pool and explicit close operation; no public auth
-route or deployment connection is active yet.
+rotation. Protected one-line secret-file configuration supplies the database URL, confidential client
+secret, and rotatable keyring. The Web process factory owns a bounded pool, at-most-1,000-row expired
+record cleanup per table, and explicit close operation; no public auth route or deployment connection
+is active yet.
 
 Authority-role changes go through the `access` module's single mutation interface. Administrators
 can manage only non-owner roles. Any operation touching the current owner role or assigning the owner

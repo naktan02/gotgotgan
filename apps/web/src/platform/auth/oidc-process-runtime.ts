@@ -12,7 +12,7 @@ import {
   type OidcStoreEncryption,
 } from './postgres-oidc-store.ts'
 
-type OidcDatabaseConfig = Readonly<{
+export type OidcDatabaseConfig = Readonly<{
   connectionString: string
   maxConnections: number
   idleTimeoutMilliseconds: number
@@ -23,6 +23,7 @@ export type OidcProcessRuntimeConfig = Readonly<{
   database: OidcDatabaseConfig
   encryption: OidcStoreEncryption
   bffConfig: OidcBffConfig
+  cleanupBatchSize: number
   provider: OidcProvider
   randomValue?: () => string
   calculatePkceChallenge?: (verifier: string) => Promise<string>
@@ -61,6 +62,14 @@ async function calculatePkceChallenge(verifier: string): Promise<string> {
 
 export async function createOidcProcessRuntime(config: OidcProcessRuntimeConfig) {
   validateDatabaseConfig(config.database)
+  if (
+    !Number.isInteger(config.cleanupBatchSize) ||
+    config.cleanupBatchSize <= 0 ||
+    config.cleanupBatchSize > 1_000
+  ) {
+    throw new Error('OIDC cleanup configuration is invalid')
+  }
+  const now = config.now ?? (() => new Date())
   const pool = new Pool({
     connectionString: config.database.connectionString,
     max: config.database.maxConnections,
@@ -85,8 +94,9 @@ export async function createOidcProcessRuntime(config: OidcProcessRuntimeConfig)
         sessionStore: store,
         randomValue: config.randomValue ?? secureRandomValue,
         calculatePkceChallenge: config.calculatePkceChallenge ?? calculatePkceChallenge,
-        now: config.now ?? (() => new Date()),
+        now,
       }),
+      cleanupExpired: () => store.cleanupExpired(now(), config.cleanupBatchSize),
       close,
     }
   } catch (error) {

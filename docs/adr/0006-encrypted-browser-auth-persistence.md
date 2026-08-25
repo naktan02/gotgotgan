@@ -26,8 +26,9 @@ select, insert, and delete these records. A Web process composition owns its bou
 readiness before returning the BFF interface, and exposes one explicit asynchronous close operation.
 
 This decision does not activate a Next.js route, Identity client, Gateway route, or application
-database deployment. Those remain separately gated. A bounded expired-record cleanup operation and
-secret-file configuration must exist before activation.
+database deployment. Those remain separately gated. The runtime now has a bounded expired-record
+cleanup operation and protected secret-file configuration; actual Next lifecycle/route installation
+remains required before activation.
 
 ## Consequences
 
@@ -44,6 +45,7 @@ secret-file configuration must exist before activation.
 - `backend/migrations/000003_create_browser_auth_persistence.ts`
 - `apps/web/src/platform/auth/postgres-oidc-store.ts`
 - `apps/web/src/platform/auth/oidc-process-runtime.ts`
+- `apps/web/src/platform/auth/oidc-runtime-config.ts`
 - `backend/tests/integration/database-migrations.test.mjs`
 
 ## Supersession condition

@@ -9,5 +9,9 @@ Future failure recovery persists job and evidence state before retry. Process de
 success or permit simultaneous ownership after lease expiry.
 
 The source-only Web OIDC process composition owns pool creation, readiness, and asynchronous close.
-OIDC transactions are one-time database records and sessions fail closed on expiry. Bounded cleanup
-for abandoned expired records and installation into the actual Next process remain activation gates.
+OIDC transactions are one-time database records and sessions fail closed on expiry. The source-only
+runtime deletes abandoned expired transactions and sessions in independently bounded batches of at
+most 1,000 rows per table. Concurrent cleanup calls may select the same expired IDs; only one delete
+succeeds and a later call continues remaining work, so cleanup is retryable and never requires UPDATE
+authority. Installation, scheduling, drain, and reviewed routes in the actual Next process remain
+activation gates.
