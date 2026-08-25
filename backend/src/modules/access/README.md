@@ -23,8 +23,10 @@ Consumers import only `index.ts`. The domain is framework-free. Application port
 in-memory implementations remain test-only. The Stage 3 PostgreSQL adapter accepts a caller-owned
 pool and implements membership resolution, atomic onboarding/consent, initial-owner bootstrap,
 access audit, and atomic role changes without exposing SQL rows. It is source-only and onboarding is
-not yet wired into HTTP/Worker. Identity adapters validate evidence but never decide Place roles or
-grades. `administration` may expose management workflows later, but it must call this module's public
+wired only to an optional source-only HTTP transport, not production composition. That transport
+accepts only bounded consent pairs, derives the principal from verified bearer evidence, and returns
+safe correlated outcomes. Identity adapters validate evidence but never decide Place roles or grades.
+`administration` may expose management workflows later, but it must call this module's public
 interface instead of recreating access rules.
 
 Allowed dependencies are this module's inner layers and business-neutral platform security helpers.

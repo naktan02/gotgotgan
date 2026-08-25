@@ -33,8 +33,15 @@ transaction and token payloads with AES-256-GCM before storage, binds their kind
 authenticated data, atomically consumes transactions, and supports retained decryption keys during
 rotation. Protected one-line secret-file configuration supplies the database URL, confidential client
 secret, and rotatable keyring. The Web process factory owns a bounded pool, at-most-1,000-row expired
-record cleanup per table, and explicit close operation; no public auth route or deployment connection
-is active yet.
+record cleanup per table, and explicit close operation. Reviewed browser-auth handlers exist
+source-only and fail closed; no Identity/Gateway deployment connection is active.
+
+The source-only onboarding HTTP transport accepts only bounded consent document/version pairs. It
+derives the External Principal exclusively from verified bearer evidence and derives Authority Role,
+User Grade, and Product Tier exclusively from Place policy or the existing membership. Malformed JSON,
+unsupported browser fields, stale consent, and persistence failures return correlated safe problems
+without credential, database, or verifier details. The production HTTP composition does not register
+this transport until its verifier, policy, ID source, and transactional store are supplied.
 
 Authority-role changes go through the `access` module's single mutation interface. Administrators
 can manage only non-owner roles. Any operation touching the current owner role or assigning the owner

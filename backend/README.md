@@ -11,8 +11,11 @@ production composition does not connect it yet. The platform database preparatio
 Place-owned roles, installs PostGIS as the administrator, and runs versioned migrations as
 `place_owner`; it is not application startup and supplies no runtime connection to HTTP or Worker.
 The access module has a real PostgreSQL adapter for membership, bootstrap, authorization audit, and
-atomic authority-role changes, but no production composition supplies its caller-owned pool yet. No
-application database connection, job claim, provider, browser profile, or external integration exists.
+atomic authority-role changes. Its optional source-only onboarding transport verifies bearer
+evidence, rejects browser authority fields, and delegates current-consent creation to the access use
+case. No production composition supplies its verifier, policy, ID source, or caller-owned pool yet.
+No application database connection, job claim, provider, browser profile, or external integration
+exists.
 
 Read `src/modules/README.md` before adding a capability. A module keeps domain, application, adapters,
 transport, and tests together; root entrypoints only wire dependencies and own process lifecycle.

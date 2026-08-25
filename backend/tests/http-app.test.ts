@@ -19,4 +19,17 @@ describe('HTTP lifecycle scaffold', () => {
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({ service: 'place', state: 'ok' })
   })
+
+  it('does not register source-only membership onboarding without dependencies', async () => {
+    const application = buildHttpApplication()
+    applications.add(application)
+
+    const response = await application.inject({
+      method: 'POST',
+      url: '/v1/memberships/onboarding',
+      payload: { acceptedConsents: [] },
+    })
+
+    expect(response.statusCode).toBe(404)
+  })
 })

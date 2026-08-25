@@ -10,5 +10,6 @@ semantics and evolution.
 - `errors-and-versioning.md`: compatibility and error envelopes.
 
 `/healthz` and `/readyz` are active lifecycle routes. The browser OIDC start, callback, and logout
-handlers exist source-only and fail closed until the runtime is explicitly activated. Product HTTP,
-worker jobs, events, and Tools remain unconnected unless their documents say otherwise.
+handlers plus consent-gated membership onboarding exist source-only and fail closed or remain
+unregistered until their dependencies are explicitly supplied. Other product HTTP, worker jobs,
+events, and Tools remain unconnected unless their documents say otherwise.

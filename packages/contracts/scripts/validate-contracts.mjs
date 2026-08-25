@@ -33,6 +33,32 @@ if (activeFixture.deliveryState !== 'active' || activeFixture.items.length < 2) 
 if (openApi.paths['/v1/me']?.get?.security?.[0]?.placeBearer?.length !== 0) {
   failures.push('GET /v1/me must require the Place bearer security scheme')
 }
+const onboardingOperation = openApi.paths['/v1/memberships/onboarding']?.post
+const onboardingRequest = openApi.components.schemas.MembershipOnboardingRequest
+if (
+  onboardingOperation?.operationId !== 'completePlaceMembershipOnboarding' ||
+  onboardingOperation.security?.[0]?.placeBearer?.length !== 0 ||
+  openApi.paths['/v1/memberships/onboarding']?.get !== undefined
+) {
+  failures.push('Membership onboarding must remain a bearer-authenticated POST-only operation')
+}
+if (
+  onboardingRequest?.additionalProperties !== false ||
+  onboardingRequest?.properties?.authorityRole !== undefined ||
+  onboardingRequest?.properties?.userGrade !== undefined ||
+  onboardingRequest?.properties?.productTier !== undefined ||
+  onboardingRequest?.properties?.principal !== undefined
+) {
+  failures.push('Membership onboarding cannot accept identity or membership authority fields')
+}
+if (
+  onboardingOperation?.responses?.['409']?.$ref !==
+    '#/components/responses/MembershipConsentRequired' ||
+  onboardingOperation?.responses?.['503']?.$ref !==
+    '#/components/responses/MembershipOnboardingUnavailable'
+) {
+  failures.push('Membership onboarding must publish stable consent and availability failures')
+}
 if (
   openApi.paths['/api/auth/oidc/start']?.get?.operationId !== 'startPlaceBrowserLogin' ||
   openApi.paths['/api/auth/oidc/callback']?.get?.operationId !==

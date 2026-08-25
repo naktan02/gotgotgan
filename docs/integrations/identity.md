@@ -29,3 +29,8 @@ They consume the process-owned runtime through a shared lifecycle registry and f
 sanitized correlated problem while it is disabled. This completes the route source gate only;
 Identity client provisioning, deployment secret mounting, and Gateway validation are still required
 before activation.
+
+The backend membership-onboarding transport is also source-only. It independently verifies bearer
+evidence into `(issuer, subject)` and accepts no browser-supplied principal or Place authority fields.
+This requires no Place-specific Identity table or login change. Production composition and the Web
+BFF-to-backend call remain intentionally absent.

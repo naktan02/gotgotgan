@@ -20,7 +20,12 @@ Missing/invalid evidence returns a stable 401 problem, an unmapped principal ret
 suspended or unauthorized membership returns an audited 403. The route is source-only until
 production composition supplies the verifier, Place membership persistence, and audit sink.
 
-Membership onboarding is currently an application/persistence interface rather than a public HTTP
-route. Login never invokes it implicitly. A future route must verify the principal, compare the
-submitted consent versions with server-selected current policy, and call the single transactional
-onboarding interface without accepting authority-role input.
+`POST /v1/memberships/onboarding` is a source-only bearer-authenticated transport registered only
+when its verifier, current consent policy, ID source, and transactional store are injected. Login
+never invokes it implicitly. The strict request accepts only bounded `acceptedConsents`; principal,
+Authority Role, User Grade, and Product Tier are rejected as browser input. The handler verifies the
+principal, compares consent versions with server-selected current policy, and calls the single
+transactional onboarding interface. It returns 201 for a new non-elevated membership, 200 for an
+idempotently resolved existing membership, and safe correlated problems for malformed requests,
+invalid evidence, stale consent, or unavailable persistence. Production composition, Web BFF
+forwarding, Identity provisioning, and Gateway routing remain absent.

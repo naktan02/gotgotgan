@@ -16,3 +16,9 @@ public-path success flow, refresh/expiry, missing or
 replayed transaction, unmapped membership, suspended membership, and sanitized provider failure
 through the public Gateway path; browser assertions must prove that no token or internal endpoint is
 observable.
+
+Backend HTTP interface tests cover onboarding creation, idempotent existing-member resolution,
+missing bearer evidence, unsupported browser authority fields, malformed JSON, stale consent, and
+sanitized persistence failure. Browser Playwright onboarding remains gated until the Web BFF owns the
+server-side call and a test composition can exercise the complete session path without exposing an
+access token.

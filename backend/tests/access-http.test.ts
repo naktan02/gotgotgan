@@ -27,6 +27,9 @@ describe('GET /v1/me', () => {
 
     expect(response.statusCode).toBe(401)
     expect(response.headers['www-authenticate']).toBe('Bearer')
+    expect(response.headers['cache-control']).toBe('no-store')
+    expect(response.headers['x-content-type-options']).toBe('nosniff')
+    expect(response.headers['content-type']).toContain('application/problem+json')
     expect(response.json()).toMatchObject({
       type: 'urn:place:error:authentication-required',
       title: 'Authentication required',
@@ -185,5 +188,285 @@ describe('GET /v1/me', () => {
     })
     expect(response.body).not.toContain('subject-1')
     expect(response.body).not.toContain('verified-token')
+  })
+})
+
+type HttpApplicationOptions = NonNullable<Parameters<typeof buildHttpApplication>[0]>
+type AccessDependencies = NonNullable<HttpApplicationOptions['access']>
+type OnboardingDependencies = NonNullable<AccessDependencies['onboarding']>
+
+function buildOnboardingApplication(input: Readonly<{
+  store: OnboardingDependencies['store']
+  requiredConsents?: OnboardingDependencies['policy']['requiredConsents']
+  nextMembershipId?: () => string
+}>): ReturnType<typeof buildHttpApplication> {
+  const application = buildHttpApplication({
+    access: {
+      principalVerifier: {
+        verify: async () => ({ issuer: 'https://identity.example', subject: 'subject-1' }),
+      },
+      membershipDirectory: { findByPrincipal: async () => undefined },
+      auditSink: { record: async () => undefined },
+      onboarding: {
+        policy: {
+          requiredConsents: input.requiredConsents ?? [
+            { document: 'terms-of-service', version: '2026-08-26' },
+          ],
+          initialUserGrade: 'newcomer',
+          initialProductTier: 'free',
+        },
+        store: input.store,
+        nextMembershipId: input.nextMembershipId ?? (() => 'membership-1'),
+      },
+      now: () => new Date('2026-08-26T00:00:00.000Z'),
+    },
+  })
+  applications.add(application)
+  return application
+}
+
+describe('POST /v1/memberships/onboarding', () => {
+  it('requires verified bearer evidence before membership onboarding', async () => {
+    let storeCalled = false
+    const application = buildOnboardingApplication({
+      store: {
+        attemptAndAuditOnboarding: async () => {
+          storeCalled = true
+          throw new Error('must not run')
+        },
+      },
+    })
+
+    const response = await application.inject({
+      method: 'POST',
+      url: '/v1/memberships/onboarding',
+      payload: {
+        acceptedConsents: [
+          { document: 'terms-of-service', version: '2026-08-26' },
+        ],
+      },
+    })
+
+    expect(response.statusCode).toBe(401)
+    expect(response.headers['www-authenticate']).toBe('Bearer')
+    expect(response.json()).toMatchObject({
+      code: 'PLACE_AUTHENTICATION_REQUIRED',
+      status: 401,
+      correlationRef: expect.any(String),
+    })
+    expect(storeCalled).toBe(false)
+  })
+
+  it('creates a non-elevated membership from verified evidence and current consent', async () => {
+    const application = buildOnboardingApplication({
+      requiredConsents: [
+        { document: 'terms-of-service', version: '2026-08-26' },
+        { document: 'privacy-policy', version: '2026-08-26' },
+      ],
+      store: {
+        attemptAndAuditOnboarding: async (attempt) => ({
+          status: 'created',
+          membership: attempt.membership,
+        }),
+      },
+    })
+
+    const response = await application.inject({
+      method: 'POST',
+      url: '/v1/memberships/onboarding',
+      headers: { authorization: 'Bearer verified-token' },
+      payload: {
+        acceptedConsents: [
+          { document: 'privacy-policy', version: '2026-08-26' },
+          { document: 'terms-of-service', version: '2026-08-26' },
+        ],
+      },
+    })
+
+    expect(response.statusCode).toBe(201)
+    expect(response.headers['cache-control']).toBe('no-store')
+    expect(response.json()).toEqual({
+      status: 'created',
+      membershipId: 'membership-1',
+      authorityRole: 'member',
+      userGrade: 'newcomer',
+      productTier: 'free',
+    })
+    expect(response.body).not.toContain('subject-1')
+    expect(response.body).not.toContain('verified-token')
+  })
+
+  it('rejects browser-supplied membership authority and identity fields', async () => {
+    let storeCalled = false
+    const application = buildOnboardingApplication({
+      store: {
+        attemptAndAuditOnboarding: async () => {
+          storeCalled = true
+          throw new Error('must not run')
+        },
+      },
+    })
+
+    const response = await application.inject({
+      method: 'POST',
+      url: '/v1/memberships/onboarding',
+      headers: { authorization: 'Bearer verified-token' },
+      payload: {
+        acceptedConsents: [
+          { document: 'terms-of-service', version: '2026-08-26' },
+        ],
+        authorityRole: 'owner',
+        principal: { issuer: 'https://attacker.example', subject: 'attacker' },
+      },
+    })
+
+    expect(response.statusCode).toBe(400)
+    expect(response.json()).toMatchObject({
+      code: 'PLACE_ONBOARDING_REQUEST_INVALID',
+      status: 400,
+      retryable: false,
+      correlationRef: expect.any(String),
+    })
+    expect(response.body).not.toContain('owner')
+    expect(response.body).not.toContain('attacker')
+    expect(storeCalled).toBe(false)
+  })
+
+  it('returns the same safe invalid-request problem for malformed JSON', async () => {
+    const application = buildOnboardingApplication({
+      store: {
+        attemptAndAuditOnboarding: async () => {
+          throw new Error('must not run')
+        },
+      },
+    })
+
+    const response = await application.inject({
+      method: 'POST',
+      url: '/v1/memberships/onboarding',
+      headers: {
+        authorization: 'Bearer verified-token',
+        'content-type': 'application/json',
+      },
+      payload: '{"acceptedConsents":',
+    })
+
+    expect(response.statusCode).toBe(400)
+    expect(response.json()).toMatchObject({
+      code: 'PLACE_ONBOARDING_REQUEST_INVALID',
+      status: 400,
+      correlationRef: expect.any(String),
+    })
+    expect(response.body).not.toContain('Unexpected')
+  })
+
+  it('returns a stable conflict when the accepted consent set is stale', async () => {
+    let storeCalled = false
+    const application = buildOnboardingApplication({
+      requiredConsents: [
+        { document: 'terms-of-service', version: '2026-08-26' },
+        { document: 'privacy-policy', version: '2026-08-26' },
+      ],
+      store: {
+        attemptAndAuditOnboarding: async () => {
+          storeCalled = true
+          throw new Error('must not run')
+        },
+      },
+    })
+
+    const response = await application.inject({
+      method: 'POST',
+      url: '/v1/memberships/onboarding',
+      headers: { authorization: 'Bearer verified-token' },
+      payload: {
+        acceptedConsents: [
+          { document: 'terms-of-service', version: '2026-08-25' },
+        ],
+      },
+    })
+
+    expect(response.statusCode).toBe(409)
+    expect(response.headers['cache-control']).toBe('no-store')
+    expect(response.json()).toMatchObject({
+      type: 'urn:place:error:membership-consent-required',
+      code: 'PLACE_MEMBERSHIP_CONSENT_REQUIRED',
+      status: 409,
+      retryable: true,
+      correlationRef: expect.any(String),
+    })
+    expect(storeCalled).toBe(false)
+  })
+
+  it('returns the existing membership without replacing any membership axis', async () => {
+    const application = buildOnboardingApplication({
+      nextMembershipId: () => 'membership-unused',
+      store: {
+        attemptAndAuditOnboarding: async (attempt) => ({
+          status: 'existing',
+          membership: {
+            ...attempt.membership,
+            id: 'membership-existing',
+            status: 'suspended',
+            authorityRole: 'owner',
+            userGrade: 'founding-member',
+            productTier: 'sponsor',
+          },
+        }),
+      },
+    })
+
+    const response = await application.inject({
+      method: 'POST',
+      url: '/v1/memberships/onboarding',
+      headers: { authorization: 'Bearer verified-token' },
+      payload: {
+        acceptedConsents: [
+          { document: 'terms-of-service', version: '2026-08-26' },
+        ],
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      status: 'existing',
+      membershipId: 'membership-existing',
+      authorityRole: 'owner',
+      userGrade: 'founding-member',
+      productTier: 'sponsor',
+    })
+  })
+
+  it('sanitizes onboarding persistence failures as a retryable unavailable problem', async () => {
+    const application = buildOnboardingApplication({
+      store: {
+        attemptAndAuditOnboarding: async () => {
+          throw new Error('database-password at internal.database.example')
+        },
+      },
+    })
+
+    const response = await application.inject({
+      method: 'POST',
+      url: '/v1/memberships/onboarding',
+      headers: { authorization: 'Bearer verified-token' },
+      payload: {
+        acceptedConsents: [
+          { document: 'terms-of-service', version: '2026-08-26' },
+        ],
+      },
+    })
+
+    expect(response.statusCode).toBe(503)
+    expect(response.headers['cache-control']).toBe('no-store')
+    expect(response.headers['x-content-type-options']).toBe('nosniff')
+    expect(response.json()).toMatchObject({
+      code: 'PLACE_MEMBERSHIP_ONBOARDING_UNAVAILABLE',
+      status: 503,
+      retryable: true,
+      correlationRef: expect.any(String),
+    })
+    expect(response.body).not.toContain('database-password')
+    expect(response.body).not.toContain('internal.database.example')
   })
 })

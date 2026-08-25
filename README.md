@@ -12,7 +12,9 @@ a source-only physical PostGIS declaration, a tested database preparation/migrat
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
 Web OIDC secret-file loading, fail-closed Next startup installation, periodic bounded expiry cleanup,
 signal-owned pool closure, and reviewed fail-closed browser auth handlers also exist as source-only
-platform interfaces. There is no active
+platform interfaces. A strict bearer-authenticated onboarding transport now connects verified
+principal evidence and current consent to the atomic membership use case, but remains unregistered in
+production composition. There is no active
 application database connection, provider account, map credential,
 Identity client, Gateway route, or AI Tool connection.
 

@@ -3,7 +3,8 @@
 Production startup requires deployment-injected `PLACE_HTTP_HOST` and `PLACE_HTTP_PORT`; the source
 contains no address default. The process owns listen, readiness, signal handling, drain, and close.
 Health and readiness are the only active deployment flow. Source-only `GET /v1/me` registration and
-the browser-auth routes are not an active Identity flow without their required dependencies. The
+membership onboarding remain conditionally unregistered, and the browser-auth routes are not an
+active Identity flow without their required dependencies. The
 source-only browser-auth process factory owns bounded pool creation, readiness, expired-record
 cleanup, and close against encrypted PostgreSQL storage.
 
