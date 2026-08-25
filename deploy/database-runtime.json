@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "place-database-runtime.v1",
+  "deliveryState": "source-only",
+  "topology": "place-owned-physical-postgis",
+  "platform": "linux/amd64",
+  "image": "docker.io/postgis/postgis@sha256:35d90a44f150ef26c1c734e86e3f888753ca7fd6e1321d85e73f66a7dbffb531",
+  "database": "place",
+  "roles": {
+    "administrator": "place_admin",
+    "migration": "place_owner",
+    "runtime": "place_app"
+  },
+  "extensions": [
+    "postgis"
+  ],
+  "configuration": {
+    "administratorUserEnvironment": "PLACE_POSTGRES_ADMIN_USER",
+    "administratorPasswordFileEnvironment": "PLACE_POSTGRES_ADMIN_PASSWORD_FILE",
+    "migrationPasswordFileEnvironment": "PLACE_MIGRATION_DATABASE_PASSWORD_FILE",
+    "runtimePasswordFileEnvironment": "PLACE_DATABASE_PASSWORD_FILE",
+    "migrationDatabaseUrlFileEnvironment": "PLACE_MIGRATION_DATABASE_URL_FILE",
+    "runtimeDatabaseUrlFileEnvironment": "PLACE_DATABASE_URL_FILE",
+    "dataNetworkEnvironment": "PLACE_DATA_NETWORK",
+    "dataVolumeEnvironment": "PLACE_POSTGRES_DATA_VOLUME"
+  },
+  "backup": {
+    "unit": "database",
+    "isolatedRestoreRequired": true
+  }
+}

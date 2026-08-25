@@ -6,11 +6,10 @@ Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed doc
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **source-only, Stage 2 in progress**. Independent web/backend composition
-roots, Place access policy/OIDC adapters, contracts, architecture checks, and deterministic shell
-tests exist. There is
-no active database, provider account, map credential, Identity client, Gateway route, or AI Tool
-connection.
+Current delivery state: **source-only, Stage 3 in progress**. Independent web/backend composition
+roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
+and a source-only physical PostGIS declaration exist. There is no active application database
+connection, provider account, map credential, Identity client, Gateway route, or AI Tool connection.
 
 ## Repository boundaries
 
@@ -20,7 +19,7 @@ backend/                   TypeScript HTTP/worker/module boundary
 packages/contracts/        owner-controlled machine-readable contracts
 tests/                     repository-wide architecture, contract, integration, and E2E tests
 docs/                      routed product, architecture, domain, API, data, security, and operations docs
-deploy/                    future deployment declarations; no active route
+deploy/                    source-only deployment declarations; no active public route
 ```
 
 Read [`docs/README.md`](docs/README.md) before working. The workspace plan lives at

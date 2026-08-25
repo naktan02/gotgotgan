@@ -20,6 +20,9 @@ PostGIS runtime without weakening spatial behavior.
 The initial topology is resource-efficient and preserves a database-level extraction seam. Stage 3
 is blocked on the Infra gate; manual shared-runtime modification is not an alternative.
 
+Stage 3 evaluated this gate against Infra Runtime commit `d150f4d`; the gate was not available.
+ADR 0004 activates the Place-owned physical fallback without changing this conditional policy.
+
 ## Supersession condition
 
 Revisit after measured isolation, scaling, extension, or recovery requirements show a dedicated

@@ -1,0 +1,49 @@
+name: place
+
+services:
+  postgres:
+    image: docker.io/postgis/postgis@sha256:35d90a44f150ef26c1c734e86e3f888753ca7fd6e1321d85e73f66a7dbffb531
+    platform: linux/amd64
+    environment:
+      POSTGRES_DB: place
+      POSTGRES_USER: ${PLACE_POSTGRES_ADMIN_USER:?PLACE_POSTGRES_ADMIN_USER is required}
+      POSTGRES_PASSWORD_FILE: /run/secrets/place_postgres_admin_password
+    command:
+      - postgres
+      - -c
+      - password_encryption=scram-sha-256
+      - -c
+      - idle_in_transaction_session_timeout=15000
+      - -c
+      - log_lock_waits=on
+      - -c
+      - log_min_duration_statement=2000
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d place"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
+    stop_grace_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - place_postgres_data:/var/lib/postgresql/data
+    secrets:
+      - place_postgres_admin_password
+    networks:
+      - place-data
+
+volumes:
+  place_postgres_data:
+    name: ${PLACE_POSTGRES_DATA_VOLUME:?PLACE_POSTGRES_DATA_VOLUME is required}
+
+secrets:
+  place_postgres_admin_password:
+    file: ${PLACE_POSTGRES_ADMIN_PASSWORD_FILE:?PLACE_POSTGRES_ADMIN_PASSWORD_FILE is required}
+
+networks:
+  place-data:
+    external: true
+    name: ${PLACE_DATA_NETWORK:?PLACE_DATA_NETWORK is required}

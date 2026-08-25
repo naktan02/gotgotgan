@@ -7,8 +7,8 @@ platform deployment:
 - `backend`: always-on Fastify HTTP runtime; and
 - `worker-check`: opt-in verification profile for the separately runnable worker artifact.
 
-All host and port values are required environment inputs. There is no database, provider, Identity,
-Gateway, map, or AI connection. Later declarations reference secrets and addresses by
+All host and port values are required environment inputs. There is no active database connection,
+provider, Identity, Gateway, map, or AI connection. Declarations reference secrets and addresses by
 deployment-owned names, publish no browser credentials, and follow workspace onboarding gates before
 Gateway exposure.
 
@@ -16,6 +16,24 @@ Gateway exposure.
 expand `PLACE_PUBLIC_ORIGIN`, deliver the generated client ID/secret through the approved secret
 sink, and run only after callback routes, shared session storage, Gateway routing, health validation,
 and rollback are ready. The manifest itself contains no credential and does not activate Identity.
+
+`database-runtime.json` and `compose.database.yml` declare the source-only Place-owned physical
+PostGIS fallback selected by ADR 0004. The database Compose file remains under the `place` project,
+publishes no host port, and requires deployment-injected `PLACE_POSTGRES_ADMIN_USER`,
+`PLACE_POSTGRES_ADMIN_PASSWORD_FILE`, distinct migration/runtime password and database-URL secret
+files declared in `database-runtime.json`, `PLACE_POSTGRES_DATA_VOLUME`, and `PLACE_DATA_NETWORK`. It
+must not be combined with application Compose until migration/runtime role provisioning, schema,
+least-privilege, spatial-index, backup/restore, and rollback gates pass.
+
+Validate declaration expansion without starting it:
+
+```powershell
+$env:PLACE_POSTGRES_ADMIN_USER='validation-only'
+$env:PLACE_POSTGRES_ADMIN_PASSWORD_FILE='<protected-file-path>'
+$env:PLACE_POSTGRES_DATA_VOLUME='validation-volume'
+$env:PLACE_DATA_NETWORK='validation-network'
+docker compose -f deploy/compose.database.yml config
+```
 
 The image base is digest-pinned to the Node 22 image already proved by Game Studio. With Docker
 running, validate targets from the repository root:

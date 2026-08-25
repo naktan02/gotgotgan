@@ -6,9 +6,10 @@ const targets = [
   new URL('../fixtures/family-navigation.not-integrated.v1.json', import.meta.url),
   new URL('../fixtures/family-navigation.active.test.v1.json', import.meta.url),
   new URL('../../../deploy/identity/oidc-client.json', import.meta.url),
+  new URL('../../../deploy/database-runtime.json', import.meta.url),
 ]
 
-const [openApi, familySchema, fixture, activeFixture, oidcClient] = await Promise.all(
+const [openApi, familySchema, fixture, activeFixture, oidcClient, databaseRuntime] = await Promise.all(
   targets.map(async (target) => JSON.parse(await readFile(target, 'utf8'))),
 )
 
@@ -50,6 +51,50 @@ if (
   oidcClient.assertRolesInIdToken !== false
 ) {
   failures.push('Identity tokens cannot assert Place-owned roles')
+}
+if (
+  databaseRuntime.schemaVersion !== 'place-database-runtime.v1' ||
+  databaseRuntime.deliveryState !== 'source-only' ||
+  databaseRuntime.topology !== 'place-owned-physical-postgis'
+) {
+  failures.push('Place database runtime must remain an inactive Place-owned physical PostGIS declaration')
+}
+if (
+  databaseRuntime.platform !== 'linux/amd64' ||
+  !/^docker\.io\/postgis\/postgis@sha256:[0-9a-f]{64}$/.test(databaseRuntime.image)
+) {
+  failures.push('Place PostGIS image must be an exact linux/amd64 digest')
+}
+if (
+  databaseRuntime.database !== 'place' ||
+  databaseRuntime.roles.administrator === databaseRuntime.roles.migration ||
+  databaseRuntime.roles.administrator === databaseRuntime.roles.runtime ||
+  databaseRuntime.roles.migration === databaseRuntime.roles.runtime
+) {
+  failures.push('Place database administrator, migration, and runtime roles must remain distinct')
+}
+if (
+  databaseRuntime.extensions.length !== 1 ||
+  databaseRuntime.extensions[0] !== 'postgis' ||
+  databaseRuntime.backup.unit !== 'database' ||
+  databaseRuntime.backup.isolatedRestoreRequired !== true
+) {
+  failures.push('Place database runtime must require PostGIS and isolated database restore')
+}
+const databaseSecretFileEnvironments = [
+  databaseRuntime.configuration.administratorPasswordFileEnvironment,
+  databaseRuntime.configuration.migrationPasswordFileEnvironment,
+  databaseRuntime.configuration.runtimePasswordFileEnvironment,
+  databaseRuntime.configuration.migrationDatabaseUrlFileEnvironment,
+  databaseRuntime.configuration.runtimeDatabaseUrlFileEnvironment,
+]
+if (
+  databaseSecretFileEnvironments.some(
+    (name) => typeof name !== 'string' || !/^PLACE_[A-Z0-9_]+_FILE$/.test(name),
+  ) ||
+  new Set(databaseSecretFileEnvironments).size !== databaseSecretFileEnvironments.length
+) {
+  failures.push('Every Place database authority must use a distinct deployment-owned secret file')
 }
 
 if (failures.length > 0) {

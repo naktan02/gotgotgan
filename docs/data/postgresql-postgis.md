@@ -1,9 +1,11 @@
 # PostgreSQL and PostGIS
 
-The preferred mini-PC topology is a dedicated `place` logical database in the shared Platform
-PostgreSQL physical runtime. This is conditional: Infra must first supply a digest-pinned
-PostGIS-capable image, per-database allow-listed extension declaration, privilege separation, upgrade,
-backup, isolated restore, and rollback evidence.
+The shared Platform PostgreSQL gate was unavailable at Stage 3, so ADR 0004 selects a Place-owned
+physical PostGIS runtime. The source-only declaration pins one `linux/amd64` image digest and exposes
+no host database port. The `place` database requires only `postgis` initially and uses its own private
+network, data volume, role secrets, backup, restore, upgrade, and rollback lifecycle.
 
-If that gate fails, Place uses a Place-owned physical PostGIS runtime. Spatial behavior is not
-weakened and the shared server is not modified manually.
+An isolated digest smoke proved PostgreSQL 17.11 and PostGIS 3.5.7. This is image evidence, not an
+active deployment claim. Activation still requires separate roles, migrations, runtime-role denial,
+spatial-index, backup, isolated restore, and rollback verification. A future shared-runtime move must
+not change Place schema or domain interfaces.

@@ -7,7 +7,7 @@ worker consumes durable jobs and may run continuously or on demand.
 Current state: Stage 2 source implementation. The `access` module owns verified-principal mapping,
 Place roles and tiers, authorization, last-owner protection, and audit-safe decisions. `GET /v1/me`
 is registered only when its verifier, membership directory, and audit sink are injected; the
-production composition does not connect it yet. No database, job claim, provider, browser profile,
+production composition does not connect it yet. No database connection, job claim, provider, browser profile,
 or external integration exists.
 
 Read `src/modules/README.md` before adding a capability. A module keeps domain, application, adapters,
