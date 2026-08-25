@@ -1,0 +1,26 @@
+# Place web design contract
+
+Read the workspace design brief at `../../../plans/place-platform-ui-design-brief.md` before changing
+user-visible behavior. The direction is **Calm Utility Map**: restrained surfaces, clear hierarchy,
+map/workspace balance, one icon system, and density that serves repeated use.
+
+## Ownership
+
+```text
+app      -> shells, features, domains, platform, shared
+shells   -> features, domains, platform, shared
+features -> domains, platform, shared
+domains  -> platform, shared
+platform -> shared
+shared   -> no upper layer
+```
+
+Routes adapt Next.js only. Shells own top/left/mobile composition. Features own user workflows.
+Domains own reusable Place representations. Platform owns auth, HTTP, maps, telemetry, and manifest
+SDKs. Shared owns only proved business-neutral primitives.
+
+## Stage 1 limits
+
+The current shell is a structural and accessibility baseline, not the final visual design. Keep it
+free of fake place cards, fake provider data, decorative gradients, and hard-coded family services.
+Desktop and mobile browser tests own the initial screenshots.

@@ -1,0 +1,32 @@
+name: place-stage1
+
+services:
+  web:
+    build:
+      context: ..
+      target: web-runtime
+    environment:
+      HOSTNAME: ${PLACE_WEB_HOST:?PLACE_WEB_HOST is required}
+      PORT: ${PLACE_WEB_PORT:?PLACE_WEB_PORT is required}
+    ports:
+      - "${PLACE_WEB_PUBLISHED_PORT:?PLACE_WEB_PUBLISHED_PORT is required}:${PLACE_WEB_PORT:?PLACE_WEB_PORT is required}"
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ..
+      target: backend-runtime
+    environment:
+      PLACE_HTTP_HOST: ${PLACE_HTTP_HOST:?PLACE_HTTP_HOST is required}
+      PLACE_HTTP_PORT: ${PLACE_HTTP_PORT:?PLACE_HTTP_PORT is required}
+    ports:
+      - "${PLACE_HTTP_PUBLISHED_PORT:?PLACE_HTTP_PUBLISHED_PORT is required}:${PLACE_HTTP_PORT:?PLACE_HTTP_PORT is required}"
+    restart: unless-stopped
+
+  worker-check:
+    profiles: [verification]
+    build:
+      context: ..
+      target: backend-runtime
+    command: ["node", "backend/dist/entrypoints/worker/main.js", "--check"]
+    restart: "no"

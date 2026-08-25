@@ -1,0 +1,20 @@
+# Deployment declarations
+
+`compose.stage1.yml` proves three container targets without activating a platform deployment:
+
+- `web`: standalone Next.js runtime;
+- `backend`: always-on Fastify HTTP runtime; and
+- `worker-check`: opt-in verification profile for the separately runnable worker artifact.
+
+All host and port values are required environment inputs. There is no database, provider, Identity,
+Gateway, map, or AI connection. Later declarations reference secrets and addresses by
+deployment-owned names, publish no browser credentials, and follow workspace onboarding gates before
+Gateway exposure.
+
+The image base is digest-pinned to the Node 22 image already proved by Game Studio. With Docker
+running, validate targets from the repository root:
+
+```powershell
+docker build --target web-runtime --tag place-web-stage1 .
+docker build --target backend-runtime --tag place-backend-stage1 .
+```

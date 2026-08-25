@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:place:family-navigation:v1:consumer",
+  "title": "Provisional family navigation consumer manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "deliveryState", "items"],
+  "properties": {
+    "contract": { "const": "family-navigation.v1" },
+    "deliveryState": {
+      "enum": ["active", "integration-gated", "source-only", "not-integrated"]
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["serviceId", "label", "href"],
+        "properties": {
+          "serviceId": { "type": "string", "minLength": 1 },
+          "label": { "type": "string", "minLength": 1 },
+          "href": { "type": "string", "format": "uri-reference" }
+        }
+      }
+    }
+  }
+}

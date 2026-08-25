@@ -1,0 +1,29 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Place lifecycle HTTP contract",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "operationId": "getPlaceHealth",
+        "responses": {
+          "200": {
+            "description": "Process is alive"
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "operationId": "getPlaceReadiness",
+        "responses": {
+          "200": {
+            "description": "Process can accept traffic"
+          }
+        }
+      }
+    }
+  }
+}
