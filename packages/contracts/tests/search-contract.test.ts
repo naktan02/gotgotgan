@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  placeSuggestionMaterializationResponseSchema,
+  placeSuggestionSelectionResponseSchema,
+  placeSuggestionsResponseSchema,
   placeSearchResponseSchema,
   providerPlaceDetailSchema,
 } from '../src/search/index.js'
@@ -56,5 +59,51 @@ describe('provider-neutral search contracts', () => {
       photos: [], attributions: [{ label: 'Google Maps' }],
       observedAt: '2026-08-26T10:00:00.000Z',
     }).success).toBe(false)
+  })
+
+  it('publishes provider-neutral suggestions without provider session material', () => {
+    const parsed = placeSuggestionsResponseSchema.parse({
+      schemaVersion: 'place-suggestions.v1',
+      sessionId: '01992d20-1000-7000-8000-000000000001',
+      items: [{
+        suggestionId: '01992d20-1000-7000-8000-000000000002',
+        identity: {
+          kind: 'provider', providerKey: 'google', providerPlaceId: 'google-place-100',
+        },
+        source: {
+          key: 'google', label: 'Google Maps', detailsAvailable: true,
+          attributions: [{ label: 'Google Maps' }],
+        },
+        name: 'Senkai Ramen',
+        areaLabel: 'Fukuoka, Japan',
+        location: null,
+        categoryLabel: 'Ramen restaurant',
+        observedAt: '2026-08-26T10:00:00.000Z',
+      }],
+      sources: [{ sourceKey: 'google', status: 'complete', resultCount: 1 }],
+    })
+
+    expect(parsed.items[0]?.identity).toEqual({
+      kind: 'provider', providerKey: 'google', providerPlaceId: 'google-place-100',
+    })
+    expect(JSON.stringify(parsed)).not.toContain('sessionToken')
+    expect(JSON.stringify(parsed)).not.toContain('apiKey')
+    expect(JSON.stringify(parsed)).not.toContain('rawPayload')
+  })
+
+  it('keeps selection evidence and canonical materialization as separate contracts', () => {
+    expect(placeSuggestionSelectionResponseSchema.parse({
+      schemaVersion: 'place-suggestion-selection.v1',
+      suggestionId: '01992d20-1000-7000-8000-000000000002',
+      status: 'recorded',
+      observationId: '01992d20-1000-7000-8000-000000000003',
+    })).toMatchObject({ status: 'recorded' })
+
+    expect(placeSuggestionMaterializationResponseSchema.parse({
+      schemaVersion: 'place-suggestion-materialization.v1',
+      suggestionId: '01992d20-1000-7000-8000-000000000002',
+      status: 'created',
+      canonicalPlaceId: '01992d20-1000-7000-8000-000000000004',
+    })).toMatchObject({ status: 'created' })
   })
 })

@@ -13,6 +13,15 @@ import {
 } from '../../modules/access/index.js'
 import { PostgresLibraryStore } from '../../modules/library/index.js'
 import {
+  materializeSuggestedPlace,
+  PostgresIngestionStore,
+  recordSuggestionObservation,
+} from '../../modules/ingestion/index.js'
+import {
+  applyCanonicalResolution,
+  PostgresCanonicalResolutionStore,
+} from '../../modules/places/index.js'
+import {
   createProviderPlaceDetailReader,
   GoogleOfficialPlaceDetails,
   GoogleOfficialPlaceSearch,
@@ -21,8 +30,17 @@ import {
   OfficialProviderHttpClient,
   type ProviderPlaceDetails,
   type ProviderPlaceSearch,
+  type ProviderPlaceSuggestions,
 } from '../../modules/providers/index.js'
-import { createPlaceSearch, PostgresLocalSearch } from '../../modules/search/index.js'
+import {
+  createPlaceSearch,
+  createPlaceSuggestionMaterialization,
+  createPlaceSuggestionSelection,
+  createPlaceSuggestions,
+  PostgresLocalSearch,
+  PostgresPlaceSuggestions,
+  projectLocalPlace,
+} from '../../modules/search/index.js'
 import { PostgresTaxonomyStore } from '../../modules/taxonomy/index.js'
 import { PostgresVisitStore } from '../../modules/visits/index.js'
 import { PostgresWritingStore } from '../../modules/writing/index.js'
@@ -80,27 +98,73 @@ export async function createProductionHttpRuntime(
     const visitStore = new PostgresVisitStore(pool)
     const writingStore = new PostgresWritingStore(pool)
     const localSearch = new PostgresLocalSearch(pool)
+    const placeSuggestions = new PostgresPlaceSuggestions(pool)
+    const ingestionStore = new PostgresIngestionStore(pool)
+    const canonicalStore = new PostgresCanonicalResolutionStore(pool)
     const providerHttp = new OfficialProviderHttpClient()
     const providerSearchSources: ProviderPlaceSearch[] = []
+    const providerSuggestionSources: ProviderPlaceSuggestions[] = []
     const providerDetailReaders: ProviderPlaceDetails[] = []
     if (config.providers?.naver !== undefined) {
-      providerSearchSources.push(
-        new NaverOfficialPlaceSearch(config.providers.naver, providerHttp, now),
-      )
+      const naver = new NaverOfficialPlaceSearch(config.providers.naver, providerHttp, now)
+      providerSearchSources.push(naver)
+      providerSuggestionSources.push(naver)
     }
     if (config.providers?.kakao !== undefined) {
-      providerSearchSources.push(
-        new KakaoOfficialPlaceSearch(config.providers.kakao, providerHttp, now),
-      )
+      const kakao = new KakaoOfficialPlaceSearch(config.providers.kakao, providerHttp, now)
+      providerSearchSources.push(kakao)
+      providerSuggestionSources.push(kakao)
     }
     if (config.providers?.google !== undefined) {
-      providerSearchSources.push(
-        new GoogleOfficialPlaceSearch(config.providers.google, providerHttp, now),
-      )
+      const google = new GoogleOfficialPlaceSearch(config.providers.google, providerHttp, now)
+      providerSearchSources.push(google)
+      providerSuggestionSources.push(google)
       providerDetailReaders.push(
         new GoogleOfficialPlaceDetails(config.providers.google, providerHttp, now),
       )
     }
+    const suggest = createPlaceSuggestions({
+      sources: [placeSuggestions, ...providerSuggestionSources],
+      store: placeSuggestions,
+      nextId: randomUUID,
+      now,
+    })
+    const selectSuggestion = createPlaceSuggestionSelection({
+      store: placeSuggestions,
+      now,
+      recordObservation: async (input) => (
+        await recordSuggestionObservation(input, ingestionStore)
+      ).status,
+    })
+    const materializeSuggestion = createPlaceSuggestionMaterialization({
+      store: placeSuggestions,
+      now,
+      materialize: async (input) => {
+        const result = await materializeSuggestedPlace({
+          input,
+          ingestionStore,
+          canonical: {
+            resolveProviderIdentity: (identity) => canonicalStore.resolveProviderIdentity(identity),
+            apply: (attempt) => applyCanonicalResolution({ ...attempt, store: canonicalStore }),
+          },
+        })
+        if (input.location !== null) {
+          await projectLocalPlace({
+            placeId: result.canonicalPlaceId,
+            sourceVersion: 1,
+            name: input.name,
+            areaLabel: input.areaLabel,
+            latitude: input.location.latitude,
+            longitude: input.location.longitude,
+            primaryTaxonomy: null,
+            taxonomyKeys: [],
+            evidenceStatus: 'unverified',
+            projectedAt: input.acquiredAt,
+          }, localSearch)
+        }
+        return result
+      },
+    })
     const taxonomyStore = new PostgresTaxonomyStore(pool)
     const application = buildHttpApplication({
       access: {
@@ -125,6 +189,11 @@ export async function createProductionHttpRuntime(
       search: {
         authorizer: productAuthorizer,
         search: createPlaceSearch({ sources: [localSearch, ...providerSearchSources] }),
+        suggestions: {
+          suggest,
+          select: selectSuggestion,
+          materialize: materializeSuggestion,
+        },
       },
       taxonomy: { store: taxonomyStore },
       visits: { authorizer: productAuthorizer, store: visitStore, now },

@@ -13,5 +13,16 @@ export {
 export { recordSourceObservation } from './application/record-source-observation.js'
 export { recordPlaceCandidate } from './application/record-place-candidate.js'
 export { recordResolutionDecision } from './application/record-resolution-decision.js'
+export {
+  recordSuggestionObservation,
+  type SuggestionObservationEvidence,
+  type SuggestedPlaceEvidence,
+} from './application/record-suggestion-observation.js'
+export { materializeSuggestedPlace } from './application/materialize-suggested-place.js'
 export type { IngestionStore } from './application/ports/ingestion-store.js'
+export type {
+  CanonicalPlaceMaterializationPort,
+  SuggestedPlaceCanonicalCommand,
+  SuggestedProviderIdentity,
+} from './application/ports/canonical-place-materialization.js'
 export { PostgresIngestionStore } from './adapters/persistence/postgres-ingestion-store.js'

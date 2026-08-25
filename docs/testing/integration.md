@@ -56,6 +56,12 @@ filter, 불투명 cursor pagination, 익명 결과의 개인 상태 비노출과
 선택되는지도 확인한다. 테스트는 Search가 소유한 schema만 조회하며 다른 owner schema의 join을
 검색 구현으로 허용하지 않는다.
 
+interactive suggestion suite는 빈 Canonical DB에서 fixture provider 후보를 Discovery와 impression에만
+저장하는지 확인한다. 같은 session의 반복 입력은 로컬 Discovery에서 같은 suggestion/evidence ID를
+재사용하고 selection count를 한 번만 올린다. 명시적 선택은 SourceObservation 한 행만 만들며,
+materialization 재시도 후에도 Candidate, ResolutionDecision, Canonical Place, provider link가 각각
+한 행인지 실제 PostgreSQL에서 검증한다. 마지막으로 session/impression/Discovery TTL 정리를 확인한다.
+
 The published-image smoke is intentionally not replaced by a local tag test. The manual release
 workflow removes any local copies, pulls both exact GHCR platform digests, checks non-root and
 source-revision labels, starts Web and Backend in their source-only modes, waits on both `/readyz`

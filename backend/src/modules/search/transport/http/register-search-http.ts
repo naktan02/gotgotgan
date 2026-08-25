@@ -6,6 +6,10 @@ import type { FastifyInstance } from 'fastify'
 
 import { InvalidSearchCursorError, type PlaceSearchPage, type PlaceSearchQuery } from '../../domain/model.js'
 import { sendProductProblem, type ProductAuthorizer } from '../../../../platform/http/product-authorization.js'
+import {
+  registerSuggestionHttpRoutes,
+  type SuggestionHttpDependencies,
+} from './register-suggestion-http.js'
 
 function usesPersonalFilters(query: PlaceSearchQuery): boolean {
   return query.filters.saved !== undefined || query.filters.wanted !== undefined ||
@@ -15,12 +19,16 @@ function usesPersonalFilters(query: PlaceSearchQuery): boolean {
 export type SearchHttpDependencies = Readonly<{
   search: (query: PlaceSearchQuery) => Promise<PlaceSearchPage>
   authorizer?: ProductAuthorizer
+  suggestions?: SuggestionHttpDependencies
 }>
 
 export function registerSearchHttpRoutes(
   application: FastifyInstance,
   dependencies: SearchHttpDependencies,
 ): void {
+  if (dependencies.suggestions !== undefined) {
+    registerSuggestionHttpRoutes(application, dependencies.suggestions, dependencies.authorizer)
+  }
   application.post('/v1/search/places', async (request, reply) => {
     const parsed = placeSearchRequestSchema.safeParse(request.body)
     if (!parsed.success) {

@@ -2,11 +2,15 @@ import { z } from 'zod'
 
 import type {
   ProviderPlaceSearch,
+  ProviderPlaceSuggestions,
   ProviderSearchPage,
   ProviderSearchQuery,
+  ProviderSuggestionBatch,
+  ProviderSuggestionQuery,
 } from '../../domain/model.js'
 import {
   providerResult,
+  providerSuggestionFromSearch,
   safeHttpUrl,
   unavailablePage,
   unsupportedQuery,
@@ -46,10 +50,11 @@ function pageNumber(cursor: string | undefined): number | undefined {
   return Number.isInteger(value) && value >= 1 && value <= 45 ? value : undefined
 }
 
-export class KakaoOfficialPlaceSearch implements ProviderPlaceSearch {
+export class KakaoOfficialPlaceSearch implements ProviderPlaceSearch, ProviderPlaceSuggestions {
   readonly sourceKey = 'kakao' as const
   readonly capabilities = {
     providerKey: 'kakao',
+    placeSuggestions: 'search-fallback',
     officialSearch: { maxPageSize: 15, pagination: 'page', bounds: 'server-rectangle' },
     placeDetails: 'unsupported',
     placePhotos: 'unsupported',
@@ -139,5 +144,15 @@ export class KakaoOfficialPlaceSearch implements ProviderPlaceSearch {
     } catch (error) {
       return unavailablePage(error)
     }
+  }
+
+  async suggest(query: ProviderSuggestionQuery): Promise<ProviderSuggestionBatch> {
+    const page = await this.search({
+      query: query.query,
+      limit: Math.min(query.limit, 15),
+      filters: { taxonomyKeys: [] },
+      ...(query.bounds === undefined ? {} : { bounds: query.bounds }),
+    })
+    return { ...page, items: page.items.map(providerSuggestionFromSearch) }
   }
 }

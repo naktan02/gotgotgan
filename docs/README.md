@@ -17,7 +17,7 @@ Read only the routes required by the task, after repository `AGENTS.md` and `REA
 - Local execution, worker lifecycle, deployment, backup, or incidents: `operations/README.md`.
 - A durable decision or supersession: `adr/README.md`.
 
-Delivery state is **source-only; Stage 6 complete and Stage 2 integration in progress**. A Place-owned physical PostGIS runtime is
+Delivery state is **source-only; Stage 6.5 complete and Stage 2 integration in progress**. A Place-owned physical PostGIS runtime is
 implemented and tested in disposable environments but not deployed or active. No provider account, browser profile, map credential, Identity
 client, Gateway route, family composer, or AI connection is active.
 
@@ -41,3 +41,9 @@ Google 선택 결과의 지연 상세·사진 attribution, 원문 열기를 추�
 Web/Backend 계약, Playwright, PostGIS, Docker 검증을 통과했지만 실제 endpoint/credential은 주입되지
 않았고 provider account나 live traffic은 활성화되지 않았다. Crawlee/Playwright 수집 runtime도
 아직 구현되지 않았으며 Stage 7의 실제 NAVER import 경로에서 검증한다.
+
+Stage 6.5는 `place-search.v1`과 분리된 입력 중 후보 계약, Search 소유 session/impression/Discovery
+Projection, 로컬·공급자 후보 결합, 선택 시 Ingestion observation, 개인 의도 시 Places canonical
+승격을 추가했다. 실제 PostGIS는 반복 표시·선택·승격의 멱등성과 TTL 정리를 검증하고,
+desktop/mobile Playwright는 stale 요청 취소, 동명 지점, 키보드 선택, 부분 장애와 수동 전체 검색
+fallback을 검증한다. 실제 공급자 credential과 traffic은 여전히 비활성이다.

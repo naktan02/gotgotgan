@@ -2,11 +2,15 @@ import { z } from 'zod'
 
 import type {
   ProviderPlaceSearch,
+  ProviderPlaceSuggestions,
   ProviderSearchPage,
   ProviderSearchQuery,
+  ProviderSuggestionBatch,
+  ProviderSuggestionQuery,
 } from '../../domain/model.js'
 import {
   providerResult,
+  providerSuggestionFromSearch,
   safeHttpUrl,
   unavailablePage,
   unsupportedQuery,
@@ -51,10 +55,11 @@ function coordinate(value: string | number, scale: number): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
-export class NaverOfficialPlaceSearch implements ProviderPlaceSearch {
+export class NaverOfficialPlaceSearch implements ProviderPlaceSearch, ProviderPlaceSuggestions {
   readonly sourceKey = 'naver' as const
   readonly capabilities = {
     providerKey: 'naver',
+    placeSuggestions: 'search-fallback',
     officialSearch: { maxPageSize: 5, pagination: 'none', bounds: 'client-filtered' },
     placeDetails: 'unsupported',
     placePhotos: 'unsupported',
@@ -136,5 +141,15 @@ export class NaverOfficialPlaceSearch implements ProviderPlaceSearch {
     } catch (error) {
       return unavailablePage(error)
     }
+  }
+
+  async suggest(query: ProviderSuggestionQuery): Promise<ProviderSuggestionBatch> {
+    const page = await this.search({
+      query: query.query,
+      limit: Math.min(query.limit, 5),
+      filters: { taxonomyKeys: [] },
+      ...(query.bounds === undefined ? {} : { bounds: query.bounds }),
+    })
+    return { ...page, items: page.items.map(providerSuggestionFromSearch) }
   }
 }

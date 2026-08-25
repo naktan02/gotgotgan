@@ -8,8 +8,11 @@ Candidate decisions cover review, not-the-same, create, and link. Canonical-conf
 merge, split, and retirement without inventing a candidate. All retain evidence and actor/policy
 references.
 
-This module does not mutate a Canonical Place. A future orchestrator may translate an accepted
-resolution decision into the `places` module interface at a composition root. Provider-specific
+이 모듈은 Canonical Place를 직접 변경하지 않는다. Stage 6.5의 interactive materialization use case는
+SourceObservation, PlaceCandidate, ResolutionDecision을 순서대로 기록한 뒤 consumer-owned
+`CanonicalPlaceMaterializationPort`를 호출한다. production composition만 이 port를 Places 공개
+interface에 연결한다. 선택 후 재시도는 최초 acquired time과 ID를 재사용하며, 이미 자신의 proposed
+Place에 연결된 create 판정은 다른 link 판정으로 바꾸지 않는다. Provider-specific
 payloads, Crawlee requests, Playwright pages, selectors, cookies, and browser profiles never cross
 this module interface.
 

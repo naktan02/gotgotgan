@@ -4,7 +4,9 @@ import {
   SearchBackendProblem,
   getProviderPlaceDetail,
   getSearchTaxonomy,
+  selectPlaceSuggestion,
   searchPlaces,
+  suggestPlaces,
 } from './search-backend-client'
 import type { BackendFetcher } from '../backend-http/fixed-backend'
 
@@ -89,5 +91,42 @@ describe('search backend client', () => {
       schemaVersion: 'place-provider-detail.v1',
       providerKey: 'google', providerPlaceId: 'google-place-100',
     })
+  })
+
+  it('forwards only the provider-neutral suggestion session and validates selection', async () => {
+    const suggestionId = '01992d20-5000-7000-8000-000000000001'
+    const sessionId = '01992d20-5000-7000-8000-000000000002'
+    const observed: Array<{ input: URL; init: RequestInit }> = []
+    const fetcher: BackendFetcher = vi.fn(async (input, init) => {
+      observed.push({ input, init })
+      return observed.length === 1
+        ? Response.json({
+          schemaVersion: 'place-suggestions.v1', sessionId,
+          items: [{
+            suggestionId,
+            identity: { kind: 'provider', providerKey: 'google', providerPlaceId: 'google-1' },
+            source: { key: 'google', label: 'Google Maps', detailsAvailable: true, attributions: [{ label: 'Google Maps' }] },
+            name: 'Senkai Ramen', areaLabel: 'Fukuoka, Japan', location: null,
+            categoryLabel: 'Ramen restaurant', observedAt: '2026-08-26T10:00:00.000Z',
+          }],
+          sources: [{ sourceKey: 'google', status: 'complete', resultCount: 1 }],
+        })
+        : Response.json({
+          schemaVersion: 'place-suggestion-selection.v1', suggestionId,
+          status: 'recorded', observationId: '01992d20-5000-7000-8000-000000000003',
+        })
+    })
+
+    const environment = { PLACE_BACKEND_ORIGIN: 'http://backend.test:4010' }
+    await expect(suggestPlaces({
+      schemaVersion: 'place-suggestions.v1', query: '센카이', sessionId,
+    }, environment, fetcher)).resolves.toMatchObject({ sessionId })
+    await expect(selectPlaceSuggestion({
+      schemaVersion: 'place-suggestion-selection.v1', suggestionId,
+    }, environment, fetcher)).resolves.toMatchObject({ suggestionId, status: 'recorded' })
+    expect(observed.map((item) => item.input.pathname)).toEqual([
+      '/v1/search/suggestions', '/v1/search/suggestion-selections',
+    ])
+    expect(JSON.stringify(observed)).not.toMatch(/providerSession|apiKey|cookie/i)
   })
 })

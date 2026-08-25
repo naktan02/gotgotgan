@@ -6,6 +6,7 @@ import type {
   ProviderSearchPage,
   ProviderSearchQuery,
   ProviderSearchResult,
+  ProviderSuggestionCandidate,
 } from '../../domain/model.js'
 import { ProviderRequestFailure } from './provider-http.js'
 
@@ -113,5 +114,28 @@ export function providerResult(input: Readonly<{
     primaryTaxonomy: null,
     taxonomyKeys: [],
     evidenceStatus: 'unverified',
+  }
+}
+
+export function providerSuggestionFromSearch(
+  result: ProviderSearchResult,
+): ProviderSuggestionCandidate {
+  return {
+    candidateKey: result.resultId,
+    identity: result.identity,
+    source: {
+      key: result.source.key,
+      label: result.source.label,
+      ...(result.source.externalUri === undefined
+        ? {}
+        : { externalUri: result.source.externalUri }),
+      detailsAvailable: result.source.detailsAvailable,
+      attributions: result.source.attributions,
+    },
+    name: result.name,
+    areaLabel: result.areaLabel,
+    location: result.location,
+    categoryLabel: result.source.categoryLabel ?? null,
+    observedAt: result.freshness.observedAt,
   }
 }

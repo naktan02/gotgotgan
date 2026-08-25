@@ -2,10 +2,13 @@
 
 import {
   placeSearchResponseSchema,
+  placeSuggestionSelectionResponseSchema,
+  placeSuggestionsResponseSchema,
   providerPlaceDetailSchema,
   taxonomyProjectionSchema,
   type PlaceSearchRequest,
   type PlaceSearchResult,
+  type PlaceSuggestion,
   type ProviderPlaceDetail,
   type SearchBounds,
   type TaxonomyNode,
@@ -34,6 +37,7 @@ async function jsonOrThrow(response: Response): Promise<unknown> {
 
 export function SearchWorkspace() {
   const [draftQuery, setDraftQuery] = useState('')
+  const [submittedQuery, setSubmittedQuery] = useState('')
   const [taxonomyKey, setTaxonomyKey] = useState('')
   const [taxonomy, setTaxonomy] = useState<readonly TaxonomyNode[]>([])
   const [viewportBounds, setViewportBounds] = useState<SearchBounds>(initialBounds)
@@ -48,7 +52,14 @@ export function SearchWorkspace() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | undefined>()
   const [mobileSurface, setMobileSurface] = useState<'list' | 'map'>('list')
+  const [suggestions, setSuggestions] = useState<readonly PlaceSuggestion[]>([])
+  const [suggestionSources, setSuggestionSources] = useState<readonly { status: 'complete' | 'partial' | 'unavailable' }[]>([])
+  const [suggestionState, setSuggestionState] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
+  const [suggestionOpen, setSuggestionOpen] = useState(false)
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0)
   const requestSequence = useRef(0)
+  const suggestionSequence = useRef(0)
+  const suggestionSessionId = useRef<string | undefined>(undefined)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -63,11 +74,11 @@ export function SearchWorkspace() {
 
   const baseRequest = useMemo<PlaceSearchRequest>(() => ({
     schemaVersion: 'place-search.v1',
-    query: draftQuery,
+    query: submittedQuery,
     filters: { taxonomyKeys: taxonomyKey === '' ? [] : [taxonomyKey] },
     limit: 8,
     ...(searchBounds === undefined ? {} : { bounds: searchBounds }),
-  }), [draftQuery, searchBounds, taxonomyKey])
+  }), [searchBounds, submittedQuery, taxonomyKey])
 
   const executeSearch = useCallback(async (
     request: PlaceSearchRequest,
@@ -127,7 +138,89 @@ export function SearchWorkspace() {
     }
   }, [baseRequest, executeSearch])
 
+  useEffect(() => {
+    const query = draftQuery.normalize('NFKC').replace(/\s+/g, ' ').trim()
+    if (query.length === 0 || query === submittedQuery) {
+      setSuggestions([])
+      setSuggestionSources([])
+      setSuggestionOpen(false)
+      setSuggestionState('idle')
+      return
+    }
+    const sequence = ++suggestionSequence.current
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => {
+      setSuggestionState('loading')
+      fetch('/api/search/suggestions', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          schemaVersion: 'place-suggestions.v1',
+          query,
+          limit: 8,
+          bounds: viewportBounds,
+          ...(suggestionSessionId.current === undefined
+            ? {}
+            : { sessionId: suggestionSessionId.current }),
+        }),
+        cache: 'no-store',
+        signal: controller.signal,
+      })
+        .then(jsonOrThrow)
+        .then((payload) => {
+          if (sequence !== suggestionSequence.current) return
+          const parsed = placeSuggestionsResponseSchema.parse(payload)
+          suggestionSessionId.current = parsed.sessionId
+          setSuggestions(parsed.items)
+          setSuggestionSources(parsed.sources)
+          setActiveSuggestionIndex(0)
+          setSuggestionOpen(true)
+          setSuggestionState('ready')
+        })
+        .catch((reason: unknown) => {
+          if (reason instanceof DOMException && reason.name === 'AbortError') return
+          if (sequence === suggestionSequence.current) {
+            setSuggestions([])
+            setSuggestionSources([])
+            setSuggestionOpen(true)
+            setSuggestionState('unavailable')
+          }
+        })
+    }, 180)
+    return () => {
+      window.clearTimeout(timeout)
+      controller.abort()
+    }
+  }, [draftQuery, submittedQuery, viewportBounds])
+
+  const submitQuery = useCallback((query: string) => {
+    const normalized = query.normalize('NFKC').replace(/\s+/g, ' ').trim()
+    setDraftQuery(normalized)
+    setSubmittedQuery(normalized)
+    setSuggestions([])
+    setSuggestionOpen(false)
+  }, [])
+
+  const chooseSuggestion = useCallback(async (suggestion: PlaceSuggestion) => {
+    try {
+      const response = await fetch('/api/search/suggestion-selections', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          schemaVersion: 'place-suggestion-selection.v1',
+          suggestionId: suggestion.suggestionId,
+        }),
+        cache: 'no-store',
+      })
+      placeSuggestionSelectionResponseSchema.parse(await jsonOrThrow(response))
+      submitQuery(suggestion.name)
+    } catch {
+      setSuggestionState('unavailable')
+    }
+  }, [submitQuery])
+
   const partial = sources.some((source) => source.status !== 'complete')
+  const suggestionPartial = suggestionSources.some((source) => source.status !== 'complete')
   const selected = items.find((item) => item.resultId === selectedResultId)
 
   useEffect(() => {
@@ -176,16 +269,83 @@ export function SearchWorkspace() {
         </div>
       </header>
 
-      <div className={styles.controls}>
+      <form className={styles.controls} onSubmit={(event) => {
+        event.preventDefault()
+        submitQuery(draftQuery)
+      }}>
         <label className={styles.queryField}>
           <span>검색어</span>
-          <input
-            aria-label="장소 검색어"
-            onChange={(event) => setDraftQuery(event.target.value)}
-            placeholder="이름, 지역, 분류로 검색"
-            type="search"
-            value={draftQuery}
-          />
+          <div className={styles.combobox}>
+            <input
+              aria-activedescendant={suggestionOpen && suggestions[activeSuggestionIndex] !== undefined
+                ? `place-suggestion-${suggestions[activeSuggestionIndex].suggestionId}`
+                : undefined}
+              aria-autocomplete="list"
+              aria-controls="place-suggestions"
+              aria-expanded={suggestionOpen}
+              aria-label="장소 검색어"
+              onBlur={() => window.setTimeout(() => setSuggestionOpen(false), 100)}
+              onChange={(event) => {
+                setDraftQuery(event.target.value)
+                setActiveSuggestionIndex(0)
+              }}
+              onFocus={() => {
+                if (suggestionState === 'ready' || suggestionState === 'unavailable') setSuggestionOpen(true)
+              }}
+              onKeyDown={(event) => {
+                if (!suggestionOpen || suggestions.length === 0) return
+                if (event.key === 'ArrowDown') {
+                  event.preventDefault()
+                  setActiveSuggestionIndex((index) => (index + 1) % suggestions.length)
+                } else if (event.key === 'ArrowUp') {
+                  event.preventDefault()
+                  setActiveSuggestionIndex((index) => (index - 1 + suggestions.length) % suggestions.length)
+                } else if (event.key === 'Enter') {
+                  event.preventDefault()
+                  const suggestion = suggestions[activeSuggestionIndex]
+                  if (suggestion !== undefined) void chooseSuggestion(suggestion)
+                } else if (event.key === 'Escape') {
+                  setSuggestionOpen(false)
+                }
+              }}
+              placeholder="이름, 지역, 분류로 검색"
+              role="combobox"
+              type="search"
+              value={draftQuery}
+            />
+            {suggestionOpen && (
+              <div className={styles.suggestionPanel}>
+                {suggestionState === 'loading' && <p role="status">장소를 찾는 중…</p>}
+                {suggestionState === 'unavailable' && (
+                  <p role="status">자동완성을 사용할 수 없습니다. 검색어 그대로 전체 검색할 수 있습니다.</p>
+                )}
+                {suggestionState === 'ready' && suggestions.length === 0 && (
+                  <p role="status">일치하는 후보가 없습니다. Enter로 전체 검색해 보세요.</p>
+                )}
+                {suggestions.length > 0 && (
+                  <ul aria-label="장소 자동완성" id="place-suggestions" role="listbox">
+                    {suggestions.map((suggestion, index) => (
+                      <li
+                        aria-selected={index === activeSuggestionIndex}
+                        id={`place-suggestion-${suggestion.suggestionId}`}
+                        key={suggestion.suggestionId}
+                        onMouseDown={(event) => {
+                          event.preventDefault()
+                          void chooseSuggestion(suggestion)
+                        }}
+                        role="option"
+                      >
+                        <strong>{suggestion.name}</strong>
+                        <span>{suggestion.areaLabel ?? '지역 정보 없음'} · {suggestion.categoryLabel ?? '분류 미확인'}</span>
+                        <small>{suggestion.identity.kind === 'canonical' ? '내 장소 데이터' : suggestion.source.label}</small>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {suggestionPartial && <p className={styles.suggestionNotice}>일부 출처의 후보가 지연되거나 누락됐습니다.</p>}
+              </div>
+            )}
+          </div>
         </label>
         <label className={styles.filterField}>
           <span>분류</span>
@@ -196,6 +356,7 @@ export function SearchWorkspace() {
             ))}
           </select>
         </label>
+        <button className={styles.searchButton} type="submit">검색</button>
         <button
           className={styles.boundsButton}
           disabled={searchBounds !== undefined && JSON.stringify(searchBounds) === JSON.stringify(viewportBounds)}
@@ -204,7 +365,7 @@ export function SearchWorkspace() {
         >
           이 영역 검색
         </button>
-      </div>
+      </form>
 
       {partial && <p className={styles.notice} role="status">일부 검색 소스의 결과가 지연되거나 누락되었습니다.</p>}
       {error !== undefined && (

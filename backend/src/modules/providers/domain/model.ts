@@ -2,6 +2,7 @@ export type ProviderKey = 'naver' | 'kakao' | 'google'
 
 export type ProviderCapabilityDescriptor = Readonly<{
   providerKey: ProviderKey
+  placeSuggestions: 'documented' | 'search-fallback' | 'unsupported'
   officialSearch: Readonly<{
     maxPageSize: number
     pagination: 'none' | 'page' | 'token'
@@ -79,6 +80,47 @@ export interface ProviderPlaceSearch {
   readonly capabilities: ProviderCapabilityDescriptor
   accepts(query: ProviderSearchQuery): boolean
   search(query: ProviderSearchQuery): Promise<ProviderSearchPage>
+}
+
+export type ProviderSuggestionQuery = Readonly<{
+  query: string
+  sessionId: string
+  bounds?: ProviderSearchBounds
+  areaText?: string
+  language?: string
+  limit: number
+}>
+
+export type ProviderSuggestionCandidate = Readonly<{
+  candidateKey: string
+  identity: Readonly<{
+    kind: 'provider'
+    providerKey: ProviderKey
+    providerPlaceId?: string
+  }>
+  source: Readonly<{
+    key: string
+    label: string
+    externalUri?: string
+    detailsAvailable: boolean
+    attributions: readonly ProviderAttribution[]
+  }>
+  name: string
+  areaLabel: string | null
+  location: Readonly<{ latitude: number; longitude: number }> | null
+  categoryLabel: string | null
+  observedAt: string
+}>
+
+export type ProviderSuggestionBatch = Readonly<{
+  status: 'complete' | 'partial' | 'unavailable'
+  items: readonly ProviderSuggestionCandidate[]
+  errorCode?: string
+}>
+
+export interface ProviderPlaceSuggestions {
+  readonly sourceKey: ProviderKey
+  suggest(query: ProviderSuggestionQuery): Promise<ProviderSuggestionBatch>
 }
 
 export type ProviderPlaceDetailRequest = Readonly<{

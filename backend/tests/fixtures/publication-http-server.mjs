@@ -122,6 +122,26 @@ const providerDetail = {
 }
 
 const searchObservations = []
+const suggestionObservations = []
+const suggestionSelections = []
+
+const suggestionSessionId = '01992d20-6000-7000-8000-000000000001'
+const suggestionFixtures = [
+  {
+    suggestionId: '01992d20-6000-7000-8000-000000000002',
+    identity: { kind: 'provider', providerKey: 'google', providerPlaceId: 'google-senkai-fukuoka' },
+    source: { key: 'google', label: 'Google Maps', detailsAvailable: true, attributions: [{ label: 'Google Maps' }] },
+    name: '센카이 라멘', areaLabel: '후쿠오카 하카타', location: null,
+    categoryLabel: '라멘 전문점', observedAt: '2026-08-26T10:00:00.000Z',
+  },
+  {
+    suggestionId: '01992d20-6000-7000-8000-000000000003',
+    identity: { kind: 'provider', providerKey: 'kakao', providerPlaceId: 'kakao-senkai-tokyo' },
+    source: { key: 'kakao', label: 'Kakao Local', detailsAvailable: false, attributions: [{ label: 'Kakao Local' }] },
+    name: '센카이 라멘', areaLabel: '도쿄 신주쿠', location: { latitude: 35.6938, longitude: 139.7034 },
+    categoryLabel: '일본 음식점', observedAt: '2026-08-26T10:00:00.000Z',
+  },
+]
 
 function readJson(request) {
   return new Promise((resolve, reject) => {
@@ -197,9 +217,64 @@ async function search(request, response) {
   })
 }
 
+async function suggest(request, response) {
+  let body
+  try { body = await readJson(request) } catch {
+    sendJson(response, 400, { code: 'PLACE_SUGGESTION_REQUEST_INVALID' }, 'application/problem+json')
+    return
+  }
+  const query = String(body.query ?? '')
+  const observation = { query, aborted: false }
+  suggestionObservations.push(observation)
+  response.once('close', () => {
+    if (!response.writableEnded) observation.aborted = true
+  })
+  if (query === '센') await new Promise((resolve) => setTimeout(resolve, 900))
+  const items = ['센카이', 'senkai', '샌카이'].some((value) => query.includes(value))
+    ? suggestionFixtures
+    : query === '부분 후보'
+      ? suggestionFixtures.slice(0, 1)
+      : []
+  sendJson(response, 200, {
+    schemaVersion: 'place-suggestions.v1',
+    sessionId: body.sessionId ?? suggestionSessionId,
+    items,
+    sources: query === '부분 후보'
+      ? [
+          { sourceKey: 'local', status: 'complete', resultCount: 0 },
+          { sourceKey: 'google', status: 'complete', resultCount: 1 },
+          { sourceKey: 'kakao', status: 'unavailable', resultCount: 0, errorCode: 'PLACE_SUGGESTION_SOURCE_UNAVAILABLE' },
+        ]
+      : [
+          { sourceKey: 'local', status: 'complete', resultCount: 0 },
+          { sourceKey: 'google', status: 'complete', resultCount: items.length > 0 ? 1 : 0 },
+          { sourceKey: 'kakao', status: 'complete', resultCount: items.length > 1 ? 1 : 0 },
+        ],
+  })
+}
+
 const server = createServer(async (request, response) => {
   if (request.method === 'POST' && request.url === '/v1/search/places') {
     await search(request, response)
+    return
+  }
+  if (request.method === 'POST' && request.url === '/v1/search/suggestions') {
+    await suggest(request, response)
+    return
+  }
+  if (request.method === 'POST' && request.url === '/v1/search/suggestion-selections') {
+    let body
+    try { body = await readJson(request) } catch {
+      sendJson(response, 400, { code: 'PLACE_SUGGESTION_SELECTION_INVALID' }, 'application/problem+json')
+      return
+    }
+    suggestionSelections.push({ suggestionId: body.suggestionId })
+    sendJson(response, 200, {
+      schemaVersion: 'place-suggestion-selection.v1',
+      suggestionId: body.suggestionId,
+      status: 'recorded',
+      observationId: '01992d20-6000-7000-8000-000000000004',
+    })
     return
   }
   if (request.method === 'GET' && request.url === '/v1/taxonomy/nodes') {
@@ -221,6 +296,10 @@ const server = createServer(async (request, response) => {
   }
   if (request.method === 'GET' && request.url === '/__test/search-observations') {
     sendJson(response, 200, searchObservations)
+    return
+  }
+  if (request.method === 'GET' && request.url === '/__test/suggestion-observations') {
+    sendJson(response, 200, { requests: suggestionObservations, selections: suggestionSelections })
     return
   }
   const projection = request.method === 'GET' ? projections.get(request.url ?? '') : undefined

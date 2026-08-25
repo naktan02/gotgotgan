@@ -10,6 +10,9 @@ The source-only database declaration, preparation command, canonical Place migra
 access and membership-consent migrations, encrypted browser-auth migration, and corresponding
 persistence adapters exist. Immutable ingestion evidence/candidates/decisions and canonical
 provider-link/redirect/lineage migrations plus their PostgreSQL adapters also exist. A disposable
+Search suggestion migration owns short-lived sessions and impressions plus a replaceable Discovery
+Projection with text, spatial, and bounded-cleanup indexes. It stores no personal library state and
+does not make displayed candidates canonical. A disposable
 two-runtime rehearsal verifies database-level backup,
 isolated restore, credential rotation, spatial contract recovery, and matching browser-session key
 recovery. No Place application process is connected to a provisioned database.

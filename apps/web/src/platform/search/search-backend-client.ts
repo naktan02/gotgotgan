@@ -2,10 +2,16 @@ import { problemSchema } from '@place/contracts/http'
 import {
   placeSearchRequestSchema,
   placeSearchResponseSchema,
+  placeSuggestionSelectionRequestSchema,
+  placeSuggestionSelectionResponseSchema,
+  placeSuggestionsRequestSchema,
+  placeSuggestionsResponseSchema,
   providerPlaceDetailRequestSchema,
   providerPlaceDetailSchema,
   taxonomyProjectionSchema,
   type PlaceSearchRequestInput,
+  type PlaceSuggestionSelectionRequest,
+  type PlaceSuggestionsRequestInput,
   type ProviderPlaceDetailRequest,
 } from '@place/contracts/search'
 
@@ -82,6 +88,62 @@ export async function searchPlaces(
     throw new Error('Place search Backend is unavailable')
   }
   return placeSearchResponseSchema.parse(payload)
+}
+
+export async function suggestPlaces(
+  request: PlaceSuggestionsRequestInput,
+  environment: BackendEnvironment = process.env,
+  fetcher: BackendFetcher = fetch,
+  signal?: AbortSignal,
+) {
+  const body = placeSuggestionsRequestSchema.parse(request)
+  const response = await requestFixedBackend('/v1/search/suggestions', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: signal === undefined
+      ? AbortSignal.timeout(3_000)
+      : AbortSignal.any([signal, AbortSignal.timeout(3_000)]),
+  }, environment, fetcher)
+  const payload = await responseJson(response)
+  if (!response.ok) {
+    const problem = safeProblem(payload)
+    if (problem !== undefined) {
+      throw new SearchBackendProblem(
+        problem.status, problem.code, problem.title, problem.retryable, problem.correlationRef,
+      )
+    }
+    throw new Error('Place suggestion Backend is unavailable')
+  }
+  return placeSuggestionsResponseSchema.parse(payload)
+}
+
+export async function selectPlaceSuggestion(
+  request: PlaceSuggestionSelectionRequest,
+  environment: BackendEnvironment = process.env,
+  fetcher: BackendFetcher = fetch,
+  signal?: AbortSignal,
+) {
+  const body = placeSuggestionSelectionRequestSchema.parse(request)
+  const response = await requestFixedBackend('/v1/search/suggestion-selections', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: signal === undefined
+      ? AbortSignal.timeout(3_000)
+      : AbortSignal.any([signal, AbortSignal.timeout(3_000)]),
+  }, environment, fetcher)
+  const payload = await responseJson(response)
+  if (!response.ok) {
+    const problem = safeProblem(payload)
+    if (problem !== undefined) {
+      throw new SearchBackendProblem(
+        problem.status, problem.code, problem.title, problem.retryable, problem.correlationRef,
+      )
+    }
+    throw new Error('Place suggestion selection Backend is unavailable')
+  }
+  return placeSuggestionSelectionResponseSchema.parse(payload)
 }
 
 export async function getSearchTaxonomy(

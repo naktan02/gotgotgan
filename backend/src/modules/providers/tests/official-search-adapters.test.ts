@@ -31,6 +31,7 @@ describe('official provider search adapters', () => {
 
     expect(adapter.capabilities).toEqual({
       providerKey: 'naver',
+      placeSuggestions: 'search-fallback',
       officialSearch: { maxPageSize: 5, pagination: 'none', bounds: 'client-filtered' },
       placeDetails: 'unsupported', placePhotos: 'unsupported',
     })
@@ -132,5 +133,68 @@ describe('official provider search adapters', () => {
     await expect(adapter.search({ query: '라멘', filters: { taxonomyKeys: ['food.noodle.ramen'] }, limit: 5 }))
       .resolves.toMatchObject({ status: 'partial', errorCode: 'PLACE_PROVIDER_FILTER_UNSUPPORTED' })
     expect(request).not.toHaveBeenCalled()
+  })
+
+  it('provides query-as-you-type candidates without exposing the Google provider session token', async () => {
+    const request = vi.fn(async (_input: ProviderJsonRequest) => fixture('google-autocomplete'))
+    const adapter = new GoogleOfficialPlaceSearch({
+      baseUrl: new URL('https://places-api.example/v1/'),
+      apiKey: 'google-key', timeoutMilliseconds: 2_000,
+    }, { request }, () => new Date('2026-08-26T10:00:00.000Z'))
+
+    const page = await adapter.suggest({
+      query: '센카이 라멘',
+      sessionId: '01992d20-1000-7000-8000-000000000001',
+      language: 'ko',
+      areaText: '후쿠오카',
+      limit: 8,
+    })
+
+    expect(page.items).toHaveLength(2)
+    expect(page.items[0]).toMatchObject({
+      candidateKey: 'google:google-place-100',
+      identity: { kind: 'provider', providerKey: 'google', providerPlaceId: 'google-place-100' },
+      name: 'Senkai Ramen', areaLabel: 'Fukuoka, Japan', location: null,
+      categoryLabel: 'ramen restaurant',
+    })
+    const sent = request.mock.calls[0]?.[0]
+    expect(sent?.url).toEqual(new URL('https://places-api.example/v1/places:autocomplete'))
+    expect(sent?.body).toEqual(expect.objectContaining({
+      input: '센카이 라멘', languageCode: 'ko',
+    }))
+    expect(sent?.body).not.toMatchObject({
+      sessionToken: '01992d20-1000-7000-8000-000000000001',
+    })
+    expect(JSON.stringify(page)).not.toContain(String((sent?.body as { sessionToken?: string }).sessionToken))
+  })
+
+  it('reuses NAVER and Kakao official place results as bounded suggestion candidates', async () => {
+    const naverRequest = vi.fn(async (_input: ProviderJsonRequest) => fixture('naver-local-search'))
+    const kakaoRequest = vi.fn(async (_input: ProviderJsonRequest) => fixture('kakao-keyword-search'))
+    const naver = new NaverOfficialPlaceSearch({
+      endpoint: new URL('https://naver-api.example/local.json'),
+      clientId: 'client-id', clientSecret: 'client-secret', timeoutMilliseconds: 2_000,
+    }, { request: naverRequest }, () => new Date('2026-08-26T10:00:00.000Z'))
+    const kakao = new KakaoOfficialPlaceSearch({
+      endpoint: new URL('https://kakao-api.example/search/keyword.json'),
+      restApiKey: 'rest-api-key', timeoutMilliseconds: 2_000,
+    }, { request: kakaoRequest }, () => new Date('2026-08-26T10:00:00.000Z'))
+    const suggestionQuery = {
+      query: '성수 라멘', sessionId: '01992d20-1000-7000-8000-000000000001', limit: 5,
+      bounds: { west: 127, south: 37.5, east: 127.1, north: 37.6 },
+    }
+
+    const [naverPage, kakaoPage] = await Promise.all([
+      naver.suggest(suggestionQuery), kakao.suggest(suggestionQuery),
+    ])
+
+    expect(naverPage.items[0]).toMatchObject({
+      identity: { kind: 'provider', providerKey: 'naver' },
+      location: { latitude: 37.5445, longitude: 127.056 },
+    })
+    expect(kakaoPage.items[0]).toMatchObject({
+      identity: { kind: 'provider', providerKey: 'kakao', providerPlaceId: 'kakao-place-100' },
+      location: { latitude: 37.5445, longitude: 127.056 },
+    })
   })
 })

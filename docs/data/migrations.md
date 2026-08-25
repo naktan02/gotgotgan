@@ -37,3 +37,9 @@ Migration `000010`은 append-only `taxonomy.node_versions`를 추가한다. `000
 소유하는 public place document와 membership별 signal projection을 추가하고 text GIN,
 location GiST, Taxonomy GIN index를 만든다. 이 schema는 다른 owner table에 foreign key나
 runtime join을 두지 않는다. source version이 더 큰 projection만 현재 row를 갱신한다.
+
+Migration `000012`는 `search.suggestion_sessions`, `search.suggestion_impressions`,
+`search.discovery_candidates`를 추가한다. session과 impression은 짧은 TTL을 가지며 Discovery는
+공급자 후보의 정규화된 표시 정보·출처·위치·최종 관측만 가진 재구축 가능한 projection이다.
+text에는 `pg_trgm` GIN, 위치에는 GiST, 만료 정리에는 ordered index를 둔다. impression 단계에는
+Ingestion이나 Places table insert가 없고, 만료 정리는 Search table에만 delete 권한을 사용한다.

@@ -6,7 +6,7 @@ Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed doc
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **source-only; Stage 6 complete and Stage 2 integration in progress**. Independent web/backend composition
+Current delivery state: **source-only; Stage 6.5 complete and Stage 2 integration in progress**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
@@ -59,6 +59,15 @@ parser, pagination, 좌표와 누락 필드는 공급자 폴더 안에 남는다
 표시한다. 이는 fixture-tested source-only capability이며 live provider나 live tile map 활성화가
 아니다.
 
+Stage 6.5는 기존 `place-search.v1`을 바꾸지 않고 입력 중 후보용 `place-suggestions.v1`을
+추가했다. Search가 짧은 suggestion session, impression, 재구축 가능한 Discovery Projection을
+소유하고 로컬 canonical/Discovery 후보와 독립 공급자 adapter 결과를 공정하게 합친다. 후보 표시는
+공용 Place나 별칭을 만들지 않으며, 명시적 선택만 Ingestion observation을 기록한다. 개인 기능에
+안정된 ID가 필요할 때는 Candidate와 ResolutionDecision을 거쳐 Places command로 멱등 승격한다.
+Web은 교체 요청 취소, 키보드·모바일 선택, 동명 지점 구분, 부분 장애와 전체 검색 fallback을
+지원한다. 이 기능도 source-only이며 live credential, 선수집 corpus, browser automation을
+활성화하지 않는다.
+
 ## Repository boundaries
 
 ```text
@@ -93,6 +102,7 @@ npm run test:database
 npm run test:canonical-resolution
 npm run test:personal-content
 npm run test:local-search
+npm run test:place-suggestions
 npm run test:database-recovery
 npm run test:e2e
 ```

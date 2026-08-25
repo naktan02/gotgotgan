@@ -16,3 +16,5 @@ status and date, link evidence, name consequences and supersession conditions, a
   separately idempotent canonical mutations without cross-module source dependencies.
 - `0009-search-owned-read-projection.md`: Search가 다른 owner schema를 join하지 않고 versioned
   Local Search Projection을 소유한다.
+- `0010-interactive-discovery-and-canonical-promotion.md`: 입력 중 후보·Discovery impression·명시적
+  관측·증거 기반 Canonical 승격의 수명주기를 분리한다.

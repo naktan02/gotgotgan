@@ -33,3 +33,8 @@ read만 허용한다. `000011`은 Search 소유 Place document와 membership sig
 만들며 `pg_trgm` text GIN, location GiST, taxonomy array GIN index를 추가한다. 이 schema는
 다른 owner table을 조회하는 shortcut이 아니라 versioned projection command로 갱신되는
 재구축 가능한 read model이다.
+
+`000012`는 입력 중 검색을 위한 Search 소유 suggestion session, impression, Discovery candidate를
+추가한다. Discovery는 `pg_trgm` GIN과 geometry GiST를 사용하고 만료 후 삭제할 수 있다. provider
+impression은 evidence UUID를 미리 예약하지만 선택 전 Ingestion row나 Canonical Place를 만들지 않는다.
+runtime 권한은 이 세 replaceable Search table의 bounded DML에만 추가된다.

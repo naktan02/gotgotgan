@@ -17,6 +17,11 @@ secret-file credentials:
 - Google Places API (New): Text Search token pagination and rectangle restriction; selected results
   can lazily load bounded Details and one photo URI with provider/author attribution.
 
+입력 중 후보는 별도 provider-neutral suggestion port를 사용한다. Google은 documented Autocomplete,
+Kakao는 keyword search fallback, NAVER는 Local search fallback이다. 공급자별 session/header/response
+schema는 각 adapter에 남고 Web은 불투명 suggestion/session UUID만 본다. 표시 후보는 만료 가능한
+Discovery Projection에만 들어가며 선택 전 Canonical Place나 공개 alias가 아니다.
+
 An external result has an opaque `resultId` for UI selection and a `kind=provider` identity. Only a
 resolved local record has `kind=canonical` and a canonical Place ID. Provider categories remain raw
 labels until a reviewed, versioned Taxonomy mapping exists. Personal and taxonomy filters therefore

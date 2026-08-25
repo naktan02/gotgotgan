@@ -92,6 +92,71 @@ export const searchSourceOutcomeSchema = z.object({
   errorCode: z.string().min(1).max(128).optional(),
 }).strict()
 
+const suggestionSessionIdSchema = uuidSchema
+const suggestionIdSchema = uuidSchema
+
+export const placeSuggestionsRequestSchema = z.object({
+  schemaVersion: z.literal('place-suggestions.v1'),
+  query: z.string().trim().min(1).max(200),
+  sessionId: suggestionSessionIdSchema.optional(),
+  bounds: searchBoundsSchema.optional(),
+  areaText: z.string().trim().min(1).max(160).optional(),
+  language: z.string().trim().min(2).max(35).optional(),
+  limit: z.number().int().min(1).max(12).default(8),
+}).strict()
+
+export const placeSuggestionSchema = z.object({
+  suggestionId: suggestionIdSchema,
+  identity: searchResultIdentitySchema,
+  source: z.object({
+    key: z.string().min(1).max(64),
+    label: z.string().min(1).max(120),
+    externalUri: httpUrlSchema.optional(),
+    detailsAvailable: z.boolean(),
+    attributions: z.array(providerAttributionSchema).max(10),
+  }).strict(),
+  name: z.string().min(1).max(300),
+  areaLabel: z.string().min(1).max(300).nullable(),
+  location: z.object({
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+  }).strict().nullable(),
+  categoryLabel: z.string().min(1).max(300).nullable(),
+  observedAt: z.iso.datetime({ offset: true }),
+}).strict()
+
+export const placeSuggestionsResponseSchema = z.object({
+  schemaVersion: z.literal('place-suggestions.v1'),
+  sessionId: suggestionSessionIdSchema,
+  items: z.array(placeSuggestionSchema).max(12),
+  sources: z.array(searchSourceOutcomeSchema).min(1).max(16),
+}).strict()
+
+export const placeSuggestionSelectionRequestSchema = z.object({
+  schemaVersion: z.literal('place-suggestion-selection.v1'),
+  suggestionId: suggestionIdSchema,
+}).strict()
+
+export const placeSuggestionSelectionResponseSchema = z.object({
+  schemaVersion: z.literal('place-suggestion-selection.v1'),
+  suggestionId: suggestionIdSchema,
+  status: z.enum(['recorded', 'replayed', 'canonical']),
+  observationId: uuidSchema.optional(),
+}).strict()
+
+export const placeSuggestionMaterializationRequestSchema = z.object({
+  schemaVersion: z.literal('place-suggestion-materialization.v1'),
+  suggestionId: suggestionIdSchema,
+  intent: z.enum(['save', 'wanted', 'visit', 'rating', 'note', 'collection', 'share', 'place-reference']),
+}).strict()
+
+export const placeSuggestionMaterializationResponseSchema = z.object({
+  schemaVersion: z.literal('place-suggestion-materialization.v1'),
+  suggestionId: suggestionIdSchema,
+  status: z.enum(['created', 'linked', 'replayed']),
+  canonicalPlaceId: uuidSchema,
+}).strict()
+
 export const providerPlaceDetailRequestSchema = z.object({
   schemaVersion: z.literal('place-provider-detail.v1'),
   providerKey: providerKeySchema,
@@ -157,6 +222,14 @@ export type SearchResultIdentity = z.infer<typeof searchResultIdentitySchema>
 export type ProviderAttribution = z.infer<typeof providerAttributionSchema>
 export type PlaceSearchResult = z.infer<typeof placeSearchResultSchema>
 export type SearchSourceOutcome = z.infer<typeof searchSourceOutcomeSchema>
+export type PlaceSuggestionsRequestInput = z.input<typeof placeSuggestionsRequestSchema>
+export type PlaceSuggestionsRequest = z.infer<typeof placeSuggestionsRequestSchema>
+export type PlaceSuggestion = z.infer<typeof placeSuggestionSchema>
+export type PlaceSuggestionsResponse = z.infer<typeof placeSuggestionsResponseSchema>
+export type PlaceSuggestionSelectionRequest = z.infer<typeof placeSuggestionSelectionRequestSchema>
+export type PlaceSuggestionSelectionResponse = z.infer<typeof placeSuggestionSelectionResponseSchema>
+export type PlaceSuggestionMaterializationRequest = z.infer<typeof placeSuggestionMaterializationRequestSchema>
+export type PlaceSuggestionMaterializationResponse = z.infer<typeof placeSuggestionMaterializationResponseSchema>
 export type PlaceSearchResponse = z.infer<typeof placeSearchResponseSchema>
 export type ProviderPlaceDetailRequest = z.infer<typeof providerPlaceDetailRequestSchema>
 export type ProviderPlaceDetail = z.infer<typeof providerPlaceDetailSchema>

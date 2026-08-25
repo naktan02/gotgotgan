@@ -53,3 +53,9 @@ Playwright는 외부 결과가 canonical Place ID로 가장되지 않는 계약,
 credential 비노출을 검증한다. NAVER/Kakao raw response parser는 module fixture replay가 맡는다.
 실제 provider 호출은 blocking E2E와 screenshot baseline에서 금지하고 opt-in live smoke로만
 분류한다.
+
+Stage 6.5는 제출 검색과 분리된 입력 중 suggestion fixture를 추가한다. desktop/mobile Chromium은
+빠른 입력의 stale request 취소, 같은 이름의 후쿠오카/도쿄 지점 구분, 키보드 이동·선택,
+영문 표기 변형, 일부 provider 장애, 후보 없음 후 전체 검색 fallback, 반복 선택 기록을 실제 Web
+BFF 경계로 검증한다. browser payload에는 provider token/API key/cookie/profile이나 membership별
+검색 signal이 없어야 한다. fixture는 live provider나 실제 사용자 계정을 대신하지 않는다.

@@ -1,0 +1,26 @@
+{
+  "suggestions": [
+    {
+      "placePrediction": {
+        "placeId": "google-place-100",
+        "text": { "text": "Senkai Ramen, Fukuoka, Japan" },
+        "structuredFormat": {
+          "mainText": { "text": "Senkai Ramen" },
+          "secondaryText": { "text": "Fukuoka, Japan" }
+        },
+        "types": ["ramen_restaurant", "restaurant"]
+      }
+    },
+    {
+      "placePrediction": {
+        "placeId": "google-place-101",
+        "text": { "text": "Senkai Ramen Shinjuku, Tokyo, Japan" },
+        "structuredFormat": {
+          "mainText": { "text": "Senkai Ramen Shinjuku" },
+          "secondaryText": { "text": "Tokyo, Japan" }
+        },
+        "types": ["restaurant"]
+      }
+    }
+  ]
+}

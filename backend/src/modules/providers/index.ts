@@ -7,9 +7,13 @@ export {
   type ProviderPlaceDetailRequest,
   type ProviderPlaceDetails,
   type ProviderPlaceSearch,
+  type ProviderPlaceSuggestions,
   type ProviderSearchPage,
   type ProviderSearchQuery,
   type ProviderSearchResult,
+  type ProviderSuggestionBatch,
+  type ProviderSuggestionCandidate,
+  type ProviderSuggestionQuery,
 } from './domain/model.js'
 export { createProviderPlaceDetailReader } from './application/get-provider-place-detail.js'
 export {

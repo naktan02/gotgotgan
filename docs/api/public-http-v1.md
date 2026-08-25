@@ -16,6 +16,20 @@ complete/partial/unavailable outcome을 반환한다. 모든 source가 unavailab
 있다. 외부 결과는 `identity.kind=provider`, 공급자 출처, live freshness, 문서화된 경우에만
 provider Place ID와 원문 링크를 가진다.
 
+`POST /v1/search/suggestions`와 Web의 `POST /api/search/suggestions`는 입력 중 후보를 위한 별도
+`place-suggestions.v1` 계약이다. request는 query, optional opaque session UUID, bounds, area text,
+language, 최대 12개 limit만 받는다. response는 같은 이름의 지점을 area/category/source로 구분하고
+source별 complete/partial/unavailable을 반환한다. API key, cookie, browser profile, provider session
+token, raw response는 계약에 없다. 모든 source가 실패해도 안전한 source outcome과 빈 후보를
+반환하여 Web이 전체 검색 fallback을 제공할 수 있다.
+
+`POST /v1/search/suggestion-selections`와 Web의 대응 BFF는 명시적으로 고른 후보만 replay-safe
+SourceObservation으로 기록한다. `POST /v1/search/suggestion-materializations`는 bearer와
+`library.write` 권한을 요구하며, save/wanted/visit/rating/note/collection/share/PlaceReference 의도가
+안정된 ID를 요구할 때 Candidate와 ResolutionDecision을 거쳐 Canonical Place를 create/link한다.
+browser가 member, role, evidence ID, provider credential을 지정할 수 없다. selection/materialization
+reference는 session과 함께 만료되며 안전한 404로 처리한다.
+
 `POST /v1/providers/place-details`와 Web의 `POST /api/search/provider-details`는 선택한 Google
 결과에 한해 bounded 상세를 지연 조회한다. request는 provider key와 provider Place ID만 받으며
 endpoint, API key, field mask는 server-side composition이 결정한다. response는 provider rating,
