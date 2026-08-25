@@ -26,6 +26,18 @@ jobs:
         env:
           PLACE_WEB_E2E_BASE_URL: http://127.0.0.1:4177
         run: npm run check
+      - name: Retain Playwright failure evidence
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: place-playwright-failure-${{ github.sha }}
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: warn
+          compression-level: 0
+          overwrite: false
+          retention-days: 14
       - name: Verify PostgreSQL/PostGIS migrations
         env:
           PLACE_DATABASE_TEST_HOST: 127.0.0.1

@@ -12,3 +12,15 @@ test('backend unit-test exclusion remains one cross-platform shell argument', as
 
   assert.equal(backendPackage.scripts.test, 'vitest run --exclude "tests/integration/**"')
 })
+
+test('mobile Chromium project explicitly selects Chromium after the device preset', async () => {
+  const playwrightConfig = await readFile(
+    path.join(repositoryRoot, 'playwright.config.ts'),
+    'utf8',
+  )
+
+  assert.match(
+    playwrightConfig,
+    /name: 'mobile-chromium',[\s\S]*?use: \{[\s\S]*?\.\.\.devices\['iPhone 13'\],[\s\S]*?browserName: 'chromium',/,
+  )
+})
