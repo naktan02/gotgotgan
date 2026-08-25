@@ -13,5 +13,7 @@ ordered migrations under `place_owner`. It is idempotent but is never an HTTP/Wo
 Inject `PLACE_DATABASE_TEST_HOST`, then run `npm run test:database` to reproduce the disposable
 PostGIS contract test. It proves a repeated preparation succeeds, `place_app` can use intended DML,
 cannot perform DDL, alter table ownership, or modify migration metadata, and the spatial query plan uses
-`canonical_places_location_gist`. Before activation, still perform a database-level backup and
-isolated restore and record upgrade/rollback evidence. Never run DDL from the runtime process.
+`canonical_places_location_gist`. The same test exercises access bootstrap/resolution, last-owner
+protection, stale-write conflict, malformed-ID non-disclosure, and role-change/audit rollback through
+the module interface. Before activation, still perform a database-level backup and isolated restore
+and record upgrade/rollback evidence. Never run DDL from the runtime process.

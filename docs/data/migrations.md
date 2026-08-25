@@ -15,5 +15,7 @@ transactional must justify `noTransaction` and a separate recovery procedure bef
 
 The first migration owns `places.canonical_places`, keeps location nullable for physical and
 service-area identities, and adds a partial GiST index for located records. Runtime DML grants are
-explicit. Application startup never receives administrator/migration credentials and never performs
-DDL.
+explicit. The second migration owns normalized access memberships/resource grants and append-only
+audit events. It grants no membership or audit deletion authority and leaves pool ownership to future
+process composition. Application startup never receives administrator/migration credentials and
+never performs DDL.

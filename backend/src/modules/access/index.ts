@@ -7,6 +7,7 @@ export {
 export {
   authorityRoles,
   externalPrincipalKey,
+  grantablePermissions,
   membershipStatuses,
   placePermissions,
   type AccessSubject,
@@ -56,3 +57,4 @@ export {
   registerAccessHttpRoutes,
   type AccessHttpDependencies,
 } from './transport/http/register-access-http.js'
+export { PostgresAccessStore } from './adapters/persistence/postgres-access-store.js'

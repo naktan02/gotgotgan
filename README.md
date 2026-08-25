@@ -8,8 +8,8 @@ evidence, personal libraries, visits, writing, imports, sharing, and future Tool
 
 Current delivery state: **source-only, Stage 3 in progress**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
-a source-only physical PostGIS declaration, and a tested database preparation/migration command
-exist. There is no active application database connection, provider account, map credential,
+a source-only physical PostGIS declaration, a tested database preparation/migration command, and
+access-owned PostgreSQL persistence exist. There is no active application database connection, provider account, map credential,
 Identity client, Gateway route, or AI Tool connection.
 
 ## Repository boundaries

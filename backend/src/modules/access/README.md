@@ -12,7 +12,9 @@ change, and record its outcome in one transaction. Callers receive explicit chan
 forbidden, not-found, conflict, or last-owner-protected results and never infer success after a race.
 
 Consumers import only `index.ts`. The domain is framework-free. Application ports are owned here;
-an in-memory directory is test-only and PostgreSQL persistence arrives with Stage 3. Identity
+in-memory implementations remain test-only. The Stage 3 PostgreSQL adapter accepts a caller-owned
+pool and implements membership resolution, initial-owner bootstrap, access audit, and atomic role
+changes without exposing SQL rows. It is source-only and is not yet wired into HTTP/Worker. Identity
 adapters validate evidence but never decide Place roles. `administration` may expose management
 workflows later, but it must call this module's public interface instead of recreating access rules.
 

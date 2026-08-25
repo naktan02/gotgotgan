@@ -10,7 +10,9 @@ is registered only when its verifier, membership directory, and audit sink are i
 production composition does not connect it yet. The platform database preparation command provisions
 Place-owned roles, installs PostGIS as the administrator, and runs versioned migrations as
 `place_owner`; it is not application startup and supplies no runtime connection to HTTP or Worker.
-No application database connection, job claim, provider, browser profile, or external integration exists.
+The access module has a real PostgreSQL adapter for membership, bootstrap, authorization audit, and
+atomic authority-role changes, but no production composition supplies its caller-owned pool yet. No
+application database connection, job claim, provider, browser profile, or external integration exists.
 
 Read `src/modules/README.md` before adding a capability. A module keeps domain, application, adapters,
 transport, and tests together; root entrypoints only wire dependencies and own process lifecycle.

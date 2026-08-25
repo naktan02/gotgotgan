@@ -4,12 +4,17 @@ export type AuthorityRole = (typeof authorityRoles)[number]
 export const membershipStatuses = ['active', 'suspended'] as const
 export type MembershipStatus = (typeof membershipStatuses)[number]
 
-export const placePermissions = [
-  'place.public.read',
+export const grantablePermissions = [
   'library.read',
   'library.write',
   'review.read',
   'review.decide',
+] as const
+export type GrantablePermission = (typeof grantablePermissions)[number]
+
+export const placePermissions = [
+  'place.public.read',
+  ...grantablePermissions,
   'administration.read',
   'administration.manage',
   'ownership.manage',
@@ -25,11 +30,6 @@ export type ResourceScope = Readonly<{
   kind: string
   id?: string
 }>
-
-export type GrantablePermission = Extract<
-  PlacePermission,
-  'library.read' | 'library.write' | 'review.read' | 'review.decide'
->
 
 export type ResourceGrant = Readonly<{
   permission: GrantablePermission

@@ -8,8 +8,10 @@ last-owner protection where applicable.
 No credential means an anonymous visitor, not an implicit guest. A verified but unmapped principal
 is rejected rather than downgraded to anonymous. Anonymous access is limited to an explicitly public
 projection. Place records allow and denial decisions through an audit port without retaining raw
-tokens. Persistence and operator-authorized initial-owner bootstrap arrive with the Stage 3 schema;
-browser input can never trigger bootstrap.
+tokens. Stage 3 provides normalized PostgreSQL membership/resource-grant storage, append-only audit,
+and operator-authorized initial-owner bootstrap persistence. The bootstrap operation serializes the
+empty-membership decision and membership/audit write in one transaction; browser input can never
+trigger it. This adapter remains source-only until an approved process composition owns its pool.
 
 The browser login boundary is a confidential BFF. It validates HTTPS callback configuration,
 requires `openid`, rejects external post-login redirects, consumes one-time server-side login
@@ -22,4 +24,6 @@ Authority-role changes go through the `access` module's single mutation interfac
 can manage only non-owner roles. Any operation touching the current owner role or assigning the owner
 role requires `ownership.manage`. Persistence must perform expected-role comparison, final-active-
 owner protection, mutation, and outcome audit atomically; a concurrent update returns a conflict
-instead of being overwritten. Product tier remains outside this authority path.
+instead of being overwritten. The PostgreSQL adapter locks active owners in stable order and rolls a
+role mutation back if its outcome audit cannot be recorded. Product tier remains outside this
+authority path.

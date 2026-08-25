@@ -7,7 +7,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import test from 'node:test'
 
-import { Client } from 'pg'
+import { Client, Pool } from 'pg'
 
 import databaseRuntime from '../../../deploy/database-runtime.json' with { type: 'json' }
 
@@ -67,7 +67,7 @@ async function waitForAuthenticatedConnection(connectionString) {
   throw lastError
 }
 
-test('database preparation migrates as owner and confines the runtime role', { timeout: 90_000 }, async () => {
+test('database preparation confines runtime authority and persists Place access', { timeout: 90_000 }, async () => {
   assert.match(
     databaseTestHost ?? '',
     /^[a-zA-Z0-9.-]+$/,
@@ -82,6 +82,7 @@ test('database preparation migrates as owner and confines the runtime role', { t
 
   let runtimeClient
   let administratorClient
+  let runtimePool
 
   try {
     const administratorPasswordFile = path.join(secretDirectory, 'administrator-password')
@@ -152,6 +153,152 @@ test('database preparation migrates as owner and confines the runtime role', { t
     runtimeClient = new Client({ connectionString: runtimeUrl })
     await administratorClient.connect()
     await runtimeClient.connect()
+
+    const access = await import('../../dist/modules/access/index.js')
+    runtimePool = new Pool({ connectionString: runtimeUrl, max: 2 })
+    const accessStore = new access.PostgresAccessStore(runtimePool)
+    const ownerPrincipal = { issuer: `urn:place:test:${suffix}`, subject: 'owner-subject' }
+    const owner = await access.bootstrapInitialOwner({
+      principal: ownerPrincipal,
+      productTier: 'standard',
+      authority: { verify: async () => ({ operatorReference: 'database-integration-test' }) },
+      store: accessStore,
+      nextMembershipId: () => '01991e60-9c4e-7a13-945a-0d224d0059c2',
+      now: () => new Date('2026-08-25T12:00:00.000Z'),
+    })
+    assert.equal(owner.authorityRole, 'owner')
+    const resolvedOwner = await access.resolveAccessSubject(ownerPrincipal, accessStore)
+    assert.deepEqual(resolvedOwner, { kind: 'member', membership: owner })
+    await assert.rejects(
+      access.bootstrapInitialOwner({
+        principal: { issuer: `urn:place:test:${suffix}`, subject: 'second-owner-subject' },
+        productTier: 'standard',
+        authority: { verify: async () => ({ operatorReference: 'database-integration-test' }) },
+        store: accessStore,
+        nextMembershipId: () => '01991e61-06e3-7cb2-9548-29c4bdaf97af',
+        now: () => new Date('2026-08-25T12:01:00.000Z'),
+      }),
+      access.MembershipAlreadyInitializedError,
+    )
+
+    const administratorPrincipal = {
+      issuer: `urn:place:test:${suffix}`,
+      subject: 'administrator-subject',
+    }
+    const reviewerPrincipal = {
+      issuer: `urn:place:test:${suffix}`,
+      subject: 'reviewer-subject',
+    }
+    await runtimeClient.query(
+      `
+        INSERT INTO access.memberships (
+          id, issuer, subject, status, authority_role, product_tier, created_at, updated_at
+        )
+        VALUES
+          ($1, $2, $3, 'active', 'administrator', 'standard', $4, $4),
+          ($5, $2, $6, 'active', 'reviewer', 'standard', $4, $4)
+      `,
+      [
+        '01991e64-0ea9-78ff-ae9e-83560c474357',
+        administratorPrincipal.issuer,
+        administratorPrincipal.subject,
+        '2026-08-25T12:02:00.000Z',
+        '01991e64-835b-7535-8319-4e367561f730',
+        reviewerPrincipal.subject,
+      ],
+    )
+    const administrator = await access.resolveAccessSubject(administratorPrincipal, accessStore)
+    const changedRole = await access.changeMembershipAuthorityRole({
+      actor: administrator,
+      targetMembershipId: '01991e64-835b-7535-8319-4e367561f730',
+      nextRole: 'member',
+      store: accessStore,
+      auditSink: accessStore,
+      now: () => new Date('2026-08-25T12:03:00.000Z'),
+    })
+    assert.deepEqual(changedRole, {
+      status: 'changed',
+      targetMembershipId: '01991e64-835b-7535-8319-4e367561f730',
+      previousRole: 'reviewer',
+      nextRole: 'member',
+    })
+    const changedReviewer = await access.resolveAccessSubject(reviewerPrincipal, accessStore)
+    assert.equal(changedReviewer.membership.authorityRole, 'member')
+
+    const protectedOwner = await access.changeMembershipAuthorityRole({
+      actor: resolvedOwner,
+      targetMembershipId: owner.id,
+      nextRole: 'administrator',
+      store: accessStore,
+      auditSink: accessStore,
+      now: () => new Date('2026-08-25T12:04:00.000Z'),
+    })
+    assert.deepEqual(protectedOwner, {
+      status: 'last-owner-protected',
+      targetMembershipId: owner.id,
+    })
+    const ownerAfterProtectedChange = await access.resolveAccessSubject(ownerPrincipal, accessStore)
+    assert.equal(ownerAfterProtectedChange.membership.authorityRole, 'owner')
+
+    await administratorClient.query(`
+      CREATE FUNCTION access.reject_changed_role_audit() RETURNS trigger
+      LANGUAGE plpgsql
+      AS $$
+      BEGIN
+        IF NEW.event_kind = 'authority-role-change' AND NEW.outcome = 'changed' THEN
+          RAISE EXCEPTION 'forced integration audit failure';
+        END IF;
+        RETURN NEW;
+      END
+      $$;
+
+      CREATE TRIGGER reject_changed_role_audit
+      BEFORE INSERT ON access.audit_events
+      FOR EACH ROW EXECUTE FUNCTION access.reject_changed_role_audit();
+    `)
+    await assert.rejects(
+      access.changeMembershipAuthorityRole({
+        actor: administrator,
+        targetMembershipId: '01991e64-835b-7535-8319-4e367561f730',
+        nextRole: 'reviewer',
+        store: accessStore,
+        auditSink: accessStore,
+        now: () => new Date('2026-08-25T12:05:00.000Z'),
+      }),
+    )
+    const reviewerAfterAuditFailure = await access.resolveAccessSubject(
+      reviewerPrincipal,
+      accessStore,
+    )
+    assert.equal(reviewerAfterAuditFailure.membership.authorityRole, 'member')
+    await administratorClient.query(`
+      DROP TRIGGER reject_changed_role_audit ON access.audit_events;
+      DROP FUNCTION access.reject_changed_role_audit();
+    `)
+
+    await runtimeClient.query(
+      `UPDATE access.memberships SET authority_role = 'reviewer' WHERE id = $1`,
+      ['01991e64-835b-7535-8319-4e367561f730'],
+    )
+    const conflict = await accessStore.attemptAndAuditRoleChange({
+      actorMembershipId: '01991e64-0ea9-78ff-ae9e-83560c474357',
+      targetMembershipId: '01991e64-835b-7535-8319-4e367561f730',
+      expectedCurrentRole: 'member',
+      nextRole: 'administrator',
+      occurredAt: '2026-08-25T12:06:00.000Z',
+    })
+    assert.equal(conflict, 'conflict')
+    const reviewerAfterConflict = await access.resolveAccessSubject(reviewerPrincipal, accessStore)
+    assert.equal(reviewerAfterConflict.membership.authorityRole, 'reviewer')
+    const hiddenUnknownMembership = await access.changeMembershipAuthorityRole({
+      actor: reviewerAfterConflict,
+      targetMembershipId: 'not-a-membership-id',
+      nextRole: 'member',
+      store: accessStore,
+      auditSink: accessStore,
+      now: () => new Date('2026-08-25T12:07:00.000Z'),
+    })
+    assert.deepEqual(hiddenUnknownMembership, { status: 'forbidden' })
 
     const rolesResult = await administratorClient.query(
       `
@@ -258,7 +405,16 @@ test('database preparation migrates as owner and confines the runtime role', { t
       runtimeClient,
       "DELETE FROM places.canonical_places WHERE id = '018f47c2-4a14-7c03-b8d5-6d91791e4d7f'",
     )
+    await expectInsufficientPrivilege(
+      runtimeClient,
+      "DELETE FROM access.memberships WHERE id = '01991e60-9c4e-7a13-945a-0d224d0059c2'",
+    )
+    await expectInsufficientPrivilege(
+      runtimeClient,
+      "UPDATE access.audit_events SET outcome = 'forged'",
+    )
   } finally {
+    await runtimePool?.end().catch(() => undefined)
     await runtimeClient?.end().catch(() => undefined)
     await administratorClient?.end().catch(() => undefined)
     await run('docker', ['rm', '--force', containerName]).catch(() => undefined)
