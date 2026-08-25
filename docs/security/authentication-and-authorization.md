@@ -17,3 +17,9 @@ transactions, validates state/nonce/PKCE through the OIDC adapter, bounds sessio
 expiry, and sanitizes callback failures. Cookies are `__Host-`, Secure, HttpOnly, SameSite=Lax and
 contain opaque identifiers only. Logout deletes server-side session state before clearing the cookie.
 In-memory stores are not an allowed production composition.
+
+Authority-role changes go through the `access` module's single mutation interface. Administrators
+can manage only non-owner roles. Any operation touching the current owner role or assigning the owner
+role requires `ownership.manage`. Persistence must perform expected-role comparison, final-active-
+owner protection, mutation, and outcome audit atomically; a concurrent update returns a conflict
+instead of being overwritten. Product tier remains outside this authority path.

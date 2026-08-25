@@ -33,6 +33,10 @@ export {
   bootstrapInitialOwner,
   MembershipAlreadyInitializedError,
 } from './application/bootstrap-initial-owner.js'
+export {
+  changeMembershipAuthorityRole,
+  type MembershipAuthorityRoleChange,
+} from './application/change-membership-authority-role.js'
 export type { AccessAuditEvent, AccessAuditSink } from './application/ports/access-audit-sink.js'
 export type {
   BootstrapAuthority,
@@ -44,6 +48,10 @@ export type {
 } from './application/ports/initial-owner-store.js'
 export type { MembershipDirectory } from './application/ports/membership-directory.js'
 export type { PrincipalVerifier } from './application/ports/principal-verifier.js'
+export type {
+  AuthorityRoleChangeStore,
+  AuthorityRoleChangeAttempt,
+} from './application/ports/authority-role-change-store.js'
 export {
   registerAccessHttpRoutes,
   type AccessHttpDependencies,
