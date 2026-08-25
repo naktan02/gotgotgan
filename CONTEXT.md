@@ -23,7 +23,11 @@ domain meaning rather than storage or framework structure.
 | Place Redirect | A durable reference from a merged Canonical Place to the surviving Canonical Place. | Deletion or alias text. |
 | Place Lineage | Immutable merge or split history that explains how Canonical Place identity and provider links changed. | Current Place state. |
 | Personal Library | A member's Place-owned organization of saved/wanted state, collections, tags, and personal ratings. | Canonical Place data. |
+| Place Preferences | The member-owned saved, wanted, and current personal-rating values for one Canonical Place. The values are independent and `visited` is not stored here. | Visit history or provider rating. |
+| Personal Rating | A member's current 0.1-to-5.0 evaluation of a Canonical Place, with private change history. | Provider rating or public aggregate. |
 | Visit | A repeatable occurrence connecting a member to a Canonical Place. | Saved/wanted state. |
 | Note | Short Place-owned writing that may reference a place and has explicit visibility. | Entry. |
 | Entry | Long-form Place-owned writing that may reference multiple places and has explicit visibility. | Note or diary-service content. |
+| Unlisted Projection | An allowlisted anonymous projection reachable only through its opaque publication identifier and excluded from discovery. | Private data or an authenticated resource grant. |
+| Collection Copy | A new member-owned collection populated from a disclosed projection with source provenance. | Shared mutable ownership or copying private metadata. |
 | Place Reference | An opaque, versioned cross-product reference resolved through a Place contract. | Foreign-key or direct database access. |

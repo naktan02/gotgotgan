@@ -26,3 +26,8 @@ append-only Source Observations, Place Candidates, and Resolution Decisions. `pl
 status/version, aliases, provider identities, applied-decision fingerprints, redirects, and lineage.
 The runtime role can perform only required inserts plus bounded canonical/provider-link updates. It
 cannot rewrite or delete evidence, resolution decisions, redirects, or lineage.
+
+Migrations `000007` through `000009` add independent Library, Visits, and Writing schemas. Library
+retains private Personal Rating changes and copy provenance. Visits are append-only. Writing applies
+optimistic current-document updates while retaining immutable revisions. Runtime column grants are
+bounded to current projections and ordered links; history and receipts remain insert/select only.

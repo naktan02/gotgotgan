@@ -43,6 +43,12 @@ create, merge, redirect resolution, split, provider-identity resolution, retirem
 conflicting ID reuse, and concurrent provider-link decisions through the places interface. Direct
 runtime-role checks prove evidence, decisions, redirects, and lineage cannot be rewritten or deleted.
 
+The focused personal-content suite applies migrations in another disposable PostGIS runtime and
+uses the public Library, Visits, and Writing interfaces. It proves Personal Rating changes retain
+history, repeated Visits derive first/last/count, public Collection and writing projections use
+explicit field allowlists, multi-Place Entry revisions are optimistic and retained, and the runtime
+cannot rewrite Visits, rating events, or writing revisions.
+
 The published-image smoke is intentionally not replaced by a local tag test. The manual release
 workflow removes any local copies, pulls both exact GHCR platform digests, checks non-root and
 source-revision labels, starts Web and Backend in their source-only modes, waits on both `/readyz`

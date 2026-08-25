@@ -9,6 +9,10 @@ const targets = [
   new URL('../../../deploy/database-runtime.json', import.meta.url),
   new URL('../../../deploy/application-runtime.json', import.meta.url),
   new URL('../membership/membership-policy.v1.schema.json', import.meta.url),
+  new URL('../place-reference/place-reference.v1.schema.json', import.meta.url),
+  new URL('../fixtures/place-reference.available.v1.json', import.meta.url),
+  new URL('../fixtures/place-reference.unavailable.v1.json', import.meta.url),
+  new URL('../fixtures/place-reference.redacted.v1.json', import.meta.url),
   new URL(
     '../operations/database-recovery-evidence.v1.schema.json',
     import.meta.url,
@@ -28,6 +32,10 @@ const [
   databaseRuntime,
   applicationRuntime,
   membershipPolicySchema,
+  placeReferenceSchema,
+  availablePlaceReference,
+  unavailablePlaceReference,
+  redactedPlaceReference,
   databaseRecoveryEvidenceSchema,
   applicationDeploymentPlanSchema,
 ] = await Promise.all(
@@ -36,6 +44,15 @@ const [
 
 const failures = []
 if (openApi.openapi !== '3.1.0') failures.push('HTTP contract must use OpenAPI 3.1.0')
+if (
+  placeReferenceSchema.$id !== 'urn:place:place-reference:v1' ||
+  availablePlaceReference.status !== 'available' ||
+  typeof availablePlaceReference.placeId !== 'string' ||
+  unavailablePlaceReference.status !== 'unavailable' ||
+  unavailablePlaceReference.placeId !== undefined ||
+  redactedPlaceReference.status !== 'redacted' ||
+  redactedPlaceReference.placeId !== undefined
+) failures.push('Place reference v1 must distinguish available, unavailable, and redacted projections')
 if (
   membershipPolicySchema.$id !== 'urn:place:membership-policy:v1' ||
   membershipPolicySchema.additionalProperties !== false ||
@@ -82,6 +99,32 @@ if (activeFixture.deliveryState !== 'active' || activeFixture.items.length < 2) 
 }
 if (openApi.paths['/v1/me']?.get?.security?.[0]?.placeBearer?.length !== 0) {
   failures.push('GET /v1/me must require the Place bearer security scheme')
+}
+for (const path of ['/v1/library/commands', '/v1/visits', '/v1/writing/commands']) {
+  if (openApi.paths[path]?.post?.security?.[0]?.placeBearer?.length !== 0) {
+    failures.push(`${path} must derive membership from Place bearer evidence`)
+  }
+}
+for (const path of ['/v1/library', '/v1/writing', '/v1/places/{placeId}/visits']) {
+  if (openApi.paths[path]?.get?.security?.[0]?.placeBearer?.length !== 0) {
+    failures.push(`${path} must keep owner content behind Place bearer evidence`)
+  }
+}
+for (const path of [
+  '/v1/public/collections/{publicationId}',
+  '/v1/public/writing/{publicationId}',
+  '/api/public/collections/{publicationId}',
+  '/api/public/writing/{publicationId}',
+]) {
+  if (openApi.paths[path]?.get?.security?.length !== 0) {
+    failures.push(`${path} must expose only an explicit anonymous projection`)
+  }
+}
+for (const schemaName of ['LibraryCommandRequest', 'VisitRecordRequest', 'WritingCommandRequest']) {
+  const schema = openApi.components.schemas[schemaName]
+  if (schema?.additionalProperties !== false || schema?.properties?.memberId !== undefined || schema?.properties?.role !== undefined) {
+    failures.push(`${schemaName} cannot accept member or authority evidence`)
+  }
 }
 const onboardingOperation = openApi.paths['/v1/memberships/onboarding']?.post
 const onboardingRequest = openApi.components.schemas.MembershipOnboardingRequest

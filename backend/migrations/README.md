@@ -20,3 +20,10 @@ the candidate spatial index. `000006` extends canonical lifecycle state and adds
 identity links, applied-decision idempotency, redirects, and merge/split lineage. The runtime role
 may insert evidence and history and perform only the bounded canonical/link updates required by the
 module adapter; it cannot update or delete evidence, decisions, redirects, or lineage.
+
+`000007` creates Library preferences, private rating history, Collections, Tags, ordered membership,
+copy provenance, and command receipts. `000008` creates append-only Visit occurrences and the member-
+Place-time index used for derived summaries. `000009` creates optimistic Note/Entry documents,
+ordered Place links, immutable revisions, and command receipts. Runtime grants allow only the
+bounded updates used by current projections; rating events, Visits, revisions, copy provenance, and
+receipts cannot be rewritten or deleted.

@@ -7,6 +7,20 @@ return only public projections.
 Product endpoints are added by their owning module transport and published in OpenAPI. The root HTTP
 entrypoint registers them and owns lifecycle only.
 
+`POST /v1/library/commands`, `POST /v1/visits`, and `POST /v1/writing/commands` are strict bearer-
+authenticated Backend operations. They reject member, role, grade, and tier input and derive the
+member through the Access composition. Library and writing command IDs are idempotent; writing
+updates additionally require an expected version. `GET /v1/library/places/{placeId}` and
+`GET /v1/places/{placeId}/visit-summary` return member-private projections. `GET /v1/library`,
+`GET /v1/writing`, and `GET /v1/places/{placeId}/visits` provide authenticated owner views; no
+equivalent anonymous route exists.
+
+`GET /v1/public/collections/{publicationId}` and `GET /v1/public/writing/{publicationId}` are the
+only Stage 4 anonymous Backend projections. The Web exposes corresponding `/api/public/...` BFF
+reads and `/share/...` pages through its fixed internal Backend origin. Unknown and private
+identifiers return the same safe not-found shape. Public projections never contain membership,
+ratings, Visits, Tags, provenance, or revision history.
+
 `GET /healthz` reports process liveness and does not depend on PostgreSQL, Identity, or another
 process. `GET /readyz` reports 503 with a bounded `unavailable` projection when an explicitly required
 dependency cannot serve traffic. Backend production readiness checks its Pool; Web production

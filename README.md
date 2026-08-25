@@ -6,7 +6,7 @@ Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed doc
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **source-only; Stage 3 complete and Stage 2 integration in progress**. Independent web/backend composition
+Current delivery state: **source-only; Stage 4 complete and Stage 2 integration in progress**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
@@ -35,6 +35,14 @@ Candidates, and evidence-backed Resolution Decisions separately from canonical m
 create/link/merge/split/retire commands are fingerprint-idempotent, preserve provider identity links,
 redirects, and lineage, and are verified against real PostGIS with least-privilege runtime denial.
 No HTTP or Worker transport exposes these internal module interfaces yet.
+
+The Stage 4 personal-content foundation adds independent `library`, `visits`, and `writing` modules
+with module-owned schemas and PostgreSQL adapters. Saved/wanted preferences and decimal personal
+ratings remain distinct; rating changes and writing revisions retain private history; visited state
+is derived only from immutable repeatable Visits. Authenticated product commands derive membership
+from verified bearer evidence, while public and unlisted Collection/writing reads use separate
+allowlisted projections through the Web server. `place-reference.v1` publishes available,
+unavailable, and redacted cross-service outcomes without database access.
 
 ## Repository boundaries
 
@@ -68,12 +76,13 @@ npm run check:contracts
 npm run test:deployment
 npm run test:database
 npm run test:canonical-resolution
+npm run test:personal-content
 npm run test:database-recovery
 npm run test:e2e
 ```
 
 `test:database` requires Docker plus an injected `PLACE_DATABASE_TEST_HOST` and runs the broad
-runtime suite and focused canonical-resolution suite serially in disposable, randomly credentialed
+runtime suite and focused canonical-resolution and personal-content suites serially in disposable, randomly credentialed
 PostGIS containers. `test:canonical-resolution` is the narrow iteration command. The database tests
 remain separate from the default source check while Docker-enabled CI owns them.
 `test:database-recovery` uses the same injected host and two

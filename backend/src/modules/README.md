@@ -23,5 +23,10 @@ canonical create/link/merge/split/retire commands and preserves redirects and li
 composition root translates an accepted ingestion decision into the places interface; neither module
 imports the other's source and a candidate never becomes canonical merely by being recorded.
 
+`library` owns member preferences, Collections, Tags, personal-rating history, and copy provenance.
+`visits` owns immutable repeatable Visit occurrences and derived summaries. `writing` owns versioned
+Notes, Entries, Place links, and publication projections. None imports another module or queries its
+tables; HTTP entrypoint composition injects their public interfaces and shared authorization result.
+
 `access` owns membership and authorization rules. `administration` owns authorized management
 workflows and review surfaces; it does not own or duplicate access policy.

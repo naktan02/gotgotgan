@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:place:place-reference:v1",
+  "title": "Place reference v1",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "status", "placeId"],
+      "properties": {
+        "schemaVersion": { "const": "place-reference.v1" },
+        "status": { "const": "available" },
+        "placeId": { "type": "string", "format": "uuid" }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "status"],
+      "properties": {
+        "schemaVersion": { "const": "place-reference.v1" },
+        "status": { "enum": ["unavailable", "redacted"] }
+      }
+    }
+  ]
+}

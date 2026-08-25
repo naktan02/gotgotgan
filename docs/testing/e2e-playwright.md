@@ -34,3 +34,9 @@ JSON, stale consent, and sanitized persistence failure. They also cover the auth
 success boundary and unauthorized target non-disclosure. Browser Playwright onboarding success
 remains integration-gated until a test composition can exercise a complete provisioned Identity
 session through Gateway.
+
+Stage 4 Playwright starts a test-owned publication Backend beside the Web process. Desktop and
+mobile Chromium render an unlisted Collection and public Entry through the real Web server boundary,
+then confirm an undisclosed identifier returns the same safe 404 without membership or rating data.
+The fixture contains contract-faithful personal data only and is not a provider or authentication
+bypass.

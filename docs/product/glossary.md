@@ -3,6 +3,12 @@
 - **Place**: provider-neutral canonical identity for a real-world location or destination.
 - **Source observation**: provider or user evidence describing a Place at a point in time.
 - **Personal library**: one member's collections, tags, saved/wanted state, and personal ratings.
+- **Place preferences**: independent saved, wanted, and current personal-rating values; visited state
+  is never stored as a preference.
+- **Unlisted projection**: an allowlisted anonymous projection addressed by an opaque publication ID
+  but not eligible for public discovery.
+- **Collection copy**: an independent private collection created from a disclosed collection, with
+  provenance but without source ratings, tags, Visits, or mutable ownership.
 - **Visit**: repeatable evidence that a member went to a Place.
 - **Note**: short writing; **Entry**: long-form writing. Visibility is an attribute, not a separate type.
 - **Provider connection**: Place-owned metadata and credential/profile references for an external account.

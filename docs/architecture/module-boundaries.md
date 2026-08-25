@@ -19,3 +19,8 @@ public interfaces at entrypoints.
 canonical identity changes and reference resolution. Their handoff is deliberately two-step and
 idempotent: composition translates a recorded decision into a canonical command. This avoids direct
 module imports and permits retry/review without treating provider evidence as an overwrite command.
+
+Library, Visits, and Writing are separate owners. Library does not store visited state, Visits does
+not store ratings or writing, and Writing links only Canonical Place IDs. Their transports depend on
+a platform-level product-authorization result; the entrypoint adapts verified Access membership and
+permissions without allowing a product module to import Access source.

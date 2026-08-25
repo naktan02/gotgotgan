@@ -25,3 +25,8 @@ and rollback plan for one immutable Web/Backend application unit. `operations/da
 evidence.v1.schema.json` defines the bounded proof emitted only after disposable database-level
 backup and isolated restore verification. Neither document contains environment values, credentials,
 or a claim that an environment is active.
+
+`place-reference/place-reference.v1.schema.json` publishes the stable cross-product result envelope.
+Available references expose only the resolved Canonical Place ID; unavailable and redacted outcomes
+contain no identifier. Stage 4 HTTP schemas likewise keep authenticated command membership outside
+browser input and distinguish the two anonymous publication projections.

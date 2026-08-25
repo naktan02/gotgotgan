@@ -13,6 +13,9 @@ const baseUrl = new URL(configuredBaseUrl)
 if (!/^[a-zA-Z0-9.-]+$/.test(baseUrl.hostname) || !/^\d+$/.test(baseUrl.port)) {
   throw new Error('PLACE_WEB_E2E_BASE_URL must include a safe hostname and explicit port.')
 }
+const backendPort = Number(baseUrl.port) + 1
+if (backendPort > 65535) throw new Error('PLACE_WEB_E2E_BASE_URL leaves no port for the test Backend.')
+const backendOrigin = `http://${baseUrl.hostname}:${backendPort}`
 
 const nextCli = path.resolve('node_modules/next/dist/bin/next')
 const playwrightCli = path.resolve('node_modules/@playwright/test/cli.js')
@@ -25,7 +28,21 @@ const familyNavigationManifest =
 const testEnvironment = {
   ...process.env,
   PLACE_FAMILY_NAVIGATION_MANIFEST: familyNavigationManifest,
+  PLACE_BACKEND_ORIGIN: backendOrigin,
 }
+const backend = spawn(
+  process.execPath,
+  [path.resolve('backend/tests/fixtures/publication-http-server.mjs')],
+  {
+    cwd: process.cwd(),
+    env: {
+      ...testEnvironment,
+      PLACE_E2E_BACKEND_HOST: baseUrl.hostname,
+      PLACE_E2E_BACKEND_PORT: String(backendPort),
+    },
+    stdio: 'inherit',
+  },
+)
 const server = spawn(
   process.execPath,
   [nextCli, 'dev', '--hostname', baseUrl.hostname, '--port', baseUrl.port],
@@ -43,11 +60,15 @@ const serverExited = new Promise((resolve) => {
 async function waitUntilReady() {
   const deadline = Date.now() + 120_000
   const healthUrl = new URL('/healthz', baseUrl)
+  const backendUrl = new URL('/v1/public/collections/01992d20-0000-7000-8000-000000000001', backendOrigin)
   while (Date.now() < deadline) {
     if (serverExit) throw new Error(`Next.js exited before readiness: ${JSON.stringify(serverExit)}`)
     try {
-      const response = await fetch(healthUrl, { signal: AbortSignal.timeout(1_000) })
-      if (response.ok) return
+      const [response, backendResponse] = await Promise.all([
+        fetch(healthUrl, { signal: AbortSignal.timeout(1_000) }),
+        fetch(backendUrl, { signal: AbortSignal.timeout(1_000) }),
+      ])
+      if (response.ok && backendResponse.ok) return
     } catch {}
     await delay(250)
   }
@@ -64,6 +85,16 @@ async function stopServer() {
   }
 }
 
+async function stopBackend() {
+  if (backend.exitCode !== null) return
+  backend.kill('SIGTERM')
+  await Promise.race([
+    new Promise((resolve) => backend.once('exit', resolve)),
+    delay(5_000),
+  ])
+  if (backend.exitCode === null) backend.kill('SIGKILL')
+}
+
 let exitCode = 1
 try {
   await waitUntilReady()
@@ -78,6 +109,7 @@ try {
   })
 } finally {
   await stopServer()
+  await stopBackend()
 }
 
 process.exitCode = exitCode

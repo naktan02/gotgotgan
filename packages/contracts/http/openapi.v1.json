@@ -301,6 +301,164 @@
           }
         }
       }
+    },
+    "/api/public/collections/{publicationId}": {
+      "get": {
+        "operationId": "getPublishedPlaceCollectionForBrowser",
+        "security": [],
+        "parameters": [{ "$ref": "#/components/parameters/PublicationId" }],
+        "responses": {
+          "200": { "description": "Web-validated public or unlisted Collection projection" },
+          "404": { "$ref": "#/components/responses/ProductNotFound" },
+          "503": { "description": "The fixed internal Place Backend is unavailable" }
+        }
+      }
+    },
+    "/api/public/writing/{publicationId}": {
+      "get": {
+        "operationId": "getPublishedPlaceWritingForBrowser",
+        "security": [],
+        "parameters": [{ "$ref": "#/components/parameters/PublicationId" }],
+        "responses": {
+          "200": { "description": "Web-validated public or unlisted writing projection" },
+          "404": { "$ref": "#/components/responses/ProductNotFound" },
+          "503": { "description": "The fixed internal Place Backend is unavailable" }
+        }
+      }
+    },
+    "/v1/library": {
+      "get": {
+        "operationId": "getCurrentMemberPlaceLibrary",
+        "security": [{ "placeBearer": [] }],
+        "responses": {
+          "200": { "description": "Complete owner-only Library projection" },
+          "401": { "$ref": "#/components/responses/AuthenticationRequired" },
+          "403": { "$ref": "#/components/responses/AccessDenied" }
+        }
+      }
+    },
+    "/v1/library/commands": {
+      "post": {
+        "operationId": "applyPlaceLibraryCommand",
+        "security": [{ "placeBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LibraryCommandRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "An identical command was already applied" },
+          "201": { "description": "The library command was applied" },
+          "400": { "$ref": "#/components/responses/ProductRequestInvalid" },
+          "401": { "$ref": "#/components/responses/AuthenticationRequired" },
+          "403": { "$ref": "#/components/responses/AccessDenied" },
+          "409": { "$ref": "#/components/responses/ProductConflict" }
+        }
+      }
+    },
+    "/v1/library/places/{placeId}": {
+      "get": {
+        "operationId": "getPlacePreferences",
+        "security": [{ "placeBearer": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/PlaceId" }],
+        "responses": {
+          "200": { "description": "Private saved, wanted, and personal-rating projection" },
+          "401": { "$ref": "#/components/responses/AuthenticationRequired" },
+          "403": { "$ref": "#/components/responses/AccessDenied" },
+          "404": { "$ref": "#/components/responses/ProductNotFound" }
+        }
+      }
+    },
+    "/v1/public/collections/{publicationId}": {
+      "get": {
+        "operationId": "getPublishedPlaceCollection",
+        "security": [],
+        "parameters": [{ "$ref": "#/components/parameters/PublicationId" }],
+        "responses": {
+          "200": { "description": "Allowlisted public or unlisted collection projection" },
+          "404": { "$ref": "#/components/responses/ProductNotFound" }
+        }
+      }
+    },
+    "/v1/visits": {
+      "post": {
+        "operationId": "recordPlaceVisit",
+        "security": [{ "placeBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VisitRecordRequest" } } }
+        },
+        "responses": {
+          "201": { "description": "An immutable visit occurrence was recorded" },
+          "400": { "$ref": "#/components/responses/ProductRequestInvalid" },
+          "401": { "$ref": "#/components/responses/AuthenticationRequired" },
+          "403": { "$ref": "#/components/responses/AccessDenied" },
+          "409": { "$ref": "#/components/responses/ProductConflict" }
+        }
+      }
+    },
+    "/v1/places/{placeId}/visit-summary": {
+      "get": {
+        "operationId": "getPlaceVisitSummary",
+        "security": [{ "placeBearer": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/PlaceId" }],
+        "responses": {
+          "200": { "description": "Visited state and repeat statistics derived from Visit occurrences" },
+          "401": { "$ref": "#/components/responses/AuthenticationRequired" },
+          "403": { "$ref": "#/components/responses/AccessDenied" }
+        }
+      }
+    },
+    "/v1/places/{placeId}/visits": {
+      "get": {
+        "operationId": "listCurrentMemberPlaceVisits",
+        "security": [{ "placeBearer": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/PlaceId" }],
+        "responses": {
+          "200": { "description": "Owner-only Visit occurrence list" },
+          "401": { "$ref": "#/components/responses/AuthenticationRequired" },
+          "403": { "$ref": "#/components/responses/AccessDenied" }
+        }
+      }
+    },
+    "/v1/writing": {
+      "get": {
+        "operationId": "listCurrentMemberPlaceWriting",
+        "security": [{ "placeBearer": [] }],
+        "responses": {
+          "200": { "description": "Owner-only Note and Entry projection" },
+          "401": { "$ref": "#/components/responses/AuthenticationRequired" },
+          "403": { "$ref": "#/components/responses/AccessDenied" }
+        }
+      }
+    },
+    "/v1/writing/commands": {
+      "post": {
+        "operationId": "applyPlaceWritingCommand",
+        "security": [{ "placeBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WritingCommandRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "An identical command was already applied" },
+          "201": { "description": "The writing command was applied" },
+          "400": { "$ref": "#/components/responses/ProductRequestInvalid" },
+          "401": { "$ref": "#/components/responses/AuthenticationRequired" },
+          "403": { "$ref": "#/components/responses/AccessDenied" },
+          "409": { "$ref": "#/components/responses/ProductConflict" }
+        }
+      }
+    },
+    "/v1/public/writing/{publicationId}": {
+      "get": {
+        "operationId": "getPublishedPlaceWriting",
+        "security": [],
+        "parameters": [{ "$ref": "#/components/parameters/PublicationId" }],
+        "responses": {
+          "200": { "description": "Allowlisted public or unlisted writing projection" },
+          "404": { "$ref": "#/components/responses/ProductNotFound" }
+        }
+      }
     }
   },
   "components": {
@@ -311,7 +469,135 @@
         "bearerFormat": "JWT"
       }
     },
+    "parameters": {
+      "PlaceId": {
+        "name": "placeId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "format": "uuid" }
+      },
+      "PublicationId": {
+        "name": "publicationId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "format": "uuid" }
+      }
+    },
     "schemas": {
+      "LibraryCommandRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["commandId", "command"],
+        "properties": {
+          "commandId": { "type": "string", "format": "uuid" },
+          "command": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/SetPlacePreferencesCommand" },
+              { "$ref": "#/components/schemas/CreateCollectionCommand" },
+              { "$ref": "#/components/schemas/AddCollectionPlaceCommand" },
+              { "$ref": "#/components/schemas/CreateTagCommand" },
+              { "$ref": "#/components/schemas/TagPlaceCommand" },
+              { "$ref": "#/components/schemas/CopyPublishedCollectionCommand" }
+            ]
+          }
+        }
+      },
+      "SetPlacePreferencesCommand": {
+        "type": "object", "additionalProperties": false,
+        "required": ["kind", "placeId", "saved", "wanted", "personalRating"],
+        "properties": {
+          "kind": { "const": "set-place-preferences" }, "placeId": { "type": "string", "format": "uuid" },
+          "saved": { "type": "boolean" }, "wanted": { "type": "boolean" },
+          "personalRating": { "type": ["number", "null"], "minimum": 0.1, "maximum": 5, "multipleOf": 0.1 }
+        }
+      },
+      "CreateCollectionCommand": {
+        "type": "object", "additionalProperties": false,
+        "required": ["kind", "collectionId", "name", "visibility"],
+        "properties": {
+          "kind": { "const": "create-collection" }, "collectionId": { "type": "string", "format": "uuid" },
+          "name": { "type": "string", "minLength": 1, "maxLength": 120 }, "description": { "type": "string", "maxLength": 2000 },
+          "visibility": { "enum": ["private", "unlisted", "public"] }, "publicationId": { "type": "string", "format": "uuid" }
+        }
+      },
+      "AddCollectionPlaceCommand": {
+        "type": "object", "additionalProperties": false,
+        "required": ["kind", "collectionId", "placeId", "position"],
+        "properties": {
+          "kind": { "const": "add-collection-place" }, "collectionId": { "type": "string", "format": "uuid" },
+          "placeId": { "type": "string", "format": "uuid" }, "position": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "CreateTagCommand": {
+        "type": "object", "additionalProperties": false, "required": ["kind", "tagId", "name"],
+        "properties": { "kind": { "const": "create-tag" }, "tagId": { "type": "string", "format": "uuid" }, "name": { "type": "string", "minLength": 1, "maxLength": 64 } }
+      },
+      "TagPlaceCommand": {
+        "type": "object", "additionalProperties": false, "required": ["kind", "tagId", "placeId"],
+        "properties": { "kind": { "const": "tag-place" }, "tagId": { "type": "string", "format": "uuid" }, "placeId": { "type": "string", "format": "uuid" } }
+      },
+      "CopyPublishedCollectionCommand": {
+        "type": "object", "additionalProperties": false, "required": ["kind", "sourcePublicationId", "targetCollectionId", "targetName"],
+        "properties": {
+          "kind": { "const": "copy-published-collection" }, "sourcePublicationId": { "type": "string", "format": "uuid" },
+          "targetCollectionId": { "type": "string", "format": "uuid" }, "targetName": { "type": "string", "minLength": 1, "maxLength": 120 }
+        }
+      },
+      "VisitRecordRequest": {
+        "type": "object", "additionalProperties": false, "required": ["id", "placeId", "visitedAt"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" }, "placeId": { "type": "string", "format": "uuid" },
+          "visitedAt": { "type": "string", "format": "date-time" }, "evidence": { "type": "object" }
+        }
+      },
+      "WritingCommandRequest": {
+        "type": "object", "additionalProperties": false, "required": ["commandId", "command"],
+        "properties": {
+          "commandId": { "type": "string", "format": "uuid" },
+          "command": { "oneOf": [
+            { "$ref": "#/components/schemas/CreateNoteCommand" },
+            { "$ref": "#/components/schemas/UpdateNoteCommand" },
+            { "$ref": "#/components/schemas/CreateEntryCommand" },
+            { "$ref": "#/components/schemas/UpdateEntryCommand" }
+          ] }
+        }
+      },
+      "CreateNoteCommand": {
+        "type": "object", "additionalProperties": false, "required": ["kind", "documentId", "body", "placeId", "visibility"],
+        "properties": {
+          "kind": { "const": "create-note" }, "documentId": { "type": "string", "format": "uuid" },
+          "body": { "type": "string", "minLength": 1, "maxLength": 2000 },
+          "placeId": { "type": "string", "format": "uuid" }, "visibility": { "enum": ["private", "unlisted", "public"] },
+          "publicationId": { "type": "string", "format": "uuid" }
+        }
+      },
+      "UpdateNoteCommand": {
+        "type": "object", "additionalProperties": false, "required": ["kind", "documentId", "expectedVersion", "body", "placeId", "visibility"],
+        "properties": {
+          "kind": { "const": "update-note" }, "documentId": { "type": "string", "format": "uuid" },
+          "expectedVersion": { "type": "integer", "minimum": 1 }, "body": { "type": "string", "minLength": 1, "maxLength": 2000 },
+          "placeId": { "type": "string", "format": "uuid" }, "visibility": { "enum": ["private", "unlisted", "public"] },
+          "publicationId": { "type": "string", "format": "uuid" }
+        }
+      },
+      "CreateEntryCommand": {
+        "type": "object", "additionalProperties": false, "required": ["kind", "documentId", "title", "body", "placeIds", "visibility"],
+        "properties": {
+          "kind": { "const": "create-entry" }, "documentId": { "type": "string", "format": "uuid" },
+          "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "body": { "type": "string", "minLength": 1, "maxLength": 100000 }, "placeIds": { "type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": { "type": "string", "format": "uuid" } },
+          "visibility": { "enum": ["private", "unlisted", "public"] }, "publicationId": { "type": "string", "format": "uuid" }
+        }
+      },
+      "UpdateEntryCommand": {
+        "type": "object", "additionalProperties": false, "required": ["kind", "documentId", "expectedVersion", "title", "body", "placeIds", "visibility"],
+        "properties": {
+          "kind": { "const": "update-entry" }, "documentId": { "type": "string", "format": "uuid" },
+          "expectedVersion": { "type": "integer", "minimum": 1 }, "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "body": { "type": "string", "minLength": 1, "maxLength": 100000 }, "placeIds": { "type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": { "type": "string", "format": "uuid" } },
+          "visibility": { "enum": ["private", "unlisted", "public"] }, "publicationId": { "type": "string", "format": "uuid" }
+        }
+      },
       "CurrentMembership": {
         "type": "object",
         "additionalProperties": false,
@@ -414,6 +700,18 @@
       }
     },
     "responses": {
+      "ProductRequestInvalid": {
+        "description": "The product command or query is malformed or contains unsupported fields",
+        "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problem" } } }
+      },
+      "ProductNotFound": {
+        "description": "The owned resource or disclosed publication is unavailable",
+        "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problem" } } }
+      },
+      "ProductConflict": {
+        "description": "An idempotency key or optimistic version conflicts with prior state",
+        "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problem" } } }
+      },
       "AuthenticationRequired": {
         "description": "The bearer token is missing or invalid",
         "content": {
