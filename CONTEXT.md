@@ -17,6 +17,11 @@ domain meaning rather than storage or framework structure.
 | Access Decision | An allow or deny result produced by Place policy with a stable reason and audit-safe evidence. | UI visibility or Gateway routing. |
 | Canonical Place | Provider-independent identity for a real-world place managed by Place. | Provider listing or source observation. |
 | Source Observation | Time-bound evidence acquired from a provider and retained with provenance. | A command to overwrite a Canonical Place. |
+| Provider Place Identity | A stable provider key and provider-owned external place identifier that may link to one Canonical Place at a time. | Canonical Place identity or a provider account. |
+| Place Candidate | A normalized interpretation derived from one Source Observation and awaiting a resolution outcome. | Canonical Place or verified Place knowledge. |
+| Resolution Decision | Immutable evidence of how a Place Candidate or canonical conflict was classified under a named policy or reviewer. | The canonical mutation itself. |
+| Place Redirect | A durable reference from a merged Canonical Place to the surviving Canonical Place. | Deletion or alias text. |
+| Place Lineage | Immutable merge or split history that explains how Canonical Place identity and provider links changed. | Current Place state. |
 | Personal Library | A member's Place-owned organization of saved/wanted state, collections, tags, and personal ratings. | Canonical Place data. |
 | Visit | A repeatable occurrence connecting a member to a Canonical Place. | Saved/wanted state. |
 | Note | Short Place-owned writing that may reference a place and has explicit visibility. | Entry. |

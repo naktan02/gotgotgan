@@ -20,3 +20,9 @@ audit events. It grants no membership or audit deletion authority. The third mig
 `browser_auth` one-time transactions and immutable sessions. Only encrypted payloads and authenticated
 metadata are stored; `place_app` receives select/insert/delete but no update or DDL authority.
 Application startup never receives administrator/migration credentials and never performs DDL.
+
+Migrations `000005` and `000006` add the Stage 3 resolution foundation. `ingestion` tables retain
+append-only Source Observations, Place Candidates, and Resolution Decisions. `places` adds canonical
+status/version, aliases, provider identities, applied-decision fingerprints, redirects, and lineage.
+The runtime role can perform only required inserts plus bounded canonical/provider-link updates. It
+cannot rewrite or delete evidence, resolution decisions, redirects, or lineage.

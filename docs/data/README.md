@@ -8,6 +8,8 @@
 
 The source-only database declaration, preparation command, canonical Place migration, normalized
 access and membership-consent migrations, encrypted browser-auth migration, and corresponding
-persistence adapters exist. A disposable two-runtime rehearsal verifies database-level backup,
+persistence adapters exist. Immutable ingestion evidence/candidates/decisions and canonical
+provider-link/redirect/lineage migrations plus their PostgreSQL adapters also exist. A disposable
+two-runtime rehearsal verifies database-level backup,
 isolated restore, credential rotation, spatial contract recovery, and matching browser-session key
 recovery. No Place application process is connected to a provisioned database.

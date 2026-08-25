@@ -6,7 +6,7 @@ Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed doc
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **source-only, Stage 3 in progress**. Independent web/backend composition
+Current delivery state: **source-only; Stage 3 complete and Stage 2 integration in progress**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
@@ -29,6 +29,12 @@ SBOM/provenance, smokes only the published platform digests, and emits one `rele
 The workflow supports fail-closed recovery from either partial or completed commit-tag publication,
 but no successful remote release run or deployment is claimed yet. There is no active application environment, provider account, map credential,
 Identity client, Gateway route, or AI Tool connection.
+
+The Stage 3 canonical foundation now records immutable Source Observations, normalized Place
+Candidates, and evidence-backed Resolution Decisions separately from canonical mutation. Canonical
+create/link/merge/split/retire commands are fingerprint-idempotent, preserve provider identity links,
+redirects, and lineage, and are verified against real PostGIS with least-privilege runtime denial.
+No HTTP or Worker transport exposes these internal module interfaces yet.
 
 ## Repository boundaries
 
@@ -61,13 +67,16 @@ npm run check:backend
 npm run check:contracts
 npm run test:deployment
 npm run test:database
+npm run test:canonical-resolution
 npm run test:database-recovery
 npm run test:e2e
 ```
 
-`test:database` requires Docker plus an injected `PLACE_DATABASE_TEST_HOST` and creates only a
-disposable, randomly credentialed PostGIS container. It is separate from the default source check
-until a Docker-enabled CI job owns it. `test:database-recovery` uses the same injected host and two
+`test:database` requires Docker plus an injected `PLACE_DATABASE_TEST_HOST` and runs the broad
+runtime suite and focused canonical-resolution suite serially in disposable, randomly credentialed
+PostGIS containers. `test:canonical-resolution` is the narrow iteration command. The database tests
+remain separate from the default source check while Docker-enabled CI owns them.
+`test:database-recovery` uses the same injected host and two
 disposable runtimes; it leaves no dump, credential file, volume, or container behind.
 
 The repository does not require sibling repositories at runtime or test time.

@@ -4,7 +4,7 @@ This TypeScript package owns Place domain rules, adapters, incoming transports, 
 worker process composition. The HTTP process serves interactive product behavior. The acquisition
 worker consumes durable jobs and may run continuously or on demand.
 
-Current state: Stages 2 and 3 source implementation. The `access` module owns verified-principal mapping,
+Current state: Stage 3 source implementation complete; Stage 2 integration remains in progress. The `access` module owns verified-principal mapping,
 Place roles and tiers, authorization, last-owner protection, and audit-safe decisions. `GET /v1/me`
 is registered by the source-only production composition with the other access transports. That
 composition reads a protected runtime URL and membership-policy file, creates one bounded Pool,
@@ -22,6 +22,12 @@ verifier, deployment-owned policy, ID source, and process-owned Pool only when
 `PLACE_HTTP_RUNTIME_MODE=production` is explicitly selected with complete configuration. No deployed
 application database connection, job claim, provider, browser profile, or external integration
 exists.
+
+The `ingestion` module now records immutable observations, normalized candidates, and resolution
+decisions through one append interface. The `places` module independently applies idempotent
+canonical create/link/merge/split/retire commands and resolves redirects/provider identities. Their
+PostgreSQL adapters and migrations are source-only and have real PostGIS integration evidence; no
+HTTP or Worker transport is registered for them yet.
 
 Read `src/modules/README.md` before adding a capability. A module keeps domain, application, adapters,
 transport, and tests together; root entrypoints only wire dependencies and own process lifecycle.

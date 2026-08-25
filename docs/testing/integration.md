@@ -37,6 +37,12 @@ privilege Pool. Web readiness tests aggregate activated OIDC and Backend depende
 Playwright confirms disabled optional integrations remain ready without claiming a live Identity
 flow.
 
+The database command also runs a dedicated canonical-resolution suite. It records provider-neutral
+observations, candidates, and decisions through the ingestion module interface, then exercises
+create, merge, redirect resolution, split, provider-identity resolution, retirement, replay,
+conflicting ID reuse, and concurrent provider-link decisions through the places interface. Direct
+runtime-role checks prove evidence, decisions, redirects, and lineage cannot be rewritten or deleted.
+
 The published-image smoke is intentionally not replaced by a local tag test. The manual release
 workflow removes any local copies, pulls both exact GHCR platform digests, checks non-root and
 source-revision labels, starts Web and Backend in their source-only modes, waits on both `/readyz`

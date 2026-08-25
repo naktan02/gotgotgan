@@ -12,3 +12,5 @@ status and date, link evidence, name consequences and supersession conditions, a
   Web-owned pool lifecycle.
 - `0007-jit-membership-and-independent-member-axes.md`: consent-gated just-in-time membership plus
   independent authority-role, user-grade, and product-tier axes.
+- `0008-separate-evidence-decisions-from-canonical-mutations.md`: immutable ingestion decisions feed
+  separately idempotent canonical mutations without cross-module source dependencies.

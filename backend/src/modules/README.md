@@ -18,5 +18,10 @@ Create only used leaves. Persistence adapters stay in their owning module; there
 repository folder. Add a port only when production and test adapters, or two real implementations,
 make the seam concrete.
 
+`ingestion` records immutable observations, candidates, and resolution decisions. `places` applies
+canonical create/link/merge/split/retire commands and preserves redirects and lineage. A future
+composition root translates an accepted ingestion decision into the places interface; neither module
+imports the other's source and a candidate never becomes canonical merely by being recorded.
+
 `access` owns membership and authorization rules. `administration` owns authorized management
 workflows and review surfaces; it does not own or duplicate access policy.

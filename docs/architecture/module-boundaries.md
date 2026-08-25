@@ -14,3 +14,8 @@ retry policy, or merge outcomes.
 its public interface for management workflows but must not recreate role, tier, grant, bootstrap, or
 last-owner rules. Business modules never import another module's internal files; composition injects
 public interfaces at entrypoints.
+
+`ingestion` owns immutable observations, candidates, and evidence-backed decisions. `places` owns
+canonical identity changes and reference resolution. Their handoff is deliberately two-step and
+idempotent: composition translates a recorded decision into a canonical command. This avoids direct
+module imports and permits retry/review without treating provider evidence as an overwrite command.

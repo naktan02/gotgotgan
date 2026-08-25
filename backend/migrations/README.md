@@ -15,3 +15,8 @@ schema or arbitrary update authority.
 membership-consent evidence and the audited just-in-time onboarding event. Existing rows receive the
 neutral migration-only `unclassified` grade; new grades and tiers come from injected Place policy.
 The runtime role receives only the select/insert access needed for idempotent consent recording.
+`000005` creates immutable ingestion observations, normalized candidates, resolution decisions, and
+the candidate spatial index. `000006` extends canonical lifecycle state and adds aliases, provider
+identity links, applied-decision idempotency, redirects, and merge/split lineage. The runtime role
+may insert evidence and history and perform only the bounded canonical/link updates required by the
+module adapter; it cannot update or delete evidence, decisions, redirects, or lineage.
