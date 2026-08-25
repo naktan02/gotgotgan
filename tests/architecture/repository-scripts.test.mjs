@@ -37,3 +37,26 @@ test('shell screenshot baselines cover Windows and Linux Chromium', async () => 
     'place-stage-two-shell-mobile-chromium-win32.png',
   ])
 })
+
+test('search screenshot baselines cover reviewed Windows and Linux states', async () => {
+  const snapshots = await readdir(
+    path.join(repositoryRoot, 'tests', 'e2e', 'search.spec.ts-snapshots'),
+  )
+  const cases = [
+    'place-search-1280x800-desktop',
+    'place-search-1440x900-desktop',
+    'place-search-360x800-mobile',
+    'place-search-390x844-mobile',
+    'place-search-empty-360x800-mobile',
+    'place-search-error-1280x800-desktop',
+    'place-search-loading-1280x800-desktop',
+    'place-search-map-360x800-mobile',
+    'place-search-partial-1280x800-desktop',
+  ]
+  const expected = cases.flatMap((name) => [
+    `${name}-chromium-linux.png`,
+    `${name}-chromium-win32.png`,
+  ])
+
+  assert.deepEqual(snapshots.sort(), expected.sort())
+})
