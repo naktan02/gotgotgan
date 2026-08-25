@@ -19,3 +19,9 @@ Backend and cross-project database connections without making a deployment activ
 `membership/membership-policy.v1.schema.json` defines the deployment-owned current consent versions
 and initial non-authority grade/tier values. It defines shape and bounds only; the repository contains
 no production policy instance or default.
+
+`operations/application-deployment-plan.v1.schema.json` defines the sanitized source-only activation
+and rollback plan for one immutable Web/Backend application unit. `operations/database-recovery-
+evidence.v1.schema.json` defines the bounded proof emitted only after disposable database-level
+backup and isolated restore verification. Neither document contains environment values, credentials,
+or a claim that an environment is active.

@@ -8,4 +8,6 @@
 
 The source-only database declaration, preparation command, canonical Place migration, normalized
 access and membership-consent migrations, encrypted browser-auth migration, and corresponding
-persistence adapters exist. No Place application process is connected to a provisioned database.
+persistence adapters exist. A disposable two-runtime rehearsal verifies database-level backup,
+isolated restore, credential rotation, spatial contract recovery, and matching browser-session key
+recovery. No Place application process is connected to a provisioned database.

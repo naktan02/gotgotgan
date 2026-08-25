@@ -9,6 +9,14 @@ const targets = [
   new URL('../../../deploy/database-runtime.json', import.meta.url),
   new URL('../../../deploy/application-runtime.json', import.meta.url),
   new URL('../membership/membership-policy.v1.schema.json', import.meta.url),
+  new URL(
+    '../operations/database-recovery-evidence.v1.schema.json',
+    import.meta.url,
+  ),
+  new URL(
+    '../operations/application-deployment-plan.v1.schema.json',
+    import.meta.url,
+  ),
 ]
 
 const [
@@ -20,6 +28,8 @@ const [
   databaseRuntime,
   applicationRuntime,
   membershipPolicySchema,
+  databaseRecoveryEvidenceSchema,
+  applicationDeploymentPlanSchema,
 ] = await Promise.all(
   targets.map(async (target) => JSON.parse(await readFile(target, 'utf8'))),
 )
@@ -33,6 +43,24 @@ if (
     'place-membership-policy.v1'
 ) {
   failures.push('Membership policy contract identity or strictness drifted')
+}
+if (
+  databaseRecoveryEvidenceSchema.$id !==
+    'urn:place:database-recovery-evidence:v1' ||
+  databaseRecoveryEvidenceSchema.additionalProperties !== false ||
+  databaseRecoveryEvidenceSchema.properties?.deliveryState?.const !==
+    'source-only'
+) {
+  failures.push('Database recovery evidence contract identity or strictness drifted')
+}
+if (
+  applicationDeploymentPlanSchema.$id !==
+    'urn:place:application-deployment-plan:v1' ||
+  applicationDeploymentPlanSchema.additionalProperties !== false ||
+  applicationDeploymentPlanSchema.properties?.deliveryState?.const !==
+    'source-only'
+) {
+  failures.push('Application deployment plan contract identity or strictness drifted')
 }
 if (openApi.paths['/readyz']?.get?.responses?.['503'] === undefined) {
   failures.push('Process readiness must publish an unavailable response')
@@ -227,6 +255,26 @@ if (
   applicationRuntime.connections?.crossProjectDatabase !== 'forbidden'
 ) {
   failures.push('Place application connections must preserve browser and database isolation')
+}
+if (
+  applicationRuntime.artifactInputs?.releaseRevisionEnvironment !==
+    'PLACE_RELEASE_REVISION' ||
+  applicationRuntime.artifactInputs?.imageEnvironments?.web !==
+    'PLACE_WEB_IMAGE' ||
+  applicationRuntime.artifactInputs?.imageEnvironments?.backend !==
+    'PLACE_BACKEND_IMAGE' ||
+  applicationRuntime.artifactInputs?.deployedUnitEnvironments
+    ?.releaseRevision !== 'PLACE_DEPLOYED_RELEASE_REVISION' ||
+  applicationRuntime.artifactInputs?.deployedUnitEnvironments?.webImage !==
+    'PLACE_DEPLOYED_WEB_IMAGE' ||
+  applicationRuntime.artifactInputs?.deployedUnitEnvironments?.backendImage !==
+    'PLACE_DEPLOYED_BACKEND_IMAGE' ||
+  applicationRuntime.artifactInputs?.immutableDigestRequired !== true ||
+  applicationRuntime.rollback?.unit !== 'place-application' ||
+  applicationRuntime.rollback?.database !== 'preserve' ||
+  applicationRuntime.rollback?.migration !== 'application-only'
+) {
+  failures.push('Place immutable artifact or rollback ownership drifted')
 }
 const databaseSecretFileEnvironments = [
   databaseRuntime.configuration.administratorPasswordFileEnvironment,

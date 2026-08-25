@@ -27,3 +27,8 @@ activation fails closed. Reviewed auth routes use this process-owned runtime. A 
 membership lifecycle owns only its stateless backend client; the browser membership boundary reads
 the two narrow interfaces without either lifecycle importing the other. Deployment activation
 remains a separate gate.
+
+An application deployment unit binds Web and Backend images to one exact source revision. Rollback
+must name the current and target immutable units, preserves the database, and never reverses a
+migration automatically. Local source builds cannot become production image inputs without separate
+published-digest, SBOM, provenance, and smoke evidence.

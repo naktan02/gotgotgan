@@ -2,6 +2,19 @@
   "schemaVersion": "place-application-runtime.v1",
   "deliveryState": "source-only",
   "publicProcess": "web",
+  "artifactInputs": {
+    "releaseRevisionEnvironment": "PLACE_RELEASE_REVISION",
+    "imageEnvironments": {
+      "web": "PLACE_WEB_IMAGE",
+      "backend": "PLACE_BACKEND_IMAGE"
+    },
+    "deployedUnitEnvironments": {
+      "releaseRevision": "PLACE_DEPLOYED_RELEASE_REVISION",
+      "webImage": "PLACE_DEPLOYED_WEB_IMAGE",
+      "backendImage": "PLACE_DEPLOYED_BACKEND_IMAGE"
+    },
+    "immutableDigestRequired": true
+  },
   "processes": {
     "web": {
       "exposure": "gateway-candidate",
@@ -43,6 +56,11 @@
     "browserToBackend": "forbidden",
     "webToBackend": "server-to-server",
     "crossProjectDatabase": "forbidden"
+  },
+  "rollback": {
+    "unit": "place-application",
+    "database": "preserve",
+    "migration": "application-only"
   },
   "activationGates": [
     "immutable-artifact",

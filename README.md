@@ -19,7 +19,11 @@ fail closed or remain unregistered until their process dependencies are explicit
 source-only production backend composition now loads protected database/policy configuration,
 installs OIDC verification and PostgreSQL access adapters, owns readiness and shutdown, and registers
 all reviewed access transports. Web readiness aggregates only explicitly activated OIDC and Backend
-dependencies. There is no active application environment, provider account, map credential,
+dependencies. A disposable two-runtime recovery rehearsal now proves database-level backup,
+isolated restore, rotated database credentials, PostGIS/index restoration, runtime DDL denial, and
+matching browser-session key recovery. Production Compose consumes only injected digest image
+references; local Compose alone owns builds, and a source-only planner validates activation and
+application-only rollback units. There is no active application environment, provider account, map credential,
 Identity client, Gateway route, or AI Tool connection.
 
 ## Repository boundaries
@@ -50,12 +54,15 @@ Narrow commands:
 npm run check:web
 npm run check:backend
 npm run check:contracts
+npm run test:deployment
 npm run test:database
+npm run test:database-recovery
 npm run test:e2e
 ```
 
 `test:database` requires Docker plus an injected `PLACE_DATABASE_TEST_HOST` and creates only a
 disposable, randomly credentialed PostGIS container. It is separate from the default source check
-until a Docker-enabled CI job owns it.
+until a Docker-enabled CI job owns it. `test:database-recovery` uses the same injected host and two
+disposable runtimes; it leaves no dump, credential file, volume, or container behind.
 
 The repository does not require sibling repositories at runtime or test time.

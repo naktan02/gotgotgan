@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:place:application-deployment-plan:v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "deliveryState",
+    "operation",
+    "releaseRevision",
+    "images",
+    "publicProcess",
+    "database"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "place-application-deployment-plan.v1"
+    },
+    "deliveryState": { "const": "source-only" },
+    "operation": { "enum": ["activate", "rollback"] },
+    "releaseRevision": { "$ref": "#/$defs/releaseRevision" },
+    "images": { "$ref": "#/$defs/applicationImages" },
+    "replaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["releaseRevision", "images"],
+      "properties": {
+        "releaseRevision": { "$ref": "#/$defs/releaseRevision" },
+        "images": { "$ref": "#/$defs/applicationImages" }
+      }
+    },
+    "publicProcess": { "const": "web" },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preparation", "rollback"],
+      "properties": {
+        "preparation": { "const": "operator-pre-runtime" },
+        "rollback": { "const": "application-only" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "operation": { "const": "rollback" } },
+        "required": ["operation"]
+      },
+      "then": { "required": ["replaces"] },
+      "else": { "not": { "required": ["replaces"] } }
+    }
+  ],
+  "$defs": {
+    "releaseRevision": {
+      "type": "string",
+      "pattern": "^place@[0-9a-f]{40}$"
+    },
+    "immutableImage": {
+      "type": "string",
+      "pattern": "^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::[1-9][0-9]{0,4})?/[a-z0-9]+(?:[._-][a-z0-9]+)*(?:/[a-z0-9]+(?:[._-][a-z0-9]+)*)*@sha256:[0-9a-f]{64}$"
+    },
+    "applicationImages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["web", "backend"],
+      "properties": {
+        "web": { "$ref": "#/$defs/immutableImage" },
+        "backend": { "$ref": "#/$defs/immutableImage" }
+      }
+    }
+  }
+}

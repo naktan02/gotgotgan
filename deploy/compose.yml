@@ -2,9 +2,7 @@ name: place
 
 services:
   web:
-    build:
-      context: ..
-      target: web-runtime
+    image: ${PLACE_WEB_IMAGE:?PLACE_WEB_IMAGE is required}
     environment:
       HOSTNAME: ${PLACE_WEB_HOST:?PLACE_WEB_HOST is required}
       PORT: ${PLACE_WEB_PORT:?PLACE_WEB_PORT is required}
@@ -26,9 +24,7 @@ services:
     restart: unless-stopped
 
   backend:
-    build:
-      context: ..
-      target: backend-runtime
+    image: ${PLACE_BACKEND_IMAGE:?PLACE_BACKEND_IMAGE is required}
     environment:
       PLACE_HTTP_HOST: ${PLACE_HTTP_HOST:?PLACE_HTTP_HOST is required}
       PLACE_HTTP_PORT: ${PLACE_HTTP_PORT:?PLACE_HTTP_PORT is required}
@@ -49,8 +45,6 @@ services:
 
   worker-check:
     profiles: [verification]
-    build:
-      context: ..
-      target: backend-runtime
+    image: ${PLACE_BACKEND_IMAGE:?PLACE_BACKEND_IMAGE is required}
     command: ["node", "backend/dist/entrypoints/worker/main.js", "--check"]
     restart: "no"

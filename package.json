@@ -18,10 +18,13 @@
     "check:web": "npm run validate:architecture && npm run test --workspace @place/web && npm run typecheck:web && npm run build:web",
     "check:backend": "npm run check --workspace @place/backend",
     "check:contracts": "npm run check --workspace @place/contracts",
+    "plan:deployment": "node scripts/plan-application-deployment.mjs",
+    "test:deployment": "node --test tests/deployment/*.test.mjs",
     "test:database": "node --test backend/tests/integration/database-migrations.test.mjs",
+    "test:database-recovery": "node --test backend/tests/integration/database-recovery.test.mjs",
     "test:e2e": "node scripts/run-e2e.mjs",
     "test:e2e:update": "node scripts/run-e2e.mjs --update-snapshots",
-    "check": "npm run check:docs && npm run check:contracts && npm run check:web && npm run check:backend && npm run test:e2e"
+    "check": "npm run check:docs && npm run check:contracts && npm run test:deployment && npm run check:web && npm run check:backend && npm run test:e2e"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",

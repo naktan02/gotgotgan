@@ -6,7 +6,11 @@ database preparation command twice. It proves migration
 ownership, intended runtime DML, runtime denial for DDL/ownership/history mutation, PostGIS presence,
 and GiST use in the query plan. It also runs the existing access use cases through the PostgreSQL
 adapter and proves bootstrap/resolution, role changes, last-owner protection, stale-write conflict,
-malformed-ID non-disclosure, and mutation/audit rollback. Backup and isolated-restore evidence remains a separate Stage 3 gate.
+malformed-ID non-disclosure, and mutation/audit rollback. `npm run test:database-recovery` supplies
+the separate recovery seam. It uses two independently credentialed disposable runtimes, takes a
+custom-format Place database dump, restores it in isolation, and verifies credential rotation,
+database isolation, PostGIS/index/canonical data, runtime DDL denial, encrypted browser payloads,
+and matching-key session recovery.
 The same disposable runtime creates two independent Web OIDC process compositions and proves atomic
 cross-pool transaction consumption, encrypted-at-rest token sessions, cross-instance restoration,
 replay denial, logout deletion, and runtime denial of session updates.

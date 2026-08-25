@@ -7,6 +7,8 @@ network, data volume, role secrets, backup, restore, upgrade, and rollback lifec
 
 An isolated digest smoke and disposable integration suite prove PostgreSQL 17.11/PostGIS 3.5.7,
 separate roles, migrations, runtime-role denial, spatial-index use, and the source-only HTTP Pool
-composition. This is source evidence, not an active deployment claim. Activation still requires
-backup, isolated restore, key recovery, deployment rollback, and environment promotion. A future
+composition. A separate two-runtime rehearsal proves database backup, isolated restore, credential
+rotation, spatial-index restoration, and matching browser-session key recovery. This is source
+evidence, not an active deployment claim. Activation still requires operational retention/off-host
+backup evidence, published immutable artifacts, deployment rollback, and environment promotion. A future
 shared-runtime move must not change Place schema or domain interfaces.

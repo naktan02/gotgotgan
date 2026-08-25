@@ -24,7 +24,10 @@ mounts symbolic secret/config roles and the Place data network without embedding
 credential.
 
 One digest-pinned multi-stage Dockerfile produces separate `web-runtime` and `backend-runtime`
-targets. The worker uses the backend image with a different command. Compose requires every host and
-port from deployment configuration and activates the worker scaffold only in a verification profile.
+targets. The worker uses the backend image with a different command. Local Compose alone owns those
+build targets. The port-free base and production overlay consume injected immutable image
+coordinates, while the deployment planner binds Web and Backend to one source revision and preserves
+the database during application-only rollback. Compose requires every host and port from deployment
+configuration and activates the worker scaffold only in a verification profile.
 The separate `compose.database.yml` remains in the same `place` Compose project, publishes no host
 port, and requires an injected private data network, volume, administrator identity, and secret file.

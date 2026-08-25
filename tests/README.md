@@ -2,6 +2,7 @@
 
 - `architecture/`: dependency and cross-repository boundary checks
 - `contracts/`: published contract conformance
+- `deployment/`: immutable image selection and application-only rollback contracts
 - `integration/`: real PostgreSQL/PostGIS and process-boundary checks from Stage 3
 - `e2e/`: repository-owned Playwright browser flows
 

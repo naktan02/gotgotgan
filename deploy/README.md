@@ -4,19 +4,30 @@
 the only future Gateway-facing process; Backend and Worker stay internal. Browser-to-Backend and
 cross-project database connections are forbidden.
 
-`compose.yml` is the port-free product base and keeps all Place processes under one product-owned
-Compose project:
+`compose.yml` is the port-free product base. It accepts only deployment-injected Web and Backend
+image references and keeps all Place processes under one product-owned Compose project:
 
 - `web`: standalone Next.js runtime;
 - `backend`: Fastify HTTP runtime with explicit `source-only` or `production` mode; and
 - `worker-check`: opt-in verification profile for the separately runnable worker artifact.
 
-`compose.local.yml` adds explicit standalone host ports while Web integrations and Backend access
-transports remain source-only by default. `compose.production.yml` selects Backend production
-composition, activates Web OIDC and membership runtimes, mounts the database/OIDC secret-file roles
+`compose.local.yml` alone adds Docker build targets and explicit standalone host ports while Web
+integrations and Backend access transports remain source-only by default. Local validation still
+supplies explicit image tags for the resulting builds. `compose.production.yml` selects Backend
+production composition, activates Web OIDC and membership runtimes, mounts the database/OIDC secret-file roles
 plus the non-secret membership policy, and joins the injected Place data network. It publishes no
 Backend host port. All addresses, files, pool bounds, timeouts, issuer/audience/scopes, and policy are
 required deployment inputs.
+
+Production image inputs must be immutable coordinates in the form
+`<registry>/<repository>@sha256:<64 lowercase hex>`. Run `npm run plan:deployment` before an
+activation or rollback. It requires `PLACE_DEPLOYMENT_OPERATION`, `PLACE_RELEASE_REVISION`,
+`PLACE_WEB_IMAGE`, and `PLACE_BACKEND_IMAGE`. Rollback additionally requires the deployed release
+revision and images through `PLACE_DEPLOYED_RELEASE_REVISION`, `PLACE_DEPLOYED_WEB_IMAGE`, and
+`PLACE_DEPLOYED_BACKEND_IMAGE`. The sanitized plan binds the two images as one Place application
+unit and always preserves the database; migration rollback is application-only. This planner proves
+selection and rollback intent, not publication provenance. A release still needs independently
+verified digest, SBOM, provenance, and successful published-digest smoke evidence.
 
 The Web OIDC configuration consumes `PLACE_DATABASE_URL_FILE`,
 `PLACE_OIDC_CLIENT_SECRET_FILE`, and `PLACE_OIDC_ENCRYPTION_KEYRING_FILE`. A deployment secret sink
@@ -40,8 +51,10 @@ rollback are ready. The manifest contains no credential and does not activate Id
 `database-runtime.json` and `compose.database.yml` declare the source-only Place-owned physical
 PostGIS runtime. The database Compose file remains under the `place` project, publishes no host port,
 and requires deployment-injected administrator, migration, runtime, volume, and data-network inputs.
-Production application composition is an activation input only; environment promotion still waits
-for backup/restore, key recovery, immutable artifact, Identity/Gateway, and rollback gates.
+Production application composition is an activation input only. Disposable backup/restore and key
+recovery now have source evidence, while environment promotion still waits for retained operational
+backup evidence, published image/SBOM/provenance evidence, deployment rollback smoke,
+Identity/Gateway, and public-path validation.
 
 Validate overlay expansion without starting processes. Supply only test-owned placeholder files and
 reserved-example endpoints:
@@ -57,4 +70,11 @@ The image base is digest-pinned. With Docker running, validate targets from the 
 ```powershell
 docker build --target web-runtime --tag place-web-source .
 docker build --target backend-runtime --tag place-backend-source .
+```
+
+Run the recovery rehearsal separately with Docker available:
+
+```powershell
+$env:PLACE_DATABASE_TEST_HOST='<test-owned-host>'
+npm run test:database-recovery
 ```

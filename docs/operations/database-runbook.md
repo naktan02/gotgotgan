@@ -17,6 +17,16 @@ cannot perform DDL, alter table ownership, or modify migration metadata, and the
 protection, stale-write conflict, malformed-ID non-disclosure, and role-change/audit rollback through
 the module interface. It also proves two Web pools share encrypted browser-auth state, consume a login
 transaction once, restore/logout a session across instances, and cannot update session rows directly.
-Before activation, still perform a database-level backup and isolated restore, verify matching
-browser-auth key recovery, and record expiry cleanup plus upgrade/rollback evidence. Never run DDL
-from the runtime process.
+The repository now provides a disposable database-level recovery proof:
+
+```powershell
+$env:PLACE_DATABASE_TEST_HOST='<test-owned-host>'
+npm run test:database-recovery
+```
+
+The command emits one `place-database-recovery-evidence.v1` document only after rotated credentials,
+isolated database contents, PostGIS/index/data restoration, runtime DDL denial, encrypted dump
+contents, and protected-key session recovery pass. It always removes its two containers and temporary
+files. Before activation, operators still define encrypted off-host storage, retention, restore
+frequency, ownership, alerting, and an environment-specific recovery record. Never run DDL from the
+runtime process.

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:place:database-recovery-evidence:v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "deliveryState", "backup", "restore"],
+  "properties": {
+    "schemaVersion": {
+      "const": "place-database-recovery-evidence.v1"
+    },
+    "deliveryState": {
+      "const": "source-only"
+    },
+    "backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unit",
+        "format",
+        "credentialMaterial",
+        "browserPayload"
+      ],
+      "properties": {
+        "unit": { "const": "database" },
+        "format": { "const": "postgresql-custom" },
+        "credentialMaterial": { "const": "absent" },
+        "browserPayload": { "const": "encrypted" }
+      }
+    },
+    "restore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environment",
+        "sourceCredentials",
+        "postgis",
+        "spatialIndex",
+        "canonicalData",
+        "runtimeDdl",
+        "browserSessionKeyRecovery"
+      ],
+      "properties": {
+        "environment": { "const": "isolated" },
+        "sourceCredentials": { "const": "rejected" },
+        "postgis": { "const": "verified" },
+        "spatialIndex": { "const": "verified" },
+        "canonicalData": { "const": "verified" },
+        "runtimeDdl": { "const": "denied" },
+        "browserSessionKeyRecovery": { "const": "verified" }
+      }
+    }
+  }
+}
