@@ -1,0 +1,19 @@
+{
+  "serviceId": "place",
+  "displayName": "Place",
+  "applicationName": "Place Web",
+  "applicationType": "web",
+  "authMethod": "basic",
+  "redirectUris": [
+    "${PLACE_PUBLIC_ORIGIN}/api/auth/oidc/callback"
+  ],
+  "postLogoutRedirectUris": [
+    "${PLACE_PUBLIC_ORIGIN}/"
+  ],
+  "additionalOrigins": [],
+  "devMode": false,
+  "accessTokenType": "jwt",
+  "includeUserInfoInIdToken": false,
+  "assertRolesInAccessToken": false,
+  "assertRolesInIdToken": false
+}

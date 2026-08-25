@@ -3,5 +3,8 @@
 This Next.js application is the Place product surface. Routes stay thin and compose screens through
 the dependency direction documented in `DESIGN.md` and the repository `AGENTS.md`.
 
-Stage 1 contains only the responsive product shell. Search, maps, authentication, family navigation,
-and provider imports are explicitly not integrated.
+Stage 2 contains the responsive product shell, the family-navigation consumer contract, and a
+source-only confidential OIDC BFF core. The BFF keeps login transactions and tokens server-side and
+uses opaque secure cookies; its `openid-client` adapter performs Authorization Code + PKCE S256.
+Next route activation waits for a durable multi-instance session/transaction adapter, so Identity,
+search, maps, and provider imports remain explicitly not integrated.

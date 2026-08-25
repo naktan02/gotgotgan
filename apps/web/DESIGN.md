@@ -19,8 +19,12 @@ Routes adapt Next.js only. Shells own top/left/mobile composition. Features own 
 Domains own reusable Place representations. Platform owns auth, HTTP, maps, telemetry, and manifest
 SDKs. Shared owns only proved business-neutral primitives.
 
-## Stage 1 limits
+## Current limits
 
 The current shell is a structural and accessibility baseline, not the final visual design. Keep it
 free of fake place cards, fake provider data, decorative gradients, and hard-coded family services.
 Desktop and mobile browser tests own the initial screenshots.
+
+Authentication belongs to `platform/auth` as a deep browser-BFF boundary. Routes will only adapt
+Next.js requests and responses after durable server-side transaction/session storage is available;
+features and shells never receive access tokens, refresh tokens, nonce, state, or PKCE verifier.

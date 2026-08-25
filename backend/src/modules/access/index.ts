@@ -44,3 +44,7 @@ export type {
 } from './application/ports/initial-owner-store.js'
 export type { MembershipDirectory } from './application/ports/membership-directory.js'
 export type { PrincipalVerifier } from './application/ports/principal-verifier.js'
+export {
+  registerAccessHttpRoutes,
+  type AccessHttpDependencies,
+} from './transport/http/register-access-http.js'

@@ -12,6 +12,11 @@ Gateway, map, or AI connection. Later declarations reference secrets and address
 deployment-owned names, publish no browser credentials, and follow workspace onboarding gates before
 Gateway exposure.
 
+`identity/oidc-client.json` is the Place-owned, unprovisioned Identity input. The provisioner must
+expand `PLACE_PUBLIC_ORIGIN`, deliver the generated client ID/secret through the approved secret
+sink, and run only after callback routes, shared session storage, Gateway routing, health validation,
+and rollback are ready. The manifest itself contains no credential and does not activate Identity.
+
 The image base is digest-pinned to the Node 22 image already proved by Game Studio. With Docker
 running, validate targets from the repository root:
 

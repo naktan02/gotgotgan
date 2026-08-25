@@ -24,6 +24,88 @@
           }
         }
       }
+    },
+    "/v1/me": {
+      "get": {
+        "operationId": "getCurrentPlaceMembership",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Safe projection of the authenticated Place membership",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentMembership"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "placeBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "CurrentMembership": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["membershipId", "authorityRole", "productTier"],
+        "properties": {
+          "membershipId": { "type": "string" },
+          "authorityRole": {
+            "enum": ["member", "reviewer", "administrator", "owner"]
+          },
+          "productTier": { "type": "string" }
+        }
+      },
+      "Problem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "title", "status", "code", "retryable", "correlationRef"],
+        "properties": {
+          "type": { "type": "string" },
+          "title": { "type": "string" },
+          "status": { "type": "integer" },
+          "code": { "type": "string" },
+          "retryable": { "type": "boolean" },
+          "correlationRef": { "type": "string" }
+        }
+      }
+    },
+    "responses": {
+      "AuthenticationRequired": {
+        "description": "The bearer token is missing or invalid",
+        "content": {
+          "application/problem+json": {
+            "schema": { "$ref": "#/components/schemas/Problem" }
+          }
+        }
+      },
+      "AccessDenied": {
+        "description": "The principal has no Place membership or lacks access",
+        "content": {
+          "application/problem+json": {
+            "schema": { "$ref": "#/components/schemas/Problem" }
+          }
+        }
+      }
     }
   }
 }

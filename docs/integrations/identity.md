@@ -12,3 +12,11 @@ The resource-server adapter uses an injected HTTPS issuer, audience, JWKS URI, f
 allow-list, required time claims, and required scopes. It produces only `(issuer, subject)`; email and
 token roles are ignored. The OIDC client is not provisioned until Place owns a working callback,
 deployable release, Gateway route/health declaration, and the workspace onboarding validation gate.
+
+The service-owned manifest is `deploy/identity/oidc-client.json`. It declares a confidential web
+client, an environment-expanded public origin, and no Identity role assertions; it is an
+unprovisioned input, not evidence of an active connection. The web BFF core and `openid-client`
+adapter implement Authorization Code + PKCE S256 with state and nonce. Login transactions, access
+tokens, refresh tokens, and sessions remain server-side; the browser receives only host-bound opaque
+cookies. Route activation waits for durable shared storage so horizontal web replicas cannot lose or
+fork login/session state.

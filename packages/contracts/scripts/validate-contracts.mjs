@@ -5,9 +5,10 @@ const targets = [
   new URL('../family-navigation/family-navigation.v1.consumer.schema.json', import.meta.url),
   new URL('../fixtures/family-navigation.not-integrated.v1.json', import.meta.url),
   new URL('../fixtures/family-navigation.active.test.v1.json', import.meta.url),
+  new URL('../../../deploy/identity/oidc-client.json', import.meta.url),
 ]
 
-const [openApi, familySchema, fixture, activeFixture] = await Promise.all(
+const [openApi, familySchema, fixture, activeFixture, oidcClient] = await Promise.all(
   targets.map(async (target) => JSON.parse(await readFile(target, 'utf8'))),
 )
 
@@ -27,6 +28,28 @@ if (familySchema.properties.items.items.properties.href.pattern !== '^https://')
 }
 if (activeFixture.deliveryState !== 'active' || activeFixture.items.length < 2) {
   failures.push('active family navigation test fixture must prove a vertically growing list')
+}
+if (openApi.paths['/v1/me']?.get?.security?.[0]?.placeBearer?.length !== 0) {
+  failures.push('GET /v1/me must require the Place bearer security scheme')
+}
+if (
+  oidcClient.serviceId !== 'place' ||
+  oidcClient.applicationType !== 'web' ||
+  oidcClient.authMethod !== 'basic'
+) {
+  failures.push('Place browser login must remain a confidential web OIDC client')
+}
+if (
+  oidcClient.redirectUris[0] !== '${PLACE_PUBLIC_ORIGIN}/api/auth/oidc/callback' ||
+  oidcClient.additionalOrigins.length !== 0
+) {
+  failures.push('Place OIDC redirects must use the injected public origin and expose no browser origin')
+}
+if (
+  oidcClient.assertRolesInAccessToken !== false ||
+  oidcClient.assertRolesInIdToken !== false
+) {
+  failures.push('Identity tokens cannot assert Place-owned roles')
 }
 
 if (failures.length > 0) {

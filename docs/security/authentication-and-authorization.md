@@ -10,3 +10,10 @@ is rejected rather than downgraded to anonymous. Anonymous access is limited to 
 projection. Place records allow and denial decisions through an audit port without retaining raw
 tokens. Persistence and operator-authorized initial-owner bootstrap arrive with the Stage 3 schema;
 browser input can never trigger bootstrap.
+
+The browser login boundary is a confidential BFF. It validates HTTPS callback configuration,
+requires `openid`, rejects external post-login redirects, consumes one-time server-side login
+transactions, validates state/nonce/PKCE through the OIDC adapter, bounds session lifetime by token
+expiry, and sanitizes callback failures. Cookies are `__Host-`, Secure, HttpOnly, SameSite=Lax and
+contain opaque identifiers only. Logout deletes server-side session state before clearing the cookie.
+In-memory stores are not an allowed production composition.
