@@ -41,8 +41,9 @@ docs/                      routed product, architecture, domain, API, data, secu
 deploy/                    source-only deployment declarations; no active public route
 ```
 
-Read [`docs/README.md`](docs/README.md) before working. The workspace plan lives at
-[`../plans/place-platform-service-implementation.md`](../plans/place-platform-service-implementation.md).
+Read [`docs/README.md`](docs/README.md) before working. In the assembled workspace, the handoff plan
+is `../plans/place-platform-service-implementation.md`; it is intentionally not a repository-local
+link because a standalone Place checkout must remain self-contained.
 
 ## Validation
 

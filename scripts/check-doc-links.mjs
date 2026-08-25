@@ -24,6 +24,11 @@ for (const file of await markdownFiles(repositoryRoot)) {
     if (/^(?:https?:|mailto:|#)/.test(rawTarget)) continue
     const localTarget = decodeURIComponent(rawTarget.split('#')[0])
     const resolved = path.resolve(path.dirname(file), localTarget)
+    const repositoryRelative = path.relative(repositoryRoot, resolved)
+    if (repositoryRelative.startsWith('..') || path.isAbsolute(repositoryRelative)) {
+      failures.push(`${path.relative(repositoryRoot, file)} -> ${rawTarget} (outside repository)`)
+      continue
+    }
     try {
       await access(resolved)
     } catch {
