@@ -97,6 +97,7 @@ export function registerAccessHttpRoutes(
     return reply.status(200).send({
       membershipId: subject.membership.id,
       authorityRole: subject.membership.authorityRole,
+      userGrade: subject.membership.userGrade,
       productTier: subject.membership.productTier,
     })
   })

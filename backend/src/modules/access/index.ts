@@ -15,10 +15,13 @@ export {
   type ExternalPrincipal,
   type GrantablePermission,
   type Membership,
+  type MembershipConsent,
   type MembershipStatus,
   type PlacePermission,
+  type ProductTier,
   type ResourceGrant,
   type ResourceScope,
+  type UserGrade,
 } from './domain/model.js'
 export {
   decideOwnershipChange,
@@ -38,6 +41,12 @@ export {
   changeMembershipAuthorityRole,
   type MembershipAuthorityRoleChange,
 } from './application/change-membership-authority-role.js'
+export {
+  completeMembershipOnboarding,
+  InvalidMembershipOnboardingPolicyError,
+  MembershipConsentRequiredError,
+  type MembershipOnboardingPolicy,
+} from './application/complete-membership-onboarding.js'
 export type { AccessAuditEvent, AccessAuditSink } from './application/ports/access-audit-sink.js'
 export type {
   BootstrapAuthority,
@@ -48,6 +57,11 @@ export type {
   InitialOwnerStore,
 } from './application/ports/initial-owner-store.js'
 export type { MembershipDirectory } from './application/ports/membership-directory.js'
+export type {
+  MembershipOnboardingAttempt,
+  MembershipOnboardingOutcome,
+  MembershipOnboardingStore,
+} from './application/ports/membership-onboarding-store.js'
 export type { PrincipalVerifier } from './application/ports/principal-verifier.js'
 export type {
   AuthorityRoleChangeStore,

@@ -17,9 +17,10 @@ The `access` module owns the boundary. An OIDC adapter verifies signature, exact
 time claims, required scopes, and subject. Its domain output contains only `(issuer, subject)`.
 Place maps that pair to a local Membership and makes every authorization decision itself.
 
-Authority Role (`member`, `reviewer`, `administrator`, `owner`) and Product Tier are independent.
-Tiers never grant administrative authority. Explicit resource grants may add one bounded permission.
-Suspended membership grants nothing, and the final active owner cannot be demoted or suspended.
+Authority Role (`member`, `reviewer`, `administrator`, `owner`), User Grade, and Product Tier are
+independent. Grades and tiers never grant administrative authority. Explicit resource grants may add
+one bounded permission. Suspended membership grants nothing, and the final active owner cannot be
+demoted or suspended. ADR 0007 adds the consent-gated just-in-time creation policy for memberships.
 
 No credential is an Anonymous Visitor and can read only an explicit Public Projection. A verified
 but unmapped principal is rejected, not downgraded to anonymous. Initial-owner creation is available

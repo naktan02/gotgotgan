@@ -7,5 +7,5 @@
 - `backup-and-restore.md`: recovery ownership and proof.
 
 The source-only database declaration, preparation command, canonical Place migration, normalized
-access migration, encrypted browser-auth migration, and corresponding persistence adapters exist. No
-Place application process is connected to a provisioned database.
+access and membership-consent migrations, encrypted browser-auth migration, and corresponding
+persistence adapters exist. No Place application process is connected to a provisioned database.

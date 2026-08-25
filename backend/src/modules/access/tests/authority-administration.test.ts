@@ -14,6 +14,7 @@ function membership(overrides: Partial<Membership> = {}): Membership {
     principal,
     status: 'active',
     authorityRole: 'member',
+    userGrade: 'regular',
     productTier: 'standard',
     resourceGrants: [],
     ...overrides,

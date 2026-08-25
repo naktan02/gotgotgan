@@ -1,4 +1,9 @@
-import type { ExternalPrincipal, Membership } from '../domain/model.js'
+import type {
+  ExternalPrincipal,
+  Membership,
+  ProductTier,
+  UserGrade,
+} from '../domain/model.js'
 import type { BootstrapAuthority } from './ports/bootstrap-authority.js'
 import type { InitialOwnerStore } from './ports/initial-owner-store.js'
 
@@ -11,7 +16,8 @@ export class MembershipAlreadyInitializedError extends Error {
 
 export async function bootstrapInitialOwner(input: Readonly<{
   principal: ExternalPrincipal
-  productTier: string
+  userGrade: UserGrade
+  productTier: ProductTier
   authority: BootstrapAuthority
   store: InitialOwnerStore
   nextMembershipId: () => string
@@ -23,6 +29,7 @@ export async function bootstrapInitialOwner(input: Readonly<{
     principal: input.principal,
     status: 'active',
     authorityRole: 'owner',
+    userGrade: input.userGrade,
     productTier: input.productTier,
     resourceGrants: [],
   }

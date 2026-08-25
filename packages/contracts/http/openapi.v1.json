@@ -66,13 +66,14 @@
       "CurrentMembership": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["membershipId", "authorityRole", "productTier"],
+        "required": ["membershipId", "authorityRole", "userGrade", "productTier"],
         "properties": {
           "membershipId": { "type": "string" },
           "authorityRole": {
             "enum": ["member", "reviewer", "administrator", "owner"]
           },
-          "productTier": { "type": "string" }
+          "userGrade": { "type": "string", "minLength": 1 },
+          "productTier": { "type": "string", "minLength": 1 }
         }
       },
       "Problem": {

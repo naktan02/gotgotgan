@@ -162,6 +162,7 @@ test('database preparation confines runtime authority and persists Place access 
     const ownerPrincipal = { issuer: `urn:place:test:${suffix}`, subject: 'owner-subject' }
     const owner = await access.bootstrapInitialOwner({
       principal: ownerPrincipal,
+      userGrade: 'founding-member',
       productTier: 'standard',
       authority: { verify: async () => ({ operatorReference: 'database-integration-test' }) },
       store: accessStore,
@@ -174,6 +175,7 @@ test('database preparation confines runtime authority and persists Place access 
     await assert.rejects(
       access.bootstrapInitialOwner({
         principal: { issuer: `urn:place:test:${suffix}`, subject: 'second-owner-subject' },
+        userGrade: 'founding-member',
         productTier: 'standard',
         authority: { verify: async () => ({ operatorReference: 'database-integration-test' }) },
         store: accessStore,
@@ -182,6 +184,111 @@ test('database preparation confines runtime authority and persists Place access 
       }),
       access.MembershipAlreadyInitializedError,
     )
+
+    const onboardingPrincipal = {
+      issuer: `urn:place:test:${suffix}`,
+      subject: 'onboarding-subject',
+    }
+    const requiredConsents = [
+      { document: 'terms-of-service', version: '2026-08-25' },
+      { document: 'privacy-policy', version: '2026-08-25' },
+    ]
+    const onboardingIds = [
+      '01991e62-1db6-7514-a10e-8c7a7428a9b1',
+      '01991e62-69d8-7cad-9e9e-7ecebd40e5ba',
+    ]
+    const onboardingOutcomes = await Promise.all(
+      onboardingIds.map((membershipId) =>
+        access.completeMembershipOnboarding({
+          principal: onboardingPrincipal,
+          acceptedConsents: requiredConsents,
+          policy: {
+            requiredConsents,
+            initialUserGrade: 'newcomer',
+            initialProductTier: 'free',
+          },
+          store: accessStore,
+          nextMembershipId: () => membershipId,
+          now: () => new Date('2026-08-25T12:01:30.000Z'),
+        }),
+      ),
+    )
+    assert.deepEqual(
+      onboardingOutcomes.map((outcome) => outcome.status).sort(),
+      ['created', 'existing'],
+    )
+    assert.equal(onboardingOutcomes[0].membership.authorityRole, 'member')
+    assert.equal(onboardingOutcomes[0].membership.userGrade, 'newcomer')
+    assert.equal(onboardingOutcomes[0].membership.productTier, 'free')
+    assert.equal(onboardingOutcomes[0].membership.id, onboardingOutcomes[1].membership.id)
+
+    const consentEvidence = await administratorClient.query(
+      `
+        SELECT document, version
+        FROM access.membership_consents
+        WHERE membership_id = $1
+        ORDER BY document
+      `,
+      [onboardingOutcomes[0].membership.id],
+    )
+    assert.deepEqual(consentEvidence.rows, [
+      { document: 'privacy-policy', version: '2026-08-25' },
+      { document: 'terms-of-service', version: '2026-08-25' },
+    ])
+    const onboardingAudits = await administratorClient.query(
+      `
+        SELECT outcome
+        FROM access.audit_events
+        WHERE event_kind = 'membership-onboarding'
+        ORDER BY id
+      `,
+    )
+    assert.deepEqual(onboardingAudits.rows.map((row) => row.outcome).sort(), [
+      'created',
+      'existing',
+    ])
+
+    await administratorClient.query(`
+      CREATE FUNCTION access.reject_created_onboarding_audit() RETURNS trigger
+      LANGUAGE plpgsql
+      AS $$
+      BEGIN
+        IF NEW.event_kind = 'membership-onboarding' AND NEW.outcome = 'created' THEN
+          RAISE EXCEPTION 'forced onboarding audit failure';
+        END IF;
+        RETURN NEW;
+      END
+      $$;
+
+      CREATE TRIGGER reject_created_onboarding_audit
+      BEFORE INSERT ON access.audit_events
+      FOR EACH ROW EXECUTE FUNCTION access.reject_created_onboarding_audit();
+    `)
+    await assert.rejects(
+      access.completeMembershipOnboarding({
+        principal: {
+          issuer: `urn:place:test:${suffix}`,
+          subject: 'rolled-back-onboarding-subject',
+        },
+        acceptedConsents: requiredConsents,
+        policy: {
+          requiredConsents,
+          initialUserGrade: 'newcomer',
+          initialProductTier: 'free',
+        },
+        store: accessStore,
+        nextMembershipId: () => '01991e63-9224-769e-b164-e6c0fcc33743',
+        now: () => new Date('2026-08-25T12:01:45.000Z'),
+      }),
+    )
+    const rolledBackOnboarding = await administratorClient.query(
+      `SELECT 1 FROM access.memberships WHERE id = '01991e63-9224-769e-b164-e6c0fcc33743'`,
+    )
+    assert.equal(rolledBackOnboarding.rowCount, 0)
+    await administratorClient.query(`
+      DROP TRIGGER reject_created_onboarding_audit ON access.audit_events;
+      DROP FUNCTION access.reject_created_onboarding_audit();
+    `)
 
     const administratorPrincipal = {
       issuer: `urn:place:test:${suffix}`,
@@ -194,11 +301,11 @@ test('database preparation confines runtime authority and persists Place access 
     await runtimeClient.query(
       `
         INSERT INTO access.memberships (
-          id, issuer, subject, status, authority_role, product_tier, created_at, updated_at
+          id, issuer, subject, status, authority_role, user_grade, product_tier, created_at, updated_at
         )
         VALUES
-          ($1, $2, $3, 'active', 'administrator', 'standard', $4, $4),
-          ($5, $2, $6, 'active', 'reviewer', 'standard', $4, $4)
+          ($1, $2, $3, 'active', 'administrator', 'staff', 'standard', $4, $4),
+          ($5, $2, $6, 'active', 'reviewer', 'trusted-contributor', 'standard', $4, $4)
       `,
       [
         '01991e64-0ea9-78ff-ae9e-83560c474357',
@@ -530,6 +637,14 @@ test('database preparation confines runtime authority and persists Place access 
     await expectInsufficientPrivilege(
       runtimeClient,
       "UPDATE access.audit_events SET outcome = 'forged'",
+    )
+    await expectInsufficientPrivilege(
+      runtimeClient,
+      "UPDATE access.membership_consents SET version = 'forged'",
+    )
+    await expectInsufficientPrivilege(
+      runtimeClient,
+      'DELETE FROM access.membership_consents',
     )
     await expectInsufficientPrivilege(
       runtimeClient,

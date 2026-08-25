@@ -10,3 +10,5 @@ status and date, link evidence, name consequences and supersession conditions, a
 - `0005-node-pg-migrate-lifecycle.md`: operator-owned TypeScript migrations and role provisioning.
 - `0006-encrypted-browser-auth-persistence.md`: multi-instance OIDC transaction/session storage and
   Web-owned pool lifecycle.
+- `0007-jit-membership-and-independent-member-axes.md`: consent-gated just-in-time membership plus
+  independent authority-role, user-grade, and product-tier axes.

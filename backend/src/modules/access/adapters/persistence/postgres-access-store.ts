@@ -14,6 +14,11 @@ import type {
 } from '../../application/ports/authority-role-change-store.js'
 import type { InitialOwnerAttempt, InitialOwnerStore } from '../../application/ports/initial-owner-store.js'
 import type { MembershipDirectory } from '../../application/ports/membership-directory.js'
+import type {
+  MembershipOnboardingAttempt,
+  MembershipOnboardingOutcome,
+  MembershipOnboardingStore,
+} from '../../application/ports/membership-onboarding-store.js'
 
 const resourceGrantRowSchema = z.object({
   permission: z.enum(grantablePermissions),
@@ -28,6 +33,7 @@ const membershipRowSchema = z.object({
   subject: z.string(),
   status: z.enum(['active', 'suspended']),
   authority_role: z.enum(['member', 'reviewer', 'administrator', 'owner']),
+  user_grade: z.string(),
   product_tier: z.string(),
   resource_grants: z.array(resourceGrantRowSchema),
 })
@@ -39,6 +45,7 @@ const membershipProjection = `
     memberships.subject,
     memberships.status,
     memberships.authority_role,
+    memberships.user_grade,
     memberships.product_tier,
     COALESCE(
       (
@@ -72,6 +79,7 @@ function toMembership(row: unknown): Membership {
     principal: { issuer: parsed.issuer, subject: parsed.subject },
     status: parsed.status,
     authorityRole: parsed.authority_role,
+    userGrade: parsed.user_grade,
     productTier: parsed.product_tier,
     resourceGrants,
   }
@@ -85,9 +93,9 @@ async function insertMembership(
   await client.query(
     `
       INSERT INTO access.memberships (
-        id, issuer, subject, status, authority_role, product_tier, created_at, updated_at
+        id, issuer, subject, status, authority_role, user_grade, product_tier, created_at, updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
     `,
     [
       membership.id,
@@ -95,6 +103,7 @@ async function insertMembership(
       membership.principal.subject,
       membership.status,
       membership.authorityRole,
+      membership.userGrade,
       membership.productTier,
       occurredAt,
     ],
@@ -111,6 +120,31 @@ async function insertMembership(
       [membership.id, grant.permission, grant.resource.kind, grant.resource.id ?? null],
     )
   }
+}
+
+async function recordOnboardingAttempt(
+  client: PoolClient,
+  attempt: MembershipOnboardingAttempt,
+  outcome: MembershipOnboardingOutcome,
+): Promise<void> {
+  await client.query(
+    `
+      INSERT INTO access.audit_events (
+        event_kind,
+        occurred_at,
+        target_membership_id,
+        outcome,
+        evidence
+      )
+      VALUES ('membership-onboarding', $1, $2, $3, $4)
+    `,
+    [
+      attempt.occurredAt,
+      outcome.membership.id,
+      outcome.status,
+      { consents: attempt.consents },
+    ],
+  )
 }
 
 async function recordBootstrapAttempt(
@@ -169,7 +203,12 @@ async function recordRoleChangeAttempt(
 }
 
 export class PostgresAccessStore
-  implements MembershipDirectory, InitialOwnerStore, AuthorityRoleChangeStore, AccessAuditSink {
+  implements
+    MembershipDirectory,
+    MembershipOnboardingStore,
+    InitialOwnerStore,
+    AuthorityRoleChangeStore,
+    AccessAuditSink {
   constructor(private readonly pool: Pool) {}
 
   async findByPrincipal(principal: ExternalPrincipal): Promise<Membership | undefined> {
@@ -219,6 +258,73 @@ export class PostgresAccessStore
         event,
       ],
     )
+  }
+
+  async attemptAndAuditOnboarding(
+    attempt: MembershipOnboardingAttempt,
+  ): Promise<MembershipOnboardingOutcome> {
+    const client = await this.pool.connect()
+    try {
+      await client.query('BEGIN')
+      const inserted = await client.query(
+        `
+          INSERT INTO access.memberships (
+            id,
+            issuer,
+            subject,
+            status,
+            authority_role,
+            user_grade,
+            product_tier,
+            created_at,
+            updated_at
+          )
+          VALUES ($1, $2, $3, 'active', 'member', $4, $5, $6, $6)
+          ON CONFLICT (issuer, subject) DO NOTHING
+        `,
+        [
+          attempt.membership.id,
+          attempt.membership.principal.issuer,
+          attempt.membership.principal.subject,
+          attempt.membership.userGrade,
+          attempt.membership.productTier,
+          attempt.occurredAt,
+        ],
+      )
+      const selected = await client.query(
+        `${membershipProjection}
+         WHERE memberships.issuer = $1 AND memberships.subject = $2
+         FOR UPDATE OF memberships`,
+        [attempt.membership.principal.issuer, attempt.membership.principal.subject],
+      )
+      const membership = toMembership(selected.rows[0])
+
+      for (const consent of attempt.consents) {
+        await client.query(
+          `
+            INSERT INTO access.membership_consents (
+              membership_id, document, version, accepted_at
+            )
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (membership_id, document, version) DO NOTHING
+          `,
+          [membership.id, consent.document, consent.version, attempt.occurredAt],
+        )
+      }
+
+      const outcome: MembershipOnboardingOutcome = {
+        status: inserted.rowCount === 1 ? 'created' : 'existing',
+        membership,
+      }
+      await recordOnboardingAttempt(client, attempt, outcome)
+      await client.query('COMMIT')
+      return outcome
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
   }
 
   async attemptAndAuditWhenNoMembershipExists(

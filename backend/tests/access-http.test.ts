@@ -113,6 +113,7 @@ describe('GET /v1/me', () => {
             principal,
             status: 'suspended',
             authorityRole: 'owner',
+            userGrade: 'founding-member',
             productTier: 'standard',
             resourceGrants: [],
           }),
@@ -158,6 +159,7 @@ describe('GET /v1/me', () => {
             principal,
             status: 'active',
             authorityRole: 'reviewer',
+            userGrade: 'trusted-contributor',
             productTier: 'standard',
             resourceGrants: [],
           }),
@@ -178,6 +180,7 @@ describe('GET /v1/me', () => {
     expect(response.json()).toEqual({
       membershipId: 'membership-1',
       authorityRole: 'reviewer',
+      userGrade: 'trusted-contributor',
       productTier: 'standard',
     })
     expect(response.body).not.toContain('subject-1')

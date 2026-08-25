@@ -21,6 +21,7 @@ function membership(overrides: Partial<Membership> = {}): Membership {
     principal,
     status: 'active',
     authorityRole: 'member',
+    userGrade: 'regular',
     productTier: 'standard',
     resourceGrants: [],
     ...overrides,
@@ -57,11 +58,15 @@ describe('Place access policy', () => {
     ).toBe(allowed)
   })
 
-  it('does not turn a product tier into authority', () => {
+  it('does not turn a user grade or product tier into authority', () => {
     const decision = decideAccess(
       {
         kind: 'member',
-        membership: membership({ authorityRole: 'member', productTier: 'enterprise-operator' }),
+        membership: membership({
+          authorityRole: 'member',
+          userGrade: 'administrator-community',
+          productTier: 'enterprise-operator',
+        }),
       },
       { permission: 'administration.manage' },
     )
@@ -150,6 +155,7 @@ describe('initial owner bootstrap', () => {
     const attempts: unknown[] = []
     const owner = await bootstrapInitialOwner({
       principal,
+      userGrade: 'founding-member',
       productTier: 'standard',
       authority: { verify: async () => ({ operatorReference: 'operator-run-1' }) },
       store: {
@@ -174,6 +180,7 @@ describe('initial owner bootstrap', () => {
     await expect(
       bootstrapInitialOwner({
         principal,
+        userGrade: 'founding-member',
         productTier: 'standard',
         authority: { verify: async () => ({ operatorReference: 'operator-run-2' }) },
         store: { attemptAndAuditWhenNoMembershipExists: async () => 'already-initialized' },

@@ -4,6 +4,9 @@ export type AuthorityRole = (typeof authorityRoles)[number]
 export const membershipStatuses = ['active', 'suspended'] as const
 export type MembershipStatus = (typeof membershipStatuses)[number]
 
+export type UserGrade = string
+export type ProductTier = string
+
 export const grantablePermissions = [
   'library.read',
   'library.write',
@@ -41,8 +44,14 @@ export type Membership = Readonly<{
   principal: ExternalPrincipal
   status: MembershipStatus
   authorityRole: AuthorityRole
-  productTier: string
+  userGrade: UserGrade
+  productTier: ProductTier
   resourceGrants: readonly ResourceGrant[]
+}>
+
+export type MembershipConsent = Readonly<{
+  document: string
+  version: string
 }>
 
 export type AccessSubject =
