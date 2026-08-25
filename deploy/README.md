@@ -1,6 +1,7 @@
 # Deployment declarations
 
-`compose.stage1.yml` proves three container targets without activating a platform deployment:
+`compose.yml` keeps all Place processes under one product-owned Compose project without activating a
+platform deployment:
 
 - `web`: standalone Next.js runtime;
 - `backend`: always-on Fastify HTTP runtime; and
@@ -15,6 +16,6 @@ The image base is digest-pinned to the Node 22 image already proved by Game Stud
 running, validate targets from the repository root:
 
 ```powershell
-docker build --target web-runtime --tag place-web-stage1 .
-docker build --target backend-runtime --tag place-backend-stage1 .
+docker build --target web-runtime --tag place-web-stage2 .
+docker build --target backend-runtime --tag place-backend-stage2 .
 ```

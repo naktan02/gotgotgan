@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -15,10 +16,20 @@ if (!/^[a-zA-Z0-9.-]+$/.test(baseUrl.hostname) || !/^\d+$/.test(baseUrl.port)) {
 
 const nextCli = path.resolve('node_modules/next/dist/bin/next')
 const playwrightCli = path.resolve('node_modules/@playwright/test/cli.js')
+const familyNavigationManifest =
+  process.env.PLACE_FAMILY_NAVIGATION_MANIFEST ??
+  (await readFile(
+    path.resolve('packages/contracts/fixtures/family-navigation.active.test.v1.json'),
+    'utf8',
+  ))
+const testEnvironment = {
+  ...process.env,
+  PLACE_FAMILY_NAVIGATION_MANIFEST: familyNavigationManifest,
+}
 const server = spawn(
   process.execPath,
   [nextCli, 'dev', '--hostname', baseUrl.hostname, '--port', baseUrl.port],
-  { cwd: path.resolve('apps/web'), env: process.env, stdio: 'inherit' },
+  { cwd: path.resolve('apps/web'), env: testEnvironment, stdio: 'inherit' },
 )
 
 let serverExit
@@ -59,7 +70,7 @@ try {
   const runner = spawn(
     process.execPath,
     [playwrightCli, 'test', ...process.argv.slice(2)],
-    { cwd: process.cwd(), env: process.env, stdio: 'inherit' },
+    { cwd: process.cwd(), env: testEnvironment, stdio: 'inherit' },
   )
   exitCode = await new Promise((resolve, reject) => {
     runner.once('error', reject)

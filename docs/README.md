@@ -17,5 +17,5 @@ Read only the routes required by the task, after repository `AGENTS.md` and `REA
 - Local execution, worker lifecycle, deployment, backup, or incidents: `operations/README.md`.
 - A durable decision or supersession: `adr/README.md`.
 
-Delivery state is **source-only Stage 1 scaffold**. No database, provider account, browser profile,
+Delivery state is **source-only, Stage 2 in progress**. No database, provider account, browser profile,
 map credential, Identity client, Gateway route, family composer, or AI connection is active.

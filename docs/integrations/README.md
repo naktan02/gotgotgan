@@ -7,4 +7,5 @@
 - `maps.md`: renderer ownership and search separation.
 - `ai-orchestrator.md`: future Tool contract.
 
-All integrations are inactive in Stage 1.
+All external integrations remain inactive while Stage 2 is in progress. Implemented consumers and
+adapters are source-only until their owning onboarding gates pass.

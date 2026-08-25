@@ -10,6 +10,9 @@
 .navLabel { margin: 0 8px 10px; color: var(--muted); font-size: 12px; font-weight: 650; }
 .activeItem { display: block; padding: 10px 12px; border-radius: 8px; color: var(--accent); background: #edf4f0; font-size: 14px; font-weight: 650; }
 .family { margin-top: auto; padding-top: 20px; border-top: 1px solid var(--line); }
+.familyList { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.familyLink { display: block; padding: 10px 12px; border-radius: 8px; color: var(--ink); font-size: 14px; text-decoration: none; }
+.familyLink:hover, .familyLink:focus-visible { background: var(--canvas); outline: none; }
 .placeholder { margin: 0 8px; color: var(--muted); font-size: 13px; }
 .main { display: grid; place-items: center; padding: 48px; }
 .intro { width: min(680px, 100%); }

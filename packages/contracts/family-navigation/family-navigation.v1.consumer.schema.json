@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:place:family-navigation:v1:consumer",
-  "title": "Provisional family navigation consumer manifest",
+  "title": "Family navigation consumer manifest",
   "type": "object",
   "additionalProperties": false,
   "required": ["contract", "deliveryState", "items"],
@@ -17,9 +17,9 @@
         "additionalProperties": false,
         "required": ["serviceId", "label", "href"],
         "properties": {
-          "serviceId": { "type": "string", "minLength": 1 },
+          "serviceId": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,62}$" },
           "label": { "type": "string", "minLength": 1 },
-          "href": { "type": "string", "format": "uri-reference" }
+          "href": { "type": "string", "pattern": "^https://" }
         }
       }
     }

@@ -1,6 +1,6 @@
 # Backend modules
 
-Each direct child is a business-capability module. Initial owners are `places`, `taxonomy`, `library`,
+Each direct child is a business-capability module. Initial owners are `access`, `places`, `taxonomy`, `library`,
 `visits`, `writing`, `search`, `providers`, `ingestion`, `sync`, `sharing`, and `administration`.
 Create a module directory only when its first behavior is implemented.
 
@@ -17,3 +17,6 @@ Create a module directory only when its first behavior is implemented.
 Create only used leaves. Persistence adapters stay in their owning module; there is no global
 repository folder. Add a port only when production and test adapters, or two real implementations,
 make the seam concrete.
+
+`access` owns membership and authorization rules. `administration` owns authorized management
+workflows and review surfaces; it does not own or duplicate access policy.

@@ -1,10 +1,14 @@
 # Place
 
+Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed documentation starts at
+[`docs/README.md`](docs/README.md).
+
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **Stage 1 scaffold**. Only independent web/backend composition roots,
-documentation, contracts, architecture checks, and deterministic shell smoke tests exist. There is
+Current delivery state: **source-only, Stage 2 in progress**. Independent web/backend composition
+roots, Place access policy/OIDC adapters, contracts, architecture checks, and deterministic shell
+tests exist. There is
 no active database, provider account, map credential, Identity client, Gateway route, or AI Tool
 connection.
 
@@ -39,4 +43,4 @@ npm run check:contracts
 npm run test:e2e
 ```
 
-The first scaffold does not require sibling repositories at runtime or test time.
+The repository does not require sibling repositories at runtime or test time.

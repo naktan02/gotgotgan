@@ -1,0 +1,42 @@
+import { z } from 'zod'
+
+import type { OidcPrincipalVerifierConfig } from './oidc-principal-verifier.js'
+
+const commonSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']),
+  PLACE_AUTH_MODE: z.enum(['oidc', 'test']),
+})
+
+export type AuthRuntimeConfig =
+  | Readonly<{ mode: 'test' }>
+  | Readonly<{ mode: 'oidc'; oidc: OidcPrincipalVerifierConfig }>
+
+export function readAuthRuntimeConfig(environment: NodeJS.ProcessEnv): AuthRuntimeConfig {
+  const common = commonSchema.parse(environment)
+  if (common.PLACE_AUTH_MODE === 'test') {
+    if (common.NODE_ENV === 'production') {
+      throw new Error('PLACE_AUTH_MODE=test is prohibited in production.')
+    }
+    return { mode: 'test' }
+  }
+
+  const oidc = z
+    .object({
+      PLACE_OIDC_ISSUER: z.string().url(),
+      PLACE_OIDC_AUDIENCE: z.string().min(1),
+      PLACE_OIDC_JWKS_URI: z.string().url(),
+      PLACE_OIDC_REQUIRED_SCOPES: z.string().trim().min(1),
+    })
+    .parse(environment)
+
+  return {
+    mode: 'oidc',
+    oidc: {
+      issuer: oidc.PLACE_OIDC_ISSUER,
+      audience: oidc.PLACE_OIDC_AUDIENCE,
+      jwksUri: oidc.PLACE_OIDC_JWKS_URI,
+      algorithms: ['RS256'],
+      requiredScopes: oidc.PLACE_OIDC_REQUIRED_SCOPES.split(' ').filter(Boolean),
+    },
+  }
+}

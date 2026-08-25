@@ -1,0 +1,16 @@
+{
+  "contract": "family-navigation.v1",
+  "deliveryState": "active",
+  "items": [
+    {
+      "serviceId": "example-one",
+      "label": "예시 서비스 하나",
+      "href": "https://one.example.test/"
+    },
+    {
+      "serviceId": "example-two",
+      "label": "예시 서비스 둘",
+      "href": "https://two.example.test/"
+    }
+  ]
+}

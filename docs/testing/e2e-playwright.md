@@ -4,3 +4,7 @@ The repository pins `@playwright/test` and its browser set. `PLACE_WEB_E2E_BASE_
 test-owned address. Desktop and mobile projects validate the responsive shell and own screenshot
 baselines. Each user-visible milestone adds success, denial, loading, empty, error, and recovery paths
 that it actually introduces.
+
+The E2E launcher injects the contract-owned active family-navigation test fixture when the caller has
+not supplied one. The fixture uses reserved example destinations and is test evidence only; it does
+not declare a real family service or active integration.
