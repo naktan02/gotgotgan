@@ -36,3 +36,10 @@ creation, `/v1/me` resolution, server-token non-disclosure, and runtime-owned cl
 privilege Pool. Web readiness tests aggregate activated OIDC and Backend dependencies; source-only
 Playwright confirms disabled optional integrations remain ready without claiming a live Identity
 flow.
+
+The published-image smoke is intentionally not replaced by a local tag test. The manual release
+workflow removes any local copies, pulls both exact GHCR platform digests, checks non-root and
+source-revision labels, starts Web and Backend in their source-only modes, waits on both `/readyz`
+interfaces, and invokes the Worker check from the Backend digest. Its bounded JSON result is uploaded
+separately from the four SBOM/provenance evidence artifacts. Until a remote run succeeds, this is a
+tested publication procedure rather than retained publication evidence.

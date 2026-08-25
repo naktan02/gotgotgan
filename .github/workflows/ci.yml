@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  application:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22.23.2"
+          cache: npm
+      - run: npm ci
+      - name: Install the pinned Chromium runtime
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Run repository checks with a CI-owned browser address
+        env:
+          PLACE_WEB_E2E_BASE_URL: http://127.0.0.1:4177
+        run: npm run check
+      - name: Verify PostgreSQL/PostGIS migrations
+        env:
+          PLACE_DATABASE_TEST_HOST: 127.0.0.1
+        run: npm run test:database
+      - name: Rehearse backup, isolated restore, and credential rotation
+        env:
+          PLACE_DATABASE_TEST_HOST: 127.0.0.1
+        run: npm run test:database-recovery
+      - name: Build both release targets from the same source
+        run: |
+          docker build --target web-runtime --tag place-web-ci .
+          docker build --target backend-runtime --tag place-backend-ci .

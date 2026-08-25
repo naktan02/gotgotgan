@@ -23,7 +23,11 @@ dependencies. A disposable two-runtime recovery rehearsal now proves database-le
 isolated restore, rotated database credentials, PostGIS/index restoration, runtime DDL denial, and
 matching browser-session key recovery. Production Compose consumes only injected digest image
 references; local Compose alone owns builds, and a source-only planner validates activation and
-application-only rollback units. There is no active application environment, provider account, map credential,
+application-only rollback units. A manual producer-owned release workflow now gates on successful
+same-commit CI, publishes separate immutable Web and Backend GHCR images, validates their BuildKit
+SBOM/provenance, smokes only the published platform digests, and emits one `release-record.v1`.
+The workflow supports fail-closed recovery from either partial or completed commit-tag publication,
+but no successful remote release run or deployment is claimed yet. There is no active application environment, provider account, map credential,
 Identity client, Gateway route, or AI Tool connection.
 
 ## Repository boundaries

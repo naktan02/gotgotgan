@@ -29,6 +29,33 @@ unit and always preserves the database; migration rollback is application-only. 
 selection and rollback intent, not publication provenance. A release still needs independently
 verified digest, SBOM, provenance, and successful published-digest smoke evidence.
 
+`release-source.v1.json` is the producer declaration for the one Place release revision. It binds
+the `web-runtime` target to `place-web` and the `backend-runtime` target to `place-backend`, with the
+Backend image also owning Worker and migration entrypoints. Its deployment state remains
+`source-only`; it does not claim a Kustomize/Helm package, Gateway route, Identity client, or active
+environment.
+
+`.github/workflows/release-application.yml` is manual-only. It accepts only the current clean `main`
+commit after the matching push CI succeeds, publishes `sha-<full-commit>` tags, resolves the
+registry index back to exact `linux/amd64` platform digests, validates separate SBOM/provenance
+evidence for both images, and runs the Web, Backend, and Worker check from those published digests.
+It then creates one checksum-bound `release-record.v1`; it has no GitOps, cluster, Gateway, or
+deployment credential. A rerun never replaces a tag. If one image was published before a later
+step failed, the workflow verifies that existing image's source/revision labels, publishes only the
+missing checkpoint, and rebuilds all evidence. An unreadable tag state, foreign label, malformed
+attestation, mutable reference, or mismatched digest fails closed.
+
+Local verification does not publish anything:
+
+```powershell
+node scripts/prepare-application-release.mjs verify-source --repository-root .
+npm run test:deployment
+```
+
+A successful workflow run is required before documentation may claim published release evidence.
+Application activation additionally requires environment rollback smoke and the remaining
+Identity/Gateway gates.
+
 The Web OIDC configuration consumes `PLACE_DATABASE_URL_FILE`,
 `PLACE_OIDC_CLIENT_SECRET_FILE`, and `PLACE_OIDC_ENCRYPTION_KEYRING_FILE`. A deployment secret sink
 mounts those files read-only; direct credential environment values are unsupported. Non-secret

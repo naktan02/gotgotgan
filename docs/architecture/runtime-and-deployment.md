@@ -29,5 +29,11 @@ build targets. The port-free base and production overlay consume injected immuta
 coordinates, while the deployment planner binds Web and Backend to one source revision and preserves
 the database during application-only rollback. Compose requires every host and port from deployment
 configuration and activates the worker scaffold only in a verification profile.
+The producer release declaration binds those two targets and four process roles to one
+`place@<commit>` revision while retaining `source-only` deployment state. The manual release
+workflow owns GHCR publication, BuildKit SBOM/provenance extraction, published-platform-digest
+smoke, and the checksum-bound release record. It has no promotion or environment authority.
+Existing commit tags are immutable checkpoints: a retry verifies any existing image before building
+only the missing image, then regenerates evidence for the complete pair.
 The separate `compose.database.yml` remains in the same `place` Compose project, publishes no host
 port, and requires an injected private data network, volume, administrator identity, and secret file.

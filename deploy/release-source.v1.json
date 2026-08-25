@@ -1,0 +1,142 @@
+{
+  "schema_version": "release-source.v1",
+  "release_id": "place",
+  "owner": {
+    "repository": "naktan02/place",
+    "module_path": "deploy"
+  },
+  "delivery_kind": "runtime",
+  "artifacts": [
+    {
+      "artifact_id": "place-web",
+      "kind": "container-image",
+      "build": {
+        "context_path": ".",
+        "dockerfile_path": "Dockerfile",
+        "target": "web-runtime",
+        "platforms": [
+          "linux/amd64"
+        ]
+      },
+      "workload_roles": [
+        "web"
+      ]
+    },
+    {
+      "artifact_id": "place-backend",
+      "kind": "container-image",
+      "build": {
+        "context_path": ".",
+        "dockerfile_path": "Dockerfile",
+        "target": "backend-runtime",
+        "platforms": [
+          "linux/amd64"
+        ]
+      },
+      "workload_roles": [
+        "backend",
+        "worker",
+        "migration"
+      ]
+    }
+  ],
+  "deployment": {
+    "state": "source-only"
+  },
+  "runtime": {
+    "workloads": [
+      {
+        "role_id": "web",
+        "artifact_id": "place-web",
+        "classification": "public",
+        "health": {
+          "protocol": "http",
+          "port": 3000,
+          "path": "/healthz"
+        },
+        "readiness": {
+          "protocol": "http",
+          "port": 3000,
+          "path": "/readyz"
+        }
+      },
+      {
+        "role_id": "backend",
+        "artifact_id": "place-backend",
+        "classification": "internal",
+        "health": {
+          "protocol": "http",
+          "port": 8080,
+          "path": "/healthz"
+        },
+        "readiness": {
+          "protocol": "http",
+          "port": 8080,
+          "path": "/readyz"
+        }
+      },
+      {
+        "role_id": "worker",
+        "artifact_id": "place-backend",
+        "classification": "worker"
+      },
+      {
+        "role_id": "migration",
+        "artifact_id": "place-backend",
+        "classification": "batch"
+      }
+    ],
+    "migration": {
+      "owner": "project",
+      "workload_role": "migration",
+      "execution": "pre-runtime-once",
+      "identity": "source-commit-prefix-20",
+      "failure_policy": "hold-runtime",
+      "rollback_policy": "application-only",
+      "cleanup_policy": "retain-success"
+    }
+  },
+  "required_configuration_names": [
+    "PLACE_AUTH_MODE",
+    "PLACE_BACKEND_ORIGIN",
+    "PLACE_DATABASE_CONNECTION_TIMEOUT_MILLISECONDS",
+    "PLACE_DATABASE_IDLE_TIMEOUT_MILLISECONDS",
+    "PLACE_DATABASE_MAX_CONNECTIONS",
+    "PLACE_HTTP_HOST",
+    "PLACE_HTTP_PORT",
+    "PLACE_MEMBERSHIP_BACKEND_TIMEOUT_MILLISECONDS",
+    "PLACE_MEMBERSHIP_POLICY_FILE",
+    "PLACE_OIDC_AUDIENCE",
+    "PLACE_OIDC_CALLBACK_URL",
+    "PLACE_OIDC_CLIENT_ID",
+    "PLACE_OIDC_CLEANUP_BATCH_SIZE",
+    "PLACE_OIDC_CLEANUP_INTERVAL_SECONDS",
+    "PLACE_OIDC_DATABASE_CONNECTION_TIMEOUT_MILLISECONDS",
+    "PLACE_OIDC_DATABASE_IDLE_TIMEOUT_MILLISECONDS",
+    "PLACE_OIDC_DATABASE_MAX_CONNECTIONS",
+    "PLACE_OIDC_ISSUER",
+    "PLACE_OIDC_JWKS_URI",
+    "PLACE_OIDC_POST_LOGIN_PATH",
+    "PLACE_OIDC_REQUIRED_SCOPES",
+    "PLACE_OIDC_SCOPES",
+    "PLACE_OIDC_SESSION_TTL_SECONDS",
+    "PLACE_OIDC_TRANSACTION_TTL_SECONDS",
+    "PLACE_WEB_HOST",
+    "PLACE_WEB_PORT"
+  ],
+  "required_secret_roles": [
+    "database-url",
+    "oidc-client-secret",
+    "oidc-encryption-keyring"
+  ],
+  "compatibility_refs": [
+    {
+      "contract_id": "place-http",
+      "version": "v1"
+    },
+    {
+      "contract_id": "place-membership-policy",
+      "version": "v1"
+    }
+  ]
+}

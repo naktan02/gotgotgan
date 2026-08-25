@@ -1,0 +1,335 @@
+name: release-application
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: place-application-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      actions: read
+      contents: read
+      packages: write
+    env:
+      WEB_IMAGE: ghcr.io/naktan02/place-web
+      BACKEND_IMAGE: ghcr.io/naktan02/place-backend
+      TAG: sha-${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Verify approved main source and successful same-commit CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = "workflow_dispatch"
+          test "$GITHUB_REPOSITORY" = "naktan02/place"
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$(git rev-parse 'HEAD^{commit}')" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=all)"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')" = "$GITHUB_SHA"
+
+          gh api \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?branch=main&event=push&head_sha=$GITHUB_SHA&status=completed&per_page=100" \
+            > "$RUNNER_TEMP/place-ci-runs.json"
+          successful_runs="$(jq \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg commit "$GITHUB_SHA" \
+            '[.workflow_runs[] | select(
+              .event == "push" and
+              .head_branch == "main" and
+              .head_sha == $commit and
+              .head_repository.full_name == $repository and
+              .status == "completed" and
+              .conclusion == "success"
+            )] | length' \
+            "$RUNNER_TEMP/place-ci-runs.json")"
+          test "$successful_runs" -ge 1
+          node scripts/prepare-application-release.mjs verify-source \
+            --repository-root .
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+      - name: Inspect immutable publication checkpoints
+        id: state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag_exists() {
+            local package="$1"
+            local tags="$RUNNER_TEMP/${package}-tags"
+            local error="$RUNNER_TEMP/${package}-error"
+            local status
+            set +e
+            gh api --paginate \
+              "users/naktan02/packages/container/${package}/versions?per_page=100" \
+              --jq '.[].metadata.container.tags[]?' > "$tags" 2> "$error"
+            status=$?
+            set -e
+            if [ "$status" -eq 0 ]; then
+              if grep --fixed-strings --line-regexp --quiet -- "$TAG" "$tags"; then
+                printf 'true'
+              else
+                printf 'false'
+              fi
+            elif grep --fixed-strings --quiet -- "HTTP 404" "$error"; then
+              printf 'false'
+            else
+              echo "GHCR tag state could not be verified for ${package}" >&2
+              return 1
+            fi
+          }
+          printf 'web_exists=%s\n' "$(tag_exists place-web)" >> "$GITHUB_OUTPUT"
+          printf 'backend_exists=%s\n' "$(tag_exists place-backend)" >> "$GITHUB_OUTPUT"
+
+      - name: Verify every pre-existing checkpoint belongs to this source commit
+        if: steps.state.outputs.web_exists == 'true' || steps.state.outputs.backend_exists == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          verify_existing() {
+            local image="$1"
+            local exists="$2"
+            if [ "$exists" != "true" ]; then
+              return
+            fi
+            local index="$RUNNER_TEMP/existing-$(basename "$image").json"
+            docker buildx imagetools inspect "${image}:${TAG}" --raw > "$index"
+            local platform_digest
+            platform_digest="$(jq -er '
+              [.manifests[] | select(
+                .platform.os == "linux" and
+                .platform.architecture == "amd64" and
+                ((.annotations // {})["vnd.docker.reference.type"] // "") != "attestation-manifest"
+              ) | .digest]
+              | if length == 1 then .[0] else error("expected one linux/amd64 image") end
+            ' "$index")"
+            docker pull "${image}@${platform_digest}"
+            docker image inspect --format '{{json .Config.Labels}}' "${image}@${platform_digest}" \
+              | jq -e \
+                --arg source "https://github.com/naktan02/place" \
+                --arg revision "$GITHUB_SHA" \
+                '.["org.opencontainers.image.source"] == $source and
+                 .["org.opencontainers.image.revision"] == $revision' >/dev/null
+          }
+          verify_existing "$WEB_IMAGE" "${{ steps.state.outputs.web_exists }}"
+          verify_existing "$BACKEND_IMAGE" "${{ steps.state.outputs.backend_exists }}"
+
+      - name: Build and publish the missing Web checkpoint
+        if: steps.state.outputs.web_exists != 'true'
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: Dockerfile
+          target: web-runtime
+          platforms: linux/amd64
+          pull: true
+          push: true
+          tags: ${{ env.WEB_IMAGE }}:${{ env.TAG }}
+          provenance: mode=max,version=v1
+          sbom: true
+          labels: |
+            org.opencontainers.image.source=https://github.com/naktan02/place
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ env.TAG }}
+            org.opencontainers.image.title=place-web
+
+      - name: Build and publish the missing Backend checkpoint
+        if: steps.state.outputs.backend_exists != 'true'
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: Dockerfile
+          target: backend-runtime
+          platforms: linux/amd64
+          pull: true
+          push: true
+          tags: ${{ env.BACKEND_IMAGE }}:${{ env.TAG }}
+          provenance: mode=max,version=v1
+          sbom: true
+          labels: |
+            org.opencontainers.image.source=https://github.com/naktan02/place
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ env.TAG }}
+            org.opencontainers.image.title=place-backend
+
+      - name: Verify registry bytes and extract both evidence sets
+        id: evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_directory="$RUNNER_TEMP/place-release"
+          install -d "$release_directory"
+          inspect_image() {
+            local artifact="$1"
+            local image="$2"
+            local directory="$release_directory/$artifact"
+            install -d "$directory"
+            docker buildx imagetools inspect "${image}:${TAG}" --raw \
+              > "$directory/tag-index.json"
+            local index_digest
+            index_digest="sha256:$(sha256sum "$directory/tag-index.json" | cut -d ' ' -f1)"
+            docker buildx imagetools inspect "${image}@${index_digest}" --raw \
+              > "$directory/digest-index.json"
+            cmp --silent "$directory/tag-index.json" "$directory/digest-index.json"
+            docker buildx imagetools inspect "${image}@${index_digest}" \
+              --format '{{ json .Provenance }}' \
+              > "$directory/provenance-envelope.json"
+            docker buildx imagetools inspect "${image}@${index_digest}" \
+              --format '{{ json .SBOM }}' \
+              > "$directory/sbom-envelope.json"
+            node scripts/prepare-application-release.mjs inspect-evidence \
+              --artifact-id "$artifact" \
+              --image "$image" \
+              --index-manifest "$directory/tag-index.json" \
+              --expected-index-digest "$index_digest" \
+              --provenance "$directory/provenance-envelope.json" \
+              --sbom "$directory/sbom-envelope.json" \
+              --output-directory "$directory/evidence"
+            local platform_digest
+            platform_digest="$(jq -er '.platform_digest' "$directory/evidence/metadata.json")"
+            printf '%s_index_digest=%s\n' "${artifact#place-}" "$index_digest" >> "$GITHUB_OUTPUT"
+            printf '%s_platform_digest=%s\n' "${artifact#place-}" "$platform_digest" >> "$GITHUB_OUTPUT"
+          }
+          inspect_image place-web "$WEB_IMAGE"
+          inspect_image place-backend "$BACKEND_IMAGE"
+          printf 'built_at=%s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
+      - name: Pull and smoke only the two published platform digests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/smoke-published-application-images.mjs \
+            --web-image "$WEB_IMAGE@${{ steps.evidence.outputs.web_platform_digest }}" \
+            --backend-image "$BACKEND_IMAGE@${{ steps.evidence.outputs.backend_platform_digest }}" \
+            --commit "$GITHUB_SHA" \
+            --output "$RUNNER_TEMP/place-release/published-image-smoke.v1.json"
+
+      - name: Upload Web SBOM evidence
+        id: web-sbom
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: place-web-sbom-${{ github.sha }}
+          path: ${{ runner.temp }}/place-release/place-web/evidence/sbom
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+          retention-days: 90
+
+      - name: Upload Web provenance evidence
+        id: web-provenance
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: place-web-provenance-${{ github.sha }}
+          path: ${{ runner.temp }}/place-release/place-web/evidence/provenance
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+          retention-days: 90
+
+      - name: Upload Backend SBOM evidence
+        id: backend-sbom
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: place-backend-sbom-${{ github.sha }}
+          path: ${{ runner.temp }}/place-release/place-backend/evidence/sbom
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+          retention-days: 90
+
+      - name: Upload Backend provenance evidence
+        id: backend-provenance
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: place-backend-provenance-${{ github.sha }}
+          path: ${{ runner.temp }}/place-release/place-backend/evidence/provenance
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+          retention-days: 90
+
+      - name: Upload published-digest smoke evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: place-published-image-smoke-${{ github.sha }}
+          path: ${{ runner.temp }}/place-release/published-image-smoke.v1.json
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+          retention-days: 90
+
+      - name: Create the Place-owned release record
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg commit_sha "$GITHUB_SHA" \
+            --arg built_at "${{ steps.evidence.outputs.built_at }}" \
+            --arg web_directory "$RUNNER_TEMP/place-release/place-web/evidence" \
+            --arg backend_directory "$RUNNER_TEMP/place-release/place-backend/evidence" \
+            --argjson run_id "$GITHUB_RUN_ID" \
+            --argjson run_attempt "$GITHUB_RUN_ATTEMPT" \
+            --argjson web_sbom_id "${{ steps.web-sbom.outputs.artifact-id }}" \
+            --arg web_sbom_digest "${{ steps.web-sbom.outputs.artifact-digest }}" \
+            --argjson web_provenance_id "${{ steps.web-provenance.outputs.artifact-id }}" \
+            --arg web_provenance_digest "${{ steps.web-provenance.outputs.artifact-digest }}" \
+            --argjson backend_sbom_id "${{ steps.backend-sbom.outputs.artifact-id }}" \
+            --arg backend_sbom_digest "${{ steps.backend-sbom.outputs.artifact-digest }}" \
+            --argjson backend_provenance_id "${{ steps.backend-provenance.outputs.artifact-id }}" \
+            --arg backend_provenance_digest "${{ steps.backend-provenance.outputs.artifact-digest }}" \
+            '{
+              schema_version: "place-release-record-input.v1",
+              repository: $repository,
+              commit_sha: $commit_sha,
+              run_id: $run_id,
+              run_attempt: $run_attempt,
+              built_at: $built_at,
+              artifacts: [
+                {
+                  artifact_id: "place-web",
+                  evidence_directory: $web_directory,
+                  sbom: {artifact_id: $web_sbom_id, sha256: $web_sbom_digest},
+                  provenance: {artifact_id: $web_provenance_id, sha256: $web_provenance_digest}
+                },
+                {
+                  artifact_id: "place-backend",
+                  evidence_directory: $backend_directory,
+                  sbom: {artifact_id: $backend_sbom_id, sha256: $backend_sbom_digest},
+                  provenance: {artifact_id: $backend_provenance_id, sha256: $backend_provenance_digest}
+                }
+              ]
+            }' > "$RUNNER_TEMP/place-release/release-record-input.json"
+          node scripts/prepare-application-release.mjs create-record \
+            --repository-root . \
+            --input "$RUNNER_TEMP/place-release/release-record-input.json" \
+            --output "$RUNNER_TEMP/place-release/release-record.v1.json"
+
+      - name: Upload the release record
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: place-release-record-${{ github.sha }}
+          path: ${{ runner.temp }}/place-release/release-record.v1.json
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+          retention-days: 90
