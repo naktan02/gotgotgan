@@ -10,14 +10,14 @@ function percent(value: number, minimum: number, maximum: number): string {
 export function DeterministicPlaceMap({
   bounds,
   results,
-  selectedPlaceId,
+  selectedResultId,
   onSelect,
   onPan,
 }: Readonly<{
   bounds: SearchBounds
   results: readonly PlaceSearchResult[]
-  selectedPlaceId?: string
-  onSelect: (placeId: string) => void
+  selectedResultId?: string
+  onSelect: (resultId: string) => void
   onPan: () => void
 }>) {
   return (
@@ -31,10 +31,10 @@ export function DeterministicPlaceMap({
       {results.map((result, index) => (
         <button
           aria-label={`${result.name} 지도에서 선택`}
-          aria-pressed={result.placeId === selectedPlaceId}
-          className={result.placeId === selectedPlaceId ? `${styles.marker} ${styles.selected}` : styles.marker}
-          key={result.placeId}
-          onClick={() => onSelect(result.placeId)}
+          aria-pressed={result.resultId === selectedResultId}
+          className={result.resultId === selectedResultId ? `${styles.marker} ${styles.selected}` : styles.marker}
+          key={result.resultId}
+          onClick={() => onSelect(result.resultId)}
           style={{
             left: percent(result.location.longitude, bounds.west, bounds.east),
             top: percent(bounds.north - result.location.latitude, 0, bounds.north - bounds.south),

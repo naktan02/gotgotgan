@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   SearchBackendProblem,
+  getProviderPlaceDetail,
   getSearchTaxonomy,
   searchPlaces,
 } from './search-backend-client'
@@ -11,7 +12,15 @@ const request = { schemaVersion: 'place-search.v1' as const, query: '라멘' }
 const response = {
   schemaVersion: 'place-search.v1' as const,
   items: [{
-    placeId: '01992d20-0000-7000-8000-000000000101',
+    resultId: 'place:01992d20-0000-7000-8000-000000000101',
+    identity: {
+      kind: 'canonical' as const,
+      placeId: '01992d20-0000-7000-8000-000000000101',
+    },
+    source: {
+      key: 'local', label: '내 장소', detailsAvailable: false, attributions: [],
+    },
+    freshness: { kind: 'indexed' as const, observedAt: '2026-08-26T10:00:00.000Z' },
     name: '조용한 라멘 연구소', areaLabel: '성수',
     location: { latitude: 37.5445, longitude: 127.056 },
     primaryTaxonomy: { key: 'food.noodle.ramen', label: '라멘' },
@@ -54,5 +63,31 @@ describe('search backend client', () => {
       status: 200, headers: { 'content-type': 'application/json' },
     }))
     await expect(getSearchTaxonomy({ PLACE_BACKEND_ORIGIN: 'http://backend.test:4010' }, fetcher)).resolves.toEqual(taxonomy)
+  })
+
+  it('loads provider details through the fixed backend without forwarding credentials', async () => {
+    const detail = {
+      schemaVersion: 'place-provider-detail.v1' as const,
+      providerKey: 'google' as const,
+      providerPlaceId: 'google-place-100',
+      name: '성수 라멘 연구소', address: null, location: null, categoryLabel: null,
+      photos: [], attributions: [{ label: 'Google Maps' }],
+      observedAt: '2026-08-26T10:00:00.000Z',
+    }
+    const observed: Array<{ input: URL; init: RequestInit }> = []
+    const fetcher: BackendFetcher = vi.fn(async (input, init) => {
+      observed.push({ input, init })
+      return Response.json(detail)
+    })
+
+    await expect(getProviderPlaceDetail({
+      schemaVersion: 'place-provider-detail.v1',
+      providerKey: 'google', providerPlaceId: 'google-place-100',
+    }, { PLACE_BACKEND_ORIGIN: 'http://backend.test:4010' }, fetcher)).resolves.toEqual(detail)
+    expect(observed[0]?.input).toEqual(new URL('http://backend.test:4010/v1/providers/place-details'))
+    expect(JSON.parse(String(observed[0]?.init.body))).toEqual({
+      schemaVersion: 'place-provider-detail.v1',
+      providerKey: 'google', providerPlaceId: 'google-place-100',
+    })
   })
 })

@@ -1,0 +1,19 @@
+{
+  "lastBuildDate": "Wed, 26 Aug 2026 10:00:00 +0900",
+  "total": 1,
+  "start": 1,
+  "display": 1,
+  "items": [
+    {
+      "title": "성수 <b>라멘</b> 연구소",
+      "link": "https://map.naver.example/place/100",
+      "category": "음식점>일식>라멘",
+      "description": "",
+      "telephone": "",
+      "address": "서울특별시 성동구 성수동",
+      "roadAddress": "서울특별시 성동구 연무장길 1",
+      "mapx": "1270560000",
+      "mapy": "375445000"
+    }
+  ]
+}

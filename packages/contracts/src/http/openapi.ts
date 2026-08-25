@@ -30,6 +30,8 @@ import {
 import {
   placeSearchRequestSchema,
   placeSearchResponseSchema,
+  providerPlaceDetailRequestSchema,
+  providerPlaceDetailSchema,
   taxonomyProjectionSchema,
 } from '../search/index.js'
 
@@ -243,13 +245,23 @@ const paths = {
     '400': ref('responses', 'ProductRequestInvalid'),
     '503': described('The fixed internal Place Backend is unavailable'),
   }, { security: anonymous, requestSchema: 'PlaceSearchRequest' }) },
+  '/api/search/provider-details': { post: operation('getProviderPlaceDetailsForBrowser', {
+    '200': described('Return a validated provider detail projection', 'ProviderPlaceDetail'),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '503': described('The fixed internal Place Backend or provider is unavailable'),
+  }, { security: anonymous, requestSchema: 'ProviderPlaceDetailRequest' }) },
   '/v1/search/places': { post: operation('searchPlaces', {
-    '200': described('Return provider-neutral local search results', 'PlaceSearchResponse'),
+    '200': described('Return provider-neutral local and official provider results', 'PlaceSearchResponse'),
     '400': ref('responses', 'ProductRequestInvalid'),
     '401': ref('responses', 'AuthenticationRequired'),
     '403': ref('responses', 'AccessDenied'),
     '503': described('All configured search sources are unavailable'),
   }, { security: optionalBearer, requestSchema: 'PlaceSearchRequest' }) },
+  '/v1/providers/place-details': { post: operation('getProviderPlaceDetails', {
+    '200': described('Return a bounded provider detail projection', 'ProviderPlaceDetail'),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '503': described('The configured provider detail capability is unavailable'),
+  }, { security: anonymous, requestSchema: 'ProviderPlaceDetailRequest' }) },
   '/v1/taxonomy/nodes': { get: operation('listPlaceTaxonomyNodes', {
     '200': described('Return the current provider-neutral taxonomy', 'TaxonomyProjection'),
     '503': described('The taxonomy projection is unavailable'),
@@ -281,6 +293,8 @@ const schemas: Readonly<Record<string, ZodType>> = {
   PublishedWriting: publishedWritingSchema,
   PlaceSearchRequest: placeSearchRequestSchema,
   PlaceSearchResponse: placeSearchResponseSchema,
+  ProviderPlaceDetailRequest: providerPlaceDetailRequestSchema,
+  ProviderPlaceDetail: providerPlaceDetailSchema,
   TaxonomyProjection: taxonomyProjectionSchema,
   Problem: problemSchema,
 }

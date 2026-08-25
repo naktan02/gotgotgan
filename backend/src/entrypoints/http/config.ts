@@ -7,6 +7,11 @@ import {
   type AuthRuntimeConfig,
   type MembershipOnboardingPolicy,
 } from '../../modules/access/index.js'
+import type {
+  GoogleOfficialPlacesConfig,
+  KakaoOfficialSearchConfig,
+  NaverOfficialSearchConfig,
+} from '../../modules/providers/index.js'
 
 const httpRuntimeSchema = z.object({
   PLACE_HTTP_HOST: z.string().min(1),
@@ -32,6 +37,11 @@ export type ProductionHttpConfig = Readonly<{
   }>
   authentication: Extract<AuthRuntimeConfig, { mode: 'oidc' }>
   membershipPolicy: MembershipOnboardingPolicy
+  providers?: Readonly<{
+    naver?: NaverOfficialSearchConfig
+    kakao?: KakaoOfficialSearchConfig
+    google?: GoogleOfficialPlacesConfig
+  }>
 }>
 
 const membershipPolicySchema = z
@@ -119,6 +129,97 @@ function databaseConnectionString(value: string): string {
   return value
 }
 
+function providerUrl(value: string, requireTrailingSlash: boolean = false): URL {
+  let url: URL
+  try {
+    url = new URL(value)
+  } catch {
+    throw configurationError()
+  }
+  if (
+    url.protocol !== 'https:' || url.username !== '' || url.password !== '' ||
+    url.search !== '' || url.hash !== '' ||
+    (requireTrailingSlash && !url.pathname.endsWith('/'))
+  ) throw configurationError()
+  return url
+}
+
+function providerGroup(
+  environment: NodeJS.ProcessEnv,
+  keys: readonly string[],
+): Readonly<Record<string, string>> | undefined {
+  const present = keys.filter((key) => environment[key] !== undefined)
+  if (present.length === 0) return undefined
+  if (present.length !== keys.length) throw configurationError()
+  return Object.fromEntries(keys.map((key) => {
+    const value = environment[key]
+    if (value === undefined || value.trim() === '') throw configurationError()
+    return [key, value]
+  }))
+}
+
+function providerTimeout(value: string): number {
+  const parsed = z.coerce.number().int().min(100).max(30_000).safeParse(value)
+  if (!parsed.success) throw configurationError()
+  return parsed.data
+}
+
+export async function loadOfficialProviderConfig(environment: NodeJS.ProcessEnv) {
+  const naverValues = providerGroup(environment, [
+    'PLACE_NAVER_SEARCH_ENDPOINT',
+    'PLACE_NAVER_CLIENT_ID_FILE',
+    'PLACE_NAVER_CLIENT_SECRET_FILE',
+    'PLACE_NAVER_TIMEOUT_MILLISECONDS',
+  ])
+  const kakaoValues = providerGroup(environment, [
+    'PLACE_KAKAO_SEARCH_ENDPOINT',
+    'PLACE_KAKAO_REST_API_KEY_FILE',
+    'PLACE_KAKAO_TIMEOUT_MILLISECONDS',
+  ])
+  const googleValues = providerGroup(environment, [
+    'PLACE_GOOGLE_PLACES_BASE_URL',
+    'PLACE_GOOGLE_PLACES_API_KEY_FILE',
+    'PLACE_GOOGLE_TIMEOUT_MILLISECONDS',
+  ])
+  const [naverCredentials, kakaoKey, googleKey] = await Promise.all([
+    naverValues === undefined ? undefined : Promise.all([
+      readOneLineFile(naverValues.PLACE_NAVER_CLIENT_ID_FILE!),
+      readOneLineFile(naverValues.PLACE_NAVER_CLIENT_SECRET_FILE!),
+    ]),
+    kakaoValues === undefined
+      ? undefined
+      : readOneLineFile(kakaoValues.PLACE_KAKAO_REST_API_KEY_FILE!),
+    googleValues === undefined
+      ? undefined
+      : readOneLineFile(googleValues.PLACE_GOOGLE_PLACES_API_KEY_FILE!),
+  ])
+  const providers = {
+    ...(naverValues === undefined || naverCredentials === undefined ? {} : {
+      naver: {
+        endpoint: providerUrl(naverValues.PLACE_NAVER_SEARCH_ENDPOINT!),
+        clientId: naverCredentials[0],
+        clientSecret: naverCredentials[1],
+        timeoutMilliseconds: providerTimeout(naverValues.PLACE_NAVER_TIMEOUT_MILLISECONDS!),
+      },
+    }),
+    ...(kakaoValues === undefined || kakaoKey === undefined ? {} : {
+      kakao: {
+        endpoint: providerUrl(kakaoValues.PLACE_KAKAO_SEARCH_ENDPOINT!),
+        restApiKey: kakaoKey,
+        timeoutMilliseconds: providerTimeout(kakaoValues.PLACE_KAKAO_TIMEOUT_MILLISECONDS!),
+      },
+    }),
+    ...(googleValues === undefined || googleKey === undefined ? {} : {
+      google: {
+        baseUrl: providerUrl(googleValues.PLACE_GOOGLE_PLACES_BASE_URL!, true),
+        apiKey: googleKey,
+        timeoutMilliseconds: providerTimeout(googleValues.PLACE_GOOGLE_TIMEOUT_MILLISECONDS!),
+      },
+    }),
+  }
+  return Object.keys(providers).length === 0 ? undefined : providers
+}
+
 export function readHttpRuntimeConfig(environment: NodeJS.ProcessEnv): HttpRuntimeConfig {
   const parsed = httpRuntimeSchema.parse(environment)
   return { host: parsed.PLACE_HTTP_HOST, port: parsed.PLACE_HTTP_PORT }
@@ -137,9 +238,10 @@ export async function loadProductionHttpConfig(
     const values = productionEnvironmentSchema.parse(environment)
     const authentication = readAuthRuntimeConfig(environment)
     if (authentication.mode !== 'oidc') throw configurationError()
-    const [databaseUrl, membershipPolicyJson] = await Promise.all([
+    const [databaseUrl, membershipPolicyJson, providers] = await Promise.all([
       readOneLineFile(values.PLACE_DATABASE_URL_FILE),
       readOneLineFile(values.PLACE_MEMBERSHIP_POLICY_FILE),
+      loadOfficialProviderConfig(environment),
     ])
     const policyDocument: unknown = JSON.parse(membershipPolicyJson)
     const policy = membershipPolicySchema.parse(policyDocument)
@@ -158,6 +260,7 @@ export async function loadProductionHttpConfig(
         initialUserGrade: policy.initialUserGrade,
         initialProductTier: policy.initialProductTier,
       },
+      ...(providers === undefined ? {} : { providers }),
     }
   } catch {
     throw configurationError()

@@ -12,9 +12,19 @@ entrypoint registers them and owns lifecycle only.
 받는다. saved/wanted/visited/minimum Personal Rating filter는 검증된 membership이 없으면
 401이며 member ID는 입력에 없다. response는 bounded place projection과 source별
 complete/partial/unavailable outcome을 반환한다. 모든 source가 unavailable이면 안전한 503이다.
+각 item의 `resultId`는 검색 선택용이고, `identity.kind=canonical`일 때만 canonical `placeId`가
+있다. 외부 결과는 `identity.kind=provider`, 공급자 출처, live freshness, 문서화된 경우에만
+provider Place ID와 원문 링크를 가진다.
+
+`POST /v1/providers/place-details`와 Web의 `POST /api/search/provider-details`는 선택한 Google
+결과에 한해 bounded 상세를 지연 조회한다. request는 provider key와 provider Place ID만 받으며
+endpoint, API key, field mask는 server-side composition이 결정한다. response는 provider rating,
+영업 정보, 사진 URI와 provider/사진 작성자 attribution을 허용 목록으로 반환하고 `no-store`를
+사용한다. NAVER/Kakao 상세를 지원하는 척하지 않으며 안정된 unsupported problem을 반환한다.
 
 `GET /v1/taxonomy/nodes`는 현재 active provider-neutral Node만 공개한다. Web은 고정 Backend
-경로를 사용하는 `POST /api/search/places`, `GET /api/search/taxonomy` BFF만 browser에 노출하고
+경로를 사용하는 `POST /api/search/places`, `POST /api/search/provider-details`,
+`GET /api/search/taxonomy` BFF만 browser에 노출하고
 두 방향 payload를 공유 계약으로 다시 검증한다.
 
 `POST /v1/library/commands`, `POST /v1/visits`, `POST /v1/writing/commands`는 strict bearer

@@ -6,7 +6,7 @@ Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed doc
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **source-only; Stage 5 complete and Stage 2 integration in progress**. Independent web/backend composition
+Current delivery state: **source-only; Stage 6 complete and Stage 2 integration in progress**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
@@ -49,7 +49,15 @@ bounds·taxonomy·회원 signal filter, 불투명 cursor와 source별 partial �
 다른 모듈 schema를 join하지 않고 versioned projection command로 전달된 최소 사실만 조회한다.
 Web은 debounce·교체 요청 취소·목록/지도 선택·명시적 영역 재검색·pagination·mobile 전환과
 loading/partial/empty/error 상태를 구현했다. 현재 지도는 실제 좌표 interaction을 검증하는
-결정적 renderer이며 live tile/provider 연결은 Stage 6 전까지 활성화되지 않는다.
+결정적 renderer이며 live tile 연결과 live provider traffic은 아직 활성화하지 않는다.
+
+Stage 6 공식 검색은 별도 Providers 모듈에서 NAVER Local, Kakao Local, Google Places API
+(New)를 구현한다. endpoint와 credential은 deployment/secret-file 주입만 허용하고, 공통 HTTP
+runner는 redirect 거부, 응답 크기, timeout, bounded retry와 안전한 오류만 소유한다. 각 공급자
+parser, pagination, 좌표와 누락 필드는 공급자 폴더 안에 남는다. 외부 결과는 canonical Place로
+가장하지 않으며 Google만 선택 시 Details/Photo를 지연 조회해 provider rating과 attribution을
+표시한다. 이는 fixture-tested source-only capability이며 live provider나 live tile map 활성화가
+아니다.
 
 ## Repository boundaries
 

@@ -60,7 +60,8 @@ test('local search is indexed, cursor-bounded, taxonomy-driven, and member-isola
     assert.ok(first.nextCursor)
     const second = await search({ query: '라멘', filters: { taxonomyKeys: [] }, limit: 1, cursor: first.nextCursor })
     assert.equal(second.items.length, 1)
-    assert.notEqual(first.items[0].placeId, second.items[0].placeId)
+    assert.notEqual(first.items[0].resultId, second.items[0].resultId)
+    assert.equal(first.items[0].identity.kind, 'canonical')
 
     const bounded = await search({
       query: '', filters: { taxonomyKeys: [] }, limit: 20,

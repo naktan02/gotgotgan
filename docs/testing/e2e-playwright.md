@@ -46,3 +46,10 @@ Taxonomy filter, cursor pagination, mobile 목록/지도 전환, partial·loadin
 개인 field 비노출을 직접 검증한다. 기본 화면은 1440x900, 1280x800, 390x844, 360x800을
 소유하고 partial/loading/error/empty/mobile-map 상태도 별도 screenshot으로 검토한다. 이 fixture와
 결정적 좌표 renderer는 live 지도/provider 연동 증거가 아니다.
+
+Stage 6는 같은 test-owned Backend에 provider-labeled Google 결과와 지연 상세 fixture를 추가한다.
+Playwright는 외부 결과가 canonical Place ID로 가장되지 않는 계약, source label과 원문 열기,
+선택 후에만 발생하는 detail 요청, provider rating과 사진 작성자 attribution, browser payload의
+credential 비노출을 검증한다. NAVER/Kakao raw response parser는 module fixture replay가 맡는다.
+실제 provider 호출은 blocking E2E와 screenshot baseline에서 금지하고 opt-in live smoke로만
+분류한다.

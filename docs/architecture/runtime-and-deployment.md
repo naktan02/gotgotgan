@@ -17,6 +17,13 @@ signals. Reviewed browser auth routes consume that runtime. Membership BFF route
 activated stateless backend client plus the auth session interface and fail closed if either required
 runtime is absent. No active external route or provisioned Identity flow is implied.
 
+Backend production composition also adds an official provider source only when that provider's
+complete HTTPS endpoint/secret-file/timeout group is present. The local search source remains
+independent, so a provider timeout or throttle cannot make personal search unavailable. Provider
+credentials never enter Web configuration or payloads. Omitted groups are disabled; partial groups
+fail startup. The acquisition Worker remains `not-integrated` and no browser profile lifecycle is
+created by this HTTP-only stage.
+
 `deploy/application-runtime.json` fixes Web as the only future Gateway-facing process. Backend and
 Worker remain internal; browsers cannot select or call Backend directly. The Compose base publishes
 no host ports, `compose.local.yml` adds explicit standalone ports, and `compose.production.yml`

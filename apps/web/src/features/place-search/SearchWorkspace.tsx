@@ -2,9 +2,11 @@
 
 import {
   placeSearchResponseSchema,
+  providerPlaceDetailSchema,
   taxonomyProjectionSchema,
   type PlaceSearchRequest,
   type PlaceSearchResult,
+  type ProviderPlaceDetail,
   type SearchBounds,
   type TaxonomyNode,
 } from '@place/contracts/search'
@@ -39,7 +41,9 @@ export function SearchWorkspace() {
   const [items, setItems] = useState<readonly PlaceSearchResult[]>([])
   const [sources, setSources] = useState<readonly { sourceKey: string; status: 'complete' | 'partial' | 'unavailable'; resultCount: number; errorCode?: string }[]>([])
   const [nextCursor, setNextCursor] = useState<string | undefined>()
-  const [selectedPlaceId, setSelectedPlaceId] = useState<string | undefined>()
+  const [selectedResultId, setSelectedResultId] = useState<string | undefined>()
+  const [providerDetail, setProviderDetail] = useState<ProviderPlaceDetail | undefined>()
+  const [detailState, setDetailState] = useState<'idle' | 'loading' | 'unavailable'>('idle')
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | undefined>()
@@ -61,7 +65,7 @@ export function SearchWorkspace() {
     schemaVersion: 'place-search.v1',
     query: draftQuery,
     filters: { taxonomyKeys: taxonomyKey === '' ? [] : [taxonomyKey] },
-    limit: 3,
+    limit: 8,
     ...(searchBounds === undefined ? {} : { bounds: searchBounds }),
   }), [draftQuery, searchBounds, taxonomyKey])
 
@@ -89,10 +93,10 @@ export function SearchWorkspace() {
       if (sequence !== requestSequence.current) return
       setItems((current) => {
         const available = append ? [...current, ...payload.items] : payload.items
-        setSelectedPlaceId((selectedPlace) =>
-          selectedPlace !== undefined && available.some((item) => item.placeId === selectedPlace)
-            ? selectedPlace
-            : available[0]?.placeId,
+        setSelectedResultId((selectedResult) =>
+          selectedResult !== undefined && available.some((item) => item.resultId === selectedResult)
+            ? selectedResult
+            : available[0]?.resultId,
         )
         return available
       })
@@ -124,7 +128,40 @@ export function SearchWorkspace() {
   }, [baseRequest, executeSearch])
 
   const partial = sources.some((source) => source.status !== 'complete')
-  const selected = items.find((item) => item.placeId === selectedPlaceId)
+  const selected = items.find((item) => item.resultId === selectedResultId)
+
+  useEffect(() => {
+    setProviderDetail(undefined)
+    setDetailState('idle')
+    if (
+      selected?.identity.kind !== 'provider' || !selected.source.detailsAvailable ||
+      selected.identity.providerPlaceId === undefined
+    ) return
+    const controller = new AbortController()
+    setDetailState('loading')
+    fetch('/api/search/provider-details', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        schemaVersion: 'place-provider-detail.v1',
+        providerKey: selected.identity.providerKey,
+        providerPlaceId: selected.identity.providerPlaceId,
+      }),
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then(jsonOrThrow)
+      .then((payload) => {
+        setProviderDetail(providerPlaceDetailSchema.parse(payload))
+        setDetailState('idle')
+      })
+      .catch((reason: unknown) => {
+        if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
+          setDetailState('unavailable')
+        }
+      })
+    return () => controller.abort()
+  }, [selected])
 
   return (
     <section aria-labelledby="place-search-title" className={styles.workspace}>
@@ -191,18 +228,18 @@ export function SearchWorkspace() {
           )}
           <ol aria-label="장소 검색 결과" className={styles.resultList}>
             {items.map((item, index) => (
-              <li key={item.placeId}>
+              <li key={item.resultId}>
                 <button
-                  aria-pressed={item.placeId === selectedPlaceId}
-                  className={item.placeId === selectedPlaceId ? `${styles.resultRow} ${styles.selectedRow}` : styles.resultRow}
-                  onClick={() => setSelectedPlaceId(item.placeId)}
+                  aria-pressed={item.resultId === selectedResultId}
+                  className={item.resultId === selectedResultId ? `${styles.resultRow} ${styles.selectedRow}` : styles.resultRow}
+                  onClick={() => setSelectedResultId(item.resultId)}
                   type="button"
                 >
                   <span className={styles.resultNumber}>{index + 1}</span>
                   <span className={styles.resultText}>
                     <strong>{item.name}</strong>
-                    <span>{item.primaryTaxonomy?.label ?? '분류 미확인'} · {item.areaLabel ?? '지역 정보 없음'}</span>
-                    <span className={styles.evidence}>{item.evidenceStatus === 'verified' ? '검증됨' : '확인 필요'} · 로컬 색인</span>
+                    <span>{item.primaryTaxonomy?.label ?? item.source.categoryLabel ?? '분류 미확인'} · {item.areaLabel ?? '지역 정보 없음'}</span>
+                    <span className={styles.evidence}>{item.evidenceStatus === 'verified' ? '검증됨' : '확인 필요'} · {item.identity.kind === 'canonical' ? '로컬 색인' : item.source.label}</span>
                   </span>
                 </button>
               </li>
@@ -219,8 +256,49 @@ export function SearchWorkspace() {
             </button>
           )}
           {selected !== undefined && (
-            <aside className={styles.selection} aria-live="polite">
-              <span>선택한 장소</span><strong>{selected.name}</strong>
+            <aside className={selected.identity.kind === 'provider' ? `${styles.selection} ${styles.providerSelection}` : styles.selection} aria-live="polite">
+              {selected.identity.kind === 'canonical' ? (
+                <><span>선택한 장소</span><strong>{selected.name}</strong></>
+              ) : (
+                <>
+                  <div className={styles.selectionHeading}>
+                    <span>선택한 장소</span><strong>{selected.name}</strong>
+                  </div>
+                  <div className={styles.selectionActions}>
+                    <span>공급자에서 방금 확인</span>
+                    {selected.source.externalUri !== undefined && (
+                      <a href={selected.source.externalUri} rel="noreferrer" target="_blank">
+                        {selected.source.label}에서 열기
+                      </a>
+                    )}
+                  </div>
+                  {detailState === 'loading' && <span className={styles.detailStatus}>최신 상세를 확인하는 중…</span>}
+                  {detailState === 'unavailable' && <span className={styles.detailStatus}>상세 정보는 지금 불러올 수 없습니다.</span>}
+                  {providerDetail !== undefined && (
+                    <div className={styles.providerDetail}>
+                      {providerDetail.photos[0]?.mediaUri !== undefined && (
+                        <img alt={`${providerDetail.name} 공급자 사진`} src={providerDetail.photos[0].mediaUri} />
+                      )}
+                      <div>
+                        {providerDetail.rating !== undefined && (
+                          <strong>평점 {providerDetail.rating.toFixed(1)}{providerDetail.userRatingCount === undefined ? '' : ` · ${providerDetail.userRatingCount}개 평가`}</strong>
+                        )}
+                        {providerDetail.openingHours?.openNow !== undefined && (
+                          <span>{providerDetail.openingHours.openNow ? '현재 영업 중' : '현재 영업 종료'}</span>
+                        )}
+                        {providerDetail.phone !== undefined && <span>{providerDetail.phone}</span>}
+                      </div>
+                      <div className={styles.attributions} aria-label="정보 및 사진 출처">
+                        {[...providerDetail.attributions, ...providerDetail.photos.flatMap((photo) => photo.authorAttributions)].map((attribution, index) => (
+                          attribution.uri === undefined
+                            ? <span key={`${attribution.label}:${index}`}>{attribution.label}</span>
+                            : <a href={attribution.uri} key={`${attribution.label}:${index}`} rel="noreferrer" target="_blank">{attribution.label}</a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </aside>
           )}
         </section>
@@ -229,9 +307,9 @@ export function SearchWorkspace() {
           <DeterministicPlaceMap
             bounds={viewportBounds}
             onPan={() => setViewportBounds((current) => movedEast(current))}
-            onSelect={setSelectedPlaceId}
+            onSelect={setSelectedResultId}
             results={items}
-            selectedPlaceId={selectedPlaceId}
+            selectedResultId={selectedResultId}
           />
         </div>
       </div>

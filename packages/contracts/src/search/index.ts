@@ -2,6 +2,14 @@ import { z } from 'zod'
 
 import { uuidSchema } from '../http/content.js'
 
+const httpUrlSchema = z.url().refine((value) => {
+  const url = new URL(value)
+  return (url.protocol === 'https:' || url.protocol === 'http:') &&
+    url.username === '' && url.password === ''
+}, { message: 'Only HTTP(S) URLs are allowed.' })
+
+export const providerKeySchema = z.enum(['naver', 'kakao', 'google'])
+
 export const searchBoundsSchema = z.object({
   west: z.number().min(-180).max(180),
   south: z.number().min(-90).max(90),
@@ -33,8 +41,35 @@ export const searchPersonalStateSchema = z.object({
   personalRating: z.number().min(0.1).max(5).multipleOf(0.1).nullable(),
 }).strict()
 
+export const searchResultIdentitySchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('canonical'), placeId: uuidSchema }).strict(),
+  z.object({
+    kind: z.literal('provider'),
+    providerKey: providerKeySchema,
+    providerPlaceId: z.string().min(1).max(512).optional(),
+  }).strict(),
+])
+
+export const providerAttributionSchema = z.object({
+  label: z.string().min(1).max(200),
+  uri: httpUrlSchema.optional(),
+}).strict()
+
 export const placeSearchResultSchema = z.object({
-  placeId: uuidSchema,
+  resultId: z.string().min(1).max(256),
+  identity: searchResultIdentitySchema,
+  source: z.object({
+    key: z.string().min(1).max(64),
+    label: z.string().min(1).max(120),
+    externalUri: httpUrlSchema.optional(),
+    categoryLabel: z.string().min(1).max(300).optional(),
+    detailsAvailable: z.boolean(),
+    attributions: z.array(providerAttributionSchema).max(10),
+  }).strict(),
+  freshness: z.object({
+    kind: z.enum(['indexed', 'live']),
+    observedAt: z.iso.datetime({ offset: true }),
+  }).strict(),
   name: z.string().min(1).max(300),
   areaLabel: z.string().min(1).max(300).nullable(),
   location: z.object({
@@ -57,6 +92,42 @@ export const searchSourceOutcomeSchema = z.object({
   errorCode: z.string().min(1).max(128).optional(),
 }).strict()
 
+export const providerPlaceDetailRequestSchema = z.object({
+  schemaVersion: z.literal('place-provider-detail.v1'),
+  providerKey: providerKeySchema,
+  providerPlaceId: z.string().min(1).max(512),
+}).strict()
+
+export const providerPlaceDetailSchema = z.object({
+  schemaVersion: z.literal('place-provider-detail.v1'),
+  providerKey: providerKeySchema,
+  providerPlaceId: z.string().min(1).max(512),
+  name: z.string().min(1).max(300),
+  address: z.string().min(1).max(500).nullable(),
+  location: z.object({
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+  }).strict().nullable(),
+  categoryLabel: z.string().min(1).max(300).nullable(),
+  externalUri: httpUrlSchema.optional(),
+  phone: z.string().min(1).max(100).optional(),
+  rating: z.number().min(0).max(5).optional(),
+  userRatingCount: z.number().int().nonnegative().optional(),
+  businessStatus: z.string().min(1).max(100).optional(),
+  openingHours: z.object({
+    openNow: z.boolean().optional(),
+    weekdayDescriptions: z.array(z.string().min(1).max(300)).max(14),
+  }).strict().optional(),
+  photos: z.array(z.object({
+    mediaUri: httpUrlSchema.optional(),
+    width: z.number().int().positive().optional(),
+    height: z.number().int().positive().optional(),
+    authorAttributions: z.array(providerAttributionSchema).max(10),
+  }).strict()).max(3),
+  attributions: z.array(providerAttributionSchema).min(1).max(10),
+  observedAt: z.iso.datetime({ offset: true }),
+}).strict()
+
 export const taxonomyNodeSchema = z.object({
   key: z.string().min(1).max(128),
   parentKey: z.string().min(1).max(128).nullable(),
@@ -77,12 +148,17 @@ export const placeSearchResponseSchema = z.object({
   sources: z.array(searchSourceOutcomeSchema).min(1).max(16),
 }).strict()
 
+export type ProviderKey = z.infer<typeof providerKeySchema>
 export type SearchBounds = z.infer<typeof searchBoundsSchema>
 export type PlaceSearchRequestInput = z.input<typeof placeSearchRequestSchema>
 export type PlaceSearchRequest = z.infer<typeof placeSearchRequestSchema>
 export type SearchPersonalState = z.infer<typeof searchPersonalStateSchema>
+export type SearchResultIdentity = z.infer<typeof searchResultIdentitySchema>
+export type ProviderAttribution = z.infer<typeof providerAttributionSchema>
 export type PlaceSearchResult = z.infer<typeof placeSearchResultSchema>
 export type SearchSourceOutcome = z.infer<typeof searchSourceOutcomeSchema>
 export type PlaceSearchResponse = z.infer<typeof placeSearchResponseSchema>
+export type ProviderPlaceDetailRequest = z.infer<typeof providerPlaceDetailRequestSchema>
+export type ProviderPlaceDetail = z.infer<typeof providerPlaceDetailSchema>
 export type TaxonomyNode = z.infer<typeof taxonomyNodeSchema>
 export type TaxonomyProjection = z.infer<typeof taxonomyProjectionSchema>

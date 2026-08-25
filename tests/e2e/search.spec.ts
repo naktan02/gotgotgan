@@ -88,6 +88,29 @@ test('renders partial, empty, error, and retry-safe states without private field
   expect(body).not.toContain('PLACE_BACKEND_ORIGIN')
 })
 
+test('labels official provider results and lazily loads attributed details', async ({ page, request }) => {
+  await page.goto('/search')
+  await page.getByLabel('장소 검색어').fill('공식 결과')
+
+  const result = page.getByRole('list', { name: '장소 검색 결과' }).getByRole('button')
+  await expect(result).toHaveCount(1)
+  await expect(result).toContainText('Google Maps')
+  await expect(page.getByRole('link', { name: 'Google Maps에서 열기' })).toHaveAttribute(
+    'href', 'https://maps.example.invalid/place/100',
+  )
+  await expect(page.getByText('평점 4.6 · 120개 평가')).toBeVisible()
+  await expect(page.getByLabel('정보 및 사진 출처')).toContainText('사진 작성자')
+
+  const response = await request.post('/api/search/provider-details', {
+    data: {
+      schemaVersion: 'place-provider-detail.v1',
+      providerKey: 'google', providerPlaceId: 'google-place-100',
+    },
+  })
+  expect(response.status()).toBe(200)
+  expect(JSON.stringify(await response.json())).not.toContain('apiKey')
+})
+
 test('captures the reviewed search workspace sizes', async ({ page }, testInfo) => {
   await page.goto('/search')
   await expect(page.getByRole('list', { name: '장소 검색 결과' }).getByRole('button')).toHaveCount(3)

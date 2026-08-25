@@ -1,0 +1,31 @@
+{
+  "id": "google-place-100",
+  "displayName": { "text": "성수 라멘 연구소", "languageCode": "ko" },
+  "formattedAddress": "대한민국 서울특별시 성동구 연무장길 1",
+  "location": { "latitude": 37.5445, "longitude": 127.056 },
+  "primaryTypeDisplayName": { "text": "라멘 전문점", "languageCode": "ko" },
+  "googleMapsUri": "https://maps.google.example/?cid=100",
+  "nationalPhoneNumber": "02-000-0000",
+  "rating": 4.6,
+  "userRatingCount": 120,
+  "businessStatus": "OPERATIONAL",
+  "currentOpeningHours": {
+    "openNow": true,
+    "weekdayDescriptions": ["수요일: 오전 11:00~오후 9:00"]
+  },
+  "photos": [
+    {
+      "name": "places/google-place-100/photos/photo-100",
+      "widthPx": 1200,
+      "heightPx": 800,
+      "authorAttributions": [
+        {
+          "displayName": "사진 작성자",
+          "uri": "https://contributors.google.example/100",
+          "photoUri": "https://contributors.google.example/100/photo"
+        }
+      ],
+      "googleMapsUri": "https://maps.google.example/photo/100"
+    }
+  ]
+}

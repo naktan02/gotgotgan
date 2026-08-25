@@ -2,8 +2,11 @@ import { problemSchema } from '@place/contracts/http'
 import {
   placeSearchRequestSchema,
   placeSearchResponseSchema,
+  providerPlaceDetailRequestSchema,
+  providerPlaceDetailSchema,
   taxonomyProjectionSchema,
   type PlaceSearchRequestInput,
+  type ProviderPlaceDetailRequest,
 } from '@place/contracts/search'
 
 import {
@@ -90,4 +93,36 @@ export async function getSearchTaxonomy(
   }, environment, fetcher)
   if (!response.ok) throw new Error('Place taxonomy Backend is unavailable')
   return taxonomyProjectionSchema.parse(await responseJson(response))
+}
+
+export async function getProviderPlaceDetail(
+  request: ProviderPlaceDetailRequest,
+  environment: BackendEnvironment = process.env,
+  fetcher: BackendFetcher = fetch,
+  signal?: AbortSignal,
+) {
+  const body = providerPlaceDetailRequestSchema.parse(request)
+  const response = await requestFixedBackend('/v1/providers/place-details', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: signal === undefined
+      ? AbortSignal.timeout(5_000)
+      : AbortSignal.any([signal, AbortSignal.timeout(5_000)]),
+  }, environment, fetcher)
+  const payload = await responseJson(response)
+  if (!response.ok) {
+    const problem = safeProblem(payload)
+    if (problem !== undefined) {
+      throw new SearchBackendProblem(
+        problem.status,
+        problem.code,
+        problem.title,
+        problem.retryable,
+        problem.correlationRef,
+      )
+    }
+    throw new Error('Provider place details are unavailable')
+  }
+  return providerPlaceDetailSchema.parse(payload)
 }

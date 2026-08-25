@@ -26,6 +26,15 @@
 .empty strong { color: var(--ink); }
 .moreButton { display: block; margin: 16px auto; }
 .selection { position: absolute; right: 14px; bottom: 14px; left: 14px; display: flex; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-surface); background: var(--surface); box-shadow: var(--shadow-overlay); font-size: 13px; }
+.providerSelection { position: sticky; display: grid; gap: 10px; margin: 14px; }
+.selectionHeading, .selectionActions { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.selectionActions { color: var(--muted); font-size: 12px; }
+.selection a, .attributions a { color: var(--accent); text-underline-offset: 2px; }
+.detailStatus { color: var(--muted); font-size: 12px; }
+.providerDetail { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.providerDetail img { width: 88px; height: 66px; border-radius: var(--radius-control); object-fit: cover; }
+.providerDetail > div { display: grid; align-content: start; gap: 4px; }
+.attributions { grid-column: 1 / -1; display: flex !important; flex-wrap: wrap; gap: 6px 12px !important; color: var(--muted); font-size: 11px; }
 .notice, .error { margin: 0; padding: 9px 16px; border-bottom: 1px solid #e8d7b5; background: #fff8e9; color: #73511e; font-size: 13px; }
 .error { display: flex; justify-content: space-between; align-items: center; gap: 16px; border-color: #ecd0d0; background: #fff2f2; color: var(--danger); }
 .error button { border: 0; background: transparent; color: inherit; text-decoration: underline; }

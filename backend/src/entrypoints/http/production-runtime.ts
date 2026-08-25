@@ -12,6 +12,16 @@ import {
   type PrincipalVerifier,
 } from '../../modules/access/index.js'
 import { PostgresLibraryStore } from '../../modules/library/index.js'
+import {
+  createProviderPlaceDetailReader,
+  GoogleOfficialPlaceDetails,
+  GoogleOfficialPlaceSearch,
+  KakaoOfficialPlaceSearch,
+  NaverOfficialPlaceSearch,
+  OfficialProviderHttpClient,
+  type ProviderPlaceDetails,
+  type ProviderPlaceSearch,
+} from '../../modules/providers/index.js'
 import { createPlaceSearch, PostgresLocalSearch } from '../../modules/search/index.js'
 import { PostgresTaxonomyStore } from '../../modules/taxonomy/index.js'
 import { PostgresVisitStore } from '../../modules/visits/index.js'
@@ -70,6 +80,27 @@ export async function createProductionHttpRuntime(
     const visitStore = new PostgresVisitStore(pool)
     const writingStore = new PostgresWritingStore(pool)
     const localSearch = new PostgresLocalSearch(pool)
+    const providerHttp = new OfficialProviderHttpClient()
+    const providerSearchSources: ProviderPlaceSearch[] = []
+    const providerDetailReaders: ProviderPlaceDetails[] = []
+    if (config.providers?.naver !== undefined) {
+      providerSearchSources.push(
+        new NaverOfficialPlaceSearch(config.providers.naver, providerHttp, now),
+      )
+    }
+    if (config.providers?.kakao !== undefined) {
+      providerSearchSources.push(
+        new KakaoOfficialPlaceSearch(config.providers.kakao, providerHttp, now),
+      )
+    }
+    if (config.providers?.google !== undefined) {
+      providerSearchSources.push(
+        new GoogleOfficialPlaceSearch(config.providers.google, providerHttp, now),
+      )
+      providerDetailReaders.push(
+        new GoogleOfficialPlaceDetails(config.providers.google, providerHttp, now),
+      )
+    }
     const taxonomyStore = new PostgresTaxonomyStore(pool)
     const application = buildHttpApplication({
       access: {
@@ -85,9 +116,15 @@ export async function createProductionHttpRuntime(
         now,
       },
       library: { authorizer: productAuthorizer, store: libraryStore, now },
+      ...(providerDetailReaders.length === 0 ? {} : {
+        providers: {
+          getDetail: createProviderPlaceDetailReader(providerDetailReaders),
+          supportedProviders: providerDetailReaders.map((reader) => reader.providerKey),
+        },
+      }),
       search: {
         authorizer: productAuthorizer,
-        search: createPlaceSearch({ sources: [localSearch] }),
+        search: createPlaceSearch({ sources: [localSearch, ...providerSearchSources] }),
       },
       taxonomy: { store: taxonomyStore },
       visits: { authorizer: productAuthorizer, store: visitStore, now },

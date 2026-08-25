@@ -42,7 +42,9 @@ state, PKCE verifier, or an internal backend origin.
 분리해 읽을 수 있어야 하며 새 검색의 실패가 이전 pagination이나 source 경고를 남겨서는 안 된다.
 
 현재 `DeterministicPlaceMap`은 실제 좌표·bounds interaction을 검증하는 renderer adapter이다.
-tile, provider attribution, 사진, provider 평점은 연결되지 않았으며 UI가 이를 꾸며내지 않는다.
-Stage 6 live map adapter는 feature state나 search contract를 역참조하게 만들지 않고 이 platform
+live tile은 연결되지 않았다. Stage 6 공식 검색 결과는 행에서 출처와 원문 링크를 표시하고,
+Google 결과만 선택 후 상세·사진을 지연 조회해 provider rating과 attribution을 표시한다.
+NAVER/Kakao에 없는 상세나 사진을 꾸며내지 않으며 외부 결과를 canonical Place로 보이지 않는다.
+향후 live map adapter는 feature state나 search contract를 역참조하게 만들지 않고 `platform/maps`
 경계에서 교체한다. 4개 viewport와 상태별 screenshot을 검토했으며 세부 visual polish는 이
 동작·privacy 기준을 보존하는 범위에서 계속 변경할 수 있다.

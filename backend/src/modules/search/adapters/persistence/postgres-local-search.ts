@@ -29,6 +29,7 @@ type SearchRow = Readonly<{
   wanted: boolean | null
   visited: boolean | null
   personal_rating: string | null
+  projected_at: string
   score: number
 }>
 
@@ -53,7 +54,15 @@ function encodeLocalCursor(cursor: LocalCursor): string {
 
 function rowToResult(row: SearchRow, viewerMemberId: string | undefined): PlaceSearchResult {
   return {
-    placeId: row.place_id,
+    resultId: `place:${row.place_id}`,
+    identity: { kind: 'canonical', placeId: row.place_id },
+    source: {
+      key: 'local',
+      label: '내 장소',
+      detailsAvailable: false,
+      attributions: [],
+    },
+    freshness: { kind: 'indexed', observedAt: row.projected_at },
     name: row.display_name,
     areaLabel: row.area_label,
     location: { latitude: row.latitude, longitude: row.longitude },
@@ -163,6 +172,7 @@ export class PostgresLocalSearch implements PlaceSearchSource, LocalSearchProjec
             signal.wanted,
             signal.visited,
             signal.personal_rating,
+            document.projected_at,
             CASE
               WHEN $1 = '' THEN 1.0
               ELSE GREATEST(

@@ -3,7 +3,15 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { buildHttpApplication } from '../src/entrypoints/http/app.js'
 
 const item = {
-  placeId: '01992d20-0000-7000-8000-000000000101',
+  resultId: 'place:01992d20-0000-7000-8000-000000000101',
+  identity: {
+    kind: 'canonical' as const,
+    placeId: '01992d20-0000-7000-8000-000000000101',
+  },
+  source: {
+    key: 'local', label: '내 장소', detailsAvailable: false, attributions: [],
+  },
+  freshness: { kind: 'indexed' as const, observedAt: '2026-08-26T10:00:00.000Z' },
   name: '조용한 라멘 연구소',
   areaLabel: '성수',
   location: { latitude: 37.5445, longitude: 127.056 },

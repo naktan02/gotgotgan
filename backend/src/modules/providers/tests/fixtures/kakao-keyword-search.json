@@ -1,0 +1,19 @@
+{
+  "meta": { "total_count": 2, "pageable_count": 2, "is_end": false },
+  "documents": [
+    {
+      "id": "kakao-place-100",
+      "place_name": "성수 라멘 연구소",
+      "category_name": "음식점 > 일식 > 라멘",
+      "category_group_code": "FD6",
+      "category_group_name": "음식점",
+      "phone": "02-000-0000",
+      "address_name": "서울 성동구 성수동",
+      "road_address_name": "서울 성동구 연무장길 1",
+      "x": "127.056",
+      "y": "37.5445",
+      "place_url": "https://place.map.kakao.example/100",
+      "distance": "120"
+    }
+  ]
+}

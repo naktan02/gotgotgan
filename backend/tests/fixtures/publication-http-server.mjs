@@ -81,7 +81,45 @@ const searchItems = [
     primaryTaxonomy: { key: 'culture.exhibition', label: '전시' },
     taxonomyKeys: ['culture.exhibition'], evidenceStatus: 'conflicted',
   },
-]
+].map(({ placeId: canonicalPlaceId, ...item }) => ({
+  resultId: `place:${canonicalPlaceId}`,
+  identity: { kind: 'canonical', placeId: canonicalPlaceId },
+  source: { key: 'local', label: '내 장소', detailsAvailable: false, attributions: [] },
+  freshness: { kind: 'indexed', observedAt: '2026-08-26T10:00:00.000Z' },
+  ...item,
+}))
+
+const providerSearchItem = {
+  resultId: 'google:fixture-result',
+  identity: {
+    kind: 'provider', providerKey: 'google', providerPlaceId: 'google-place-100',
+  },
+  source: {
+    key: 'google', label: 'Google Maps', detailsAvailable: true,
+    externalUri: 'https://maps.example.invalid/place/100',
+    categoryLabel: '라멘 전문점',
+    attributions: [{ label: 'Google Maps' }],
+  },
+  freshness: { kind: 'live', observedAt: '2026-08-26T10:00:00.000Z' },
+  name: '공식 검색 라멘 연구소', areaLabel: '서울 성동구',
+  location: { latitude: 37.5445, longitude: 127.056 },
+  primaryTaxonomy: null, taxonomyKeys: [], evidenceStatus: 'unverified',
+}
+
+const providerDetail = {
+  schemaVersion: 'place-provider-detail.v1',
+  providerKey: 'google', providerPlaceId: 'google-place-100',
+  name: '공식 검색 라멘 연구소', address: '서울 성동구 연무장길 1',
+  location: { latitude: 37.5445, longitude: 127.056 },
+  categoryLabel: '라멘 전문점',
+  externalUri: 'https://maps.example.invalid/place/100',
+  phone: '02-000-0000', rating: 4.6, userRatingCount: 120,
+  businessStatus: 'OPERATIONAL',
+  openingHours: { openNow: true, weekdayDescriptions: ['수요일: 오전 11:00~오후 9:00'] },
+  photos: [{ authorAttributions: [{ label: '사진 작성자', uri: 'https://authors.example.invalid/100' }] }],
+  attributions: [{ label: 'Google Maps', uri: 'https://maps.example.invalid/place/100' }],
+  observedAt: '2026-08-26T10:01:00.000Z',
+}
 
 const searchObservations = []
 
@@ -132,7 +170,8 @@ async function search(request, response) {
   }
 
   let items = searchItems
-  if (observation.query === '없음') items = []
+  if (observation.query === '공식 결과') items = [providerSearchItem]
+  else if (observation.query === '없음') items = []
   else if (observation.query === '카페') items = items.filter((item) => item.taxonomyKeys.includes('drink.coffee'))
   else if (observation.query.includes('라멘')) items = items.filter((item) => item.taxonomyKeys.includes('food.noodle.ramen'))
   if (body.filters?.taxonomyKeys?.length > 0) {
@@ -165,6 +204,19 @@ const server = createServer(async (request, response) => {
   }
   if (request.method === 'GET' && request.url === '/v1/taxonomy/nodes') {
     sendJson(response, 200, taxonomy)
+    return
+  }
+  if (request.method === 'POST' && request.url === '/v1/providers/place-details') {
+    let body
+    try { body = await readJson(request) } catch {
+      sendJson(response, 400, { code: 'PLACE_PROVIDER_DETAIL_REQUEST_INVALID' }, 'application/problem+json')
+      return
+    }
+    if (body.providerKey !== 'google' || body.providerPlaceId !== 'google-place-100') {
+      sendJson(response, 400, { code: 'PLACE_PROVIDER_DETAIL_UNSUPPORTED' }, 'application/problem+json')
+      return
+    }
+    sendJson(response, 200, providerDetail)
     return
   }
   if (request.method === 'GET' && request.url === '/__test/search-observations') {

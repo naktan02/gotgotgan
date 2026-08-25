@@ -23,7 +23,26 @@ export type PlaceSearchQuery = Readonly<{
 }>
 
 export type PlaceSearchResult = Readonly<{
-  placeId: string
+  resultId: string
+  identity:
+    | Readonly<{ kind: 'canonical'; placeId: string }>
+    | Readonly<{
+      kind: 'provider'
+      providerKey: 'naver' | 'kakao' | 'google'
+      providerPlaceId?: string
+    }>
+  source: Readonly<{
+    key: string
+    label: string
+    externalUri?: string
+    categoryLabel?: string
+    detailsAvailable: boolean
+    attributions: readonly Readonly<{ label: string; uri?: string }>[]
+  }>
+  freshness: Readonly<{
+    kind: 'indexed' | 'live'
+    observedAt: string
+  }>
   name: string
   areaLabel: string | null
   location: Readonly<{ latitude: number; longitude: number }>
