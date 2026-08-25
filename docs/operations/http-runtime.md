@@ -2,10 +2,10 @@
 
 Production startup requires deployment-injected `PLACE_HTTP_HOST` and `PLACE_HTTP_PORT`; the source
 contains no address default. The process owns listen, readiness, signal handling, drain, and close.
-The active production composition exposes health and readiness only. Stage 2 includes source-only
-`GET /v1/me` registration and browser BFF components, but neither is activated without its required
-Identity and route dependencies. The source-only browser-auth process factory now owns bounded pool
-creation, readiness, expired-record cleanup, and close against encrypted PostgreSQL storage.
+Health and readiness are the only active deployment flow. Source-only `GET /v1/me` registration and
+the browser-auth routes are not an active Identity flow without their required dependencies. The
+source-only browser-auth process factory owns bounded pool creation, readiness, expired-record
+cleanup, and close against encrypted PostgreSQL storage.
 
 `loadOidcProcessRuntimeConfig` requires these secret-file references:
 
@@ -29,7 +29,8 @@ also requires these non-secret settings:
 - `PLACE_OIDC_CLEANUP_INTERVAL_SECONDS`.
 
 Cleanup is rejected above 1,000 rows per table per call. The actual Next process must call this
-loader only through its Node instrumentation lifecycle, which now installs once before readiness,
-registers signal close, and schedules non-overlapping retryable cleanup. Reviewed routes and mounted
-deployment secrets remain required before callback activation. An operator must not substitute direct
-secret values or process memory for login transactions or sessions.
+loader only through its Node instrumentation lifecycle, which installs once before readiness,
+registers signal close, schedules non-overlapping retryable cleanup, and shares the runtime with
+reviewed route bundles through a process-global symbol. Mounted deployment secrets, Identity
+provisioning, and Gateway validation remain required before callback activation. An operator must
+not substitute direct secret values or process memory for login transactions or sessions.

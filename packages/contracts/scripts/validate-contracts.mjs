@@ -34,6 +34,32 @@ if (openApi.paths['/v1/me']?.get?.security?.[0]?.placeBearer?.length !== 0) {
   failures.push('GET /v1/me must require the Place bearer security scheme')
 }
 if (
+  openApi.paths['/api/auth/oidc/start']?.get?.operationId !== 'startPlaceBrowserLogin' ||
+  openApi.paths['/api/auth/oidc/callback']?.get?.operationId !==
+    'completePlaceBrowserLogin'
+) {
+  failures.push('Browser OIDC start and callback must remain GET-only reviewed operations')
+}
+if (
+  openApi.paths['/api/auth/logout']?.post?.operationId !== 'endPlaceBrowserSession' ||
+  openApi.paths['/api/auth/logout']?.get !== undefined
+) {
+  failures.push('Browser logout must remain a POST-only reviewed operation')
+}
+for (const path of [
+  '/api/auth/oidc/start',
+  '/api/auth/oidc/callback',
+  '/api/auth/logout',
+]) {
+  const operation = openApi.paths[path]?.get ?? openApi.paths[path]?.post
+  if (
+    operation?.responses?.['503']?.$ref !==
+    '#/components/responses/BrowserAuthUnavailable'
+  ) {
+    failures.push(`${path} must expose the stable browser-auth unavailable response`)
+  }
+}
+if (
   oidcClient.serviceId !== 'place' ||
   oidcClient.applicationType !== 'web' ||
   oidcClient.authMethod !== 'basic'

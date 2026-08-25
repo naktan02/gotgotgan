@@ -21,5 +21,11 @@ tokens, refresh tokens, and sessions remain server-side; the browser receives on
 cookies. Encrypted PostgreSQL storage now atomically consumes transactions and shares sessions across
 Web replicas. Protected secret-file loading and bounded expiry cleanup exist as source-only Web
 interfaces. The actual Node Next lifecycle now installs them only behind explicit fail-closed
-activation and owns periodic cleanup plus signal close. Route activation still waits for reviewed
-handlers, Identity provisioning, and Gateway validation.
+activation and owns periodic cleanup plus signal close. Route activation still waits for Identity
+provisioning and Gateway validation.
+
+The reviewed Web handlers now exist source-only for login start, callback, and POST-only logout.
+They consume the process-owned runtime through a shared lifecycle registry and fail closed with a
+sanitized correlated problem while it is disabled. This completes the route source gate only;
+Identity client provisioning, deployment secret mounting, and Gateway validation are still required
+before activation.

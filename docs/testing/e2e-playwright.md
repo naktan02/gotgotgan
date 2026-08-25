@@ -9,9 +9,10 @@ The E2E launcher injects the contract-owned active family-navigation test fixtur
 not supplied one. The fixture uses reserved example destinations and is test evidence only; it does
 not declare a real family service or active integration.
 
-OIDC E2E is intentionally absent while callback routes, Identity, and Gateway are not activated;
-durable storage and Node lifecycle installation alone do not claim a public flow. When activated,
-Playwright must cover start, callback, refresh/expiry, logout, missing or
+Source-only OIDC denial E2E verifies that start, callback, and logout fail closed while the runtime
+is inactive, that problems are safe and correlated, and that logout rejects GET. This does not claim
+an active Identity or Gateway flow. When activated, Playwright must additionally cover the
+public-path success flow, refresh/expiry, missing or
 replayed transaction, unmapped membership, suspended membership, and sanitized provider failure
 through the public Gateway path; browser assertions must prove that no token or internal endpoint is
 observable.

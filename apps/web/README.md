@@ -10,6 +10,6 @@ An encrypted PostgreSQL adapter now provides atomic one-time transactions and sh
 the process composition owns readiness, bounded expired-record cleanup, and pool closure. A protected
 configuration loader accepts the database URL, OIDC client secret, and encryption keyring only through
 referenced secret files. The Node-only Next instrumentation hook installs this runtime only when
-explicitly enabled, schedules bounded cleanup, and closes it on process signals. Auth route activation
-and Identity/Gateway provisioning remain gated, so search, maps, and provider imports remain
-explicitly not integrated.
+explicitly enabled, schedules bounded cleanup, and closes it on process signals. Reviewed
+source-only start, callback, and POST-only logout handlers fail closed while the runtime is disabled.
+Identity/Gateway provisioning, search, maps, and provider imports remain explicitly not integrated.

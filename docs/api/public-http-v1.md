@@ -7,6 +7,13 @@ return only public projections.
 Product endpoints are added by their owning module transport and published in OpenAPI. The root HTTP
 entrypoint registers them and owns lifecycle only.
 
+The Web process owns reviewed browser-auth handlers at `GET /api/auth/oidc/start`,
+`GET /api/auth/oidc/callback`, and `POST /api/auth/logout`. They delegate to the confidential BFF,
+set no-store and browser hardening headers, return correlated safe problems, and never expose tokens,
+provider errors, credentials, or internal endpoints. With the source-only runtime disabled, all
+three return the stable `PLACE_BROWSER_AUTH_UNAVAILABLE` problem; no active Identity or Gateway flow
+is implied. Logout intentionally has no GET handler.
+
 `GET /v1/me` is the first authenticated contract. It returns only `membershipId`, `authorityRole`,
 `userGrade`, and `productTier`; it never returns the raw principal, consent evidence, or token.
 Missing/invalid evidence returns a stable 401 problem, an unmapped principal returns 403, and a

@@ -21,6 +21,8 @@ type ShutdownSignals = Readonly<{
 
 type NextOidcRuntime = Awaited<ReturnType<typeof createOidcProcessRuntime>>
 
+type NextOidcLifecycle = ReturnType<typeof createNextOidcLifecycle>
+
 type LifecycleDependencies = Readonly<{
   createProvider: (config: Readonly<{
     issuer: string
@@ -159,13 +161,25 @@ export function createNextOidcLifecycle(dependencies: LifecycleDependencies) {
   }
 }
 
-const nextOidcLifecycle = createNextOidcLifecycle({
-  createProvider: createOpenidClientProvider,
-  createRuntime: createOidcProcessRuntime,
-})
+const lifecycleKey = Symbol.for('place.web.oidc.lifecycle')
+const lifecycleRegistry = globalThis as unknown as Record<
+  symbol,
+  NextOidcLifecycle | undefined
+>
+const nextOidcLifecycle =
+  lifecycleRegistry[lifecycleKey] ??
+  createNextOidcLifecycle({
+    createProvider: createOpenidClientProvider,
+    createRuntime: createOidcProcessRuntime,
+  })
+lifecycleRegistry[lifecycleKey] = nextOidcLifecycle
 
 export function installNextOidcRuntime(
   environment: Environment = process.env,
 ): Promise<Installation> {
   return nextOidcLifecycle.install(environment)
+}
+
+export function readNextOidcRuntime(): NextOidcRuntime | undefined {
+  return nextOidcLifecycle.current()
 }

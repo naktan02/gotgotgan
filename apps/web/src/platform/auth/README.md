@@ -15,9 +15,11 @@ This folder owns the confidential browser OIDC boundary for the Place Web proces
   insecure issuers, malformed 32-byte base64url keys, duplicate key IDs, and unbounded cleanup.
 - `next-oidc-lifecycle.ts` is the explicit Node process owner selected by Next instrumentation. It
   defaults to disabled, rejects ambiguous activation, installs one runtime, schedules non-overlapping
-  bounded cleanup, and owns signal-triggered close.
+  bounded cleanup, shares it safely across Next server bundles, and owns signal-triggered close.
+- `browser-auth-http.ts` is the reviewed HTTP boundary. It delegates to the BFF, applies no-store and
+  browser hardening headers, correlates safe problems, and sanitizes unexpected provider failures.
 
-`src/instrumentation.ts` now installs this lifecycle before the Node server becomes ready, but no
-route handler consumes it yet. Identity provisioning, public callback routes, and Gateway routing
-remain activation gates. Do not replace the PostgreSQL adapter with process memory outside
-deterministic tests.
+`src/instrumentation.ts` installs this lifecycle before the Node server becomes ready. Thin Next
+handlers expose source-only start, callback, and POST-only logout operations and fail closed while
+the runtime is disabled. Identity provisioning and Gateway routing remain activation gates. Do not
+replace the PostgreSQL adapter with process memory outside deterministic tests.

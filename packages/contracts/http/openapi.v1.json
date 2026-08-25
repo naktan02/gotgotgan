@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Place lifecycle HTTP contract",
+    "title": "Place HTTP contract",
     "version": "1.0.0"
   },
   "paths": {
@@ -21,6 +21,48 @@
         "responses": {
           "200": {
             "description": "Process can accept traffic"
+          }
+        }
+      }
+    },
+    "/api/auth/oidc/start": {
+      "get": {
+        "operationId": "startPlaceBrowserLogin",
+        "responses": {
+          "302": {
+            "description": "Redirect to the configured Identity authorization endpoint"
+          },
+          "503": {
+            "$ref": "#/components/responses/BrowserAuthUnavailable"
+          }
+        }
+      }
+    },
+    "/api/auth/oidc/callback": {
+      "get": {
+        "operationId": "completePlaceBrowserLogin",
+        "responses": {
+          "303": {
+            "description": "Create an opaque browser session and redirect to the local post-login path"
+          },
+          "400": {
+            "$ref": "#/components/responses/BrowserAuthRejected"
+          },
+          "503": {
+            "$ref": "#/components/responses/BrowserAuthUnavailable"
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "operationId": "endPlaceBrowserSession",
+        "responses": {
+          "303": {
+            "description": "Delete the server-side session, clear the opaque cookie, and redirect locally"
+          },
+          "503": {
+            "$ref": "#/components/responses/BrowserAuthUnavailable"
           }
         }
       }
@@ -101,6 +143,22 @@
       },
       "AccessDenied": {
         "description": "The principal has no Place membership or lacks access",
+        "content": {
+          "application/problem+json": {
+            "schema": { "$ref": "#/components/schemas/Problem" }
+          }
+        }
+      },
+      "BrowserAuthRejected": {
+        "description": "The one-time browser login transaction is absent, invalid, expired, or rejected",
+        "content": {
+          "application/problem+json": {
+            "schema": { "$ref": "#/components/schemas/Problem" }
+          }
+        }
+      },
+      "BrowserAuthUnavailable": {
+        "description": "The source-only browser authentication runtime is inactive or unavailable",
         "content": {
           "application/problem+json": {
             "schema": { "$ref": "#/components/schemas/Problem" }
