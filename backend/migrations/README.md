@@ -27,3 +27,9 @@ provenance, command receipt를 생성한다. `000008`은 append-only Visit occur
 정렬된 Place link, 변경 불가능한 revision, command receipt를 생성한다. runtime grant는 현재
 projection에 필요한 제한된 update만 허용하며 rating event, Visit, revision, 복사 provenance,
 receipt는 수정하거나 삭제할 수 없다.
+
+`000010`은 versioned Taxonomy node history와 current projection을 만들고 runtime에는 append와
+read만 허용한다. `000011`은 Search 소유 Place document와 membership signal projection을
+만들며 `pg_trgm` text GIN, location GiST, taxonomy array GIN index를 추가한다. 이 schema는
+다른 owner table을 조회하는 shortcut이 아니라 versioned projection command로 갱신되는
+재구축 가능한 read model이다.

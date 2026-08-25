@@ -32,3 +32,8 @@ Migration `000007`부터 `000009`는 독립된 Library, Visits, Writing schema�
 현재 document를 optimistic하게 갱신하면서 변경 불가능한 revision을 보존한다. runtime
 column grant는 현재 projection과 정렬된 link에 필요한 범위로 제한하며 history와 receipt는
 insert/select만 허용한다.
+
+Migration `000010`은 append-only `taxonomy.node_versions`를 추가한다. `000011`은 Search가
+소유하는 public place document와 membership별 signal projection을 추가하고 text GIN,
+location GiST, Taxonomy GIN index를 만든다. 이 schema는 다른 owner table에 foreign key나
+runtime join을 두지 않는다. source version이 더 큰 projection만 현재 row를 갱신한다.

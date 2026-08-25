@@ -12,6 +12,8 @@ import {
   type PrincipalVerifier,
 } from '../../modules/access/index.js'
 import { PostgresLibraryStore } from '../../modules/library/index.js'
+import { createPlaceSearch, PostgresLocalSearch } from '../../modules/search/index.js'
+import { PostgresTaxonomyStore } from '../../modules/taxonomy/index.js'
 import { PostgresVisitStore } from '../../modules/visits/index.js'
 import { PostgresWritingStore } from '../../modules/writing/index.js'
 import type { ProductAuthorizer } from '../../platform/http/product-authorization.js'
@@ -67,6 +69,8 @@ export async function createProductionHttpRuntime(
     const libraryStore = new PostgresLibraryStore(pool)
     const visitStore = new PostgresVisitStore(pool)
     const writingStore = new PostgresWritingStore(pool)
+    const localSearch = new PostgresLocalSearch(pool)
+    const taxonomyStore = new PostgresTaxonomyStore(pool)
     const application = buildHttpApplication({
       access: {
         principalVerifier,
@@ -81,6 +85,11 @@ export async function createProductionHttpRuntime(
         now,
       },
       library: { authorizer: productAuthorizer, store: libraryStore, now },
+      search: {
+        authorizer: productAuthorizer,
+        search: createPlaceSearch({ sources: [localSearch] }),
+      },
+      taxonomy: { store: taxonomyStore },
       visits: { authorizer: productAuthorizer, store: visitStore, now },
       writing: { authorizer: productAuthorizer, store: writingStore, now },
       readiness: async () => {

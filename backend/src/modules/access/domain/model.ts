@@ -8,6 +8,7 @@ export type UserGrade = string
 export type ProductTier = string
 
 export const grantablePermissions = [
+  'search.read',
   'library.read',
   'library.write',
   'review.read',

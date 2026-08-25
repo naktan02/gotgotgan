@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 test('loads the Place shell and renders injected family destinations vertically', async ({ page }, testInfo) => {
   await page.goto('/')
 
-  await expect(page.getByRole('heading', { name: '장소를 모으기 위한 안전한 기반을 만들고 있습니다.' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '저장한 장소와 새로 찾을 장소를 한 흐름에서 관리합니다.' })).toBeVisible()
   const familyNavigation = page.getByRole('navigation', { name: '패밀리 서비스' })
   await expect(familyNavigation.getByRole('link')).toHaveCount(2)
   await expect(familyNavigation.getByRole('link').nth(0)).toHaveText('예시 서비스 하나')

@@ -3,7 +3,37 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./http": {
+      "types": "./dist/http/index.d.ts",
+      "default": "./dist/http/index.js"
+    },
+    "./place-reference": {
+      "types": "./dist/place-reference/index.d.ts",
+      "default": "./dist/place-reference/index.js"
+    },
+    "./search": {
+      "types": "./dist/search/index.d.ts",
+      "default": "./dist/search/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "http/openapi.v1.json",
+    "place-reference/place-reference.v1.schema.json"
+  ],
   "scripts": {
-    "check": "node scripts/validate-contracts.mjs"
+    "build": "tsc -p tsconfig.json",
+    "generate": "npm run build && node scripts/generate-contracts.mjs",
+    "test": "vitest run",
+    "check": "npm run build && npm run test && node scripts/generate-contracts.mjs --check && node scripts/validate-contracts.mjs"
+  },
+  "dependencies": {
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.0.0",
+    "typescript": "5.7.3",
+    "vitest": "4.1.11"
   }
 }

@@ -8,14 +8,18 @@
 .menuGlyph::after { transform: translateY(4px); }
 .sidebar { display: flex; flex-direction: column; padding: 24px 16px; background: var(--surface); border-right: 1px solid var(--line); }
 .navLabel { margin: 0 8px 10px; color: var(--muted); font-size: 12px; font-weight: 650; }
-.activeItem { display: block; padding: 10px 12px; border-radius: 8px; color: var(--accent); background: #edf4f0; font-size: 14px; font-weight: 650; }
+.placeList { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; }
+.activeItem, .navItem { display: block; padding: 10px 12px; border-radius: 8px; color: var(--ink); font-size: 14px; text-decoration: none; }
+.activeItem { color: var(--accent); background: var(--accent-soft); font-weight: 650; }
+.navItem:hover, .navItem:focus-visible { background: var(--canvas); outline: none; }
 .family { margin-top: auto; padding-top: 20px; border-top: 1px solid var(--line); }
 .familyList { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
 .familyLink { display: block; padding: 10px 12px; border-radius: 8px; color: var(--ink); font-size: 14px; text-decoration: none; }
 .familyLink:hover, .familyLink:focus-visible { background: var(--canvas); outline: none; }
 .placeholder { margin: 0 8px; color: var(--muted); font-size: 13px; }
-.main { display: grid; place-items: center; padding: 48px; }
+.main { min-width: 0; overflow: hidden; }
 .intro { width: min(680px, 100%); }
+.intro { margin: 0 auto; padding: 72px 48px; }
 .eyebrow { margin: 0 0 12px; color: var(--accent); font-size: 13px; font-weight: 700; }
 .intro h1 { margin: 0; max-width: 620px; font-size: clamp(30px, 4vw, 46px); line-height: 1.12; letter-spacing: -0.04em; }
 .intro > p:not(.eyebrow) { max-width: 580px; margin: 20px 0 0; color: var(--muted); line-height: 1.7; }
@@ -31,7 +35,8 @@
   .menuButton { display: inline-flex; }
   .sidebar { position: fixed; inset: 56px auto 0 0; z-index: 10; width: min(82vw, 280px); transform: translateX(-100%); transition: transform 160ms ease; box-shadow: 12px 0 30px rgb(0 0 0 / 8%); }
   .sidebarOpen { transform: translateX(0); }
-  .main { padding: 40px 20px; place-items: start; }
+  .main { min-width: 0; }
+  .intro { padding: 40px 20px; }
   .intro h1 { font-size: 34px; }
   .statusList { grid-template-columns: 1fr; }
   .statusList div + div { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }

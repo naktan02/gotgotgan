@@ -1,12 +1,26 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 
 import type { FamilyNavigation } from '@/platform/family-navigation/family-navigation'
 
 import styles from './place-workspace-shell.module.css'
 
-export function PlaceWorkspaceShell({ familyNavigation }: Readonly<{ familyNavigation: FamilyNavigation }>) {
+const placeNavigation = [
+  { id: 'home', label: '작업 공간', href: '/' },
+  { id: 'search', label: '장소 찾기', href: '/search' },
+] as const
+
+export function PlaceWorkspaceShell({
+  children,
+  currentPage = 'home',
+  familyNavigation,
+}: Readonly<{
+  children?: React.ReactNode
+  currentPage?: (typeof placeNavigation)[number]['id']
+  familyNavigation: FamilyNavigation
+}>) {
   const [navigationOpen, setNavigationOpen] = useState(false)
 
   return (
@@ -23,7 +37,7 @@ export function PlaceWorkspaceShell({ familyNavigation }: Readonly<{ familyNavig
           <span aria-hidden="true" className={styles.menuGlyph} />
         </button>
         <span className={styles.wordmark}>Place</span>
-        <span className={styles.stage}>기반 구축 중</span>
+        <span className={styles.stage}>로컬 검색</span>
       </header>
 
       <aside
@@ -32,7 +46,19 @@ export function PlaceWorkspaceShell({ familyNavigation }: Readonly<{ familyNavig
       >
         <nav aria-label="장소 서비스">
           <p className={styles.navLabel}>장소</p>
-          <span aria-current="page" className={styles.activeItem}>작업 공간</span>
+          <ul className={styles.placeList}>
+            {placeNavigation.map((item) => (
+              <li key={item.id}>
+                <Link
+                  aria-current={currentPage === item.id ? 'page' : undefined}
+                  className={currentPage === item.id ? styles.activeItem : styles.navItem}
+                  href={item.href}
+                >
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </nav>
         <nav aria-label="패밀리 서비스" className={styles.family}>
           <p className={styles.navLabel}>패밀리 서비스</p>
@@ -51,18 +77,18 @@ export function PlaceWorkspaceShell({ familyNavigation }: Readonly<{ familyNavig
       </aside>
 
       <main className={styles.main}>
-        <section aria-labelledby="stage-two-title" className={styles.intro}>
-          <p className={styles.eyebrow}>Stage 2</p>
-          <h1 id="stage-two-title">장소를 모으기 위한 안전한 기반을 만들고 있습니다.</h1>
-          <p>
-            검색과 가져오기 화면보다 먼저 인증 증거, Place 내부 권한, 패밀리 서비스 연결 경계를 고정합니다.
-          </p>
-          <dl className={styles.statusList}>
-            <div><dt>권한</dt><dd>정책 구현</dd></div>
-            <div><dt>데이터</dt><dd>연결 전</dd></div>
-            <div><dt>Provider</dt><dd>연결 전</dd></div>
-          </dl>
-        </section>
+        {children ?? (
+          <section aria-labelledby="place-home-title" className={styles.intro}>
+            <p className={styles.eyebrow}>Place</p>
+            <h1 id="place-home-title">저장한 장소와 새로 찾을 장소를 한 흐름에서 관리합니다.</h1>
+            <p>로컬 검색과 개인 기록을 먼저 연결하고, Provider 검색과 가져오기는 검증 가능한 소스로 순차 확장합니다.</p>
+            <dl className={styles.statusList}>
+              <div><dt>권한</dt><dd>Place 소유 정책</dd></div>
+              <div><dt>검색</dt><dd>로컬 색인</dd></div>
+              <div><dt>Provider</dt><dd>연결 전</dd></div>
+            </dl>
+          </section>
+        )}
       </main>
     </div>
   )

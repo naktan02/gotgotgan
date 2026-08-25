@@ -6,7 +6,7 @@ export type ProductAuthorization =
 
 export type ProductAuthorizer = (
   authorization: string | undefined,
-  permission: 'library.read' | 'library.write',
+  permission: 'library.read' | 'library.write' | 'search.read',
 ) => Promise<ProductAuthorization>
 
 export function sendProductProblem(

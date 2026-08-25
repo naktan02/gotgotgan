@@ -33,3 +33,16 @@ Authentication belongs to `platform/auth` as a deep browser-BFF boundary. Member
 translation belongs to `platform/membership` with separate activation. Routes only adapt Next.js
 requests and responses; features and shells never receive access tokens, refresh tokens, nonce,
 state, PKCE verifier, or an internal backend origin.
+
+## Stage 5 검토 결과
+
+로컬 검색은 desktop에서 균형 잡힌 목록/지도 작업 공간을, mobile에서 명시적인 목록/지도
+전환을 사용한다. 검색 입력은 debounce와 이전 요청 취소를 소유하고, 지도 이동은 자동 검색이
+아니라 사용자의 “이 영역 검색” 동작으로 확정한다. partial, loading, empty, error 상태는 결과와
+분리해 읽을 수 있어야 하며 새 검색의 실패가 이전 pagination이나 source 경고를 남겨서는 안 된다.
+
+현재 `DeterministicPlaceMap`은 실제 좌표·bounds interaction을 검증하는 renderer adapter이다.
+tile, provider attribution, 사진, provider 평점은 연결되지 않았으며 UI가 이를 꾸며내지 않는다.
+Stage 6 live map adapter는 feature state나 search contract를 역참조하게 만들지 않고 이 platform
+경계에서 교체한다. 4개 viewport와 상태별 screenshot을 검토했으며 세부 visual polish는 이
+동작·privacy 기준을 보존하는 범위에서 계속 변경할 수 있다.

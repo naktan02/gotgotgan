@@ -31,3 +31,7 @@ domain meaning rather than storage or framework structure.
 | Unlisted Projection | An allowlisted anonymous projection reachable only through its opaque publication identifier and excluded from discovery. | Private data or an authenticated resource grant. |
 | Collection Copy | A new member-owned collection populated from a disclosed projection with source provenance. | Shared mutable ownership or copying private metadata. |
 | Place Reference | An opaque, versioned cross-product reference resolved through a Place contract. | Foreign-key or direct database access. |
+| Taxonomy Node | A versioned provider-neutral category or attribute used to classify Canonical Places. | Provider category text or a fixed restaurant/cafe/travel top-level enum. |
+| Local Search Projection | The bounded, discoverable Place facts and viewer-specific signals prepared for local search. It may lag its owners and never becomes canonical truth. | Canonical Place, Source Observation, or direct cross-module table access. |
+| Search Source Outcome | One search source's complete, partial, or unavailable contribution to a provider-neutral result envelope. | A failure state for the entire search request. |
+| Search Cursor | An opaque continuation identity for the exact ordered search state. | Page number or a database offset exposed to callers. |

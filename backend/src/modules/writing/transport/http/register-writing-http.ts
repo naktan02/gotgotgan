@@ -1,24 +1,13 @@
 import type { FastifyInstance } from 'fastify'
-import { z } from 'zod'
+import {
+  publicationIdentifierParamsSchema,
+  writingCommandRequestSchema,
+} from '@place/contracts/http'
 
 import { requireProductMember, sendProductProblem, type ProductAuthorizer } from '../../../../platform/http/product-authorization.js'
 import { applyWritingCommand } from '../../application/apply-writing-command.js'
 import type { WritingStore } from '../../application/ports/writing-store.js'
 import { WritingCommandConflictError } from '../../domain/model.js'
-
-const uuid = z.string().uuid()
-const publicationFields = {
-  visibility: z.enum(['private', 'unlisted', 'public']),
-  publicationId: uuid.optional(),
-}
-const command = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('create-note'), documentId: uuid, body: z.string().min(1).max(2000), placeId: uuid, ...publicationFields }).strict(),
-  z.object({ kind: z.literal('update-note'), documentId: uuid, expectedVersion: z.number().int().positive(), body: z.string().min(1).max(2000), placeId: uuid, ...publicationFields }).strict(),
-  z.object({ kind: z.literal('create-entry'), documentId: uuid, title: z.string().min(1).max(200), body: z.string().min(1).max(100000), placeIds: z.array(uuid).min(1).max(32), ...publicationFields }).strict(),
-  z.object({ kind: z.literal('update-entry'), documentId: uuid, expectedVersion: z.number().int().positive(), title: z.string().min(1).max(200), body: z.string().min(1).max(100000), placeIds: z.array(uuid).min(1).max(32), ...publicationFields }).strict(),
-])
-const body = z.object({ commandId: uuid, command }).strict()
-const publication = z.object({ publicationId: uuid })
 
 export type WritingHttpDependencies = Readonly<{
   authorizer: ProductAuthorizer
@@ -36,7 +25,7 @@ export function registerWritingHttpRoutes(application: FastifyInstance, dependen
   application.post('/v1/writing/commands', async (request, reply) => {
     const memberId = await requireProductMember(request, reply, dependencies.authorizer, 'library.write')
     if (memberId === undefined) return
-    const parsed = body.safeParse(request.body)
+    const parsed = writingCommandRequestSchema.safeParse(request.body)
     if (!parsed.success) return sendProductProblem(request, reply, 400, 'PLACE_WRITING_COMMAND_INVALID', 'Writing command is invalid')
     try {
       const result = await applyWritingCommand({ ...parsed.data, memberId, occurredAt: dependencies.now().toISOString(), store: dependencies.store })
@@ -55,7 +44,7 @@ export function registerWritingHttpRoutes(application: FastifyInstance, dependen
   })
 
   application.get('/v1/public/writing/:publicationId', async (request, reply) => {
-    const parsed = publication.safeParse(request.params)
+    const parsed = publicationIdentifierParamsSchema.safeParse(request.params)
     if (!parsed.success) return sendProductProblem(request, reply, 404, 'PLACE_PUBLICATION_NOT_FOUND', 'Publication not found')
     const result = await dependencies.store.getPublished(parsed.data.publicationId)
     return result === undefined

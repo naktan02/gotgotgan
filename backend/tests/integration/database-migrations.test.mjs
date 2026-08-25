@@ -674,6 +674,7 @@ test('database preparation confines runtime authority and persists Place access 
     const contractResult = await administratorClient.query(`
       SELECT
         (SELECT extversion FROM pg_extension WHERE extname = 'postgis') AS postgis_version,
+        (SELECT extversion FROM pg_extension WHERE extname = 'pg_trgm') AS pg_trgm_version,
         (
           SELECT pg_get_userbyid(history.relowner)
           FROM pg_class history
@@ -695,6 +696,7 @@ test('database preparation confines runtime authority and persists Place access 
     `)
     assert.equal(contractResult.rowCount, 1)
     assert.match(contractResult.rows[0].postgis_version, /^3\.5\./)
+    assert.match(contractResult.rows[0].pg_trgm_version, /^1\./)
     assert.equal(contractResult.rows[0].migration_history_owner, databaseRuntime.roles.migration)
     assert.equal(contractResult.rows[0].table_owner, databaseRuntime.roles.migration)
     assert.match(contractResult.rows[0].indexdef, /USING gist \(location\)/)

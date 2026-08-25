@@ -1,5 +1,9 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import { z } from 'zod'
+import {
+  authorityRoleChangeRequestSchema,
+  membershipOnboardingRequestSchema,
+  uuidSchema,
+} from '@place/contracts/http'
 
 import {
   completeMembershipOnboarding,
@@ -17,28 +21,7 @@ import type { AuthorityRoleChangeStore } from '../../application/ports/authority
 import type { MembershipDirectory } from '../../application/ports/membership-directory.js'
 import type { MembershipOnboardingStore } from '../../application/ports/membership-onboarding-store.js'
 import type { PrincipalVerifier } from '../../application/ports/principal-verifier.js'
-import { authorityRoles } from '../../domain/model.js'
-
-const onboardingRequestSchema = z
-  .object({
-    acceptedConsents: z
-      .array(
-        z
-          .object({
-            document: z.string().trim().min(1).max(128),
-            version: z.string().trim().min(1).max(128),
-          })
-          .strict(),
-      )
-      .min(1)
-      .max(32),
-  })
-  .strict()
-
-const authorityRoleChangeRequestSchema = z
-  .object({ nextRole: z.enum(authorityRoles) })
-  .strict()
-const membershipPathSchema = z.object({ membershipId: z.string().uuid() })
+const membershipPathSchema = uuidSchema.transform((membershipId) => ({ membershipId }))
 
 export type AccessHttpDependencies = Readonly<{
   principalVerifier: PrincipalVerifier
@@ -227,7 +210,7 @@ export function registerAccessHttpRoutes(
   const onboarding = dependencies.onboarding
   if (onboarding !== undefined) {
     application.get('/v1/membership-consents/current', async (request, reply) => {
-      const consents = onboardingRequestSchema.safeParse({
+      const consents = membershipOnboardingRequestSchema.safeParse({
         acceptedConsents: onboarding.policy.requiredConsents,
       })
       if (!consents.success) {
@@ -264,7 +247,7 @@ export function registerAccessHttpRoutes(
       async (request, reply) => {
         const principal = await verifyBearerPrincipal(request, dependencies.principalVerifier)
         if (principal === undefined) return authenticationRequired(request, reply)
-        const body = onboardingRequestSchema.safeParse(request.body)
+        const body = membershipOnboardingRequestSchema.safeParse(request.body)
         if (!body.success) return invalidOnboardingRequest(request, reply)
         let result
         try {
@@ -324,7 +307,9 @@ export function registerAccessHttpRoutes(
       async (request, reply) => {
         const principal = await verifyBearerPrincipal(request, dependencies.principalVerifier)
         if (principal === undefined) return authenticationRequired(request, reply)
-        const params = membershipPathSchema.safeParse(request.params)
+        const params = membershipPathSchema.safeParse(
+          (request.params as { membershipId?: unknown }).membershipId,
+        )
         const body = authorityRoleChangeRequestSchema.safeParse(request.body)
         if (!params.success || !body.success) {
           return accessProblem(

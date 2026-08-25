@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@place/contracts": "0.1.0",
     "next": "16.3.0",
     "openid-client": "6.8.7",
     "pg": "8.23.0",

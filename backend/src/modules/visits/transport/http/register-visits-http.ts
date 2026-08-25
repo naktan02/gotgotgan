@@ -1,19 +1,13 @@
 import type { FastifyInstance } from 'fastify'
-import { z } from 'zod'
+import {
+  placeIdentifierParamsSchema,
+  visitRecordRequestSchema,
+} from '@place/contracts/http'
 
 import { requireProductMember, sendProductProblem, type ProductAuthorizer } from '../../../../platform/http/product-authorization.js'
 import type { VisitStore } from '../../application/ports/visit-store.js'
 import { recordVisit } from '../../application/record-visit.js'
 import { VisitIdConflictError } from '../../domain/model.js'
-
-const uuid = z.string().uuid()
-const body = z.object({
-  id: uuid,
-  placeId: uuid,
-  visitedAt: z.string().datetime(),
-  evidence: z.record(z.string(), z.unknown()).optional(),
-}).strict()
-const place = z.object({ placeId: uuid })
 
 export type VisitsHttpDependencies = Readonly<{
   authorizer: ProductAuthorizer
@@ -25,7 +19,7 @@ export function registerVisitsHttpRoutes(application: FastifyInstance, dependenc
   application.post('/v1/visits', async (request, reply) => {
     const memberId = await requireProductMember(request, reply, dependencies.authorizer, 'library.write')
     if (memberId === undefined) return
-    const parsed = body.safeParse(request.body)
+    const parsed = visitRecordRequestSchema.safeParse(request.body)
     if (!parsed.success) return sendProductProblem(request, reply, 400, 'PLACE_VISIT_INVALID', 'Visit is invalid')
     try {
       const result = await recordVisit({ ...parsed.data, memberId, recordedAt: dependencies.now().toISOString(), store: dependencies.store })
@@ -44,7 +38,7 @@ export function registerVisitsHttpRoutes(application: FastifyInstance, dependenc
   application.get('/v1/places/:placeId/visit-summary', async (request, reply) => {
     const memberId = await requireProductMember(request, reply, dependencies.authorizer, 'library.read')
     if (memberId === undefined) return
-    const parsed = place.safeParse(request.params)
+    const parsed = placeIdentifierParamsSchema.safeParse(request.params)
     if (!parsed.success) return sendProductProblem(request, reply, 400, 'PLACE_VISIT_QUERY_INVALID', 'Visit query is invalid')
     const result = await dependencies.store.summarize(memberId, parsed.data.placeId)
     return reply.header('cache-control', 'no-store').status(200).send(result)
@@ -53,7 +47,7 @@ export function registerVisitsHttpRoutes(application: FastifyInstance, dependenc
   application.get('/v1/places/:placeId/visits', async (request, reply) => {
     const memberId = await requireProductMember(request, reply, dependencies.authorizer, 'library.read')
     if (memberId === undefined) return
-    const parsed = place.safeParse(request.params)
+    const parsed = placeIdentifierParamsSchema.safeParse(request.params)
     if (!parsed.success) return sendProductProblem(request, reply, 400, 'PLACE_VISIT_QUERY_INVALID', 'Visit query is invalid')
     return reply.header('cache-control', 'no-store').status(200).send({
       items: await dependencies.store.list(memberId, parsed.data.placeId),

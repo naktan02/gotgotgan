@@ -16,7 +16,7 @@ export default async function PublishedWritingPage({ params }: { params: Promise
   }
   return <main className={styles.page}><article className={styles.article}>
     <p className={styles.eyebrow}>{writing.kind === 'note' ? 'Shared note' : 'Shared entry'}</p>
-    {writing.title && <h1 className={styles.title}>{writing.title}</h1>}
+    {writing.kind === 'entry' && <h1 className={styles.title}>{writing.title}</h1>}
     <p className={styles.description}>{writing.body}</p>
     <ul className={styles.list}>{writing.placeIds.map((placeId) => <li className={styles.item} key={placeId}>Place {placeId}</li>)}</ul>
   </article></main>

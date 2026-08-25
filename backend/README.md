@@ -4,7 +4,7 @@ This TypeScript package owns Place domain rules, adapters, incoming transports, 
 worker process composition. The HTTP process serves interactive product behavior. The acquisition
 worker consumes durable jobs and may run continuously or on demand.
 
-Current state: Stage 4 source implementation complete; Stage 2 integration remains in progress. The `access` module owns verified-principal mapping,
+Current state: Stage 5 source implementation complete; Stage 2 integration remains in progress. The `access` module owns verified-principal mapping,
 Place roles and tiers, authorization, last-owner protection, and audit-safe decisions. `GET /v1/me`
 is registered by the source-only production composition with the other access transports. That
 composition reads a protected runtime URL and membership-policy file, creates one bounded Pool,
@@ -34,6 +34,12 @@ adapter, 모듈 소유 HTTP transport를 제공한다. production composition은
 아니라 Access에서 파생한 공통 authorization 결과를 주입한다. public Collection과 Writing
 조회는 별도의 허용 목록 projection이며 Visit, Personal Rating 이력, Writing revision은
 비공개로 유지한다.
+
+`taxonomy`는 versioned data-defined 분류 node를 소유하고 `search`는 별도 read projection과
+provider-neutral coordinator를 소유한다. 로컬 adapter는 자신의 `search` schema에서만
+`pg_trgm` text, PostGIS bounds, taxonomy와 membership signal filter를 실행한다. HTTP transport는
+익명 공개 검색을 허용하지만 개인 filter의 actor는 bearer authorization에서만 구한다. 실제
+provider 검색이나 지도 credential은 아직 연결되지 않았다.
 
 Read `src/modules/README.md` before adding a capability. A module keeps domain, application, adapters,
 transport, and tests together; root entrypoints only wire dependencies and own process lifecycle.

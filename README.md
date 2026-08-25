@@ -6,7 +6,7 @@ Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed doc
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **source-only; Stage 4 complete and Stage 2 integration in progress**. Independent web/backend composition
+Current delivery state: **source-only; Stage 5 complete and Stage 2 integration in progress**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
@@ -44,6 +44,13 @@ evidence에서 membership을 구하며, public·unlisted Collection/Writing 조�
 통해 별도의 허용 목록 projection을 사용한다. `place-reference.v1`은 database 접근 없이
 `available`, `unavailable`, `redacted` cross-service 결과를 제공한다.
 
+Stage 5 로컬 검색은 data-defined Taxonomy, Search 소유 read projection, `pg_trgm` text·PostGIS
+bounds·taxonomy·회원 signal filter, 불투명 cursor와 source별 partial 결과를 제공한다. Search는
+다른 모듈 schema를 join하지 않고 versioned projection command로 전달된 최소 사실만 조회한다.
+Web은 debounce·교체 요청 취소·목록/지도 선택·명시적 영역 재검색·pagination·mobile 전환과
+loading/partial/empty/error 상태를 구현했다. 현재 지도는 실제 좌표 interaction을 검증하는
+결정적 renderer이며 live tile/provider 연결은 Stage 6 전까지 활성화되지 않는다.
+
 ## Repository boundaries
 
 ```text
@@ -77,12 +84,13 @@ npm run test:deployment
 npm run test:database
 npm run test:canonical-resolution
 npm run test:personal-content
+npm run test:local-search
 npm run test:database-recovery
 npm run test:e2e
 ```
 
 `test:database` requires Docker plus an injected `PLACE_DATABASE_TEST_HOST` and runs the broad
-runtime suite and focused canonical-resolution and personal-content suites serially in disposable, randomly credentialed
+runtime suite and focused canonical-resolution, personal-content, and local-search suites serially in disposable, randomly credentialed
 PostGIS containers. `test:canonical-resolution` is the narrow iteration command. The database tests
 remain separate from the default source check while Docker-enabled CI owns them.
 `test:database-recovery` uses the same injected host and two

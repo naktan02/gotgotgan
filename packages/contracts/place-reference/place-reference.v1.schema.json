@@ -1,26 +1,67 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:place:place-reference:v1",
-  "title": "Place reference v1",
   "oneOf": [
     {
       "type": "object",
-      "additionalProperties": false,
-      "required": ["schemaVersion", "status", "placeId"],
       "properties": {
-        "schemaVersion": { "const": "place-reference.v1" },
-        "status": { "const": "available" },
-        "placeId": { "type": "string", "format": "uuid" }
-      }
+        "schemaVersion": {
+          "type": "string",
+          "const": "place-reference.v1"
+        },
+        "status": {
+          "type": "string",
+          "const": "available"
+        },
+        "placeId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "status",
+        "placeId"
+      ],
+      "additionalProperties": false
     },
     {
       "type": "object",
-      "additionalProperties": false,
-      "required": ["schemaVersion", "status"],
       "properties": {
-        "schemaVersion": { "const": "place-reference.v1" },
-        "status": { "enum": ["unavailable", "redacted"] }
-      }
+        "schemaVersion": {
+          "type": "string",
+          "const": "place-reference.v1"
+        },
+        "status": {
+          "type": "string",
+          "const": "unavailable"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "status"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "place-reference.v1"
+        },
+        "status": {
+          "type": "string",
+          "const": "redacted"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "status"
+      ],
+      "additionalProperties": false
     }
-  ]
+  ],
+  "$id": "urn:place:place-reference:v1",
+  "title": "Place reference v1"
 }

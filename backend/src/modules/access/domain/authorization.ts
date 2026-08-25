@@ -7,9 +7,10 @@ import type {
 } from './model.js'
 
 const permissionsByRole: Readonly<Record<AuthorityRole, ReadonlySet<PlacePermission>>> = {
-  member: new Set(['place.public.read', 'library.read', 'library.write']),
+  member: new Set(['place.public.read', 'search.read', 'library.read', 'library.write']),
   reviewer: new Set([
     'place.public.read',
+    'search.read',
     'library.read',
     'library.write',
     'review.read',
@@ -17,6 +18,7 @@ const permissionsByRole: Readonly<Record<AuthorityRole, ReadonlySet<PlacePermiss
   ]),
   administrator: new Set([
     'place.public.read',
+    'search.read',
     'library.read',
     'library.write',
     'review.read',
@@ -26,6 +28,7 @@ const permissionsByRole: Readonly<Record<AuthorityRole, ReadonlySet<PlacePermiss
   ]),
   owner: new Set([
     'place.public.read',
+    'search.read',
     'library.read',
     'library.write',
     'review.read',

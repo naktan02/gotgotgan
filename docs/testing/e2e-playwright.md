@@ -39,3 +39,10 @@ Stage 4 Playwright는 Web process 옆에 test-owned 공개 Backend를 실행한�
 Chromium은 실제 Web server 경계를 통해 unlisted Collection과 public Entry를 표시한다. 공개되지
 않은 identifier는 membership이나 Rating data 없이 동일한 안전한 404를 반환하는지 확인한다.
 fixture는 계약을 따르는 개인 데이터만 포함하며 provider 또는 authentication 우회가 아니다.
+
+Stage 5 Playwright는 같은 공개 경계에 결정적인 Taxonomy/Search fixture를 연결한다. 입력
+debounce와 교체 요청의 실제 upstream 취소, 목록·마커 선택 동기화, 명시적 bounds 재검색,
+Taxonomy filter, cursor pagination, mobile 목록/지도 전환, partial·loading·empty·error·retry와
+개인 field 비노출을 직접 검증한다. 기본 화면은 1440x900, 1280x800, 390x844, 360x800을
+소유하고 partial/loading/error/empty/mobile-map 상태도 별도 screenshot으로 검토한다. 이 fixture와
+결정적 좌표 renderer는 live 지도/provider 연동 증거가 아니다.

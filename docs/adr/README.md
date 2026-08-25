@@ -14,3 +14,5 @@ status and date, link evidence, name consequences and supersession conditions, a
   independent authority-role, user-grade, and product-tier axes.
 - `0008-separate-evidence-decisions-from-canonical-mutations.md`: immutable ingestion decisions feed
   separately idempotent canonical mutations without cross-module source dependencies.
+- `0009-search-owned-read-projection.md`: Search가 다른 owner schema를 join하지 않고 versioned
+  Local Search Projection을 소유한다.

@@ -1,5 +1,11 @@
 import { readFile } from 'node:fs/promises'
 
+import { placeReferenceSchema as placeReferenceContractSchema } from '../dist/place-reference/index.js'
+import {
+  placeSearchRequestSchema,
+  placeSearchResponseSchema,
+} from '../dist/search/index.js'
+
 const targets = [
   new URL('../http/openapi.v1.json', import.meta.url),
   new URL('../family-navigation/family-navigation.v1.consumer.schema.json', import.meta.url),
@@ -46,12 +52,9 @@ const failures = []
 if (openApi.openapi !== '3.1.0') failures.push('HTTP contract must use OpenAPI 3.1.0')
 if (
   placeReferenceSchema.$id !== 'urn:place:place-reference:v1' ||
-  availablePlaceReference.status !== 'available' ||
-  typeof availablePlaceReference.placeId !== 'string' ||
-  unavailablePlaceReference.status !== 'unavailable' ||
-  unavailablePlaceReference.placeId !== undefined ||
-  redactedPlaceReference.status !== 'redacted' ||
-  redactedPlaceReference.placeId !== undefined
+  !placeReferenceContractSchema.safeParse(availablePlaceReference).success ||
+  !placeReferenceContractSchema.safeParse(unavailablePlaceReference).success ||
+  !placeReferenceContractSchema.safeParse(redactedPlaceReference).success
 ) failures.push('Place reference v1 must distinguish available, unavailable, and redacted projections')
 if (
   membershipPolicySchema.$id !== 'urn:place:membership-policy:v1' ||
@@ -268,13 +271,23 @@ if (
   failures.push('Place database administrator, migration, and runtime roles must remain distinct')
 }
 if (
-  databaseRuntime.extensions.length !== 1 ||
-  databaseRuntime.extensions[0] !== 'postgis' ||
+  databaseRuntime.extensions.join(',') !== 'postgis,pg_trgm' ||
   databaseRuntime.backup.unit !== 'database' ||
   databaseRuntime.backup.isolatedRestoreRequired !== true
 ) {
-  failures.push('Place database runtime must require PostGIS and isolated database restore')
+  failures.push('Place database runtime must require PostGIS, pg_trgm, and isolated database restore')
 }
+if (
+  openApi.paths['/v1/search/places']?.post?.operationId !== 'searchPlaces' ||
+  openApi.paths['/api/search/places']?.post?.operationId !== 'searchPlacesForBrowser' ||
+  openApi.paths['/v1/taxonomy/nodes']?.get?.operationId !== 'listPlaceTaxonomyNodes' ||
+  !placeSearchRequestSchema.safeParse({ schemaVersion: 'place-search.v1', query: '' }).success ||
+  !placeSearchResponseSchema.safeParse({
+    schemaVersion: 'place-search.v1',
+    items: [],
+    sources: [{ sourceKey: 'local', status: 'complete', resultCount: 0 }],
+  }).success
+) failures.push('Place search v1 must publish strict Backend, browser, and taxonomy operations')
 if (
   applicationRuntime.schemaVersion !== 'place-application-runtime.v1' ||
   applicationRuntime.deliveryState !== 'source-only' ||

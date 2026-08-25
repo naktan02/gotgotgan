@@ -11,7 +11,8 @@
     "runtime": "place_app"
   },
   "extensions": [
-    "postgis"
+    "postgis",
+    "pg_trgm"
   ],
   "configuration": {
     "administratorUserEnvironment": "PLACE_POSTGRES_ADMIN_USER",

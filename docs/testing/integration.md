@@ -49,6 +49,13 @@ Visits, Writing public interface를 사용한다. Personal Rating 변경 이력 
 Entry revision의 optimistic 변경과 보존, runtime의 Visit·rating event·Writing revision 수정
 거부를 검증한다.
 
+로컬 검색 suite도 독립적인 disposable PostGIS runtime에 전체 migration을 적용한다. data-defined
+Taxonomy의 publish/replay/conflict, 공개 Place 문서와 회원별 signal projection, text·taxonomy·bounds
+filter, 불투명 cursor pagination, 익명 결과의 개인 상태 비노출과 회원 간 격리를 검증한다. 대표
+부하 5,000행을 만든 뒤 `pg_trgm` GIN, geometry GiST, taxonomy array GIN이 실제 query plan에서
+선택되는지도 확인한다. 테스트는 Search가 소유한 schema만 조회하며 다른 owner schema의 join을
+검색 구현으로 허용하지 않는다.
+
 The published-image smoke is intentionally not replaced by a local tag test. The manual release
 workflow removes any local copies, pulls both exact GHCR platform digests, checks non-root and
 source-revision labels, starts Web and Backend in their source-only modes, waits on both `/readyz`

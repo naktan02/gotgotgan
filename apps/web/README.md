@@ -17,4 +17,10 @@ evidence from the server-side session, and calls only fixed backend paths. It re
 projections and has an independent fail-closed runtime so auth does not depend on membership
 internals. Process readiness checks the OIDC database and internal Backend only when their deployment
 flags are enabled and publishes no dependency details. It exposes no tokens or internal endpoints. Identity/Gateway
-provisioning, search, maps, and provider imports remain explicitly not integrated.
+provisioning and provider imports remain explicitly not integrated.
+
+Stage 5는 `/search`의 responsive 목록/지도 작업 공간과 `/api/search/*` BFF를 제공한다. Web은
+공유 계약으로 Backend 응답을 다시 검증하고 fixed Backend origin/path만 호출한다. 입력 debounce,
+교체 요청 취소, bounds 재검색, filter, pagination, 목록/marker 선택, mobile 전환과 상태별
+Playwright evidence가 있다. 지도는 live provider가 아닌 결정적 좌표 renderer이므로 실제 tile,
+사진, provider 평점이나 attribution을 표시하지 않는다.

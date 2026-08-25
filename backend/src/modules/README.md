@@ -29,5 +29,10 @@ imports the other's source and a candidate never becomes canonical merely by bei
 모듈을 import하거나 table을 조회하지 않는다. HTTP entrypoint composition이 각 public
 interface와 공통 authorization 결과를 주입한다.
 
+`taxonomy`는 provider-neutral Node version을 소유하고 식당·카페·여행지 같은 예시를 고정
+상위 enum으로 만들지 않는다. `search`는 텍스트·Taxonomy·공간·개인 filter용 Local Search
+Projection과 source-neutral 결과 envelope을 소유한다. Search는 다른 owner table을 join하지
+않고 versioned projection command만 받는다.
+
 `access` owns membership and authorization rules. `administration` owns authorized management
 workflows and review surfaces; it does not own or duplicate access policy.

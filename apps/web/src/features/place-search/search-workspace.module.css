@@ -1,0 +1,46 @@
+.workspace { min-width: 0; height: 100%; background: var(--surface); }
+.searchHeader { display: flex; align-items: end; justify-content: space-between; gap: 20px; min-height: 88px; padding: 18px 22px 14px; border-bottom: 1px solid var(--line); }
+.eyebrow { margin: 0 0 4px; color: var(--muted); font-size: 12px; }
+.searchHeader h1 { margin: 0; font-size: 23px; letter-spacing: -.03em; }
+.controls { display: grid; grid-template-columns: minmax(220px, 1fr) 180px auto; align-items: end; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--canvas); }
+.queryField, .filterField { display: grid; gap: 5px; color: var(--muted); font-size: 12px; }
+.queryField input, .filterField select { width: 100%; min-height: 38px; border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); padding: 0 11px; font: inherit; }
+.queryField input:focus, .filterField select:focus, .boundsButton:focus-visible, .mobileToggle button:focus-visible, .resultRow:focus-visible, .moreButton:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+.boundsButton, .moreButton { min-height: 38px; border: 1px solid var(--accent); border-radius: var(--radius-control); background: var(--accent); color: white; padding: 0 14px; font-weight: 650; }
+.boundsButton:disabled { border-color: var(--line); background: var(--surface); color: var(--muted); }
+.content { display: grid; grid-template-columns: minmax(340px, 42%) 1fr; min-height: calc(100vh - 64px - 88px - 64px); }
+.mapPane { min-width: 0; height: 100%; }
+.results { position: relative; min-width: 0; padding-bottom: 72px; overflow: auto; border-right: 1px solid var(--line); }
+.resultMeta { display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px; color: var(--muted); font-size: 12px; border-bottom: 1px solid var(--line); }
+.resultList { margin: 0; padding: 0; list-style: none; }
+.resultList li + li { border-top: 1px solid var(--line); }
+.resultRow { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; width: 100%; padding: 15px 16px; border: 0; background: transparent; color: var(--ink); text-align: left; }
+.resultRow:hover { background: #f5f7f4; }
+.selectedRow { box-shadow: inset 3px 0 var(--accent); background: var(--accent-soft); }
+.resultNumber { display: grid; width: 24px; height: 24px; place-items: center; border: 1px solid var(--line-strong); border-radius: 50%; color: var(--muted); font-size: 11px; }
+.resultText { display: grid; min-width: 0; gap: 5px; }
+.resultText strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+.resultText span { color: var(--muted); font-size: 13px; }
+.resultText .evidence { color: #4e665d; font-size: 12px; }
+.empty { display: grid; gap: 8px; padding: 48px 24px; color: var(--muted); text-align: center; }
+.empty strong { color: var(--ink); }
+.moreButton { display: block; margin: 16px auto; }
+.selection { position: absolute; right: 14px; bottom: 14px; left: 14px; display: flex; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-surface); background: var(--surface); box-shadow: var(--shadow-overlay); font-size: 13px; }
+.notice, .error { margin: 0; padding: 9px 16px; border-bottom: 1px solid #e8d7b5; background: #fff8e9; color: #73511e; font-size: 13px; }
+.error { display: flex; justify-content: space-between; align-items: center; gap: 16px; border-color: #ecd0d0; background: #fff2f2; color: var(--danger); }
+.error button { border: 0; background: transparent; color: inherit; text-decoration: underline; }
+.mobileToggle { display: none; border: 1px solid var(--line); border-radius: var(--radius-control); overflow: hidden; }
+.mobileToggle button { min-height: 34px; border: 0; background: var(--surface); color: var(--muted); padding: 0 12px; }
+.mobileToggle button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+
+@media (max-width: 720px) {
+  .searchHeader { min-height: 74px; padding: 12px 16px; }
+  .searchHeader h1 { font-size: 21px; }
+  .mobileToggle { display: flex; }
+  .controls { grid-template-columns: minmax(0, 1fr) 116px; padding: 10px 12px; }
+  .boundsButton { grid-column: 1 / -1; min-height: 36px; }
+  .content { display: block; min-height: calc(100vh - 56px - 74px - 126px); }
+  .results { border-right: 0; }
+  .mobileHidden { display: none; }
+  .mapPane { min-height: calc(100vh - 256px); }
+}

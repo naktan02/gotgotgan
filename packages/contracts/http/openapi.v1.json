@@ -1,13 +1,16 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Place HTTP contract",
-    "version": "1.0.0"
+    "title": "Place HTTP",
+    "version": "1.0.0",
+    "description": "Place-owned source-only HTTP and browser BFF contract."
   },
+  "servers": [],
   "paths": {
     "/healthz": {
       "get": {
         "operationId": "getPlaceHealth",
+        "summary": "getPlaceHealth",
         "responses": {
           "200": {
             "description": "Process is alive"
@@ -18,6 +21,7 @@
     "/readyz": {
       "get": {
         "operationId": "getPlaceReadiness",
+        "summary": "getPlaceReadiness",
         "responses": {
           "200": {
             "description": "Process can accept traffic"
@@ -31,6 +35,7 @@
     "/api/auth/oidc/start": {
       "get": {
         "operationId": "startPlaceBrowserLogin",
+        "summary": "startPlaceBrowserLogin",
         "responses": {
           "302": {
             "description": "Redirect to the configured Identity authorization endpoint"
@@ -44,9 +49,10 @@
     "/api/auth/oidc/callback": {
       "get": {
         "operationId": "completePlaceBrowserLogin",
+        "summary": "completePlaceBrowserLogin",
         "responses": {
           "303": {
-            "description": "Create an opaque browser session and redirect to the local post-login path"
+            "description": "Create an opaque browser session and redirect locally"
           },
           "400": {
             "$ref": "#/components/responses/BrowserAuthRejected"
@@ -60,9 +66,10 @@
     "/api/auth/logout": {
       "post": {
         "operationId": "endPlaceBrowserSession",
+        "summary": "endPlaceBrowserSession",
         "responses": {
           "303": {
-            "description": "Delete the server-side session, clear the opaque cookie, and redirect locally"
+            "description": "Delete the server-side session and redirect locally"
           },
           "503": {
             "$ref": "#/components/responses/BrowserAuthUnavailable"
@@ -73,10 +80,11 @@
     "/api/membership-consents/current": {
       "get": {
         "operationId": "getCurrentPlaceMembershipConsentsForBrowser",
+        "summary": "getCurrentPlaceMembershipConsentsForBrowser",
         "security": [],
         "responses": {
           "200": {
-            "description": "Return the server-selected current consent document versions",
+            "description": "Return current consent versions",
             "content": {
               "application/json": {
                 "schema": {
@@ -94,6 +102,7 @@
     "/api/memberships/onboarding": {
       "post": {
         "operationId": "completePlaceBrowserMembershipOnboarding",
+        "summary": "completePlaceBrowserMembershipOnboarding",
         "security": [],
         "requestBody": {
           "required": true,
@@ -107,7 +116,7 @@
         },
         "responses": {
           "200": {
-            "description": "Return the existing membership through the confidential Web BFF",
+            "description": "Return the existing membership",
             "content": {
               "application/json": {
                 "schema": {
@@ -117,7 +126,7 @@
             }
           },
           "201": {
-            "description": "Create a non-elevated membership through the confidential Web BFF",
+            "description": "Create a non-elevated membership",
             "content": {
               "application/json": {
                 "schema": {
@@ -144,6 +153,7 @@
     "/v1/me": {
       "get": {
         "operationId": "getCurrentPlaceMembership",
+        "summary": "getCurrentPlaceMembership",
         "security": [
           {
             "placeBearer": []
@@ -151,7 +161,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Safe projection of the authenticated Place membership",
+            "description": "Return the safe current membership",
             "content": {
               "application/json": {
                 "schema": {
@@ -172,6 +182,7 @@
     "/v1/memberships/onboarding": {
       "post": {
         "operationId": "completePlaceMembershipOnboarding",
+        "summary": "completePlaceMembershipOnboarding",
         "security": [
           {
             "placeBearer": []
@@ -189,7 +200,7 @@
         },
         "responses": {
           "200": {
-            "description": "Return an existing membership without changing its axes",
+            "description": "Return an existing membership",
             "content": {
               "application/json": {
                 "schema": {
@@ -199,7 +210,7 @@
             }
           },
           "201": {
-            "description": "Create a non-elevated membership with current consent evidence",
+            "description": "Create a non-elevated membership",
             "content": {
               "application/json": {
                 "schema": {
@@ -226,10 +237,11 @@
     "/v1/membership-consents/current": {
       "get": {
         "operationId": "getCurrentPlaceMembershipConsents",
+        "summary": "getCurrentPlaceMembershipConsents",
         "security": [],
         "responses": {
           "200": {
-            "description": "Return the server-selected current consent document versions",
+            "description": "Return current consent versions",
             "content": {
               "application/json": {
                 "schema": {
@@ -245,19 +257,23 @@
       }
     },
     "/v1/administration/memberships/{membershipId}/authority-role": {
+      "parameters": [
+        {
+          "name": "membershipId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
       "patch": {
         "operationId": "changePlaceMembershipAuthorityRole",
+        "summary": "changePlaceMembershipAuthorityRole",
         "security": [
           {
             "placeBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "membershipId",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string", "format": "uuid" }
           }
         ],
         "requestBody": {
@@ -272,7 +288,7 @@
         },
         "responses": {
           "200": {
-            "description": "Return the audited authority-role mutation outcome",
+            "description": "Return the audited authority mutation",
             "content": {
               "application/json": {
                 "schema": {
@@ -303,160 +319,512 @@
       }
     },
     "/api/public/collections/{publicationId}": {
+      "parameters": [
+        {
+          "name": "publicationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
       "get": {
         "operationId": "getPublishedPlaceCollectionForBrowser",
+        "summary": "getPublishedPlaceCollectionForBrowser",
         "security": [],
-        "parameters": [{ "$ref": "#/components/parameters/PublicationId" }],
         "responses": {
-          "200": { "description": "Web-validated public or unlisted Collection projection" },
-          "404": { "$ref": "#/components/responses/ProductNotFound" },
-          "503": { "description": "The fixed internal Place Backend is unavailable" }
+          "200": {
+            "description": "Return a validated public collection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishedCollection"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "503": {
+            "description": "The fixed internal Place Backend is unavailable"
+          }
         }
       }
     },
     "/api/public/writing/{publicationId}": {
+      "parameters": [
+        {
+          "name": "publicationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
       "get": {
         "operationId": "getPublishedPlaceWritingForBrowser",
+        "summary": "getPublishedPlaceWritingForBrowser",
         "security": [],
-        "parameters": [{ "$ref": "#/components/parameters/PublicationId" }],
         "responses": {
-          "200": { "description": "Web-validated public or unlisted writing projection" },
-          "404": { "$ref": "#/components/responses/ProductNotFound" },
-          "503": { "description": "The fixed internal Place Backend is unavailable" }
+          "200": {
+            "description": "Return validated public writing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishedWriting"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "503": {
+            "description": "The fixed internal Place Backend is unavailable"
+          }
         }
       }
     },
     "/v1/library": {
       "get": {
         "operationId": "getCurrentMemberPlaceLibrary",
-        "security": [{ "placeBearer": [] }],
+        "summary": "getCurrentMemberPlaceLibrary",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
         "responses": {
-          "200": { "description": "Complete owner-only Library projection" },
-          "401": { "$ref": "#/components/responses/AuthenticationRequired" },
-          "403": { "$ref": "#/components/responses/AccessDenied" }
+          "200": {
+            "description": "Return the requested Place projection"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          }
         }
       }
     },
     "/v1/library/commands": {
       "post": {
         "operationId": "applyPlaceLibraryCommand",
-        "security": [{ "placeBearer": [] }],
+        "summary": "applyPlaceLibraryCommand",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
         "requestBody": {
           "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LibraryCommandRequest" } } }
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LibraryCommandRequest"
+              }
+            }
+          }
         },
         "responses": {
-          "200": { "description": "An identical command was already applied" },
-          "201": { "description": "The library command was applied" },
-          "400": { "$ref": "#/components/responses/ProductRequestInvalid" },
-          "401": { "$ref": "#/components/responses/AuthenticationRequired" },
-          "403": { "$ref": "#/components/responses/AccessDenied" },
-          "409": { "$ref": "#/components/responses/ProductConflict" }
+          "200": {
+            "description": "An identical command was already applied"
+          },
+          "201": {
+            "description": "The command was applied"
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "409": {
+            "$ref": "#/components/responses/ProductConflict"
+          }
         }
       }
     },
     "/v1/library/places/{placeId}": {
+      "parameters": [
+        {
+          "name": "placeId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
       "get": {
         "operationId": "getPlacePreferences",
-        "security": [{ "placeBearer": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/PlaceId" }],
+        "summary": "getPlacePreferences",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
         "responses": {
-          "200": { "description": "Private saved, wanted, and personal-rating projection" },
-          "401": { "$ref": "#/components/responses/AuthenticationRequired" },
-          "403": { "$ref": "#/components/responses/AccessDenied" },
-          "404": { "$ref": "#/components/responses/ProductNotFound" }
+          "200": {
+            "description": "Return the requested Place projection"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          }
         }
       }
     },
     "/v1/public/collections/{publicationId}": {
+      "parameters": [
+        {
+          "name": "publicationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
       "get": {
         "operationId": "getPublishedPlaceCollection",
+        "summary": "getPublishedPlaceCollection",
         "security": [],
-        "parameters": [{ "$ref": "#/components/parameters/PublicationId" }],
         "responses": {
-          "200": { "description": "Allowlisted public or unlisted collection projection" },
-          "404": { "$ref": "#/components/responses/ProductNotFound" }
+          "200": {
+            "description": "Return an allowlisted public collection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishedCollection"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          }
         }
       }
     },
     "/v1/visits": {
       "post": {
         "operationId": "recordPlaceVisit",
-        "security": [{ "placeBearer": [] }],
+        "summary": "recordPlaceVisit",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
         "requestBody": {
           "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VisitRecordRequest" } } }
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VisitRecordRequest"
+              }
+            }
+          }
         },
         "responses": {
-          "201": { "description": "An immutable visit occurrence was recorded" },
-          "400": { "$ref": "#/components/responses/ProductRequestInvalid" },
-          "401": { "$ref": "#/components/responses/AuthenticationRequired" },
-          "403": { "$ref": "#/components/responses/AccessDenied" },
-          "409": { "$ref": "#/components/responses/ProductConflict" }
+          "200": {
+            "description": "An identical command was already applied"
+          },
+          "201": {
+            "description": "Record an immutable visit occurrence"
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "409": {
+            "$ref": "#/components/responses/ProductConflict"
+          }
         }
       }
     },
     "/v1/places/{placeId}/visit-summary": {
+      "parameters": [
+        {
+          "name": "placeId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
       "get": {
         "operationId": "getPlaceVisitSummary",
-        "security": [{ "placeBearer": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/PlaceId" }],
+        "summary": "getPlaceVisitSummary",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
         "responses": {
-          "200": { "description": "Visited state and repeat statistics derived from Visit occurrences" },
-          "401": { "$ref": "#/components/responses/AuthenticationRequired" },
-          "403": { "$ref": "#/components/responses/AccessDenied" }
+          "200": {
+            "description": "Return the requested Place projection"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          }
         }
       }
     },
     "/v1/places/{placeId}/visits": {
+      "parameters": [
+        {
+          "name": "placeId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
       "get": {
         "operationId": "listCurrentMemberPlaceVisits",
-        "security": [{ "placeBearer": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/PlaceId" }],
+        "summary": "listCurrentMemberPlaceVisits",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
         "responses": {
-          "200": { "description": "Owner-only Visit occurrence list" },
-          "401": { "$ref": "#/components/responses/AuthenticationRequired" },
-          "403": { "$ref": "#/components/responses/AccessDenied" }
+          "200": {
+            "description": "Return the requested Place projection"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          }
         }
       }
     },
     "/v1/writing": {
       "get": {
         "operationId": "listCurrentMemberPlaceWriting",
-        "security": [{ "placeBearer": [] }],
+        "summary": "listCurrentMemberPlaceWriting",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
         "responses": {
-          "200": { "description": "Owner-only Note and Entry projection" },
-          "401": { "$ref": "#/components/responses/AuthenticationRequired" },
-          "403": { "$ref": "#/components/responses/AccessDenied" }
+          "200": {
+            "description": "Return the requested Place projection"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          }
         }
       }
     },
     "/v1/writing/commands": {
       "post": {
         "operationId": "applyPlaceWritingCommand",
-        "security": [{ "placeBearer": [] }],
+        "summary": "applyPlaceWritingCommand",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
         "requestBody": {
           "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WritingCommandRequest" } } }
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WritingCommandRequest"
+              }
+            }
+          }
         },
         "responses": {
-          "200": { "description": "An identical command was already applied" },
-          "201": { "description": "The writing command was applied" },
-          "400": { "$ref": "#/components/responses/ProductRequestInvalid" },
-          "401": { "$ref": "#/components/responses/AuthenticationRequired" },
-          "403": { "$ref": "#/components/responses/AccessDenied" },
-          "409": { "$ref": "#/components/responses/ProductConflict" }
+          "200": {
+            "description": "An identical command was already applied"
+          },
+          "201": {
+            "description": "The command was applied"
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "409": {
+            "$ref": "#/components/responses/ProductConflict"
+          }
         }
       }
     },
     "/v1/public/writing/{publicationId}": {
+      "parameters": [
+        {
+          "name": "publicationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
       "get": {
         "operationId": "getPublishedPlaceWriting",
+        "summary": "getPublishedPlaceWriting",
         "security": [],
-        "parameters": [{ "$ref": "#/components/parameters/PublicationId" }],
         "responses": {
-          "200": { "description": "Allowlisted public or unlisted writing projection" },
-          "404": { "$ref": "#/components/responses/ProductNotFound" }
+          "200": {
+            "description": "Return allowlisted public writing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishedWriting"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          }
+        }
+      }
+    },
+    "/api/search/places": {
+      "post": {
+        "operationId": "searchPlacesForBrowser",
+        "summary": "searchPlacesForBrowser",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceSearchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return validated provider-neutral search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceSearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "503": {
+            "description": "The fixed internal Place Backend is unavailable"
+          }
+        }
+      }
+    },
+    "/v1/search/places": {
+      "post": {
+        "operationId": "searchPlaces",
+        "summary": "searchPlaces",
+        "security": [
+          {
+            "placeBearer": []
+          },
+          {}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceSearchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return provider-neutral local search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceSearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "503": {
+            "description": "All configured search sources are unavailable"
+          }
+        }
+      }
+    },
+    "/v1/taxonomy/nodes": {
+      "get": {
+        "operationId": "listPlaceTaxonomyNodes",
+        "summary": "listPlaceTaxonomyNodes",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Return the current provider-neutral taxonomy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaxonomyProjection"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The taxonomy projection is unavailable"
+          }
         }
       }
     }
@@ -469,318 +837,1817 @@
         "bearerFormat": "JWT"
       }
     },
-    "parameters": {
-      "PlaceId": {
-        "name": "placeId",
-        "in": "path",
-        "required": true,
-        "schema": { "type": "string", "format": "uuid" }
-      },
-      "PublicationId": {
-        "name": "publicationId",
-        "in": "path",
-        "required": true,
-        "schema": { "type": "string", "format": "uuid" }
-      }
-    },
     "schemas": {
       "LibraryCommandRequest": {
         "type": "object",
-        "additionalProperties": false,
-        "required": ["commandId", "command"],
         "properties": {
-          "commandId": { "type": "string", "format": "uuid" },
+          "commandId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
           "command": {
             "oneOf": [
-              { "$ref": "#/components/schemas/SetPlacePreferencesCommand" },
-              { "$ref": "#/components/schemas/CreateCollectionCommand" },
-              { "$ref": "#/components/schemas/AddCollectionPlaceCommand" },
-              { "$ref": "#/components/schemas/CreateTagCommand" },
-              { "$ref": "#/components/schemas/TagPlaceCommand" },
-              { "$ref": "#/components/schemas/CopyPublishedCollectionCommand" }
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "set-place-preferences"
+                  },
+                  "placeId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "saved": {
+                    "type": "boolean"
+                  },
+                  "wanted": {
+                    "type": "boolean"
+                  },
+                  "personalRating": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0.1,
+                        "maximum": 5,
+                        "multipleOf": 0.1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "kind",
+                  "placeId",
+                  "saved",
+                  "wanted",
+                  "personalRating"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "create-collection"
+                  },
+                  "collectionId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "visibility": {
+                    "type": "string",
+                    "enum": [
+                      "private",
+                      "unlisted",
+                      "public"
+                    ]
+                  },
+                  "publicationId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collectionId",
+                  "name",
+                  "visibility"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "add-collection-place"
+                  },
+                  "collectionId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "placeId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "position": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collectionId",
+                  "placeId",
+                  "position"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "create-tag"
+                  },
+                  "tagId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "kind",
+                  "tagId",
+                  "name"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "tag-place"
+                  },
+                  "tagId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "placeId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "tagId",
+                  "placeId"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "copy-published-collection"
+                  },
+                  "sourcePublicationId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "targetCollectionId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "targetName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  }
+                },
+                "required": [
+                  "kind",
+                  "sourcePublicationId",
+                  "targetCollectionId",
+                  "targetName"
+                ],
+                "additionalProperties": false
+              }
             ]
           }
-        }
+        },
+        "required": [
+          "commandId",
+          "command"
+        ],
+        "additionalProperties": false
       },
       "SetPlacePreferencesCommand": {
-        "type": "object", "additionalProperties": false,
-        "required": ["kind", "placeId", "saved", "wanted", "personalRating"],
+        "type": "object",
         "properties": {
-          "kind": { "const": "set-place-preferences" }, "placeId": { "type": "string", "format": "uuid" },
-          "saved": { "type": "boolean" }, "wanted": { "type": "boolean" },
-          "personalRating": { "type": ["number", "null"], "minimum": 0.1, "maximum": 5, "multipleOf": 0.1 }
-        }
+          "kind": {
+            "type": "string",
+            "const": "set-place-preferences"
+          },
+          "placeId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "saved": {
+            "type": "boolean"
+          },
+          "wanted": {
+            "type": "boolean"
+          },
+          "personalRating": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.1,
+                "maximum": 5,
+                "multipleOf": 0.1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "placeId",
+          "saved",
+          "wanted",
+          "personalRating"
+        ],
+        "additionalProperties": false
       },
       "CreateCollectionCommand": {
-        "type": "object", "additionalProperties": false,
-        "required": ["kind", "collectionId", "name", "visibility"],
+        "type": "object",
         "properties": {
-          "kind": { "const": "create-collection" }, "collectionId": { "type": "string", "format": "uuid" },
-          "name": { "type": "string", "minLength": 1, "maxLength": 120 }, "description": { "type": "string", "maxLength": 2000 },
-          "visibility": { "enum": ["private", "unlisted", "public"] }, "publicationId": { "type": "string", "format": "uuid" }
-        }
+          "kind": {
+            "type": "string",
+            "const": "create-collection"
+          },
+          "collectionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "unlisted",
+              "public"
+            ]
+          },
+          "publicationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "kind",
+          "collectionId",
+          "name",
+          "visibility"
+        ],
+        "additionalProperties": false
       },
       "AddCollectionPlaceCommand": {
-        "type": "object", "additionalProperties": false,
-        "required": ["kind", "collectionId", "placeId", "position"],
+        "type": "object",
         "properties": {
-          "kind": { "const": "add-collection-place" }, "collectionId": { "type": "string", "format": "uuid" },
-          "placeId": { "type": "string", "format": "uuid" }, "position": { "type": "integer", "minimum": 0 }
-        }
+          "kind": {
+            "type": "string",
+            "const": "add-collection-place"
+          },
+          "collectionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "placeId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "kind",
+          "collectionId",
+          "placeId",
+          "position"
+        ],
+        "additionalProperties": false
       },
       "CreateTagCommand": {
-        "type": "object", "additionalProperties": false, "required": ["kind", "tagId", "name"],
-        "properties": { "kind": { "const": "create-tag" }, "tagId": { "type": "string", "format": "uuid" }, "name": { "type": "string", "minLength": 1, "maxLength": 64 } }
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "create-tag"
+          },
+          "tagId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "kind",
+          "tagId",
+          "name"
+        ],
+        "additionalProperties": false
       },
       "TagPlaceCommand": {
-        "type": "object", "additionalProperties": false, "required": ["kind", "tagId", "placeId"],
-        "properties": { "kind": { "const": "tag-place" }, "tagId": { "type": "string", "format": "uuid" }, "placeId": { "type": "string", "format": "uuid" } }
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "tag-place"
+          },
+          "tagId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "placeId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "kind",
+          "tagId",
+          "placeId"
+        ],
+        "additionalProperties": false
       },
       "CopyPublishedCollectionCommand": {
-        "type": "object", "additionalProperties": false, "required": ["kind", "sourcePublicationId", "targetCollectionId", "targetName"],
+        "type": "object",
         "properties": {
-          "kind": { "const": "copy-published-collection" }, "sourcePublicationId": { "type": "string", "format": "uuid" },
-          "targetCollectionId": { "type": "string", "format": "uuid" }, "targetName": { "type": "string", "minLength": 1, "maxLength": 120 }
-        }
+          "kind": {
+            "type": "string",
+            "const": "copy-published-collection"
+          },
+          "sourcePublicationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "targetCollectionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "targetName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "kind",
+          "sourcePublicationId",
+          "targetCollectionId",
+          "targetName"
+        ],
+        "additionalProperties": false
       },
       "VisitRecordRequest": {
-        "type": "object", "additionalProperties": false, "required": ["id", "placeId", "visitedAt"],
+        "type": "object",
         "properties": {
-          "id": { "type": "string", "format": "uuid" }, "placeId": { "type": "string", "format": "uuid" },
-          "visitedAt": { "type": "string", "format": "date-time" }, "evidence": { "type": "object" }
-        }
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "placeId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "visitedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+          },
+          "evidence": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "id",
+          "placeId",
+          "visitedAt"
+        ],
+        "additionalProperties": false
       },
       "WritingCommandRequest": {
-        "type": "object", "additionalProperties": false, "required": ["commandId", "command"],
+        "type": "object",
         "properties": {
-          "commandId": { "type": "string", "format": "uuid" },
-          "command": { "oneOf": [
-            { "$ref": "#/components/schemas/CreateNoteCommand" },
-            { "$ref": "#/components/schemas/UpdateNoteCommand" },
-            { "$ref": "#/components/schemas/CreateEntryCommand" },
-            { "$ref": "#/components/schemas/UpdateEntryCommand" }
-          ] }
-        }
+          "commandId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "command": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "create-note"
+                  },
+                  "documentId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "placeId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "visibility": {
+                    "type": "string",
+                    "enum": [
+                      "private",
+                      "unlisted",
+                      "public"
+                    ]
+                  },
+                  "publicationId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "documentId",
+                  "body",
+                  "placeId",
+                  "visibility"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "update-note"
+                  },
+                  "documentId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "expectedVersion": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "placeId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "visibility": {
+                    "type": "string",
+                    "enum": [
+                      "private",
+                      "unlisted",
+                      "public"
+                    ]
+                  },
+                  "publicationId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "documentId",
+                  "expectedVersion",
+                  "body",
+                  "placeId",
+                  "visibility"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "create-entry"
+                  },
+                  "documentId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100000
+                  },
+                  "placeIds": {
+                    "minItems": 1,
+                    "maxItems": 32,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    }
+                  },
+                  "visibility": {
+                    "type": "string",
+                    "enum": [
+                      "private",
+                      "unlisted",
+                      "public"
+                    ]
+                  },
+                  "publicationId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "documentId",
+                  "title",
+                  "body",
+                  "placeIds",
+                  "visibility"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "update-entry"
+                  },
+                  "documentId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "expectedVersion": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100000
+                  },
+                  "placeIds": {
+                    "minItems": 1,
+                    "maxItems": 32,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    }
+                  },
+                  "visibility": {
+                    "type": "string",
+                    "enum": [
+                      "private",
+                      "unlisted",
+                      "public"
+                    ]
+                  },
+                  "publicationId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "documentId",
+                  "expectedVersion",
+                  "title",
+                  "body",
+                  "placeIds",
+                  "visibility"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": [
+          "commandId",
+          "command"
+        ],
+        "additionalProperties": false
       },
       "CreateNoteCommand": {
-        "type": "object", "additionalProperties": false, "required": ["kind", "documentId", "body", "placeId", "visibility"],
+        "type": "object",
         "properties": {
-          "kind": { "const": "create-note" }, "documentId": { "type": "string", "format": "uuid" },
-          "body": { "type": "string", "minLength": 1, "maxLength": 2000 },
-          "placeId": { "type": "string", "format": "uuid" }, "visibility": { "enum": ["private", "unlisted", "public"] },
-          "publicationId": { "type": "string", "format": "uuid" }
-        }
+          "kind": {
+            "type": "string",
+            "const": "create-note"
+          },
+          "documentId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "placeId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "unlisted",
+              "public"
+            ]
+          },
+          "publicationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "kind",
+          "documentId",
+          "body",
+          "placeId",
+          "visibility"
+        ],
+        "additionalProperties": false
       },
       "UpdateNoteCommand": {
-        "type": "object", "additionalProperties": false, "required": ["kind", "documentId", "expectedVersion", "body", "placeId", "visibility"],
+        "type": "object",
         "properties": {
-          "kind": { "const": "update-note" }, "documentId": { "type": "string", "format": "uuid" },
-          "expectedVersion": { "type": "integer", "minimum": 1 }, "body": { "type": "string", "minLength": 1, "maxLength": 2000 },
-          "placeId": { "type": "string", "format": "uuid" }, "visibility": { "enum": ["private", "unlisted", "public"] },
-          "publicationId": { "type": "string", "format": "uuid" }
-        }
+          "kind": {
+            "type": "string",
+            "const": "update-note"
+          },
+          "documentId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "placeId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "unlisted",
+              "public"
+            ]
+          },
+          "publicationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "kind",
+          "documentId",
+          "expectedVersion",
+          "body",
+          "placeId",
+          "visibility"
+        ],
+        "additionalProperties": false
       },
       "CreateEntryCommand": {
-        "type": "object", "additionalProperties": false, "required": ["kind", "documentId", "title", "body", "placeIds", "visibility"],
+        "type": "object",
         "properties": {
-          "kind": { "const": "create-entry" }, "documentId": { "type": "string", "format": "uuid" },
-          "title": { "type": "string", "minLength": 1, "maxLength": 200 },
-          "body": { "type": "string", "minLength": 1, "maxLength": 100000 }, "placeIds": { "type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": { "type": "string", "format": "uuid" } },
-          "visibility": { "enum": ["private", "unlisted", "public"] }, "publicationId": { "type": "string", "format": "uuid" }
-        }
+          "kind": {
+            "type": "string",
+            "const": "create-entry"
+          },
+          "documentId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100000
+          },
+          "placeIds": {
+            "minItems": 1,
+            "maxItems": 32,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "unlisted",
+              "public"
+            ]
+          },
+          "publicationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "kind",
+          "documentId",
+          "title",
+          "body",
+          "placeIds",
+          "visibility"
+        ],
+        "additionalProperties": false
       },
       "UpdateEntryCommand": {
-        "type": "object", "additionalProperties": false, "required": ["kind", "documentId", "expectedVersion", "title", "body", "placeIds", "visibility"],
+        "type": "object",
         "properties": {
-          "kind": { "const": "update-entry" }, "documentId": { "type": "string", "format": "uuid" },
-          "expectedVersion": { "type": "integer", "minimum": 1 }, "title": { "type": "string", "minLength": 1, "maxLength": 200 },
-          "body": { "type": "string", "minLength": 1, "maxLength": 100000 }, "placeIds": { "type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": { "type": "string", "format": "uuid" } },
-          "visibility": { "enum": ["private", "unlisted", "public"] }, "publicationId": { "type": "string", "format": "uuid" }
-        }
+          "kind": {
+            "type": "string",
+            "const": "update-entry"
+          },
+          "documentId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100000
+          },
+          "placeIds": {
+            "minItems": 1,
+            "maxItems": 32,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private",
+              "unlisted",
+              "public"
+            ]
+          },
+          "publicationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "kind",
+          "documentId",
+          "expectedVersion",
+          "title",
+          "body",
+          "placeIds",
+          "visibility"
+        ],
+        "additionalProperties": false
       },
       "CurrentMembership": {
         "type": "object",
-        "additionalProperties": false,
-        "required": ["membershipId", "authorityRole", "userGrade", "productTier"],
         "properties": {
-          "membershipId": { "type": "string" },
-          "authorityRole": {
-            "enum": ["member", "reviewer", "administrator", "owner"]
+          "membershipId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
           },
-          "userGrade": { "type": "string", "minLength": 1 },
-          "productTier": { "type": "string", "minLength": 1 }
-        }
+          "authorityRole": {
+            "type": "string",
+            "enum": [
+              "member",
+              "reviewer",
+              "administrator",
+              "owner"
+            ]
+          },
+          "userGrade": {
+            "type": "string",
+            "minLength": 1
+          },
+          "productTier": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "membershipId",
+          "authorityRole",
+          "userGrade",
+          "productTier"
+        ],
+        "additionalProperties": false
       },
       "MembershipConsent": {
         "type": "object",
-        "additionalProperties": false,
-        "required": ["document", "version"],
         "properties": {
-          "document": { "type": "string", "minLength": 1, "maxLength": 128 },
-          "version": { "type": "string", "minLength": 1, "maxLength": 128 }
-        }
+          "document": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "document",
+          "version"
+        ],
+        "additionalProperties": false
       },
       "MembershipOnboardingRequest": {
         "type": "object",
-        "additionalProperties": false,
-        "required": ["acceptedConsents"],
         "properties": {
           "acceptedConsents": {
-            "type": "array",
             "minItems": 1,
             "maxItems": 32,
-            "items": { "$ref": "#/components/schemas/MembershipConsent" }
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "document": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "version": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              },
+              "required": [
+                "document",
+                "version"
+              ],
+              "additionalProperties": false
+            }
           }
-        }
+        },
+        "required": [
+          "acceptedConsents"
+        ],
+        "additionalProperties": false
       },
       "CurrentMembershipConsents": {
         "type": "object",
-        "additionalProperties": false,
-        "required": ["consents"],
         "properties": {
           "consents": {
-            "type": "array",
             "minItems": 1,
             "maxItems": 32,
-            "items": { "$ref": "#/components/schemas/MembershipConsent" }
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "document": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "version": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              },
+              "required": [
+                "document",
+                "version"
+              ],
+              "additionalProperties": false
+            }
           }
-        }
+        },
+        "required": [
+          "consents"
+        ],
+        "additionalProperties": false
       },
       "MembershipOnboardingResult": {
         "type": "object",
-        "additionalProperties": false,
-        "required": ["status", "membershipId", "authorityRole", "userGrade", "productTier"],
         "properties": {
-          "status": { "enum": ["created", "existing"] },
-          "membershipId": { "type": "string" },
-          "authorityRole": {
-            "enum": ["member", "reviewer", "administrator", "owner"]
+          "status": {
+            "type": "string",
+            "enum": [
+              "created",
+              "existing"
+            ]
           },
-          "userGrade": { "type": "string", "minLength": 1 },
-          "productTier": { "type": "string", "minLength": 1 }
-        }
+          "membershipId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "authorityRole": {
+            "type": "string",
+            "enum": [
+              "member",
+              "reviewer",
+              "administrator",
+              "owner"
+            ]
+          },
+          "userGrade": {
+            "type": "string",
+            "minLength": 1
+          },
+          "productTier": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "status",
+          "membershipId",
+          "authorityRole",
+          "userGrade",
+          "productTier"
+        ],
+        "additionalProperties": false
       },
       "AuthorityRoleChangeRequest": {
         "type": "object",
-        "additionalProperties": false,
-        "required": ["nextRole"],
         "properties": {
           "nextRole": {
-            "enum": ["member", "reviewer", "administrator", "owner"]
+            "type": "string",
+            "enum": [
+              "member",
+              "reviewer",
+              "administrator",
+              "owner"
+            ]
           }
-        }
+        },
+        "required": [
+          "nextRole"
+        ],
+        "additionalProperties": false
       },
       "AuthorityRoleChangeResult": {
         "type": "object",
-        "additionalProperties": false,
-        "required": ["status", "membershipId", "authorityRole"],
         "properties": {
-          "status": { "enum": ["changed", "unchanged"] },
-          "membershipId": { "type": "string", "format": "uuid" },
+          "status": {
+            "type": "string",
+            "enum": [
+              "changed",
+              "unchanged"
+            ]
+          },
+          "membershipId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
           "previousRole": {
-            "enum": ["member", "reviewer", "administrator", "owner"]
+            "type": "string",
+            "enum": [
+              "member",
+              "reviewer",
+              "administrator",
+              "owner"
+            ]
           },
           "authorityRole": {
-            "enum": ["member", "reviewer", "administrator", "owner"]
+            "type": "string",
+            "enum": [
+              "member",
+              "reviewer",
+              "administrator",
+              "owner"
+            ]
           }
-        }
+        },
+        "required": [
+          "status",
+          "membershipId",
+          "authorityRole"
+        ],
+        "additionalProperties": false
+      },
+      "PublishedCollection": {
+        "type": "object",
+        "properties": {
+          "publicationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "unlisted",
+              "public"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "places": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "placeId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "position": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "placeId",
+                "position"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+          }
+        },
+        "required": [
+          "publicationId",
+          "visibility",
+          "name",
+          "description",
+          "places",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "PublishedWriting": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "note"
+              },
+              "publicationId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "visibility": {
+                "type": "string",
+                "enum": [
+                  "unlisted",
+                  "public"
+                ]
+              },
+              "body": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              },
+              "placeIds": {
+                "minItems": 1,
+                "maxItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                }
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              }
+            },
+            "required": [
+              "kind",
+              "publicationId",
+              "visibility",
+              "body",
+              "placeIds",
+              "updatedAt"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "entry"
+              },
+              "publicationId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "visibility": {
+                "type": "string",
+                "enum": [
+                  "unlisted",
+                  "public"
+                ]
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "body": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100000
+              },
+              "placeIds": {
+                "minItems": 1,
+                "maxItems": 32,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                }
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              }
+            },
+            "required": [
+              "kind",
+              "publicationId",
+              "visibility",
+              "title",
+              "body",
+              "placeIds",
+              "updatedAt"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "PlaceSearchRequest": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "place-search.v1"
+          },
+          "query": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "bounds": {
+            "type": "object",
+            "properties": {
+              "west": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              },
+              "south": {
+                "type": "number",
+                "minimum": -90,
+                "maximum": 90
+              },
+              "east": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              },
+              "north": {
+                "type": "number",
+                "minimum": -90,
+                "maximum": 90
+              }
+            },
+            "required": [
+              "west",
+              "south",
+              "east",
+              "north"
+            ],
+            "additionalProperties": false
+          },
+          "filters": {
+            "default": {
+              "taxonomyKeys": []
+            },
+            "type": "object",
+            "properties": {
+              "taxonomyKeys": {
+                "default": [],
+                "maxItems": 16,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              },
+              "saved": {
+                "type": "boolean"
+              },
+              "wanted": {
+                "type": "boolean"
+              },
+              "visited": {
+                "type": "boolean"
+              },
+              "minimumPersonalRating": {
+                "type": "number",
+                "minimum": 0.1,
+                "maximum": 5,
+                "multipleOf": 0.1
+              }
+            },
+            "additionalProperties": false
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "limit": {
+            "default": 20,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "query"
+        ],
+        "additionalProperties": false
+      },
+      "PlaceSearchResponse": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "place-search.v1"
+          },
+          "items": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "placeId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300
+                },
+                "areaLabel": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "location": {
+                  "type": "object",
+                  "properties": {
+                    "latitude": {
+                      "type": "number",
+                      "minimum": -90,
+                      "maximum": 90
+                    },
+                    "longitude": {
+                      "type": "number",
+                      "minimum": -180,
+                      "maximum": 180
+                    }
+                  },
+                  "required": [
+                    "latitude",
+                    "longitude"
+                  ],
+                  "additionalProperties": false
+                },
+                "primaryTaxonomy": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        "label": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 160
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "label"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "taxonomyKeys": {
+                  "maxItems": 32,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  }
+                },
+                "evidenceStatus": {
+                  "type": "string",
+                  "enum": [
+                    "verified",
+                    "unverified",
+                    "conflicted",
+                    "stale"
+                  ]
+                },
+                "personalState": {
+                  "type": "object",
+                  "properties": {
+                    "saved": {
+                      "type": "boolean"
+                    },
+                    "wanted": {
+                      "type": "boolean"
+                    },
+                    "visited": {
+                      "type": "boolean"
+                    },
+                    "personalRating": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0.1,
+                          "maximum": 5,
+                          "multipleOf": 0.1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "saved",
+                    "wanted",
+                    "visited",
+                    "personalRating"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "placeId",
+                "name",
+                "areaLabel",
+                "location",
+                "primaryTaxonomy",
+                "taxonomyKeys",
+                "evidenceStatus"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "sources": {
+            "minItems": 1,
+            "maxItems": 16,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sourceKey": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "complete",
+                    "partial",
+                    "unavailable"
+                  ]
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "errorCode": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              },
+              "required": [
+                "sourceKey",
+                "status",
+                "resultCount"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "items",
+          "sources"
+        ],
+        "additionalProperties": false
+      },
+      "TaxonomyProjection": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "place-taxonomy.v1"
+          },
+          "nodes": {
+            "maxItems": 2000,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "parentKey": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "category",
+                    "attribute"
+                  ]
+                },
+                "version": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "key",
+                "parentKey",
+                "label",
+                "kind",
+                "version"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "nodes"
+        ],
+        "additionalProperties": false
       },
       "Problem": {
         "type": "object",
-        "additionalProperties": false,
-        "required": ["type", "title", "status", "code", "retryable", "correlationRef"],
         "properties": {
-          "type": { "type": "string" },
-          "title": { "type": "string" },
-          "status": { "type": "integer" },
-          "code": { "type": "string" },
-          "retryable": { "type": "boolean" },
-          "correlationRef": { "type": "string" }
-        }
+          "type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 400,
+            "maximum": 599
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "correlationRef": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "code",
+          "retryable",
+          "correlationRef"
+        ],
+        "additionalProperties": false
       }
     },
     "responses": {
       "ProductRequestInvalid": {
-        "description": "The product command or query is malformed or contains unsupported fields",
-        "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problem" } } }
+        "description": "The product request is malformed or contains unsupported fields",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
       },
       "ProductNotFound": {
         "description": "The owned resource or disclosed publication is unavailable",
-        "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problem" } } }
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
       },
       "ProductConflict": {
-        "description": "An idempotency key or optimistic version conflicts with prior state",
-        "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problem" } } }
+        "description": "The request conflicts with prior state",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
       },
       "AuthenticationRequired": {
         "description": "The bearer token is missing or invalid",
         "content": {
           "application/problem+json": {
-            "schema": { "$ref": "#/components/schemas/Problem" }
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
           }
         }
       },
       "AccessDenied": {
-        "description": "The principal has no Place membership or lacks access",
+        "description": "The principal lacks Place access",
         "content": {
           "application/problem+json": {
-            "schema": { "$ref": "#/components/schemas/Problem" }
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
           }
         }
       },
       "BrowserAuthRejected": {
-        "description": "The one-time browser login transaction is absent, invalid, expired, or rejected",
+        "description": "The browser login transaction was rejected",
         "content": {
           "application/problem+json": {
-            "schema": { "$ref": "#/components/schemas/Problem" }
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
           }
         }
       },
       "BrowserAuthUnavailable": {
-        "description": "The source-only browser authentication runtime is inactive or unavailable",
+        "description": "Browser authentication is inactive or unavailable",
         "content": {
           "application/problem+json": {
-            "schema": { "$ref": "#/components/schemas/Problem" }
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
           }
         }
       },
       "BrowserMembershipUnavailable": {
-        "description": "The source-only browser membership bridge is inactive or unavailable",
+        "description": "Browser membership is inactive or unavailable",
         "content": {
           "application/problem+json": {
-            "schema": { "$ref": "#/components/schemas/Problem" }
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
           }
         }
       },
       "OnboardingRequestInvalid": {
-        "description": "The onboarding body is malformed, unbounded, or contains unsupported fields",
+        "description": "The onboarding request is invalid",
         "content": {
           "application/problem+json": {
-            "schema": { "$ref": "#/components/schemas/Problem" }
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
           }
         }
       },
       "MembershipConsentRequired": {
-        "description": "The submitted consent set does not exactly match current server policy",
+        "description": "Current Place consent is required",
         "content": {
           "application/problem+json": {
-            "schema": { "$ref": "#/components/schemas/Problem" }
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
           }
         }
       },
       "MembershipOnboardingUnavailable": {
-        "description": "Membership onboarding configuration or persistence is unavailable",
+        "description": "Membership onboarding is unavailable",
         "content": {
           "application/problem+json": {
-            "schema": { "$ref": "#/components/schemas/Problem" }
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
           }
         }
       },
       "AuthorityRequestInvalid": {
-        "description": "The membership identifier or authority-role request is invalid",
+        "description": "The authority-role request is invalid",
         "content": {
           "application/problem+json": {
-            "schema": { "$ref": "#/components/schemas/Problem" }
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
           }
         }
       },
@@ -788,23 +2655,29 @@
         "description": "The target membership does not exist",
         "content": {
           "application/problem+json": {
-            "schema": { "$ref": "#/components/schemas/Problem" }
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
           }
         }
       },
       "AuthorityChangeRejected": {
-        "description": "The final owner is protected or the observed role changed concurrently",
+        "description": "The authority-role change was rejected",
         "content": {
           "application/problem+json": {
-            "schema": { "$ref": "#/components/schemas/Problem" }
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
           }
         }
       },
       "AuthorityChangeUnavailable": {
-        "description": "Authority-role management is temporarily unavailable",
+        "description": "Authority-role management is unavailable",
         "content": {
           "application/problem+json": {
-            "schema": { "$ref": "#/components/schemas/Problem" }
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
           }
         }
       }

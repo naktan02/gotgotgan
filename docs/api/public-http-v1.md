@@ -7,6 +7,16 @@ return only public projections.
 Product endpoints are added by their owning module transport and published in OpenAPI. The root HTTP
 entrypoint registers them and owns lifecycle only.
 
+`POST /v1/search/places`는 익명 공개 장소 검색과 optional bearer 회원 검색을 한 계약으로
+제공한다. request는 query, optional bounds, Taxonomy key filter, opaque cursor, 최대 50개 limit를
+받는다. saved/wanted/visited/minimum Personal Rating filter는 검증된 membership이 없으면
+401이며 member ID는 입력에 없다. response는 bounded place projection과 source별
+complete/partial/unavailable outcome을 반환한다. 모든 source가 unavailable이면 안전한 503이다.
+
+`GET /v1/taxonomy/nodes`는 현재 active provider-neutral Node만 공개한다. Web은 고정 Backend
+경로를 사용하는 `POST /api/search/places`, `GET /api/search/taxonomy` BFF만 browser에 노출하고
+두 방향 payload를 공유 계약으로 다시 검증한다.
+
 `POST /v1/library/commands`, `POST /v1/visits`, `POST /v1/writing/commands`는 strict bearer
 인증을 요구하는 Backend operation이다. member, role, grade, tier 입력을 거부하고 Access
 composition에서 member를 파생한다. Library와 Writing command ID는 멱등이고 Writing 수정에는

@@ -18,7 +18,7 @@ const databaseRuntimeSchema = z
       .refine((roles) => new Set(Object.values(roles)).size === 3, {
         message: 'Database roles must be distinct.',
       }),
-    extensions: z.tuple([z.literal('postgis')]),
+    extensions: z.tuple([z.literal('postgis'), z.literal('pg_trgm')]),
     configuration: z.object({
       administratorDatabaseUrlFileEnvironment: z.string(),
       migrationPasswordFileEnvironment: z.string(),
@@ -206,17 +206,22 @@ async function provisionDatabaseAuthorities(
       await administrator.query(
         `ALTER ROLE ${runtimeRoleIdentifier} IN DATABASE ${databaseIdentifier} SET search_path = pg_catalog, public`,
       )
-      stage = 'PostGIS extension provisioning'
+      stage = 'database extension provisioning'
       await administrator.query('CREATE EXTENSION IF NOT EXISTS postgis')
+      await administrator.query('CREATE EXTENSION IF NOT EXISTS pg_trgm')
 
-      stage = 'PostGIS extension ownership verification'
-      const extensionOwner = await administrator.query<{ owner: string }>(`
+      stage = 'database extension ownership verification'
+      const extensionOwners = await administrator.query<{ name: string; owner: string }>(`
         SELECT pg_get_userbyid(extowner) AS owner
+             , extname AS name
         FROM pg_extension
-        WHERE extname = 'postgis'
+        WHERE extname = ANY(ARRAY['postgis', 'pg_trgm'])
       `)
-      if (extensionOwner.rows[0]?.owner !== runtime.roles.administrator) {
-        throw new DatabasePreparationError('The PostGIS extension must remain administrator-owned.')
+      if (
+        extensionOwners.rowCount !== runtime.extensions.length ||
+        extensionOwners.rows.some((extension) => extension.owner !== runtime.roles.administrator)
+      ) {
+        throw new DatabasePreparationError('Database extensions must remain administrator-owned.')
       }
 
       stage = 'authority transaction commit'
