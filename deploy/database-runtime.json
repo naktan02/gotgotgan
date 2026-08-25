@@ -16,6 +16,7 @@
   "configuration": {
     "administratorUserEnvironment": "PLACE_POSTGRES_ADMIN_USER",
     "administratorPasswordFileEnvironment": "PLACE_POSTGRES_ADMIN_PASSWORD_FILE",
+    "administratorDatabaseUrlFileEnvironment": "PLACE_POSTGRES_ADMIN_DATABASE_URL_FILE",
     "migrationPasswordFileEnvironment": "PLACE_MIGRATION_DATABASE_PASSWORD_FILE",
     "runtimePasswordFileEnvironment": "PLACE_DATABASE_PASSWORD_FILE",
     "migrationDatabaseUrlFileEnvironment": "PLACE_MIGRATION_DATABASE_URL_FILE",

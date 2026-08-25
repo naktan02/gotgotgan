@@ -83,6 +83,7 @@ if (
 }
 const databaseSecretFileEnvironments = [
   databaseRuntime.configuration.administratorPasswordFileEnvironment,
+  databaseRuntime.configuration.administratorDatabaseUrlFileEnvironment,
   databaseRuntime.configuration.migrationPasswordFileEnvironment,
   databaseRuntime.configuration.runtimePasswordFileEnvironment,
   databaseRuntime.configuration.migrationDatabaseUrlFileEnvironment,

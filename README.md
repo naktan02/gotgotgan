@@ -8,8 +8,9 @@ evidence, personal libraries, visits, writing, imports, sharing, and future Tool
 
 Current delivery state: **source-only, Stage 3 in progress**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
-and a source-only physical PostGIS declaration exist. There is no active application database
-connection, provider account, map credential, Identity client, Gateway route, or AI Tool connection.
+a source-only physical PostGIS declaration, and a tested database preparation/migration command
+exist. There is no active application database connection, provider account, map credential,
+Identity client, Gateway route, or AI Tool connection.
 
 ## Repository boundaries
 
@@ -39,7 +40,12 @@ Narrow commands:
 npm run check:web
 npm run check:backend
 npm run check:contracts
+npm run test:database
 npm run test:e2e
 ```
+
+`test:database` requires Docker plus an injected `PLACE_DATABASE_TEST_HOST` and creates only a
+disposable, randomly credentialed PostGIS container. It is separate from the default source check
+until a Docker-enabled CI job owns it.
 
 The repository does not require sibling repositories at runtime or test time.

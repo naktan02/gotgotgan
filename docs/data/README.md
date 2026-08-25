@@ -6,4 +6,5 @@
 - `captures-and-retention.md`: raw evidence storage and deletion.
 - `backup-and-restore.md`: recovery ownership and proof.
 
-No Place database or migration exists in Stage 1.
+The source-only database declaration, preparation command, and first canonical Place migration exist.
+No Place application process is connected to a provisioned database.

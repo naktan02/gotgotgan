@@ -20,8 +20,9 @@ and rollback are ready. The manifest itself contains no credential and does not 
 `database-runtime.json` and `compose.database.yml` declare the source-only Place-owned physical
 PostGIS fallback selected by ADR 0004. The database Compose file remains under the `place` project,
 publishes no host port, and requires deployment-injected `PLACE_POSTGRES_ADMIN_USER`,
-`PLACE_POSTGRES_ADMIN_PASSWORD_FILE`, distinct migration/runtime password and database-URL secret
-files declared in `database-runtime.json`, `PLACE_POSTGRES_DATA_VOLUME`, and `PLACE_DATA_NETWORK`. It
+`PLACE_POSTGRES_ADMIN_PASSWORD_FILE`, `PLACE_POSTGRES_ADMIN_DATABASE_URL_FILE`, distinct
+migration/runtime password and database-URL secret files declared in `database-runtime.json`,
+`PLACE_POSTGRES_DATA_VOLUME`, and `PLACE_DATA_NETWORK`. It
 must not be combined with application Compose until migration/runtime role provisioning, schema,
 least-privilege, spatial-index, backup/restore, and rollback gates pass.
 

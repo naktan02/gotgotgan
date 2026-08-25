@@ -1,8 +1,12 @@
 # Integration tests
 
-Stage 3 introduces real PostGIS tests for migrations, roles, spatial indexes, isolation, backup, and
-restore. Later process tests prove job lease/fencing behavior and sanitized provider replay. Unit
-fakes do not substitute for protocol or database semantics at these seams.
+With `PLACE_DATABASE_TEST_HOST` injected by the test environment, `npm run test:database` starts a
+disposable digest-pinned PostGIS runtime with random test-only credentials and exercises the public
+database preparation command twice. It proves migration
+ownership, intended runtime DML, runtime denial for DDL/ownership/history mutation, PostGIS presence,
+and GiST use in the query plan. Backup and isolated-restore evidence remains a separate Stage 3 gate.
+Later process tests prove job lease/fencing behavior and sanitized provider replay. Unit fakes do not
+substitute for protocol or database semantics at these seams.
 
 Stage 2 tests the HTTP access seam through an injected verifier, membership directory, and audit
 sink. The web tests the OIDC BFF and `openid-client` adapter with deterministic doubles, including

@@ -5,18 +5,22 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "database:prepare": "npm run build && node dist/entrypoints/cli/prepare-database.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --exclude tests/integration/**",
     "check:worker": "npm run build && node dist/entrypoints/worker/main.js --check",
     "check": "npm run typecheck && npm run test && npm run check:worker"
   },
   "dependencies": {
     "fastify": "5.12.1",
     "jose": "6.2.10",
+    "node-pg-migrate": "9.0.0",
+    "pg": "8.23.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "22.0.0",
+    "@types/pg": "8.20.0",
     "typescript": "5.7.3",
     "vitest": "4.1.11"
   },

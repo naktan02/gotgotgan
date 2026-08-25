@@ -7,3 +7,4 @@ status and date, link evidence, name consequences and supersession conditions, a
 - `0002-logical-postgis-with-physical-fallback.md`: conditional database topology.
 - `0003-place-access-and-identity-evidence.md`: verified external principals and Place-owned authority.
 - `0004-place-owned-physical-postgis-runtime.md`: Stage 3 physical fallback after the shared PostGIS gate failed.
+- `0005-node-pg-migrate-lifecycle.md`: operator-owned TypeScript migrations and role provisioning.
