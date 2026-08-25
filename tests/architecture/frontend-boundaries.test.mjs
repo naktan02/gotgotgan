@@ -27,6 +27,8 @@ test('accepts frontend inward dependencies and explicit feature public contracts
     'domains/places/place.ts': "import { id } from '../../shared/id'; export { id }",
     'features/search/public/index.ts': 'export const search = true',
     'shells/workspace/Shell.tsx': "import { search } from '../../features/search/public/index'; void search",
+    'platform/auth/session.ts': 'export const session = true',
+    'platform/membership/browser.ts': "import { session } from '../auth/session'; void session",
   })
   assert.deepEqual(await inspectFrontendArchitecture(root), [])
 })
@@ -37,9 +39,16 @@ test('rejects reverse imports, feature internals, and cycles', async () => {
     'platform/b.ts': "import '../shared/a'",
     'features/search/model.ts': "import '../library/internal'",
     'features/library/internal.ts': 'export const library = true',
+    'platform/auth/runtime.ts': "import '../membership/client'",
+    'platform/membership/client.ts': 'export const client = true',
   })
   const violations = await inspectFrontendArchitecture(root)
   assert.ok(violations.some((value) => value.includes('shared cannot import platform')))
   assert.ok(violations.some((value) => value.includes("cannot import each other's internals")))
   assert.ok(violations.some((value) => value.includes('frontend import cycle')))
+  assert.ok(
+    violations.some((value) =>
+      value.includes('platform owner auth cannot import membership'),
+    ),
+  )
 })

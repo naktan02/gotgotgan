@@ -470,3 +470,137 @@ describe('POST /v1/memberships/onboarding', () => {
     expect(response.body).not.toContain('internal.database.example')
   })
 })
+
+describe('membership consent and authority management HTTP', () => {
+  it('publishes only the server-selected current consent documents', async () => {
+    const application = buildOnboardingApplication({
+      requiredConsents: [
+        { document: 'terms-of-service', version: '2026-08-26' },
+        { document: 'privacy-policy', version: '2026-08-26' },
+      ],
+      store: {
+        attemptAndAuditOnboarding: async () => {
+          throw new Error('must not run')
+        },
+      },
+    })
+
+    const response = await application.inject({
+      method: 'GET',
+      url: '/v1/membership-consents/current',
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.headers['cache-control']).toBe('no-store')
+    expect(response.json()).toEqual({
+      consents: [
+        { document: 'terms-of-service', version: '2026-08-26' },
+        { document: 'privacy-policy', version: '2026-08-26' },
+      ],
+    })
+    expect(response.body).not.toContain('newcomer')
+    expect(response.body).not.toContain('free')
+  })
+
+  it('maps an audited administrator role change to a safe result', async () => {
+    const actorId = '11111111-1111-4111-8111-111111111111'
+    const targetId = '22222222-2222-4222-8222-222222222222'
+    const principal = { issuer: 'https://identity.example', subject: 'administrator' }
+    const application = buildHttpApplication({
+      access: {
+        principalVerifier: { verify: async () => principal },
+        membershipDirectory: {
+          findByPrincipal: async () => ({
+            id: actorId,
+            principal,
+            status: 'active',
+            authorityRole: 'administrator',
+            userGrade: 'regular',
+            productTier: 'standard',
+            resourceGrants: [],
+          }),
+        },
+        auditSink: { record: async () => undefined },
+        authorityManagement: {
+          store: {
+            findById: async () => ({
+              id: targetId,
+              principal: { issuer: 'https://identity.example', subject: 'reviewer' },
+              status: 'active',
+              authorityRole: 'reviewer',
+              userGrade: 'regular',
+              productTier: 'standard',
+              resourceGrants: [],
+            }),
+            attemptAndAuditRoleChange: async () => 'changed',
+          },
+        },
+        now: () => new Date('2026-08-26T00:00:00.000Z'),
+      },
+    })
+    applications.add(application)
+
+    const response = await application.inject({
+      method: 'PATCH',
+      url: `/v1/administration/memberships/${targetId}/authority-role`,
+      headers: { authorization: 'Bearer administrator-token' },
+      payload: { nextRole: 'member' },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toEqual({
+      status: 'changed',
+      membershipId: targetId,
+      previousRole: 'reviewer',
+      authorityRole: 'member',
+    })
+    expect(response.body).not.toContain('administrator-token')
+    expect(response.body).not.toContain('subject')
+  })
+
+  it('does not disclose target existence to a caller without management authority', async () => {
+    const principal = { issuer: 'https://identity.example', subject: 'member' }
+    const application = buildHttpApplication({
+      access: {
+        principalVerifier: { verify: async () => principal },
+        membershipDirectory: {
+          findByPrincipal: async () => ({
+            id: '11111111-1111-4111-8111-111111111111',
+            principal,
+            status: 'active',
+            authorityRole: 'member',
+            userGrade: 'regular',
+            productTier: 'standard',
+            resourceGrants: [],
+          }),
+        },
+        auditSink: { record: async () => undefined },
+        authorityManagement: {
+          store: {
+            findById: async () => undefined,
+            attemptAndAuditRoleChange: async () => {
+              throw new Error('must not run')
+            },
+          },
+        },
+        now: () => new Date('2026-08-26T00:00:00.000Z'),
+      },
+    })
+    applications.add(application)
+
+    const response = await application.inject({
+      method: 'PATCH',
+      url: '/v1/administration/memberships/33333333-3333-4333-8333-333333333333/authority-role',
+      headers: { authorization: 'Bearer member-token' },
+      payload: { nextRole: 'reviewer' },
+    })
+
+    expect(response.statusCode).toBe(403)
+    expect(response.json()).toMatchObject({
+      code: 'PLACE_ACCESS_DENIED',
+      status: 403,
+      correlationRef: expect.any(String),
+    })
+    expect(response.body).not.toContain('not-found')
+  })
+})

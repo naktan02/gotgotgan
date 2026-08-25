@@ -9,7 +9,8 @@ semantics and evolution.
 - `tool-adapter-v1.md`: future AI Tool exposure.
 - `errors-and-versioning.md`: compatibility and error envelopes.
 
-`/healthz` and `/readyz` are active lifecycle routes. The browser OIDC start, callback, and logout
-handlers plus consent-gated membership onboarding exist source-only and fail closed or remain
-unregistered until their dependencies are explicitly supplied. Other product HTTP, worker jobs,
-events, and Tools remain unconnected unless their documents say otherwise.
+`/healthz` and `/readyz` are active lifecycle routes. Browser OIDC and membership BFF handlers plus
+backend current-consent, onboarding, current-membership, and authority-role transports exist
+source-only. They fail closed or remain unregistered until their dependencies are explicitly
+supplied. Other product HTTP, worker jobs, events, and Tools remain unconnected unless their
+documents say otherwise.

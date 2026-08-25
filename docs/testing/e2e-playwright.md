@@ -17,8 +17,15 @@ replayed transaction, unmapped membership, suspended membership, and sanitized p
 through the public Gateway path; browser assertions must prove that no token or internal endpoint is
 observable.
 
-Backend HTTP interface tests cover onboarding creation, idempotent existing-member resolution,
-missing bearer evidence, unsupported browser authority fields, malformed JSON, stale consent, and
-sanitized persistence failure. Browser Playwright onboarding remains gated until the Web BFF owns the
-server-side call and a test composition can exercise the complete session path without exposing an
-access token.
+Source-only membership denial E2E likewise verifies that current-consent and onboarding browser
+routes return hardened correlated 503 problems while the server runtime is inactive and that their
+opposite HTTP methods are not exposed. Unit boundary tests separately prove that onboarding takes
+the access token from the server session, uses a fixed backend endpoint, and excludes it from the
+browser response.
+
+Backend HTTP interface tests cover current-consent projection, onboarding creation, idempotent
+existing-member resolution, missing bearer evidence, unsupported browser authority fields, malformed
+JSON, stale consent, and sanitized persistence failure. They also cover the authority-management
+success boundary and unauthorized target non-disclosure. Browser Playwright onboarding success
+remains integration-gated until a test composition can exercise a complete provisioned Identity
+session through Gateway.

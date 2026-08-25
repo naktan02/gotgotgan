@@ -24,10 +24,12 @@ in-memory implementations remain test-only. The Stage 3 PostgreSQL adapter accep
 pool and implements membership resolution, atomic onboarding/consent, initial-owner bootstrap,
 access audit, and atomic role changes without exposing SQL rows. It is source-only and onboarding is
 wired only to an optional source-only HTTP transport, not production composition. That transport
-accepts only bounded consent pairs, derives the principal from verified bearer evidence, and returns
-safe correlated outcomes. Identity adapters validate evidence but never decide Place roles or grades.
-`administration` may expose management workflows later, but it must call this module's public
-interface instead of recreating access rules.
+accepts only bounded consent pairs, derives the principal from verified bearer evidence, returns safe
+correlated outcomes, and publishes the current consent projection without membership defaults. An
+optional administration transport exposes the existing authority-role use case, resolves the actor
+before target lookup, and maps final-owner/stale-role outcomes without duplicating policy. Identity
+adapters validate evidence but never decide Place roles or grades. Any broader `administration`
+module must call this module's public interface instead of recreating access rules.
 
 Allowed dependencies are this module's inner layers and business-neutral platform security helpers.
 No other business module is imported directly. Validate with `npm test --workspace @place/backend`

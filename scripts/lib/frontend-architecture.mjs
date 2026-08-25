@@ -11,6 +11,9 @@ const allowed = {
   shared: new Set(),
 }
 const forbiddenBuckets = ['components', 'services', 'stores', 'hooks']
+const allowedPlatformDependencies = new Map([
+  ['membership', new Set(['auth'])],
+])
 const importPattern = /(?:from\s+|import\s*(?:\(\s*)?)['"]([^'"]+)['"]/g
 
 async function sourceFiles(directory) {
@@ -99,6 +102,16 @@ export async function inspectFrontendArchitecture(root) {
           if (!publicFeatureImport) {
             violations.push(`${importer}: ${owner.slice(0, -1)} owners cannot import each other's internals`)
           }
+        }
+        if (
+          owner === 'platform' &&
+          targetLayer === 'platform' &&
+          importerParts[1] !== targetParts[1] &&
+          !allowedPlatformDependencies.get(importerParts[1])?.has(targetParts[1])
+        ) {
+          violations.push(
+            `${importer}: platform owner ${importerParts[1]} cannot import ${targetParts[1]}`,
+          )
         }
         if (owner === 'shells' && targetLayer === 'features' && targetParts[2] !== 'public') {
           violations.push(`${importer}: shells may import only a feature's public contract`)

@@ -43,6 +43,12 @@ unsupported browser fields, stale consent, and persistence failures return corre
 without credential, database, or verifier details. The production HTTP composition does not register
 this transport until its verifier, policy, ID source, and transactional store are supplied.
 
+The Web exposes a separate strict onboarding boundary: it resolves the opaque session on the server,
+uses its access token only in the server-to-server backend request, rejects redirects, and validates
+the backend success projection before returning it. The browser cannot submit a token, principal,
+role, grade, or tier through this operation. A public current-consent read contains no membership
+defaults or authority information.
+
 Authority-role changes go through the `access` module's single mutation interface. Administrators
 can manage only non-owner roles. Any operation touching the current owner role or assigning the owner
 role requires `ownership.manage`. Persistence must perform expected-role comparison, final-active-
@@ -50,3 +56,6 @@ owner protection, mutation, and outcome audit atomically; a concurrent update re
 instead of being overwritten. The PostgreSQL adapter locks active owners in stable order and rolls a
 role mutation back if its outcome audit cannot be recorded. User Grade and Product Tier remain
 outside this authority path.
+The optional administration HTTP transport performs authentication and actor membership resolution
+before the use case can inspect a target, preventing unauthorized membership enumeration. It exposes
+only the requested role outcome and stable sanitized failures.

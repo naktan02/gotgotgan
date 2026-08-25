@@ -18,4 +18,7 @@ authority.
 The Node-only Next instrumentation hook owns installation before server readiness. Explicit
 activation creates one process runtime, schedules non-overlapping cleanup with an unreferenced timer,
 and registers SIGINT/SIGTERM close handlers. Missing activation remains a no-op and ambiguous
-activation fails closed. Reviewed auth routes and deployment activation remain separate gates.
+activation fails closed. Reviewed auth routes use this process-owned runtime. A separate fail-closed
+membership lifecycle owns only its stateless backend client; the browser membership boundary reads
+the two narrow interfaces without either lifecycle importing the other. Deployment activation
+remains a separate gate.

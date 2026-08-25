@@ -32,5 +32,7 @@ before activation.
 
 The backend membership-onboarding transport is also source-only. It independently verifies bearer
 evidence into `(issuer, subject)` and accepts no browser-supplied principal or Place authority fields.
-This requires no Place-specific Identity table or login change. Production composition and the Web
-BFF-to-backend call remain intentionally absent.
+The Web BFF now has a fixed server-side onboarding client and resolves the bearer from its encrypted
+opaque-cookie session; the token never enters a browser response. This requires no Place-specific
+Identity table or login change. Production activation, client provisioning, and public Gateway
+validation remain intentionally absent.

@@ -10,7 +10,9 @@ or `integration-gated` as routed in the workspace plan. The Place-owned physical
 declared source-only and is not yet connected to a deployed Web, backend, or worker process. A
 source-only Node instrumentation hook can explicitly enable the Web OIDC composition, readiness-check
 its bounded database pool before server readiness, schedule bounded cleanup, and close it on process
-signals. Activation defaults off and no route consumes the installed runtime yet.
+signals. Reviewed browser auth routes consume that runtime. Membership BFF routes use an independently
+activated stateless backend client plus the auth session interface and fail closed if either required
+runtime is absent. No active external route or provisioned Identity flow is implied.
 
 One digest-pinned multi-stage Dockerfile produces separate `web-runtime` and `backend-runtime`
 targets. The worker uses the backend image with a different command. Compose requires every host and

@@ -27,11 +27,18 @@ also requires these non-secret settings:
 - `PLACE_OIDC_DATABASE_IDLE_TIMEOUT_MILLISECONDS`;
 - `PLACE_OIDC_DATABASE_CONNECTION_TIMEOUT_MILLISECONDS`;
 - `PLACE_OIDC_CLEANUP_BATCH_SIZE`; and
-- `PLACE_OIDC_CLEANUP_INTERVAL_SECONDS`.
+- `PLACE_OIDC_CLEANUP_INTERVAL_SECONDS`;
+- `PLACE_MEMBERSHIP_RUNTIME_ENABLED`, exactly `true` to install the backend bridge or `false`/unset
+  to keep it inactive;
+- `PLACE_BACKEND_ORIGIN`, the credential-free origin used only by the Web server; and
+- `PLACE_MEMBERSHIP_BACKEND_TIMEOUT_MILLISECONDS`, from 1 through 60,000.
 
 Cleanup is rejected above 1,000 rows per table per call. The actual Next process must call this
 loader only through its Node instrumentation lifecycle, which installs once before readiness,
 registers signal close, schedules non-overlapping retryable cleanup, and shares the runtime with
-reviewed route bundles through a process-global symbol. Mounted deployment secrets, Identity
+reviewed auth route bundles through a process-global symbol. A separate membership lifecycle owns
+only the stateless backend client and has an independent fail-closed activation switch. It uses fixed
+current-consent and onboarding paths, rejects redirects, and never publishes its origin or bearer to
+the browser. Mounted deployment secrets, Identity
 provisioning, and Gateway validation remain required before callback activation. An operator must
 not substitute direct secret values or process memory for login transactions or sessions.

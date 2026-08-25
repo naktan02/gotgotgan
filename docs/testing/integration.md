@@ -16,8 +16,9 @@ substitute for protocol or database semantics at these seams.
 Stage 2 tests the HTTP access seam through an injected verifier, membership directory, and audit
 sink. The web tests the OIDC BFF and `openid-client` adapter with deterministic doubles, including
 one-time transaction, provider rejection, expired token, secret non-disclosure, and server-side
-logout paths. These do not claim a live Identity integration; real discovery/callback tests begin
-only after provisioning and a durable session adapter exist.
+logout paths. Browser membership tests prove session-owned bearer forwarding, strict response
+projection, fixed backend paths, and fail-closed runtime behavior. These do not claim a live Identity
+integration; real discovery/callback/onboarding tests begin only after provisioning.
 
 Authority-administration unit tests and the real PostGIS suite exercise the same access module
 interface. They cover administrator success, owner-only denial, last-owner protection, unauthorized

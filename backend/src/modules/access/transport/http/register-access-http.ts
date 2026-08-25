@@ -6,15 +6,18 @@ import {
   MembershipConsentRequiredError,
   type MembershipOnboardingPolicy,
 } from '../../application/complete-membership-onboarding.js'
+import { changeMembershipAuthorityRole } from '../../application/change-membership-authority-role.js'
 import {
   authorizeAndAudit,
   resolveAccessSubject,
   UnregisteredPrincipalError,
 } from '../../application/resolve-access.js'
 import type { AccessAuditSink } from '../../application/ports/access-audit-sink.js'
+import type { AuthorityRoleChangeStore } from '../../application/ports/authority-role-change-store.js'
 import type { MembershipDirectory } from '../../application/ports/membership-directory.js'
 import type { MembershipOnboardingStore } from '../../application/ports/membership-onboarding-store.js'
 import type { PrincipalVerifier } from '../../application/ports/principal-verifier.js'
+import { authorityRoles } from '../../domain/model.js'
 
 const onboardingRequestSchema = z
   .object({
@@ -32,6 +35,11 @@ const onboardingRequestSchema = z
   })
   .strict()
 
+const authorityRoleChangeRequestSchema = z
+  .object({ nextRole: z.enum(authorityRoles) })
+  .strict()
+const membershipPathSchema = z.object({ membershipId: z.string().uuid() })
+
 export type AccessHttpDependencies = Readonly<{
   principalVerifier: PrincipalVerifier
   membershipDirectory: MembershipDirectory
@@ -41,6 +49,7 @@ export type AccessHttpDependencies = Readonly<{
     store: MembershipOnboardingStore
     nextMembershipId: () => string
   }>
+  authorityManagement?: Readonly<{ store: AuthorityRoleChangeStore }>
   now: () => Date
 }>
 
@@ -151,6 +160,27 @@ function membershipOnboardingUnavailable(
   return sendProblem(reply, problem)
 }
 
+function accessProblem(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  status: 400 | 404 | 409 | 503,
+  code: string,
+  title: string,
+  retryable: boolean,
+): FastifyReply {
+  return sendProblem(reply, {
+    type: `urn:place:error:${code
+      .toLowerCase()
+      .replace(/^place_/, '')
+      .replaceAll('_', '-')}`,
+    title,
+    status,
+    code,
+    retryable,
+    correlationRef: request.id,
+  })
+}
+
 async function verifyBearerPrincipal(
   request: FastifyRequest,
   verifier: PrincipalVerifier,
@@ -196,6 +226,27 @@ export function registerAccessHttpRoutes(
 
   const onboarding = dependencies.onboarding
   if (onboarding !== undefined) {
+    application.get('/v1/membership-consents/current', async (request, reply) => {
+      const consents = onboardingRequestSchema.safeParse({
+        acceptedConsents: onboarding.policy.requiredConsents,
+      })
+      if (!consents.success) {
+        return accessProblem(
+          request,
+          reply,
+          503,
+          'PLACE_MEMBERSHIP_ONBOARDING_UNAVAILABLE',
+          'Membership onboarding is temporarily unavailable',
+          true,
+        )
+      }
+      return reply
+        .header('cache-control', 'no-store')
+        .header('x-content-type-options', 'nosniff')
+        .status(200)
+        .send({ consents: consents.data.acceptedConsents })
+    })
+
     application.post(
       '/v1/memberships/onboarding',
       {
@@ -242,6 +293,132 @@ export function registerAccessHttpRoutes(
             userGrade: result.membership.userGrade,
             productTier: result.membership.productTier,
           })
+      },
+    )
+  }
+
+  const authorityManagement = dependencies.authorityManagement
+  if (authorityManagement !== undefined) {
+    application.patch(
+      '/v1/administration/memberships/:membershipId/authority-role',
+      {
+        errorHandler: (error, request, reply) =>
+          error.statusCode !== undefined && error.statusCode >= 400 && error.statusCode < 500
+            ? accessProblem(
+                request,
+                reply,
+                400,
+                'PLACE_AUTHORITY_REQUEST_INVALID',
+                'Authority change request is invalid',
+                false,
+              )
+            : accessProblem(
+                request,
+                reply,
+                503,
+                'PLACE_AUTHORITY_CHANGE_UNAVAILABLE',
+                'Authority change is temporarily unavailable',
+                true,
+              ),
+      },
+      async (request, reply) => {
+        const principal = await verifyBearerPrincipal(request, dependencies.principalVerifier)
+        if (principal === undefined) return authenticationRequired(request, reply)
+        const params = membershipPathSchema.safeParse(request.params)
+        const body = authorityRoleChangeRequestSchema.safeParse(request.body)
+        if (!params.success || !body.success) {
+          return accessProblem(
+            request,
+            reply,
+            400,
+            'PLACE_AUTHORITY_REQUEST_INVALID',
+            'Authority change request is invalid',
+            false,
+          )
+        }
+        let actor
+        try {
+          actor = await resolveAccessSubject(principal, dependencies.membershipDirectory)
+        } catch (error) {
+          if (error instanceof UnregisteredPrincipalError) return accessDenied(request, reply)
+          return accessProblem(
+            request,
+            reply,
+            503,
+            'PLACE_AUTHORITY_CHANGE_UNAVAILABLE',
+            'Authority change is temporarily unavailable',
+            true,
+          )
+        }
+        let result
+        try {
+          result = await changeMembershipAuthorityRole({
+            actor,
+            targetMembershipId: params.data.membershipId,
+            nextRole: body.data.nextRole,
+            store: authorityManagement.store,
+            auditSink: dependencies.auditSink,
+            now: dependencies.now,
+          })
+        } catch {
+          return accessProblem(
+            request,
+            reply,
+            503,
+            'PLACE_AUTHORITY_CHANGE_UNAVAILABLE',
+            'Authority change is temporarily unavailable',
+            true,
+          )
+        }
+        if (result.status === 'forbidden') return accessDenied(request, reply)
+        if (result.status === 'not-found') {
+          return accessProblem(
+            request,
+            reply,
+            404,
+            'PLACE_MEMBERSHIP_NOT_FOUND',
+            'Membership not found',
+            false,
+          )
+        }
+        if (result.status === 'last-owner-protected') {
+          return accessProblem(
+            request,
+            reply,
+            409,
+            'PLACE_LAST_OWNER_PROTECTED',
+            'The final active owner is protected',
+            false,
+          )
+        }
+        if (result.status === 'conflict') {
+          return accessProblem(
+            request,
+            reply,
+            409,
+            'PLACE_AUTHORITY_CHANGE_CONFLICT',
+            'Membership authority changed concurrently',
+            true,
+          )
+        }
+        return reply
+          .header('cache-control', 'no-store')
+          .header('x-content-type-options', 'nosniff')
+          .status(200)
+          .send(
+            result.status === 'changed'
+              ? {
+                  status: result.status,
+                  membershipId: result.targetMembershipId,
+                  previousRole: result.previousRole,
+                  authorityRole: result.nextRole,
+                }
+              : {
+                  status: result.status,
+                  membershipId: result.targetMembershipId,
+                  authorityRole: body.data.nextRole,
+                },
+          )
       },
     )
   }

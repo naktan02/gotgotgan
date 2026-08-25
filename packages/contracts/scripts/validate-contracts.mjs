@@ -35,6 +35,15 @@ if (openApi.paths['/v1/me']?.get?.security?.[0]?.placeBearer?.length !== 0) {
 }
 const onboardingOperation = openApi.paths['/v1/memberships/onboarding']?.post
 const onboardingRequest = openApi.components.schemas.MembershipOnboardingRequest
+const currentConsentsOperation =
+  openApi.paths['/v1/membership-consents/current']?.get
+const browserCurrentConsentsOperation =
+  openApi.paths['/api/membership-consents/current']?.get
+const browserOnboardingOperation =
+  openApi.paths['/api/memberships/onboarding']?.post
+const authorityOperation =
+  openApi.paths['/v1/administration/memberships/{membershipId}/authority-role']?.patch
+const authorityRequest = openApi.components.schemas.AuthorityRoleChangeRequest
 if (
   onboardingOperation?.operationId !== 'completePlaceMembershipOnboarding' ||
   onboardingOperation.security?.[0]?.placeBearer?.length !== 0 ||
@@ -58,6 +67,46 @@ if (
     '#/components/responses/MembershipOnboardingUnavailable'
 ) {
   failures.push('Membership onboarding must publish stable consent and availability failures')
+}
+if (
+  currentConsentsOperation?.operationId !== 'getCurrentPlaceMembershipConsents' ||
+  openApi.paths['/v1/membership-consents/current']?.post !== undefined ||
+  currentConsentsOperation.security?.length !== 0
+) {
+  failures.push('Current membership consents must remain a public GET-only projection')
+}
+if (
+  browserCurrentConsentsOperation?.operationId !==
+    'getCurrentPlaceMembershipConsentsForBrowser' ||
+  browserCurrentConsentsOperation.security?.length !== 0 ||
+  browserOnboardingOperation?.operationId !==
+    'completePlaceBrowserMembershipOnboarding' ||
+  browserOnboardingOperation.security?.length !== 0 ||
+  openApi.paths['/api/memberships/onboarding']?.get !== undefined
+) {
+  failures.push('Browser membership operations must remain reviewed Web BFF operations')
+}
+if (
+  browserOnboardingOperation?.requestBody?.content?.['application/json']?.schema?.$ref !==
+    '#/components/schemas/MembershipOnboardingRequest' ||
+  browserOnboardingOperation?.responses?.['503']?.$ref !==
+    '#/components/responses/BrowserMembershipUnavailable'
+) {
+  failures.push(
+    'Browser membership onboarding must reuse the strict request and safe unavailable response',
+  )
+}
+if (
+  authorityOperation?.operationId !== 'changePlaceMembershipAuthorityRole' ||
+  authorityOperation.security?.[0]?.placeBearer?.length !== 0 ||
+  openApi.paths['/v1/administration/memberships/{membershipId}/authority-role']?.post !==
+    undefined ||
+  authorityRequest?.additionalProperties !== false ||
+  Object.keys(authorityRequest?.properties ?? {}).join(',') !== 'nextRole'
+) {
+  failures.push(
+    'Authority-role management must remain a strict bearer-authenticated PATCH',
+  )
 }
 if (
   openApi.paths['/api/auth/oidc/start']?.get?.operationId !== 'startPlaceBrowserLogin' ||

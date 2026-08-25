@@ -13,7 +13,9 @@ Place-owned roles, installs PostGIS as the administrator, and runs versioned mig
 The access module has a real PostgreSQL adapter for membership, bootstrap, authorization audit, and
 atomic authority-role changes. Its optional source-only onboarding transport verifies bearer
 evidence, rejects browser authority fields, and delegates current-consent creation to the access use
-case. No production composition supplies its verifier, policy, ID source, or caller-owned pool yet.
+case. The same optional route bundle publishes current consent discovery and an independently
+optional authority-role administration transport. No production composition supplies their verifier,
+policy, ID source, or caller-owned pool yet.
 No application database connection, job claim, provider, browser profile, or external integration
 exists.
 

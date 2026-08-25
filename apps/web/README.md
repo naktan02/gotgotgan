@@ -12,4 +12,8 @@ configuration loader accepts the database URL, OIDC client secret, and encryptio
 referenced secret files. The Node-only Next instrumentation hook installs this runtime only when
 explicitly enabled, schedules bounded cleanup, and closes it on process signals. Reviewed
 source-only start, callback, and POST-only logout handlers fail closed while the runtime is disabled.
-Identity/Gateway provisioning, search, maps, and provider imports remain explicitly not integrated.
+A colocated membership platform exposes thin current-consent and onboarding routes, resolves bearer
+evidence from the server-side session, and calls only fixed backend paths. It revalidates safe
+projections and has an independent fail-closed runtime so auth does not depend on membership
+internals. It exposes no tokens or internal endpoints. Identity/Gateway
+provisioning, search, maps, and provider imports remain explicitly not integrated.

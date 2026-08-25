@@ -12,10 +12,11 @@ a source-only physical PostGIS declaration, a tested database preparation/migrat
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
 Web OIDC secret-file loading, fail-closed Next startup installation, periodic bounded expiry cleanup,
 signal-owned pool closure, and reviewed fail-closed browser auth handlers also exist as source-only
-platform interfaces. A strict bearer-authenticated onboarding transport now connects verified
-principal evidence and current consent to the atomic membership use case, but remains unregistered in
-production composition. There is no active
-application database connection, provider account, map credential,
+platform interfaces. Strict backend transports publish current consents, consent-gated onboarding,
+and audited authority-role administration. The Web BFF owns browser consent/onboarding routes and a
+fixed server-to-server backend client so access tokens remain outside browser payloads. These routes
+fail closed or remain unregistered until their process dependencies are explicitly supplied. There
+is no active application database connection, provider account, map credential,
 Identity client, Gateway route, or AI Tool connection.
 
 ## Repository boundaries
