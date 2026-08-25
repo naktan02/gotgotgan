@@ -18,5 +18,6 @@ client, an environment-expanded public origin, and no Identity role assertions; 
 unprovisioned input, not evidence of an active connection. The web BFF core and `openid-client`
 adapter implement Authorization Code + PKCE S256 with state and nonce. Login transactions, access
 tokens, refresh tokens, and sessions remain server-side; the browser receives only host-bound opaque
-cookies. Route activation waits for durable shared storage so horizontal web replicas cannot lose or
-fork login/session state.
+cookies. Encrypted PostgreSQL storage now atomically consumes transactions and shares sessions across
+Web replicas. Route activation still waits for Next route composition, protected runtime configuration,
+bounded expiry cleanup, Identity provisioning, and Gateway validation.

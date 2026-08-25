@@ -67,7 +67,7 @@ async function waitForAuthenticatedConnection(connectionString) {
   throw lastError
 }
 
-test('database preparation confines runtime authority and persists Place access', { timeout: 90_000 }, async () => {
+test('database preparation confines runtime authority and persists Place access and browser auth', { timeout: 90_000 }, async () => {
   assert.match(
     databaseTestHost ?? '',
     /^[a-zA-Z0-9.-]+$/,
@@ -83,6 +83,8 @@ test('database preparation confines runtime authority and persists Place access'
   let runtimeClient
   let administratorClient
   let runtimePool
+  let oidcRuntimeA
+  let oidcRuntimeB
 
   try {
     const administratorPasswordFile = path.join(secretDirectory, 'administrator-password')
@@ -300,6 +302,122 @@ test('database preparation confines runtime authority and persists Place access'
     })
     assert.deepEqual(hiddenUnknownMembership, { status: 'forbidden' })
 
+    const { createOidcProcessRuntime } = await import(
+      '../../../apps/web/src/platform/auth/oidc-process-runtime.ts'
+    )
+    const encryption = {
+      activeKey: {
+        id: 'database-integration-key-v1',
+        value: randomBytes(32),
+      },
+    }
+    const oidcConfig = {
+      callbackUrl: 'https://place.example/api/auth/oidc/callback',
+      postLoginPath: '/',
+      scopes: ['openid'],
+      transactionTtlSeconds: 300,
+      sessionTtlSeconds: 3600,
+    }
+    const entropy = [
+      'transaction-opaque-id',
+      'oauth-state-secret',
+      'nonce-secret',
+      'pkce-verifier-secret',
+    ]
+    oidcRuntimeA = await createOidcProcessRuntime({
+      database: {
+        connectionString: runtimeUrl,
+        maxConnections: 1,
+        idleTimeoutMilliseconds: 30_000,
+        connectionTimeoutMilliseconds: 5_000,
+      },
+      encryption,
+      bffConfig: oidcConfig,
+      provider: {
+        buildAuthorizationUrl: async () => 'https://identity.example/oauth/v2/authorize',
+        exchangeAuthorizationCode: async () => { throw new Error('not used') },
+      },
+      randomValue: () => entropy.shift(),
+      calculatePkceChallenge: async () => 'pkce-challenge',
+      now: () => new Date('2026-08-25T12:10:00.000Z'),
+    })
+    const startResponse = await oidcRuntimeA.bff.start()
+    assert.equal(startResponse.status, 302)
+    const transactionCookie = /__Host-place_oidc_tx=([^;]+)/.exec(
+      startResponse.headers.get('set-cookie') ?? '',
+    )?.[1]
+    assert.equal(transactionCookie, 'transaction-opaque-id')
+
+    oidcRuntimeB = await createOidcProcessRuntime({
+      database: {
+        connectionString: runtimeUrl,
+        maxConnections: 1,
+        idleTimeoutMilliseconds: 30_000,
+        connectionTimeoutMilliseconds: 5_000,
+      },
+      encryption,
+      bffConfig: oidcConfig,
+      provider: {
+        buildAuthorizationUrl: async () => { throw new Error('not used') },
+        exchangeAuthorizationCode: async () => ({
+          accessToken: 'database-access-token-secret',
+          refreshToken: 'database-refresh-token-secret',
+          expiresAt: '2026-08-25T12:40:00.000Z',
+        }),
+      },
+      randomValue: () => 'session-opaque-id',
+      calculatePkceChallenge: async () => { throw new Error('not used') },
+      now: () => new Date('2026-08-25T12:10:00.000Z'),
+    })
+    const callbackRequest = new Request(
+      'https://place.example/api/auth/oidc/callback?code=code&state=oauth-state-secret',
+      { headers: { cookie: `__Host-place_oidc_tx=${transactionCookie}` } },
+    )
+    const callbackResponse = await oidcRuntimeB.bff.callback(callbackRequest)
+    assert.equal(callbackResponse.status, 303)
+    const sessionCookie = /__Host-place_session=([^;]+)/.exec(
+      callbackResponse.headers.get('set-cookie') ?? '',
+    )?.[1]
+    assert.equal(sessionCookie, 'session-opaque-id')
+    const encryptedSession = await administratorClient.query(
+      `
+        SELECT encryption_key_id, initialization_vector, authentication_tag, ciphertext
+        FROM browser_auth.sessions
+        WHERE id = $1
+      `,
+      [sessionCookie],
+    )
+    assert.equal(encryptedSession.rows[0].encryption_key_id, 'database-integration-key-v1')
+    assert.equal(encryptedSession.rows[0].initialization_vector.byteLength, 12)
+    assert.equal(encryptedSession.rows[0].authentication_tag.byteLength, 16)
+    assert.equal(
+      encryptedSession.rows[0].ciphertext.includes(
+        Buffer.from('database-access-token-secret'),
+      ),
+      false,
+    )
+    assert.equal(
+      encryptedSession.rows[0].ciphertext.includes(
+        Buffer.from('database-refresh-token-secret'),
+      ),
+      false,
+    )
+    const sessionRequest = new Request('https://place.example/', {
+      headers: { cookie: `__Host-place_session=${sessionCookie}` },
+    })
+    assert.deepEqual(await oidcRuntimeA.bff.resolveSession(sessionRequest), {
+      id: 'session-opaque-id',
+      tokens: {
+        accessToken: 'database-access-token-secret',
+        refreshToken: 'database-refresh-token-secret',
+        expiresAt: '2026-08-25T12:40:00.000Z',
+      },
+      expiresAt: '2026-08-25T12:40:00.000Z',
+    })
+    assert.equal((await oidcRuntimeA.bff.callback(callbackRequest)).status, 400)
+    assert.equal((await oidcRuntimeB.bff.logout(sessionRequest)).status, 303)
+    assert.equal(await oidcRuntimeA.bff.resolveSession(sessionRequest), undefined)
+
     const rolesResult = await administratorClient.query(
       `
         SELECT rolname, rolsuper, rolcreatedb, rolcreaterole, rolinherit, rolreplication, rolbypassrls
@@ -413,7 +531,13 @@ test('database preparation confines runtime authority and persists Place access'
       runtimeClient,
       "UPDATE access.audit_events SET outcome = 'forged'",
     )
+    await expectInsufficientPrivilege(
+      runtimeClient,
+      "UPDATE browser_auth.sessions SET expires_at = now() WHERE id = 'session-opaque-id'",
+    )
   } finally {
+    await oidcRuntimeB?.close().catch(() => undefined)
+    await oidcRuntimeA?.close().catch(() => undefined)
     await runtimePool?.end().catch(() => undefined)
     await runtimeClient?.end().catch(() => undefined)
     await administratorClient?.end().catch(() => undefined)

@@ -9,8 +9,9 @@ The E2E launcher injects the contract-owned active family-navigation test fixtur
 not supplied one. The fixture uses reserved example destinations and is test evidence only; it does
 not declare a real family service or active integration.
 
-OIDC E2E is intentionally absent while the callback routes and durable session store are not
-composed. When activated, Playwright must cover start, callback, refresh/expiry, logout, missing or
+OIDC E2E is intentionally absent while callback routes, protected runtime configuration, Identity,
+and Gateway are not activated; durable storage alone does not claim a public flow. When activated,
+Playwright must cover start, callback, refresh/expiry, logout, missing or
 replayed transaction, unmapped membership, suspended membership, and sanitized provider failure
 through the public Gateway path; browser assertions must prove that no token or internal endpoint is
 observable.

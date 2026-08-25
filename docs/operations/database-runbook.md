@@ -15,5 +15,8 @@ PostGIS contract test. It proves a repeated preparation succeeds, `place_app` ca
 cannot perform DDL, alter table ownership, or modify migration metadata, and the spatial query plan uses
 `canonical_places_location_gist`. The same test exercises access bootstrap/resolution, last-owner
 protection, stale-write conflict, malformed-ID non-disclosure, and role-change/audit rollback through
-the module interface. Before activation, still perform a database-level backup and isolated restore
-and record upgrade/rollback evidence. Never run DDL from the runtime process.
+the module interface. It also proves two Web pools share encrypted browser-auth state, consume a login
+transaction once, restore/logout a session across instances, and cannot update session rows directly.
+Before activation, still perform a database-level backup and isolated restore, verify matching
+browser-auth key recovery, and record expiry cleanup plus upgrade/rollback evidence. Never run DDL
+from the runtime process.

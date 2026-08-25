@@ -44,6 +44,7 @@ export type BrowserSession = Readonly<{
 
 export type BrowserSessionStore = Readonly<{
   create(session: BrowserSession): Promise<void>
+  find(id: string): Promise<BrowserSession | undefined>
   delete(id: string): Promise<void>
 }>
 
@@ -221,6 +222,19 @@ export function createOidcBff(dependencies: Readonly<{
         '__Host-place_session=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax',
       )
       return new Response(null, { status: 303, headers })
+    },
+    async resolveSession(request: Request): Promise<BrowserSession | undefined> {
+      const sessionId = cookieValue(request, '__Host-place_session')
+      if (sessionId === undefined) return undefined
+      const session = await dependencies.sessionStore.find(sessionId)
+      if (
+        session !== undefined &&
+        new Date(session.expiresAt).getTime() <= dependencies.now().getTime()
+      ) {
+        await dependencies.sessionStore.delete(sessionId)
+        return undefined
+      }
+      return session
     },
   }
 }

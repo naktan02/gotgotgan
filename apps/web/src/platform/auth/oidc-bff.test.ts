@@ -29,6 +29,7 @@ describe('OIDC browser BFF', () => {
       },
       sessionStore: {
         create: async () => undefined,
+        find: async () => undefined,
         delete: async () => undefined,
       },
       randomValue: () => 'unused',
@@ -64,6 +65,7 @@ describe('OIDC browser BFF', () => {
       },
       sessionStore: {
         create: async () => undefined,
+        find: async () => undefined,
         delete: async () => undefined,
       },
       randomValue: () => entropy.shift()!,
@@ -140,6 +142,7 @@ describe('OIDC browser BFF', () => {
       },
       sessionStore: {
         create: async (session) => void sessions.push(session),
+        find: async () => undefined,
         delete: async () => undefined,
       },
       randomValue: () => 'session-opaque-id',
@@ -207,6 +210,7 @@ describe('OIDC browser BFF', () => {
       },
       sessionStore: {
         create: async () => undefined,
+        find: async () => undefined,
         delete: async () => undefined,
       },
       randomValue: () => 'unused',
@@ -260,6 +264,7 @@ describe('OIDC browser BFF', () => {
       },
       sessionStore: {
         create: async () => { sessionCreated = true },
+        find: async () => undefined,
         delete: async () => undefined,
       },
       randomValue: () => 'unused',
@@ -315,6 +320,7 @@ describe('OIDC browser BFF', () => {
       },
       sessionStore: {
         create: async () => { sessionCreated = true },
+        find: async () => undefined,
         delete: async () => undefined,
       },
       randomValue: () => 'unused',
@@ -352,6 +358,7 @@ describe('OIDC browser BFF', () => {
       },
       sessionStore: {
         create: async () => undefined,
+        find: async () => undefined,
         delete: async (id) => { deleted.push(id) },
       },
       randomValue: () => 'unused',
@@ -367,5 +374,89 @@ describe('OIDC browser BFF', () => {
     expect(response.status).toBe(303)
     expect(response.headers.get('location')).toBe('/')
     expect(response.headers.get('set-cookie')).toContain('__Host-place_session=; Max-Age=0')
+  })
+
+  it('restores an unexpired server-side session from the opaque browser cookie', async () => {
+    const session = {
+      id: 'opaque-session-id',
+      tokens: {
+        accessToken: 'access-token-secret',
+        refreshToken: 'refresh-token-secret',
+        expiresAt: '2026-08-25T12:30:00.000Z',
+      },
+      expiresAt: '2026-08-25T12:30:00.000Z',
+    }
+    const deleted: string[] = []
+    const bff = createOidcBff({
+      config: {
+        callbackUrl: 'https://place.example/api/auth/oidc/callback',
+        postLoginPath: '/',
+        scopes: ['openid'],
+        transactionTtlSeconds: 300,
+        sessionTtlSeconds: 3600,
+      },
+      provider: {
+        buildAuthorizationUrl: async () => { throw new Error('not used') },
+        exchangeAuthorizationCode: async () => { throw new Error('not used') },
+      },
+      transactionStore: {
+        create: async () => undefined,
+        take: async () => undefined,
+      },
+      sessionStore: {
+        create: async () => undefined,
+        find: async (id: string) => id === session.id ? session : undefined,
+        delete: async (id) => { deleted.push(id) },
+      },
+      randomValue: () => 'unused',
+      calculatePkceChallenge: async () => 'unused',
+      now: () => new Date('2026-08-25T12:00:00.000Z'),
+    })
+
+    await expect(bff.resolveSession(new Request('https://place.example/', {
+      headers: { cookie: '__Host-place_session=opaque-session-id' },
+    }))).resolves.toEqual(session)
+    expect(deleted).toEqual([])
+  })
+
+  it('deletes an expired server-side session instead of restoring its tokens', async () => {
+    const deleted: string[] = []
+    const bff = createOidcBff({
+      config: {
+        callbackUrl: 'https://place.example/api/auth/oidc/callback',
+        postLoginPath: '/',
+        scopes: ['openid'],
+        transactionTtlSeconds: 300,
+        sessionTtlSeconds: 3600,
+      },
+      provider: {
+        buildAuthorizationUrl: async () => { throw new Error('not used') },
+        exchangeAuthorizationCode: async () => { throw new Error('not used') },
+      },
+      transactionStore: {
+        create: async () => undefined,
+        take: async () => undefined,
+      },
+      sessionStore: {
+        create: async () => undefined,
+        find: async () => ({
+          id: 'expired-session-id',
+          tokens: {
+            accessToken: 'expired-access-token-secret',
+            expiresAt: '2026-08-25T11:59:59.000Z',
+          },
+          expiresAt: '2026-08-25T11:59:59.000Z',
+        }),
+        delete: async (id) => { deleted.push(id) },
+      },
+      randomValue: () => 'unused',
+      calculatePkceChallenge: async () => 'unused',
+      now: () => new Date('2026-08-25T12:00:00.000Z'),
+    })
+
+    await expect(bff.resolveSession(new Request('https://place.example/', {
+      headers: { cookie: '__Host-place_session=expired-session-id' },
+    }))).resolves.toBeUndefined()
+    expect(deleted).toEqual(['expired-session-id'])
   })
 })

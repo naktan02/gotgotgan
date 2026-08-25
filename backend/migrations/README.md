@@ -6,3 +6,7 @@ applied migration; append a new file and keep every schema, grant, index, and ro
 
 Migrations define storage shared by module-owned persistence adapters. They are not repositories and
 must not import business modules or another project.
+
+`000003` adds Web-owned browser OIDC transaction and session persistence. It stores only encrypted
+payloads plus authenticated metadata and grants the runtime role select/insert/delete rather than
+schema or arbitrary update authority.
