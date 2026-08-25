@@ -20,5 +20,6 @@ adapter implement Authorization Code + PKCE S256 with state and nonce. Login tra
 tokens, refresh tokens, and sessions remain server-side; the browser receives only host-bound opaque
 cookies. Encrypted PostgreSQL storage now atomically consumes transactions and shares sessions across
 Web replicas. Protected secret-file loading and bounded expiry cleanup exist as source-only Web
-interfaces. Route activation still waits for actual Next route/lifecycle composition, Identity
-provisioning, and Gateway validation.
+interfaces. The actual Node Next lifecycle now installs them only behind explicit fail-closed
+activation and owns periodic cleanup plus signal close. Route activation still waits for reviewed
+handlers, Identity provisioning, and Gateway validation.

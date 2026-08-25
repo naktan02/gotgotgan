@@ -10,8 +10,9 @@ Current delivery state: **source-only, Stage 3 in progress**. Independent web/ba
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
-Web OIDC secret-file loading and bounded expired-record cleanup also exist as source-only platform
-interfaces. There is no active application database connection, provider account, map credential,
+Web OIDC secret-file loading, fail-closed Next startup installation, periodic bounded expiry cleanup,
+and signal-owned pool closure also exist as source-only platform interfaces. There is no active
+application database connection, provider account, map credential,
 Identity client, Gateway route, or AI Tool connection.
 
 ## Repository boundaries

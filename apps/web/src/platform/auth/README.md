@@ -13,7 +13,11 @@ This folder owns the confidential browser OIDC boundary for the Place Web proces
 - `oidc-runtime-config.ts` loads database credentials, the confidential client secret, and the
   rotatable encryption keyring only from deployment-referenced one-line secret files. It rejects
   insecure issuers, malformed 32-byte base64url keys, duplicate key IDs, and unbounded cleanup.
+- `next-oidc-lifecycle.ts` is the explicit Node process owner selected by Next instrumentation. It
+  defaults to disabled, rejects ambiguous activation, installs one runtime, schedules non-overlapping
+  bounded cleanup, and owns signal-triggered close.
 
-No route handler imports this runtime yet. Identity provisioning, public callback routes, Gateway
-routing, and actual Next process installation remain activation gates. Do not replace the PostgreSQL
-adapter with process memory outside deterministic tests.
+`src/instrumentation.ts` now installs this lifecycle before the Node server becomes ready, but no
+route handler consumes it yet. Identity provisioning, public callback routes, and Gateway routing
+remain activation gates. Do not replace the PostgreSQL adapter with process memory outside
+deterministic tests.

@@ -27,8 +27,8 @@ readiness before returning the BFF interface, and exposes one explicit asynchron
 
 This decision does not activate a Next.js route, Identity client, Gateway route, or application
 database deployment. Those remain separately gated. The runtime now has a bounded expired-record
-cleanup operation and protected secret-file configuration; actual Next lifecycle/route installation
-remains required before activation.
+cleanup operation and protected secret-file configuration; actual Next lifecycle installation is
+present behind explicit fail-closed activation, while reviewed route installation remains required.
 
 ## Consequences
 

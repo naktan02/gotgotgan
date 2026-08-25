@@ -16,6 +16,9 @@ The source-only Web OIDC configuration consumes `PLACE_DATABASE_URL_FILE`,
 `PLACE_OIDC_CLIENT_SECRET_FILE`, and `PLACE_OIDC_ENCRYPTION_KEYRING_FILE`. A deployment secret sink
 must mount those files read-only; direct credential environment values are not supported. Non-secret
 issuer, client ID, callback, scope, TTL, pool, and cleanup settings remain injected and fail closed.
+`PLACE_OIDC_RUNTIME_ENABLED=true` is required to install the runtime; false or missing keeps the
+source-only Web disconnected, while any other value fails startup. Activation also requires a bounded
+`PLACE_OIDC_CLEANUP_INTERVAL_SECONDS` value.
 
 `identity/oidc-client.json` is the Place-owned, unprovisioned Identity input. The provisioner must
 expand `PLACE_PUBLIC_ORIGIN`, deliver the generated client ID/secret through the approved secret

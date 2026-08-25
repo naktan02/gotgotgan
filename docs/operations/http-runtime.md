@@ -18,15 +18,18 @@ The keyring shape is
 Rotation keeps the active key plus any retained decryption keys in this protected file. The loader
 also requires these non-secret settings:
 
+- `PLACE_OIDC_RUNTIME_ENABLED`, exactly `true` to install or `false`/unset to remain inactive;
 - `PLACE_OIDC_ISSUER`, `PLACE_OIDC_CLIENT_ID`, and `PLACE_OIDC_CALLBACK_URL`;
 - `PLACE_OIDC_POST_LOGIN_PATH` and space-delimited `PLACE_OIDC_SCOPES`;
 - `PLACE_OIDC_TRANSACTION_TTL_SECONDS` and `PLACE_OIDC_SESSION_TTL_SECONDS`;
 - `PLACE_OIDC_DATABASE_MAX_CONNECTIONS`;
 - `PLACE_OIDC_DATABASE_IDLE_TIMEOUT_MILLISECONDS`;
-- `PLACE_OIDC_DATABASE_CONNECTION_TIMEOUT_MILLISECONDS`; and
-- `PLACE_OIDC_CLEANUP_BATCH_SIZE`.
+- `PLACE_OIDC_DATABASE_CONNECTION_TIMEOUT_MILLISECONDS`;
+- `PLACE_OIDC_CLEANUP_BATCH_SIZE`; and
+- `PLACE_OIDC_CLEANUP_INTERVAL_SECONDS`.
 
 Cleanup is rejected above 1,000 rows per table per call. The actual Next process must call this
-loader, register close/drain and periodic retryable cleanup, and compose reviewed routes before
-callback activation. An operator must not substitute direct secret values or process memory for
-login transactions or sessions.
+loader only through its Node instrumentation lifecycle, which now installs once before readiness,
+registers signal close, and schedules non-overlapping retryable cleanup. Reviewed routes and mounted
+deployment secrets remain required before callback activation. An operator must not substitute direct
+secret values or process memory for login transactions or sessions.

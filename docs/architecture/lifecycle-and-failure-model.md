@@ -13,5 +13,9 @@ OIDC transactions are one-time database records and sessions fail closed on expi
 runtime deletes abandoned expired transactions and sessions in independently bounded batches of at
 most 1,000 rows per table. Concurrent cleanup calls may select the same expired IDs; only one delete
 succeeds and a later call continues remaining work, so cleanup is retryable and never requires UPDATE
-authority. Installation, scheduling, drain, and reviewed routes in the actual Next process remain
-activation gates.
+authority.
+
+The Node-only Next instrumentation hook owns installation before server readiness. Explicit
+activation creates one process runtime, schedules non-overlapping cleanup with an unreferenced timer,
+and registers SIGINT/SIGTERM close handlers. Missing activation remains a no-op and ambiguous
+activation fails closed. Reviewed auth routes and deployment activation remain separate gates.

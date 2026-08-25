@@ -9,5 +9,7 @@ uses opaque secure cookies; its `openid-client` adapter performs Authorization C
 An encrypted PostgreSQL adapter now provides atomic one-time transactions and shared sessions, while
 the process composition owns readiness, bounded expired-record cleanup, and pool closure. A protected
 configuration loader accepts the database URL, OIDC client secret, and encryption keyring only through
-referenced secret files. Next route activation and Identity/Gateway provisioning remain gated, so
-search, maps, and provider imports remain explicitly not integrated.
+referenced secret files. The Node-only Next instrumentation hook installs this runtime only when
+explicitly enabled, schedules bounded cleanup, and closes it on process signals. Auth route activation
+and Identity/Gateway provisioning remain gated, so search, maps, and provider imports remain
+explicitly not integrated.
