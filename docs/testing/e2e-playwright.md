@@ -35,8 +35,7 @@ success boundary and unauthorized target non-disclosure. Browser Playwright onbo
 remains integration-gated until a test composition can exercise a complete provisioned Identity
 session through Gateway.
 
-Stage 4 Playwright starts a test-owned publication Backend beside the Web process. Desktop and
-mobile Chromium render an unlisted Collection and public Entry through the real Web server boundary,
-then confirm an undisclosed identifier returns the same safe 404 without membership or rating data.
-The fixture contains contract-faithful personal data only and is not a provider or authentication
-bypass.
+Stage 4 Playwright는 Web process 옆에 test-owned 공개 Backend를 실행한다. desktop과 mobile
+Chromium은 실제 Web server 경계를 통해 unlisted Collection과 public Entry를 표시한다. 공개되지
+않은 identifier는 membership이나 Rating data 없이 동일한 안전한 404를 반환하는지 확인한다.
+fixture는 계약을 따르는 개인 데이터만 포함하며 provider 또는 authentication 우회가 아니다.

@@ -1,5 +1,5 @@
-# PostgreSQL writing adapter
+# PostgreSQL Writing adapter
 
-The adapter atomically applies optimistic document commands, replaces owned Place links, records a
-private revision, and stores an idempotency receipt. Publication lookup uses an allowlisted query
-that cannot select owner or revision-history fields.
+optimistic document command 적용, 소유한 Place link 교체, private revision 기록, idempotency
+receipt 저장을 하나의 transaction으로 처리한다. 공개 조회는 owner와 revision-history
+field를 선택할 수 없는 허용 목록 query를 사용한다.

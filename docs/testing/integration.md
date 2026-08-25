@@ -43,11 +43,11 @@ create, merge, redirect resolution, split, provider-identity resolution, retirem
 conflicting ID reuse, and concurrent provider-link decisions through the places interface. Direct
 runtime-role checks prove evidence, decisions, redirects, and lineage cannot be rewritten or deleted.
 
-The focused personal-content suite applies migrations in another disposable PostGIS runtime and
-uses the public Library, Visits, and Writing interfaces. It proves Personal Rating changes retain
-history, repeated Visits derive first/last/count, public Collection and writing projections use
-explicit field allowlists, multi-Place Entry revisions are optimistic and retained, and the runtime
-cannot rewrite Visits, rating events, or writing revisions.
+개인 콘텐츠 전용 suite는 별도의 disposable PostGIS runtime에 migration을 적용하고 Library,
+Visits, Writing public interface를 사용한다. Personal Rating 변경 이력 보존, 반복 Visit에서
+최초·최근·횟수 파생, public Collection/Writing의 명시적 field 허용 목록, 여러 Place를 연결한
+Entry revision의 optimistic 변경과 보존, runtime의 Visit·rating event·Writing revision 수정
+거부를 검증한다.
 
 The published-image smoke is intentionally not replaced by a local tag test. The manual release
 workflow removes any local copies, pulls both exact GHCR platform digests, checks non-root and

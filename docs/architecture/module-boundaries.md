@@ -20,7 +20,7 @@ canonical identity changes and reference resolution. Their handoff is deliberate
 idempotent: composition translates a recorded decision into a canonical command. This avoids direct
 module imports and permits retry/review without treating provider evidence as an overwrite command.
 
-Library, Visits, and Writing are separate owners. Library does not store visited state, Visits does
-not store ratings or writing, and Writing links only Canonical Place IDs. Their transports depend on
-a platform-level product-authorization result; the entrypoint adapts verified Access membership and
-permissions without allowing a product module to import Access source.
+Library, Visits, Writing은 서로 다른 owner다. Library는 visited 상태를 저장하지 않고,
+Visits는 Rating이나 Writing을 저장하지 않으며, Writing은 Canonical Place ID만 연결한다.
+각 transport는 platform 수준 product-authorization 결과에 의존한다. entrypoint는 제품
+모듈이 Access source를 import하지 않도록 검증된 Access membership과 permission을 변환한다.

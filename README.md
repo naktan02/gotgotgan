@@ -36,13 +36,13 @@ create/link/merge/split/retire commands are fingerprint-idempotent, preserve pro
 redirects, and lineage, and are verified against real PostGIS with least-privilege runtime denial.
 No HTTP or Worker transport exposes these internal module interfaces yet.
 
-The Stage 4 personal-content foundation adds independent `library`, `visits`, and `writing` modules
-with module-owned schemas and PostgreSQL adapters. Saved/wanted preferences and decimal personal
-ratings remain distinct; rating changes and writing revisions retain private history; visited state
-is derived only from immutable repeatable Visits. Authenticated product commands derive membership
-from verified bearer evidence, while public and unlisted Collection/writing reads use separate
-allowlisted projections through the Web server. `place-reference.v1` publishes available,
-unavailable, and redacted cross-service outcomes without database access.
+Stage 4 개인 콘텐츠 기반은 각자 schema와 PostgreSQL adapter를 소유하는 `library`, `visits`,
+`writing` 모듈로 구성된다. 저장·가고 싶음 preference와 소수 단위 Personal Rating은 서로
+분리하고, Rating 변경과 Writing revision은 비공개 이력으로 보존한다. 방문 여부는 변경
+불가능하고 반복 가능한 Visit에서만 파생한다. 인증된 제품 command는 검증된 bearer
+evidence에서 membership을 구하며, public·unlisted Collection/Writing 조회는 Web 서버를
+통해 별도의 허용 목록 projection을 사용한다. `place-reference.v1`은 database 접근 없이
+`available`, `unavailable`, `redacted` cross-service 결과를 제공한다.
 
 ## Repository boundaries
 

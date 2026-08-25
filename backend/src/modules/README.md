@@ -23,10 +23,11 @@ canonical create/link/merge/split/retire commands and preserves redirects and li
 composition root translates an accepted ingestion decision into the places interface; neither module
 imports the other's source and a candidate never becomes canonical merely by being recorded.
 
-`library` owns member preferences, Collections, Tags, personal-rating history, and copy provenance.
-`visits` owns immutable repeatable Visit occurrences and derived summaries. `writing` owns versioned
-Notes, Entries, Place links, and publication projections. None imports another module or queries its
-tables; HTTP entrypoint composition injects their public interfaces and shared authorization result.
+`library`는 회원 preference, Collection, Tag, Personal Rating 이력, 복사 provenance를 소유한다.
+`visits`는 변경 불가능하고 반복 가능한 Visit occurrence와 파생 summary를 소유한다.
+`writing`은 versioned Note, Entry, Place link, 공개 projection을 소유한다. 어느 모듈도 다른
+모듈을 import하거나 table을 조회하지 않는다. HTTP entrypoint composition이 각 public
+interface와 공통 authorization 결과를 주입한다.
 
 `access` owns membership and authorization rules. `administration` owns authorized management
 workflows and review surfaces; it does not own or duplicate access policy.

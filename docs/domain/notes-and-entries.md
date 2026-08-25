@@ -1,10 +1,10 @@
-# Notes and entries
+# Note와 Entry
 
-Note and Entry are short and long writing forms. A Note links exactly one Canonical Place and an
-Entry links one to 32 distinct Canonical Places. Private, unlisted, or public visibility is an
-attribute governed by authorization, not a separate content type. Shared visibility requires an
-opaque publication ID.
+Note와 Entry는 각각 짧은 글과 긴 글이다. Note는 정확히 하나의 Canonical Place를 연결하고,
+Entry는 서로 다른 1개에서 32개의 Canonical Place를 연결한다. private, unlisted, public은
+별도 콘텐츠 종류가 아니라 authorization이 관리하는 visibility 속성이다. 공유 visibility에는
+불투명한 publication ID가 필요하다.
 
-Updates require the expected version and append private revision history. Anonymous reads execute a
-separate allowlisted projection that excludes owner identity and revisions. A later diary or task
-product links through `place-reference.v1` instead of sharing writing tables.
+수정할 때는 expected version을 확인하고 비공개 revision 이력을 추가한다. 익명 조회는 owner
+identity와 revision을 제외한 별도의 허용 목록 projection을 실행한다. 향후 Diary나 Task
+서비스는 Writing table을 공유하지 않고 `place-reference.v1`로 Place를 연결한다.

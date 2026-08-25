@@ -21,9 +21,9 @@ identity links, applied-decision idempotency, redirects, and merge/split lineage
 may insert evidence and history and perform only the bounded canonical/link updates required by the
 module adapter; it cannot update or delete evidence, decisions, redirects, or lineage.
 
-`000007` creates Library preferences, private rating history, Collections, Tags, ordered membership,
-copy provenance, and command receipts. `000008` creates append-only Visit occurrences and the member-
-Place-time index used for derived summaries. `000009` creates optimistic Note/Entry documents,
-ordered Place links, immutable revisions, and command receipts. Runtime grants allow only the
-bounded updates used by current projections; rating events, Visits, revisions, copy provenance, and
-receipts cannot be rewritten or deleted.
+`000007`은 Library preference, 비공개 Rating 이력, Collection, Tag, 정렬된 membership, 복사
+provenance, command receipt를 생성한다. `000008`은 append-only Visit occurrence와 파생 summary에
+사용하는 member-Place-time index를 생성한다. `000009`는 optimistic Note/Entry document,
+정렬된 Place link, 변경 불가능한 revision, command receipt를 생성한다. runtime grant는 현재
+projection에 필요한 제한된 update만 허용하며 rating event, Visit, revision, 복사 provenance,
+receipt는 수정하거나 삭제할 수 없다.

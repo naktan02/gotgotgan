@@ -29,11 +29,11 @@ canonical create/link/merge/split/retire commands and resolves redirects/provide
 PostgreSQL adapters and migrations are source-only and have real PostGIS integration evidence; no
 HTTP or Worker transport is registered for them yet.
 
-The `library`, `visits`, and `writing` modules expose independent application interfaces,
-least-privilege PostgreSQL adapters, and owning HTTP transports. Production composition supplies a
-shared authorization result derived from Access rather than browser actor fields. Public Collection
-and writing reads are separate allowlisted projections; Visits, Personal Rating history, and writing
-revisions stay private.
+`library`, `visits`, `writing` 모듈은 독립적인 application interface, 최소 권한 PostgreSQL
+adapter, 모듈 소유 HTTP transport를 제공한다. production composition은 browser actor field가
+아니라 Access에서 파생한 공통 authorization 결과를 주입한다. public Collection과 Writing
+조회는 별도의 허용 목록 projection이며 Visit, Personal Rating 이력, Writing revision은
+비공개로 유지한다.
 
 Read `src/modules/README.md` before adding a capability. A module keeps domain, application, adapters,
 transport, and tests together; root entrypoints only wire dependencies and own process lifecycle.

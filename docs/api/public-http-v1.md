@@ -7,19 +7,19 @@ return only public projections.
 Product endpoints are added by their owning module transport and published in OpenAPI. The root HTTP
 entrypoint registers them and owns lifecycle only.
 
-`POST /v1/library/commands`, `POST /v1/visits`, and `POST /v1/writing/commands` are strict bearer-
-authenticated Backend operations. They reject member, role, grade, and tier input and derive the
-member through the Access composition. Library and writing command IDs are idempotent; writing
-updates additionally require an expected version. `GET /v1/library/places/{placeId}` and
-`GET /v1/places/{placeId}/visit-summary` return member-private projections. `GET /v1/library`,
-`GET /v1/writing`, and `GET /v1/places/{placeId}/visits` provide authenticated owner views; no
-equivalent anonymous route exists.
+`POST /v1/library/commands`, `POST /v1/visits`, `POST /v1/writing/commands`는 strict bearer
+인증을 요구하는 Backend operation이다. member, role, grade, tier 입력을 거부하고 Access
+composition에서 member를 파생한다. Library와 Writing command ID는 멱등이고 Writing 수정에는
+expected version도 필요하다. `GET /v1/library/places/{placeId}`와
+`GET /v1/places/{placeId}/visit-summary`는 회원 private projection을 반환한다.
+`GET /v1/library`, `GET /v1/writing`, `GET /v1/places/{placeId}/visits`는 인증된 owner view이며
+동등한 anonymous route는 없다.
 
-`GET /v1/public/collections/{publicationId}` and `GET /v1/public/writing/{publicationId}` are the
-only Stage 4 anonymous Backend projections. The Web exposes corresponding `/api/public/...` BFF
-reads and `/share/...` pages through its fixed internal Backend origin. Unknown and private
-identifiers return the same safe not-found shape. Public projections never contain membership,
-ratings, Visits, Tags, provenance, or revision history.
+`GET /v1/public/collections/{publicationId}`와 `GET /v1/public/writing/{publicationId}`는
+Stage 4에서 유일한 anonymous Backend projection이다. Web은 고정된 내부 Backend origin을 통해
+대응하는 `/api/public/...` BFF 조회와 `/share/...` page를 제공한다. 알 수 없는 identifier와
+private identifier는 동일하고 안전한 not-found 응답을 반환한다. public projection에는
+membership, Rating, Visit, Tag, provenance, revision history가 포함되지 않는다.
 
 `GET /healthz` reports process liveness and does not depend on PostgreSQL, Identity, or another
 process. `GET /readyz` reports 503 with a bounded `unavailable` projection when an explicitly required

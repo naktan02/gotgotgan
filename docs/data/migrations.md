@@ -27,7 +27,8 @@ status/version, aliases, provider identities, applied-decision fingerprints, red
 The runtime role can perform only required inserts plus bounded canonical/provider-link updates. It
 cannot rewrite or delete evidence, resolution decisions, redirects, or lineage.
 
-Migrations `000007` through `000009` add independent Library, Visits, and Writing schemas. Library
-retains private Personal Rating changes and copy provenance. Visits are append-only. Writing applies
-optimistic current-document updates while retaining immutable revisions. Runtime column grants are
-bounded to current projections and ordered links; history and receipts remain insert/select only.
+Migration `000007`부터 `000009`는 독립된 Library, Visits, Writing schema를 추가한다. Library는
+비공개 Personal Rating 변경과 복사 provenance를 보존한다. Visit은 append-only다. Writing은
+현재 document를 optimistic하게 갱신하면서 변경 불가능한 revision을 보존한다. runtime
+column grant는 현재 projection과 정렬된 link에 필요한 범위로 제한하며 history와 receipt는
+insert/select만 허용한다.

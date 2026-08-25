@@ -1,5 +1,6 @@
-# PostgreSQL library adapter
+# PostgreSQL Library adapter
 
-The adapter owns one transactional command boundary over the Library schema. It records command
-receipts, current preferences, rating history, collection/tag membership, and copy provenance.
-Published reads enumerate their columns and never select personal preference or ownership fields.
+Library schema에 대한 하나의 transaction command 경계를 소유한다. command receipt, 현재
+Place Preferences, Personal Rating 이력, Collection·Tag membership, 복사 provenance를
+기록한다. 공개 조회는 반환 column을 명시하며 개인 preference나 ownership field를 조회하지
+않는다.

@@ -26,7 +26,7 @@ evidence.v1.schema.json` defines the bounded proof emitted only after disposable
 backup and isolated restore verification. Neither document contains environment values, credentials,
 or a claim that an environment is active.
 
-`place-reference/place-reference.v1.schema.json` publishes the stable cross-product result envelope.
-Available references expose only the resolved Canonical Place ID; unavailable and redacted outcomes
-contain no identifier. Stage 4 HTTP schemas likewise keep authenticated command membership outside
-browser input and distinguish the two anonymous publication projections.
+`place-reference/place-reference.v1.schema.json`은 안정적인 cross-product 결과 envelope을
+공개한다. available reference에는 해석된 Canonical Place ID만 포함하고 unavailable과
+redacted 결과에는 identifier를 포함하지 않는다. Stage 4 HTTP schema도 인증 command의
+membership을 browser 입력에서 제외하고 두 anonymous 공개 projection을 구분한다.

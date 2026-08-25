@@ -25,7 +25,7 @@ Stage 3's source foundation includes immutable ingestion evidence/candidates/dec
 fingerprint-idempotent canonical create/link/merge/split/retire behavior with redirect and lineage
 history. This does not activate a product transport or database environment.
 
-Stage 4 adds member-owned Library, Visits, and Writing source implementations, authenticated Backend
-commands, Web-fronted public/unlisted projections, and `place-reference.v1`. Real PostGIS and
-desktop/mobile Playwright tests prove history retention, derived visits, and private-field
-non-disclosure without making an Identity, Gateway, or deployment flow active.
+Stage 4는 회원 소유 Library, Visits, Writing 구현과 인증된 Backend command, Web이 앞단을
+소유하는 public/unlisted projection, `place-reference.v1`을 추가했다. 실제 PostGIS와
+desktop/mobile Playwright 테스트로 이력 보존, Visit 파생, private field 비노출을 검증했다.
+이는 Identity, Gateway, deployment flow가 활성화되었다는 의미가 아니다.
