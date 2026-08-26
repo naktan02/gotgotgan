@@ -85,6 +85,11 @@ describe('acquisition worker interface', () => {
       '01992d20-7200-7000-8000-000000000013',
       '01992d20-7200-7000-8000-000000000014',
       '01992d20-7200-7000-8000-000000000015',
+      '01992d20-7200-7000-8000-000000000016',
+      '01992d20-7200-7000-8000-000000000017',
+      '01992d20-7200-7000-8000-000000000018',
+      '01992d20-7200-7000-8000-000000000019',
+      '01992d20-7200-7000-8000-000000000020',
     ]
     const run = createImportWorker({
       workerId: 'worker-a',
@@ -120,6 +125,13 @@ describe('acquisition worker interface', () => {
         candidateId: expect.any(String),
         decisionId: expect.any(String),
         proposedPlaceId: expect.any(String),
+        fulfillment: {
+          jobId: '01992d20-7200-7000-8000-000000000016',
+          observationId: '01992d20-7200-7000-8000-000000000017',
+          candidateId: '01992d20-7200-7000-8000-000000000018',
+          decisionId: '01992d20-7200-7000-8000-000000000019',
+          proposedPlaceId: '01992d20-7200-7000-8000-000000000020',
+        },
       }],
     })
     expect(JSON.stringify(outcome)).not.toContain('profile:')

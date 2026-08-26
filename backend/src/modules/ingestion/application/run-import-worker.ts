@@ -144,14 +144,28 @@ export function createImportWorker(dependencies: Readonly<{
       if (artifact.checksum !== result.capture.checksum) {
         return finishFailure(claim, 'capture-invalid', false, finishedAt)
       }
-      const items: PreparedImportItem[] = result.items.map((item) => ({
-        ...item,
-        itemId: dependencies.nextId(),
-        observationId: dependencies.nextId(),
-        candidateId: dependencies.nextId(),
-        decisionId: dependencies.nextId(),
-        proposedPlaceId: dependencies.nextId(),
-      }))
+      const items: PreparedImportItem[] = result.items.map((item) => {
+        const prepared = {
+          ...item,
+          itemId: dependencies.nextId(),
+          observationId: dependencies.nextId(),
+          candidateId: dependencies.nextId(),
+          decisionId: dependencies.nextId(),
+          proposedPlaceId: dependencies.nextId(),
+        }
+        return item.providerPlaceId === undefined || item.reviewReasons.length > 0
+          ? prepared
+          : {
+              ...prepared,
+              fulfillment: {
+                jobId: dependencies.nextId(),
+                observationId: dependencies.nextId(),
+                candidateId: dependencies.nextId(),
+                decisionId: dependencies.nextId(),
+                proposedPlaceId: dependencies.nextId(),
+              },
+            }
+      })
       let page
       try {
         page = await dependencies.store.recordPage({

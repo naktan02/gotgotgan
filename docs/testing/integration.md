@@ -24,6 +24,12 @@ profile/secret/cookie가 보이지 않고 동일 review 재실행이 replay되�
 실제 AES-256-GCM 파일 adapter로 artifact를 저장하고 보존기한 뒤 sweep하여 파일 삭제와 DB
 `deleted_at` 표식, 반복 실행의 빈 결과까지 확인한다.
 
+추가 Fulfillment PostGIS 수직 검증은 두 회원이 동일 NAVER Place ID를 가져왔을 때 공동 job 1개와
+intent 2개만 생성되고 서버 상세 Adapter가 한 번만 호출되는지 확인한다. 한 Canonical Place와 Provider
+link를 만든 뒤 두 Library에 멱등 저장하며, 세 번째 회원의 같은 장소 Import는 Canonical cache hit으로
+상세 Adapter 호출 없이 완료된다. 이 테스트는 module 공개 interface와 실제 least-privilege runtime
+role만 사용한다.
+
 Stage 2 tests the HTTP access seam through an injected verifier, membership directory, and audit
 sink. The web tests the OIDC BFF and `openid-client` adapter with deterministic doubles, including
 one-time transaction, provider rejection, expired token, secret non-disclosure, and server-side

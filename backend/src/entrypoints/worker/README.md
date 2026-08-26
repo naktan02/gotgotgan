@@ -10,6 +10,10 @@ parser, Ingestion use case, PostgreSQL adapter, encrypted file adapter의 내부
 - `capture-sweep-runtime.ts`: Pool과 capture store를 만들고 만료 정리 use case를 실행한 뒤 항상
   자원을 닫는다.
 
+Ingestion의 Fulfillment Worker는 Provider Identity별 공동 queue에서 Canonical cache를 먼저 확인하고
+miss일 때만 상세 Adapter를 호출한다. 현재는 module interface와 Postgres Adapter·통합 검증까지만
+있으며 실제 NAVER 서비스 profile을 조립하는 entrypoint 명령은 없다.
+
 새 Provider별 selector, endpoint, login 동작은 이 폴더에 두지 않고 해당 Provider adapter leaf에
 둔다. 둘 이상의 실제 browser adapter가 동일한 lifecycle 문제를 입증하기 전에는 공통 browser
 runtime을 만들지 않는다.

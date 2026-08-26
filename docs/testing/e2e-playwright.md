@@ -12,6 +12,10 @@ cancel/resume, duplicate/incomplete review를 desktop/mobile에서 검증한다.
 이는 live Provider 수집 증거가 아니다. 별도 opt-in Playwright acquisition smoke는 일반 E2E와
 분리하고 전용 test account/profile만 사용하며 아직 integration-gated다.
 
+같은 Import E2E는 `enriching` batch/item을 desktop·mobile에서 표시하고, 상세 확인 중에는
+create/link/skip 검토 control이 노출되지 않는지도 검증한다. fixture가 이후 `needs-review`로 전환되면
+기존 동일 command 재시도와 검토 흐름을 계속 실행한다.
+
 The E2E launcher injects the contract-owned active family-navigation test fixture when the caller has
 not supplied one. The fixture uses reserved example destinations and is test evidence only; it does
 not declare a real family service or active integration.

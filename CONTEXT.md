@@ -20,6 +20,8 @@ domain meaning rather than storage or framework structure.
 | Provider Place Identity | A stable provider key and provider-owned external place identifier that may link to one Canonical Place at a time. | Canonical Place identity or a provider account. |
 | Place Candidate | A normalized interpretation derived from one Source Observation and awaiting a resolution outcome. | Canonical Place or verified Place knowledge. |
 | Resolution Decision | Immutable evidence of how a Place Candidate or canonical conflict was classified under a named policy or reviewer. | The canonical mutation itself. |
+| Imported Place Fulfillment Intent | 회원이 연결 목록에서 선택한 Provider 장소를 자신의 Library에 저장하려는 멱등 의도. | Provider 로그인 세션이나 Canonical Place 자체. |
+| Place Fulfillment Job | 동일한 Provider Place Identity의 여러 Fulfillment Intent를 합쳐 Canonical cache 확인과 필요한 상세 보강을 한 번 수행하는 작업. | 회원별 ImportBatch 또는 사용자 브라우저 profile. |
 | Place Redirect | A durable reference from a merged Canonical Place to the surviving Canonical Place. | Deletion or alias text. |
 | Place Lineage | Immutable merge or split history that explains how Canonical Place identity and provider links changed. | Current Place state. |
 | Personal Library | A member's Place-owned organization of saved/wanted state, collections, tags, and personal ratings. | Canonical Place data. |

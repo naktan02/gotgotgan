@@ -17,7 +17,7 @@ Read only the routes required by the task, after repository `AGENTS.md` and `REA
 - Local execution, worker lifecycle, deployment, backup, or incidents: `operations/README.md`.
 - A durable decision or supersession: `adr/README.md`.
 
-Delivery state is **source-only; Stage 6.5 complete and Stage 2 integration in progress**. A Place-owned physical PostGIS runtime is
+Delivery state is **source-only; Stage 6.5 complete, with Stages 2 and 7 in progress**. A Place-owned physical PostGIS runtime is
 implemented and tested in disposable environments but not deployed or active. No provider account, browser profile, map credential, Identity
 client, Gateway route, family composer, or AI connection is active.
 
@@ -27,6 +27,12 @@ parser, 암호화 artifact replay, preview/review API, Web BFF와 반응형 검�
 민감정보 비노출, DB 삭제 표식과 암호화 파일 삭제를 검증한다. 실제 NAVER test account의
 Playwright acquisition, 전용 profile lifecycle과 관찰 자료 기반 parser-change fixture는
 integration-gated이며 완료로 표시하지 않는다.
+
+Provider Place ID가 안정된 item은 `enriching` intent와 같은 transaction에 기록된다. Provider
+Identity별 공동 Fulfillment Job은 Canonical cache를 먼저 확인하고 hit이면 외부 호출 없이 Library에
+저장한다. miss일 때만 주입된 상세 Adapter를 호출하며 동일 장소의 여러 회원 intent를 한 번의 보강과
+Canonical create/link로 처리한다. 실제 사용자 PC Connector, NAVER 내부 요청과 서버 profile Adapter는
+여전히 integration-gated다.
 
 Stage 3's source foundation includes immutable ingestion evidence/candidates/decisions and
 fingerprint-idempotent canonical create/link/merge/split/retire behavior with redirect and lineage

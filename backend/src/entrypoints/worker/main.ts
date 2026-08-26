@@ -4,6 +4,7 @@ type WorkerCheck = Readonly<{
   state: 'source-only'
   capabilities: readonly [
     'durable-import-queue',
+    'cache-first-place-fulfillment',
     'naver-capture-parser',
     'encrypted-capture-replay',
     'capture-expiry-sweep',
@@ -18,6 +19,7 @@ function describeWorkerScaffold(): WorkerCheck {
     state: 'source-only',
     capabilities: [
       'durable-import-queue',
+      'cache-first-place-fulfillment',
       'naver-capture-parser',
       'encrypted-capture-replay',
       'capture-expiry-sweep',

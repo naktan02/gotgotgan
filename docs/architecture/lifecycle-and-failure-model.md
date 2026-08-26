@@ -11,6 +11,13 @@ fail-closed다. 별도 capture expiry 명령은 DB Pool과 encrypted file store�
 멱등 처리하고 표식을 재시도한다. Process death must not imply success or permit simultaneous
 ownership after lease expiry.
 
+Fulfillment Job도 별도 lease generation과 attempt를 소유한다. ImportItem과 pending intent는 한
+transaction에서 생성되고, Worker는 Canonical cache를 Provider보다 먼저 확인한다. Canonical 또는
+Library 반영 뒤 프로세스가 중단돼도 evidence ID, canonical decision ID, item ID 기반 Library command가
+같은 효과를 replay한다. 처리 중 새 intent가 추가되면 현재 claim에 없던 intent를 확인해 job을 다시
+`queued`로 돌리므로 요청이 유실되지 않는다. 취소된 batch의 intent는 claim 대상에서 제외하며 재개 시
+명시적으로 pending으로 복원한다.
+
 Backend `source-only` mode owns Fastify only. Backend `production` mode validates all configuration,
 constructs the verifier, connects one bounded Pool, and performs an initial query before becoming
 ready. Startup failure closes the Pool. Runtime readiness repeats a minimal query and sanitizes

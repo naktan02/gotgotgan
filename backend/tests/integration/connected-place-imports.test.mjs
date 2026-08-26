@@ -113,7 +113,7 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
           address: '일본 후쿠오카현 후쿠오카시',
           categoryLabel: '라멘',
           location: { latitude: 33.5902, longitude: 130.4207 },
-          reviewReasons: [],
+          reviewReasons: ['possible-duplicate'],
         }],
         nextCursor: null,
       }),
@@ -140,7 +140,7 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
     assert.equal(detail.batch.state, 'needs-review')
     assert.equal(detail.batch.progress.discovered, 1)
     assert.equal(detail.items[0].name, '센카이 라멘')
-    assert.equal(detail.items[0].status, 'ready')
+    assert.equal(detail.items[0].status, 'needs-review')
     assert.doesNotMatch(JSON.stringify(detail), /profile:|secret:|cookie/i)
 
     const places = await import('../../dist/modules/places/index.js')

@@ -7,6 +7,12 @@ replay adapter가 source로 존재한다. `--check`는 `source-only` capability�
 `integration-gated` 상태를 출력한다. test account의 profile lifecycle과 Playwright acquisition이
 검증되기 전에는 일반 acquisition startup을 허용하지 않는다.
 
+source-only Worker에는 Provider Identity별 cache-first Fulfillment loop도 있다. 목록 item과 intent는
+acquisition transaction에서 함께 생성된다. Fulfillment는 Canonical link를 먼저 조회하고 miss일 때만
+주입된 Provider 상세 Adapter를 호출하며, 여러 회원 intent를 한 job에서 처리한다. 실제 NAVER 서비스
+profile 설정과 실행 명령은 아직 만들지 않았으므로 `--check` capability만 보고 production 수집이
+활성화됐다고 판단하면 안 된다.
+
 만료 캡처 정리는 acquisition loop와 분리된 1회 명령이다.
 
 ```powershell

@@ -22,6 +22,9 @@ export { materializeSuggestedPlace } from './application/materialize-suggested-p
 export { requestPlaceImport } from './application/request-place-import.js'
 export { reviewImportItem } from './application/review-import-item.js'
 export { createImportWorker } from './application/run-import-worker.js'
+export {
+  createImportedPlaceFulfillmentWorker,
+} from './application/run-imported-place-fulfillment-worker.js'
 export { sweepExpiredImportCaptures } from './application/sweep-expired-import-captures.js'
 export type {
   CaptureArtifactReplayStore,
@@ -52,6 +55,16 @@ export type {
 export type {
   ImportedPlaceLibraryPort,
 } from './application/ports/imported-place-library.js'
+export type {
+  ImportedPlaceFulfillmentClaim,
+  ImportedPlaceFulfillmentOutcome,
+  ImportedPlaceFulfillmentStore,
+} from './application/ports/imported-place-fulfillment-store.js'
+export type {
+  EnrichedPlaceDetail,
+  PlaceEnrichmentResult,
+  PlaceEnrichmentSource,
+} from './application/ports/place-enrichment-source.js'
 export type {
   ImportReviewAction,
   ImportReviewResult,

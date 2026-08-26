@@ -20,7 +20,7 @@ type ImportAction =
   | Readonly<{ kind: 'link-place'; canonicalPlaceId: string }>
   | Readonly<{ kind: 'skip'; reason?: string }>
 
-const activeStates = new Set(['queued', 'running', 'partial'])
+const activeStates = new Set(['queued', 'running', 'partial', 'enriching'])
 const uuidPattern = '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
 const reviewReasonLabels: Readonly<Record<string, string>> = {
   'possible-duplicate': '중복 가능성',
@@ -31,6 +31,7 @@ const stateMessages: Readonly<Record<PlaceImportBatch['state'], string>> = {
   queued: '가져오기를 기다리고 있습니다.',
   running: '저장목록을 가져오는 중입니다.',
   partial: '일부 항목을 가져오는 중입니다.',
+  enriching: '새 장소의 상세정보를 확인하는 중입니다.',
   'needs-user-action': 'Provider 계정에서 확인이 필요합니다.',
   'needs-review': '검토할 항목이 있습니다.',
   completed: '가져오기가 완료되었습니다.',
@@ -77,6 +78,7 @@ function ImportProgress({ batch }: Readonly<{ batch: PlaceImportBatch }>) {
     <dl aria-label="가져오기 진행 상황" className={styles.progress}>
       <div><dt>발견</dt><dd>{progress.discovered}</dd></div>
       <div><dt>자동 확인</dt><dd>{progress.ready}</dd></div>
+      <div><dt>상세 확인</dt><dd>{progress.enriching}</dd></div>
       <div><dt>검토 필요</dt><dd>{progress.reviewRequired}</dd></div>
       <div><dt>저장</dt><dd>{progress.applied}</dd></div>
       <div><dt>건너뜀</dt><dd>{progress.skipped}</dd></div>
@@ -98,6 +100,7 @@ function ItemReview({
 }>) {
   const [canonicalPlaceId, setCanonicalPlaceId] = useState('')
   const resolved = item.status === 'applied' || item.status === 'skipped'
+  const enriching = item.status === 'enriching'
   return (
     <li className={styles.item}>
       <div className={styles.itemHeading}>
@@ -105,7 +108,9 @@ function ItemReview({
           <p className={styles.listName}>{item.listName}</p>
           <h3>{item.name}</h3>
         </div>
-        <span className={styles.itemStatus}>{resolved ? '처리됨' : '검토 필요'}</span>
+        <span className={styles.itemStatus}>
+          {resolved ? '처리됨' : enriching ? '상세 확인 중' : '검토 필요'}
+        </span>
       </div>
       <p className={styles.itemFacts}>
         {item.address ?? '주소 정보 없음'}
@@ -119,7 +124,7 @@ function ItemReview({
         </ul>
       )}
       {result !== undefined && <p className={styles.reviewResult}>{result}</p>}
-      {!resolved && result !== '저장 완료' && (
+      {!resolved && !enriching && result !== '저장 완료' && (
         <div className={styles.reviewActions}>
           <button disabled={busy} onClick={() => void onReview({ kind: 'create-place' })} type="button">
             새 장소로 저장

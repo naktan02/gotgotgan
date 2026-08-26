@@ -25,6 +25,12 @@ Stage 7에서 Ingestion은 연결 계정 Import 상태와 작업 실행 port를,
 NAVER source를 `ConnectedPlaceSource`에 주입한다. 검토용 Canonical·Library consumer port도
 entrypoint에서 각 소유 모듈의 공개 interface와 연결한다.
 
+Ingestion은 Provider Identity별 공동 Fulfillment Job과 회원별 Intent도 소유한다. 이 깊은 module
+interface는 cache-first 판정, 상세 보강, evidence 기록, Canonical create/link, Library fan-out을
+한 작업 수명주기로 감춘다. Places와 Library는 기존 공개 port로만 주입되고, Provider 상세 Adapter는
+회원 ID·ImportBatch·사용자 profile을 보지 않는다. 새 Provider는 이 interface를 바꾸지 않고
+자신의 `PlaceEnrichmentSource` Adapter만 추가한다.
+
 Library, Visits, Writing은 서로 다른 owner다. Library는 visited 상태를 저장하지 않고,
 Visits는 Rating이나 Writing을 저장하지 않으며, Writing은 Canonical Place ID만 연결한다.
 각 transport는 platform 수준 product-authorization 결과에 의존한다. entrypoint는 제품

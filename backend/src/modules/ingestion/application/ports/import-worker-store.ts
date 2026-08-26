@@ -18,6 +18,13 @@ export type PreparedImportItem = ConnectedPlaceItem & Readonly<{
   candidateId: string
   decisionId: string
   proposedPlaceId: string
+  fulfillment?: Readonly<{
+    jobId: string
+    observationId: string
+    candidateId: string
+    decisionId: string
+    proposedPlaceId: string
+  }>
 }>
 
 export type ImportAttemptOutcome =
@@ -55,7 +62,9 @@ export interface ImportWorkerStore {
     items: readonly PreparedImportItem[]
     nextCursor: string | null
     recordedAt: string
-  }>): Promise<Readonly<{ status: 'queued' | 'needs-review' | 'completed' | 'cancelled' }>>
+  }>): Promise<Readonly<{
+    status: 'queued' | 'enriching' | 'needs-review' | 'completed' | 'cancelled'
+  }>>
   finishAttempt(input: Readonly<{
     claim: ImportClaim
     outcome: ImportAttemptOutcome

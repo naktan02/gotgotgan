@@ -69,7 +69,8 @@ function batchProjection(value: unknown): unknown {
   if (!isRecord(value)) return undefined
   const progress = isRecord(value.progress) ? {
     discovered: value.progress.discovered, ready: value.progress.ready,
-    reviewRequired: value.progress.reviewRequired, applied: value.progress.applied,
+    reviewRequired: value.progress.reviewRequired, enriching: value.progress.enriching,
+    applied: value.progress.applied,
     skipped: value.progress.skipped, failed: value.progress.failed,
   } : value.progress
   const failure = isRecord(value.failure)

@@ -7,3 +7,7 @@
 desktop과 mobile은 같은 workflow 상태를 사용하되 좁은 화면에서는 shell sidebar가 hamburger로
 접히고 진행·검토 card가 한 열로 바뀐다. 이 feature는 Backend client, 인증 token, profile lifecycle을
 직접 import하지 않으므로 화면을 대대적으로 바꿔도 서버 경계는 유지된다.
+
+`enriching` item은 DB에 없는 Provider 장소의 상세 확인 또는 Canonical cache 판정이 진행 중임을
+표시한다. 화면은 내부 Fulfillment job ID나 서버 Provider profile을 알지 못하며, polling 중 `applied`,
+`needs-review`, `failed`의 권위 있는 Backend 상태만 다시 읽는다.

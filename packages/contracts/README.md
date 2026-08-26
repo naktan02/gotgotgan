@@ -38,6 +38,11 @@ Web은 `@place/contracts`의 명시적 subpath export를 import한다. `http/ope
 `place-reference/place-reference.v1.schema.json`은 다음 명령으로 생성되는 배포 산출물이며
 사람이 같은 enum이나 field 목록을 다시 관리하는 원본이 아니다.
 
+Import 계약의 `enriching` batch/item 상태와 progress count는 Provider Place Identity별 공동
+Fulfillment가 진행 중임을 나타낸다. 이 projection에는 내부 job ID, 회원 ID, Provider profile·cookie,
+서버 endpoint가 포함되지 않는다. Canonical cache hit, miss 상세 보강, 검토 전환은 같은 공개 상태
+계약을 사용한다.
+
 ```powershell
 npm run generate:contracts
 npm run check:contracts

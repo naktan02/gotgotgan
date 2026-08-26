@@ -103,7 +103,7 @@ describe('browser import HTTP', () => {
           forwarded.push(body)
           return Response.json({
             schemaVersion: 'place-import-batch.v1', batchId, connectionId, providerKey: 'naver',
-            state: 'queued', progress: { discovered: 0, ready: 0, reviewRequired: 0, applied: 0, skipped: 0, failed: 0 },
+            state: 'queued', progress: { discovered: 0, ready: 0, reviewRequired: 0, enriching: 0, applied: 0, skipped: 0, failed: 0 },
             createdAt: '2026-08-26T00:00:00.000Z', updatedAt: '2026-08-26T00:00:00.000Z',
           }, { status: 202 })
         },

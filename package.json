@@ -22,7 +22,7 @@
     "check:contracts": "npm run check --workspace @place/contracts",
     "plan:deployment": "node scripts/plan-application-deployment.mjs",
     "test:deployment": "node --test tests/deployment/*.test.mjs",
-    "test:database": "npm run build:contracts && node --test --test-concurrency=1 backend/tests/integration/database-migrations.test.mjs backend/tests/integration/canonical-resolution.test.mjs backend/tests/integration/personal-content.test.mjs backend/tests/integration/local-search.test.mjs backend/tests/integration/place-suggestions.test.mjs backend/tests/integration/connected-place-imports.test.mjs",
+    "test:database": "npm run build:contracts && node --test --test-concurrency=1 backend/tests/integration/database-migrations.test.mjs backend/tests/integration/canonical-resolution.test.mjs backend/tests/integration/personal-content.test.mjs backend/tests/integration/local-search.test.mjs backend/tests/integration/place-suggestions.test.mjs backend/tests/integration/connected-place-imports.test.mjs backend/tests/integration/imported-place-fulfillment.test.mjs",
     "test:canonical-resolution": "node --test backend/tests/integration/canonical-resolution.test.mjs",
     "test:personal-content": "node --test backend/tests/integration/personal-content.test.mjs",
     "test:local-search": "npm run build:contracts && node --test backend/tests/integration/local-search.test.mjs",

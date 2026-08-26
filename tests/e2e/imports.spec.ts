@@ -17,8 +17,9 @@ function batch(state: string) {
     schemaVersion: 'place-import-batch.v1', batchId, connectionId, providerKey: 'naver', state,
     progress: {
       discovered: state === 'queued' ? 0 : 2,
-      ready: state === 'needs-review' ? 0 : 1,
+      ready: state === 'needs-review' || state === 'enriching' ? 0 : 1,
       reviewRequired: state === 'completed' ? 0 : state === 'needs-review' ? 2 - resolved : 1,
+      enriching: state === 'enriching' ? 1 : 0,
       applied: resolved, skipped: 0, failed: 0,
     },
     createdAt: timestamp, updatedAt: timestamp,
@@ -34,8 +35,10 @@ function detail(state: string) {
         providerKey: 'naver', providerPlaceId: 'naver-place-1', listName: '후쿠오카',
         name: '센카이 라멘 본점', address: '후쿠오카시 하카타구', categoryLabel: '라멘',
         location: { latitude: 33.5902, longitude: 130.4207 },
-        status: reviewedItems.has(duplicateItemId) ? 'applied' : 'needs-review',
-        reviewReasons: ['possible-duplicate'],
+        status: reviewedItems.has(duplicateItemId)
+          ? 'applied'
+          : state === 'enriching' ? 'enriching' : 'needs-review',
+        reviewReasons: state === 'enriching' ? [] : ['possible-duplicate'],
       },
       {
         schemaVersion: 'place-import-item.v1', itemId: incompleteItemId, batchId,
@@ -52,7 +55,8 @@ const reviewedItems = new Set<string>()
 
 async function installImportFixture(page: Page) {
   reviewedItems.clear()
-  let phase: 'partial' | 'cancelled' | 'needs-review' = 'partial'
+  let phase: 'partial' | 'cancelled' | 'enriching' | 'needs-review' = 'partial'
+  let enrichingReads = 0
   const reviewBodies: unknown[] = []
   await page.route('**/api/imports/connections', (route) => json(route, {
     schemaVersion: 'place-provider-connections.v1',
@@ -65,13 +69,20 @@ async function installImportFixture(page: Page) {
     if (route.request().method() !== 'POST') return route.fallback()
     return json(route, batch('queued'), 202)
   })
-  await page.route(`**/api/imports/${batchId}`, (route) => json(route, detail(phase)))
+  await page.route(`**/api/imports/${batchId}`, (route) => {
+    const response = detail(phase)
+    if (phase === 'enriching') {
+      enrichingReads += 1
+      if (enrichingReads >= 2) phase = 'needs-review'
+    }
+    return json(route, response)
+  })
   await page.route(`**/api/imports/${batchId}/cancel`, (route) => {
     phase = 'cancelled'
     return json(route, batch('cancelled'))
   })
   await page.route(`**/api/imports/${batchId}/resume`, (route) => {
-    phase = 'needs-review'
+    phase = 'enriching'
     return json(route, batch('queued'))
   })
   await page.route('**/api/import-reviews', async (route) => {
@@ -113,6 +124,9 @@ test('reviews a resumable NAVER import without exposing provider account materia
 
   const duplicate = page.getByRole('listitem').filter({ hasText: '센카이 라멘 본점' })
   const incomplete = page.getByRole('listitem').filter({ hasText: '이름이 긴 여행 장소' })
+  await expect(page.getByText('새 장소의 상세정보를 확인하는 중입니다.')).toBeVisible()
+  await expect(duplicate).toContainText('상세 확인 중')
+  await expect(duplicate.getByRole('button', { name: '새 장소로 저장' })).toHaveCount(0)
   await expect(duplicate).toContainText('중복 가능성')
   await expect(incomplete).toContainText('주소 없음')
 

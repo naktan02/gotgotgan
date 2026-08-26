@@ -18,7 +18,7 @@ const batch = {
   connectionId,
   providerKey: 'naver' as const,
   state: 'queued' as const,
-  progress: { discovered: 0, ready: 0, reviewRequired: 0, applied: 0, skipped: 0, failed: 0 },
+  progress: { discovered: 0, ready: 0, reviewRequired: 0, enriching: 0, applied: 0, skipped: 0, failed: 0 },
   createdAt: at,
   updatedAt: at,
 }

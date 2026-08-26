@@ -40,3 +40,9 @@ bounded batch로 실행하며 Canonical/Ingestion evidence를 삭제하지 않�
 유의미하게 낫다는 측정이 있을 때만 별도 discovery spike에서 network contract, session/header,
 drift, latency를 분류한다. 안정된 direct HTTP adapter와 공식/local fallback이 없으면 hot path로
 활성화하지 않는다.
+
+연결 목록 Import에서는 사용자 PC profile과 서버 상세 보강 profile을 별도 운영 대상으로 다룬다.
+사용자 profile은 목록 획득에만 쓰고 인증 material을 서버로 보내지 않는다. 서버 profile은
+Fulfillment miss의 공개 상세 보강만 담당하며 회원 ID나 목록 이름을 받지 않는다. Canonical cache
+hit은 서버 profile도 호출하지 않는다. 실제 NAVER profile Adapter가 추가되기 전까지 이 경로는
+fixture/PostGIS 검증만 있는 source-only 상태다.

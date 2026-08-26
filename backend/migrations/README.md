@@ -48,3 +48,9 @@ read만 허용한다. `000011`은 Search 소유 Place document와 membership sig
 추가한다. Discovery는 `pg_trgm` GIN과 geometry GiST를 사용하고 만료 후 삭제할 수 있다. provider
 impression은 evidence UUID를 미리 예약하지만 선택 전 Ingestion row나 Canonical Place를 만들지 않는다.
 runtime 권한은 이 세 replaceable Search table의 bounded DML에만 추가된다.
+
+`000015`는 `enriching` Import 상태와 Provider Place Identity별 공동 Fulfillment Job, 회원별
+Intent, fenced attempt를 추가한다. ImportItem과 Intent는 같은 transaction에 들어가며 동일 Provider
+Identity의 여러 회원 요청은 unique job 하나를 공유한다. 취소된 batch의 intent는 claim되지 않고,
+재개하면 다시 pending으로 복원된다. Ingestion persistence가 Places나 Library table을 직접 읽지 않고
+각 소유 module interface를 composition으로 주입받는 원칙은 유지한다.

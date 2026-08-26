@@ -30,3 +30,8 @@ do not silently broaden official searches; those sources return a partial unsupp
 The shared official HTTP runner owns only redirect denial, JSON/size checks, timeout, bounded retry,
 backoff, and safe failure codes. Provider request/response schemas remain in their adapters. This is
 a proven three-adapter local seam, not yet a cross-project Acquisition Runtime.
+
+연결 목록 Import 뒤 상세 보강은 `PlaceEnrichmentSource` interface를 사용한다. Fulfillment Worker는
+먼저 Canonical Provider link를 확인하고 miss일 때만 해당 Provider Adapter를 호출한다. Adapter 입력은
+Provider Place ID뿐이며 회원·목록·사용자 profile은 포함하지 않는다. NAVER 실제 내부 endpoint와
+서버 profile Adapter는 관찰 전 추측하지 않으며 현재 integration-gated다.

@@ -2,6 +2,7 @@ export const importBatchStates = [
   'queued',
   'running',
   'partial',
+  'enriching',
   'needs-user-action',
   'needs-review',
   'completed',
@@ -15,6 +16,7 @@ export type ImportProgress = Readonly<{
   discovered: number
   ready: number
   reviewRequired: number
+  enriching: number
   applied: number
   skipped: number
   failed: number
@@ -60,7 +62,7 @@ export type PlaceImportItem = Readonly<{
   address: string | null
   categoryLabel: string | null
   location: Readonly<{ latitude: number; longitude: number }> | null
-  status: 'ready' | 'needs-review' | 'applied' | 'skipped' | 'failed'
+  status: 'enriching' | 'ready' | 'needs-review' | 'applied' | 'skipped' | 'failed'
   reviewReasons: readonly string[]
   canonicalPlaceId?: string
 }>

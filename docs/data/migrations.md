@@ -43,3 +43,9 @@ Migration `000012`는 `search.suggestion_sessions`, `search.suggestion_impressio
 공급자 후보의 정규화된 표시 정보·출처·위치·최종 관측만 가진 재구축 가능한 projection이다.
 text에는 `pg_trgm` GIN, 위치에는 GiST, 만료 정리에는 ordered index를 둔다. impression 단계에는
 Ingestion이나 Places table insert가 없고, 만료 정리는 Search table에만 delete 권한을 사용한다.
+
+Migration `000015`는 Import item과 batch에 `enriching` 상태·count를 추가하고, Provider Place
+Identity별 공동 Fulfillment Job, 회원별 item intent, fenced attempt를 생성한다. `(provider_key,
+provider_place_id)` unique 제약으로 여러 회원의 같은 장소 상세 요청을 한 작업으로 합친다. runtime
+role은 이 작업 상태에 필요한 DML만 가지며 Places·Library schema를 직접 조회하는 권한을 Ingestion
+Adapter에 추가하지 않는다.

@@ -11,6 +11,11 @@ private capture volume과 bounded batch를 조립하고 종료 시 Pool을 닫�
 이 명령만 opt-in `maintenance` profile로 선언한다. 실제 profile lifecycle과 Playwright acquisition
 설정이 없으므로 연결 계정 수집 Worker의 일반 startup은 계속 fail-closed다.
 
+Provider Identity별 cache-first Fulfillment Worker와 PostgreSQL queue는 source-only로 추가됐다.
+이 Worker는 Canonical hit이면 Provider를 호출하지 않고 Library 반영만 수행하며, miss일 때만 주입된
+`PlaceEnrichmentSource`를 호출한다. 실제 NAVER 서비스 profile Adapter와 사용자 PC Connector가 아직
+없으므로 production acquisition command나 Compose process를 활성화하지 않는다.
+
 The source-only runtime exposes local health/readiness scaffolds and the Stage 2 shell/access code.
 Gateway, Identity, provider, map, family navigation, and AI delivery states remain `not-integrated`
 or `integration-gated` as routed in the workspace plan. The Place-owned physical PostGIS runtime is

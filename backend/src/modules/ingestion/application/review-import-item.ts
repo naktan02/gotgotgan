@@ -7,9 +7,7 @@ import type {
 } from './ports/import-review-store.js'
 import type { ImportedPlaceLibraryPort } from './ports/imported-place-library.js'
 import type { IngestionStore } from './ports/ingestion-store.js'
-import { recordPlaceCandidate } from './record-place-candidate.js'
-import { recordResolutionDecision } from './record-resolution-decision.js'
-import { recordSourceObservation } from './record-source-observation.js'
+import { recordImportedPlaceEvidence } from './record-imported-place-evidence.js'
 import {
   ImportReferenceUnavailableError,
   ImportRequestConflictError,
@@ -25,59 +23,15 @@ async function recordEvidence(
   store: IngestionStore,
   canonicalPlaceId: string,
 ) {
-  const externalPlaceId = item.providerPlaceId
-  if (externalPlaceId === undefined) {
-    throw new ImportReferenceUnavailableError('Provider place identity is unavailable.')
-  }
-  await recordSourceObservation({
-    id: item.observationId,
-    providerKey: item.providerKey,
-    externalPlaceId,
-    acquisitionKind: item.capture.acquisitionKind,
-    payloadChecksum: item.capture.checksum,
-    parserVersion: item.capture.parserVersion,
-    observedAt: item.capture.observedAt,
-    acquiredAt: occurredAt,
-    captureReference: item.capture.reference,
-    facts: {
-      name: item.name,
-      address: item.address,
-      categoryLabel: item.categoryLabel,
-      location: item.location,
-      listName: item.listName,
-    },
-    confidence: 0.8,
-    store,
-  })
-  await recordPlaceCandidate({
-    id: item.candidateId,
-    sourceObservationId: item.observationId,
-    parserVersion: item.capture.parserVersion,
-    name: item.name,
-    ...(item.address === null ? {} : { address: item.address }),
-    ...(item.location === null ? {} : { location: item.location }),
-    attributes: {
-      categoryLabel: item.categoryLabel,
-      listName: item.listName,
-      providerKey: item.providerKey,
-      externalPlaceId,
-    },
-    createdAt: occurredAt,
-    store,
-  })
-  await recordResolutionDecision({
-    id: item.decisionId,
-    candidateId: item.candidateId,
-    decision: action.kind === 'create-place'
-      ? { kind: 'create-place', canonicalPlaceId }
-      : { kind: 'link-place', canonicalPlaceId },
+  return recordImportedPlaceEvidence({
+    item,
+    canonicalPlaceId,
+    decisionKind: action.kind,
     decidedBy: { kind: 'reviewer', reference: memberId },
-    evidenceObservationIds: [item.observationId],
     rationale: `connected-import-review:${action.kind}`,
-    decidedAt: occurredAt,
+    occurredAt,
     store,
   })
-  return { providerKey: item.providerKey, externalPlaceId }
 }
 
 export async function reviewImportItem(input: Readonly<{

@@ -55,6 +55,7 @@ describe('connected-place import contracts', () => {
         discovered: 3,
         ready: 2,
         reviewRequired: 1,
+        enriching: 0,
         applied: 0,
         skipped: 0,
         failed: 0,
