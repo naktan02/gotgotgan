@@ -39,6 +39,7 @@
     "check": "npm run check:docs && npm run check:contracts && npm run test:deployment && npm run check:member-connector && npm run check:web && npm run check:backend && npm run test:e2e"
   },
   "devDependencies": {
+    "@naktan02/frontend-architecture": "file:.tools/naktan02-frontend-architecture-0.1.0.tgz",
     "@playwright/test": "1.62.1",
     "@types/node": "22.0.0",
     "typescript": "5.7.3"

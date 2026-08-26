@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, test } from 'node:test'
 
-import { inspectFrontendArchitecture } from '../../scripts/lib/frontend-architecture.mjs'
+import { inspectFrontendArchitecture } from '@naktan02/frontend-architecture'
+import { frontendArchitecturePolicy } from '../../scripts/frontend-architecture-policy.mjs'
 
 const roots = []
 async function fixture(files) {
@@ -32,7 +33,7 @@ test('accepts frontend inward dependencies and explicit feature public contracts
     'platform/imports/browser.ts': "import { session } from '../auth/session'; void session",
     'platform/process-readiness/check.ts': "import '../auth/session'; import '../imports/browser'; import '../membership/browser'",
   })
-  assert.deepEqual(await inspectFrontendArchitecture(root), [])
+  assert.deepEqual(await inspectFrontendArchitecture(root, frontendArchitecturePolicy), [])
 })
 
 test('rejects reverse imports, feature internals, and cycles', async () => {
@@ -44,7 +45,7 @@ test('rejects reverse imports, feature internals, and cycles', async () => {
     'platform/auth/runtime.ts': "import '../membership/client'",
     'platform/membership/client.ts': 'export const client = true',
   })
-  const violations = await inspectFrontendArchitecture(root)
+  const violations = await inspectFrontendArchitecture(root, frontendArchitecturePolicy)
   assert.ok(violations.some((value) => value.includes('shared cannot import platform')))
   assert.ok(violations.some((value) => value.includes("cannot import each other's internals")))
   assert.ok(violations.some((value) => value.includes('frontend import cycle')))
