@@ -17,7 +17,7 @@
     "build:member-connector": "npm run build:contracts && npm run build --workspace @place/member-connector",
     "typecheck:web": "npm run build:contracts && npm run typecheck --workspace @place/web",
     "typecheck:backend": "npm run build:contracts && npm run typecheck --workspace @place/backend",
-    "validate:architecture": "node --test tests/architecture/*.test.mjs && node scripts/guard-frontend-architecture.mjs && node scripts/guard-backend-architecture.mjs && node scripts/guard-member-connector-architecture.mjs",
+    "validate:architecture": "node --test tests/architecture/*.test.mjs && node scripts/guard-contracts-architecture.mjs && node scripts/guard-frontend-architecture.mjs && node scripts/guard-backend-architecture.mjs && node scripts/guard-member-connector-architecture.mjs",
     "check:docs": "node scripts/check-doc-links.mjs",
     "check:web": "npm run validate:architecture && npm run test --workspace @place/web && npm run typecheck:web && npm run build:web",
     "check:backend": "npm run check --workspace @place/backend",

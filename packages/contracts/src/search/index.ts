@@ -1,14 +1,15 @@
 import { z } from 'zod'
 
-import { uuidSchema } from '../http/content.js'
+import { uuidSchema } from '../primitives.js'
+import { providerKeySchema } from '../providers/index.js'
+
+export { providerKeySchema } from '../providers/index.js'
 
 const httpUrlSchema = z.url().refine((value) => {
   const url = new URL(value)
   return (url.protocol === 'https:' || url.protocol === 'http:') &&
     url.username === '' && url.password === ''
 }, { message: 'Only HTTP(S) URLs are allowed.' })
-
-export const providerKeySchema = z.enum(['naver', 'kakao', 'google'])
 
 export const searchBoundsSchema = z.object({
   west: z.number().min(-180).max(180),

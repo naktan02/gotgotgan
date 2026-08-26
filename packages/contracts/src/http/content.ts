@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
-export const uuidSchema = z.string().uuid()
+import { uuidSchema } from '../primitives.js'
+
+export { uuidSchema } from '../primitives.js'
 export const sharedVisibilitySchema = z.enum(['unlisted', 'public'])
 export const visibilitySchema = z.enum(['private', 'unlisted', 'public'])
 

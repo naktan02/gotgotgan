@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
-import { uuidSchema } from '../http/content.js'
-import { providerKeySchema } from '../search/index.js'
+import { uuidSchema } from '../primitives.js'
+import { providerKeySchema } from '../providers/index.js'
 
 const sha256Schema = z.string().regex(/^[0-9a-f]{64}$/)
 const opaqueGrantTokenSchema = z.string().min(32).max(8_192)

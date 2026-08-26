@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { uuidSchema } from '../http/content.js'
+import { uuidSchema } from '../primitives.js'
 
 export const placeReferenceSchema = z.discriminatedUnion('status', [
   z.object({

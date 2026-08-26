@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
-import { uuidSchema } from '../http/content.js'
-import { providerKeySchema } from '../search/index.js'
+import { uuidSchema } from '../primitives.js'
+import { providerKeySchema } from '../providers/index.js'
 
 export const importBatchStateSchema = z.enum([
   'queued',
