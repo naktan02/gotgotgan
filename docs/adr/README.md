@@ -3,6 +3,9 @@
 ADRs record durable repository-local decisions. Copy `template.md`, assign the next number, state the
 status and date, link evidence, name consequences and supersession conditions, and update routed docs.
 
+Stage 7 결정은 `0011-connected-import-pipeline-and-provider-isolation.md`에 기록한다. 연결 계정
+작업, Provider parser 격리, 암호화 캡처, 명시적 검토와 Library 반영 경계를 정의한다.
+
 - `0001-typescript-web-server-worker.md`: selected runtime and process shape.
 - `0002-logical-postgis-with-physical-fallback.md`: conditional database topology.
 - `0003-place-access-and-identity-evidence.md`: verified external principals and Place-owned authority.

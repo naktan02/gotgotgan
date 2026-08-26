@@ -4,6 +4,11 @@ The HTTP server is an always-available interactive runtime. The acquisition work
 process from the same backend build and may be continuous, scheduled, or on demand. Process scaling
 does not change module ownership.
 
+Stage 7 Worker의 durable queue, lease/fencing, NAVER 승인 캡처 parser와 암호화 replay adapter는
+`source-only`다. `--check`는 이 capability와 live acquisition의 `integration-gated` 상태를 구분해
+출력한다. 실제 profile lifecycle과 Playwright acquisition 설정이 없으므로 일반 startup은 계속
+fail-closed이며 production Compose에는 활성 Worker를 추가하지 않는다.
+
 The source-only runtime exposes local health/readiness scaffolds and the Stage 2 shell/access code.
 Gateway, Identity, provider, map, family navigation, and AI delivery states remain `not-integrated`
 or `integration-gated` as routed in the workspace plan. The Place-owned physical PostGIS runtime is

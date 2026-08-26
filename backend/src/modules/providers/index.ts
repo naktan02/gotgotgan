@@ -30,6 +30,14 @@ export {
   type NaverOfficialSearchConfig,
 } from './adapters/naver/official-place-search.js'
 export {
+  NaverSavedPlaceSource,
+  parseNaverSavedPlaceCapture,
+  type NaverSavedPlaceAcquisition,
+  type NaverSavedPlaceCapture,
+  type NaverSavedPlaceItem,
+  type NaverSavedPlaceParseResult,
+} from './adapters/naver/saved-place-source.js'
+export {
   OfficialProviderHttpClient,
   ProviderRequestFailure,
 } from './adapters/official-http/provider-http.js'

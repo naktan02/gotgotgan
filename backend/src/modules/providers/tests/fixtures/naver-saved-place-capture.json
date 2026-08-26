@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "place-naver-saved-capture.v1",
+  "kind": "page",
+  "lists": [
+    {
+      "listId": "list_fixture_001",
+      "name": "후쿠오카 여행",
+      "bookmarks": [
+        {
+          "bookmarkId": "bookmark_fixture_001",
+          "placeId": "place_fixture_001",
+          "name": "센카이 라멘",
+          "address": "일본 후쿠오카현 후쿠오카시",
+          "category": "라멘",
+          "latitude": 33.5902,
+          "longitude": 130.4207
+        }
+      ]
+    }
+  ],
+  "nextCursor": "cursor_fixture_002"
+}

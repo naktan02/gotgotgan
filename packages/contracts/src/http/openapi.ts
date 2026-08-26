@@ -28,6 +28,16 @@ import {
   writingCommandRequestSchema,
 } from './content.js'
 import {
+  placeImportBatchDetailSchema,
+  placeImportBatchSchema,
+  placeImportCancelRequestSchema,
+  placeImportRequestSchema,
+  placeImportResumeRequestSchema,
+  placeImportReviewRequestSchema,
+  placeImportReviewResultSchema,
+  providerConnectionListSchema,
+} from '../imports/index.js'
+import {
   placeSearchRequestSchema,
   placeSearchResponseSchema,
   placeSuggestionMaterializationRequestSchema,
@@ -113,6 +123,10 @@ const pathParameters = {
   },
   publicationId: {
     name: 'publicationId', in: 'path', required: true,
+    schema: { type: 'string', format: 'uuid' },
+  },
+  batchId: {
+    name: 'batchId', in: 'path', required: true,
     schema: { type: 'string', format: 'uuid' },
   },
 }
@@ -211,6 +225,57 @@ const paths = {
   },
   '/v1/library': { get: operation('getCurrentMemberPlaceLibrary', productReadResponses, { security: bearer }) },
   '/v1/library/commands': { post: operation('applyPlaceLibraryCommand', contentCommandResponses, { security: bearer, requestSchema: 'LibraryCommandRequest' }) },
+  '/v1/provider-connections': { get: operation('listPlaceProviderConnections', {
+    '200': described('Return sanitized provider connection metadata', 'ProviderConnectionList'),
+    '401': ref('responses', 'AuthenticationRequired'),
+    '403': ref('responses', 'AccessDenied'),
+  }, { security: bearer }) },
+  '/v1/imports': { post: operation('requestPlaceImport', {
+    '200': described('Return an idempotently replayed import batch', 'PlaceImportBatch'),
+    '202': described('Queue a connected-account import', 'PlaceImportBatch'),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '401': ref('responses', 'AuthenticationRequired'),
+    '403': ref('responses', 'AccessDenied'),
+    '409': ref('responses', 'ProductConflict'),
+  }, { security: bearer, requestSchema: 'PlaceImportRequest' }) },
+  '/v1/imports/{batchId}': {
+    parameters: [pathParameters.batchId],
+    get: operation('getPlaceImport', {
+      '200': described('Return an import preview and progress', 'PlaceImportBatchDetail'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+    }, { security: bearer }),
+  },
+  '/v1/imports/{batchId}/cancel': {
+    parameters: [pathParameters.batchId],
+    post: operation('cancelPlaceImport', {
+      '200': described('Return the cancelled import batch', 'PlaceImportBatch'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+    }, { security: bearer, requestSchema: 'PlaceImportCancelRequest' }),
+  },
+  '/v1/imports/{batchId}/resume': {
+    parameters: [pathParameters.batchId],
+    post: operation('resumePlaceImport', {
+      '200': described('Return the resumed import batch', 'PlaceImportBatch'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+    }, { security: bearer, requestSchema: 'PlaceImportResumeRequest' }),
+  },
+  '/v1/import-reviews': { post: operation('reviewPlaceImportItem', {
+    '200': described('Return an idempotent import review receipt', 'PlaceImportReviewResult'),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '401': ref('responses', 'AuthenticationRequired'),
+    '403': ref('responses', 'AccessDenied'),
+    '404': ref('responses', 'ProductNotFound'),
+    '409': ref('responses', 'ProductConflict'),
+  }, { security: bearer, requestSchema: 'PlaceImportReviewRequest' }) },
   '/v1/library/places/{placeId}': {
     parameters: [pathParameters.placeId],
     get: operation('getPlacePreferences', {
@@ -306,6 +371,14 @@ const paths = {
 
 const schemas: Readonly<Record<string, ZodType>> = {
   LibraryCommandRequest: libraryCommandRequestSchema,
+  ProviderConnectionList: providerConnectionListSchema,
+  PlaceImportRequest: placeImportRequestSchema,
+  PlaceImportBatch: placeImportBatchSchema,
+  PlaceImportBatchDetail: placeImportBatchDetailSchema,
+  PlaceImportCancelRequest: placeImportCancelRequestSchema,
+  PlaceImportResumeRequest: placeImportResumeRequestSchema,
+  PlaceImportReviewRequest: placeImportReviewRequestSchema,
+  PlaceImportReviewResult: placeImportReviewResultSchema,
   SetPlacePreferencesCommand: setPlacePreferencesCommandSchema,
   CreateCollectionCommand: createCollectionCommandSchema,
   AddCollectionPlaceCommand: addCollectionPlaceCommandSchema,

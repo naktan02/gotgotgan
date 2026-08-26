@@ -7,6 +7,11 @@ applied migration; append a new file and keep every schema, grant, index, and ro
 Migrations define storage shared by module-owned persistence adapters. They are not repositories and
 must not import business modules or another project.
 
+`000013`은 Provider connection의 불투명 참조, ImportBatch/ImportItem, durable job lease와 attempt,
+캡처 메타데이터, 검토 receipt를 추가한다. 캡처 본문·cookie·비밀번호·실제 profile 경로는 DB에
+저장하지 않는다. runtime role은 작업 상태와 preview에 필요한 제한된 DML만 가지며 immutable
+evidence의 update/delete 권한은 계속 갖지 않는다.
+
 `000003` adds Web-owned browser OIDC transaction and session persistence. It stores only encrypted
 payloads plus authenticated metadata and grants the runtime role select/insert/delete rather than
 schema or arbitrary update authority.

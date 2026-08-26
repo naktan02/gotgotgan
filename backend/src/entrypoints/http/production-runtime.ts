@@ -11,11 +11,13 @@ import {
   type OidcPrincipalVerifierConfig,
   type PrincipalVerifier,
 } from '../../modules/access/index.js'
-import { PostgresLibraryStore } from '../../modules/library/index.js'
+import { PostgresLibraryStore, saveImportedPlace } from '../../modules/library/index.js'
 import {
   materializeSuggestedPlace,
   PostgresIngestionStore,
+  PostgresPlaceImports,
   recordSuggestionObservation,
+  type CanonicalPlaceMaterializationPort,
 } from '../../modules/ingestion/index.js'
 import {
   applyCanonicalResolution,
@@ -100,7 +102,12 @@ export async function createProductionHttpRuntime(
     const localSearch = new PostgresLocalSearch(pool)
     const placeSuggestions = new PostgresPlaceSuggestions(pool)
     const ingestionStore = new PostgresIngestionStore(pool)
+    const placeImports = new PostgresPlaceImports(pool)
     const canonicalStore = new PostgresCanonicalResolutionStore(pool)
+    const canonicalMaterialization: CanonicalPlaceMaterializationPort = {
+      resolveProviderIdentity: (identity) => canonicalStore.resolveProviderIdentity(identity),
+      apply: (attempt) => applyCanonicalResolution({ ...attempt, store: canonicalStore }),
+    }
     const providerHttp = new OfficialProviderHttpClient()
     const providerSearchSources: ProviderPlaceSearch[] = []
     const providerSuggestionSources: ProviderPlaceSuggestions[] = []
@@ -143,10 +150,7 @@ export async function createProductionHttpRuntime(
         const result = await materializeSuggestedPlace({
           input,
           ingestionStore,
-          canonical: {
-            resolveProviderIdentity: (identity) => canonicalStore.resolveProviderIdentity(identity),
-            apply: (attempt) => applyCanonicalResolution({ ...attempt, store: canonicalStore }),
-          },
+          canonical: canonicalMaterialization,
         })
         if (input.location !== null) {
           await projectLocalPlace({
@@ -180,6 +184,23 @@ export async function createProductionHttpRuntime(
         now,
       },
       library: { authorizer: productAuthorizer, store: libraryStore, now },
+      imports: {
+        authorizer: productAuthorizer,
+        requestStore: placeImports,
+        managementStore: placeImports,
+        connectionStore: placeImports,
+        nextBatchId: randomUUID,
+        nextJobId: randomUUID,
+        now,
+        review: {
+          store: placeImports,
+          ingestionStore,
+          canonical: canonicalMaterialization,
+          library: {
+            saveImportedPlace: (input) => saveImportedPlace({ ...input, store: libraryStore }),
+          },
+        },
+      },
       ...(providerDetailReaders.length === 0 ? {} : {
         providers: {
           getDetail: createProviderPlaceDetailReader(providerDetailReaders),

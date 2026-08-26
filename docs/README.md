@@ -21,6 +21,11 @@ Delivery state is **source-only; Stage 6.5 complete and Stage 2 integration in p
 implemented and tested in disposable environments but not deployed or active. No provider account, browser profile, map credential, Identity
 client, Gateway route, family composer, or AI connection is active.
 
+Stage 7은 진행 중이다. 연결 메타데이터, durable Import queue, lease/fencing, NAVER 승인 캡처
+parser, 암호화 artifact replay, preview/review API와 실제 PostGIS 검증은 source-only로 구현되었다.
+실제 NAVER test account의 Playwright acquisition, profile lifecycle, Web review UI/E2E는
+integration-gated이며 완료로 표시하지 않는다.
+
 Stage 3's source foundation includes immutable ingestion evidence/candidates/decisions and
 fingerprint-idempotent canonical create/link/merge/split/retire behavior with redirect and lineage
 history. This does not activate a product transport or database environment.

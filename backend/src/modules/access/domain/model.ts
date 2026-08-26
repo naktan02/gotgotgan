@@ -11,6 +11,8 @@ export const grantablePermissions = [
   'search.read',
   'library.read',
   'library.write',
+  'imports.read',
+  'imports.write',
   'review.read',
   'review.decide',
 ] as const

@@ -7,6 +7,12 @@ return only public projections.
 Product endpoints are added by their owning module transport and published in OpenAPI. The root HTTP
 entrypoint registers them and owns lifecycle only.
 
+연결 계정 Import는 bearer 인증과 Place 내부 `imports.read`/`imports.write` 권한을 요구한다.
+`GET /v1/provider-connections`는 안전한 메타데이터만 반환한다. `POST /v1/imports`는 connection
+UUID와 idempotency UUID만 받아 batch를 큐에 넣는다. `GET /v1/imports/{batchId}`는 preview와
+진행률을 반환하고 cancel/resume은 별도 POST다. `POST /v1/import-reviews`는 command UUID, item
+UUID, create/link/skip 중 하나만 받는다. member, role, cookie, profile, 캡처 본문은 받지 않는다.
+
 `POST /v1/search/places`는 익명 공개 장소 검색과 optional bearer 회원 검색을 한 계약으로
 제공한다. request는 query, optional bounds, Taxonomy key filter, opaque cursor, 최대 50개 limit를
 받는다. saved/wanted/visited/minimum Personal Rating filter는 검증된 membership이 없으면

@@ -17,6 +17,11 @@ replay denial, logout deletion, and runtime denial of session updates.
 Later process tests prove job lease/fencing behavior and sanitized provider replay. Unit fakes do not
 substitute for protocol or database semantics at these seams.
 
+Stage 7 전용 disposable PostGIS 검증은 connection의 불투명 참조 저장, Import 요청 재생, 작업
+claim/attempt/capture/item 영속화, review create, observation/candidate/decision, Canonical provider
+link, 개인 Library 저장과 최종 completed 상태를 한 흐름으로 실행한다. 공개 projection에서
+profile/secret/cookie가 보이지 않고 동일 review 재실행이 replay되는지도 확인한다.
+
 Stage 2 tests the HTTP access seam through an injected verifier, membership directory, and audit
 sink. The web tests the OIDC BFF and `openid-client` adapter with deterministic doubles, including
 one-time transaction, provider rejection, expired token, secret non-disclosure, and server-side

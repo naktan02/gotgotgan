@@ -6,7 +6,7 @@ export type ProductAuthorization =
 
 export type ProductAuthorizer = (
   authorization: string | undefined,
-  permission: 'library.read' | 'library.write' | 'search.read',
+  permission: 'library.read' | 'library.write' | 'search.read' | 'imports.read' | 'imports.write',
 ) => Promise<ProductAuthorization>
 
 export function sendProductProblem(
@@ -37,7 +37,7 @@ export async function requireProductMember(
   request: FastifyRequest,
   reply: FastifyReply,
   authorizer: ProductAuthorizer,
-  permission: 'library.read' | 'library.write',
+  permission: 'library.read' | 'library.write' | 'imports.read' | 'imports.write',
 ): Promise<string | undefined> {
   const result = await authorizer(request.headers.authorization, permission)
   if (result.status === 'authorized') return result.memberId

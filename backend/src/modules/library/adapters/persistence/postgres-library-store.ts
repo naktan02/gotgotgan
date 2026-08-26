@@ -2,6 +2,10 @@ import type { Pool, PoolClient } from 'pg'
 
 import type { LibraryStore } from '../../application/ports/library-store.js'
 import type {
+  ImportedPlaceSaveAttempt,
+  ImportedPlaceSaveStore,
+} from '../../application/ports/imported-place-save-store.js'
+import type {
   LibraryAttempt,
   LibraryCommandOutcome,
   MemberLibrary,
@@ -11,8 +15,53 @@ import type {
 
 type Receipt = Readonly<{ command_fingerprint: string; outcome: 'applied' | 'not-found' | 'forbidden' }>
 
-export class PostgresLibraryStore implements LibraryStore {
+export class PostgresLibraryStore implements LibraryStore, ImportedPlaceSaveStore {
   constructor(private readonly pool: Pool) {}
+
+  async saveImportedPlace(attempt: ImportedPlaceSaveAttempt): Promise<LibraryCommandOutcome> {
+    const client = await this.pool.connect()
+    try {
+      await client.query('BEGIN')
+      await client.query(
+        "SELECT pg_advisory_xact_lock(hashtextextended('place.library.v1:' || $1, 0))",
+        [attempt.commandId],
+      )
+      const prior = await client.query<Receipt>(
+        'SELECT command_fingerprint, outcome FROM library.command_receipts WHERE command_id = $1',
+        [attempt.commandId],
+      )
+      if (prior.rows[0] !== undefined) {
+        await client.query('COMMIT')
+        return prior.rows[0].command_fingerprint === attempt.fingerprint
+          ? { status: 'replayed' }
+          : { status: 'conflict' }
+      }
+      const saved = await client.query(
+        `INSERT INTO library.place_preferences (
+           membership_id, canonical_place_id, saved, wanted, personal_rating, created_at, updated_at
+         ) SELECT $1::uuid, place.id, true, false, NULL, $3::timestamptz, $3::timestamptz
+           FROM places.canonical_places AS place
+           WHERE place.id = $2::uuid AND place.status = 'active'
+         ON CONFLICT (membership_id, canonical_place_id) DO UPDATE
+           SET saved = true, updated_at = EXCLUDED.updated_at`,
+        [attempt.memberId, attempt.canonicalPlaceId, attempt.occurredAt],
+      )
+      const outcome = saved.rowCount === 1 ? 'applied' as const : 'not-found' as const
+      await client.query(
+        `INSERT INTO library.command_receipts (
+           command_id, membership_id, command_kind, command_fingerprint, outcome, occurred_at
+         ) VALUES ($1::uuid,$2::uuid,'save-imported-place',$3,$4,$5::timestamptz)`,
+        [attempt.commandId, attempt.memberId, attempt.fingerprint, outcome, attempt.occurredAt],
+      )
+      await client.query('COMMIT')
+      return { status: outcome }
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => undefined)
+      throw error
+    } finally {
+      client.release()
+    }
+  }
 
   async apply(attempt: LibraryAttempt): Promise<LibraryCommandOutcome> {
     const client = await this.pool.connect()

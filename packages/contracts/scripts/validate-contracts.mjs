@@ -108,6 +108,35 @@ for (const path of ['/v1/library/commands', '/v1/visits', '/v1/writing/commands'
     failures.push(`${path} must derive membership from Place bearer evidence`)
   }
 }
+for (const [path, method] of [
+  ['/v1/provider-connections', 'get'],
+  ['/v1/imports', 'post'],
+  ['/v1/imports/{batchId}', 'get'],
+  ['/v1/imports/{batchId}/cancel', 'post'],
+  ['/v1/imports/{batchId}/resume', 'post'],
+  ['/v1/import-reviews', 'post'],
+]) {
+  if (openApi.paths[path]?.[method]?.security?.[0]?.placeBearer?.length !== 0) {
+    failures.push(`${method.toUpperCase()} ${path} must derive membership from bearer evidence`)
+  }
+}
+for (const schemaName of ['PlaceImportRequest', 'PlaceImportReviewRequest']) {
+  const schema = openApi.components.schemas[schemaName]
+  if (
+    schema?.additionalProperties !== false ||
+    schema?.properties?.memberId !== undefined ||
+    schema?.properties?.role !== undefined ||
+    schema?.properties?.profileReference !== undefined ||
+    schema?.properties?.secretReference !== undefined
+  ) failures.push(`${schemaName} cannot accept member, authority, or provider secret evidence`)
+}
+const connectionProjection = openApi.components.schemas.ProviderConnectionList
+  ?.properties?.items?.items
+if (
+  connectionProjection?.properties?.profileReference !== undefined ||
+  connectionProjection?.properties?.secretReference !== undefined ||
+  connectionProjection?.properties?.cookie !== undefined
+) failures.push('Provider connection projections cannot expose provider session material')
 for (const path of ['/v1/library', '/v1/writing', '/v1/places/{placeId}/visits']) {
   if (openApi.paths[path]?.get?.security?.[0]?.placeBearer?.length !== 0) {
     failures.push(`${path} must keep owner content behind Place bearer evidence`)

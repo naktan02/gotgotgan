@@ -19,10 +19,67 @@ export {
   type SuggestedPlaceEvidence,
 } from './application/record-suggestion-observation.js'
 export { materializeSuggestedPlace } from './application/materialize-suggested-place.js'
+export { requestPlaceImport } from './application/request-place-import.js'
+export { reviewImportItem } from './application/review-import-item.js'
+export { createImportWorker } from './application/run-import-worker.js'
+export type {
+  CaptureArtifactReplayStore,
+  CaptureArtifactStore,
+} from './application/ports/capture-artifact-store.js'
+export type {
+  ConnectedPlaceItem,
+  ConnectedPlacePageResult,
+  ConnectedPlaceSource,
+  ProviderConnectionHandle,
+} from './application/ports/connected-place-source.js'
 export type { IngestionStore } from './application/ports/ingestion-store.js'
+export type {
+  ImportRequestCommand,
+  ImportRequestStore,
+} from './application/ports/import-request-store.js'
+export type {
+  ImportAttemptOutcome,
+  ImportClaim,
+  ImportWorkerStore,
+  PreparedImportItem,
+} from './application/ports/import-worker-store.js'
+export type { ImportManagementStore } from './application/ports/import-management-store.js'
+export type {
+  ImportedPlaceLibraryPort,
+} from './application/ports/imported-place-library.js'
+export type {
+  ImportReviewAction,
+  ImportReviewResult,
+  ImportReviewStore,
+  ReviewableImportItem,
+} from './application/ports/import-review-store.js'
+export type {
+  ProviderConnectionRegistration,
+  ProviderConnectionStore,
+} from './application/ports/provider-connection-store.js'
 export type {
   CanonicalPlaceMaterializationPort,
   SuggestedPlaceCanonicalCommand,
   SuggestedProviderIdentity,
 } from './application/ports/canonical-place-materialization.js'
+export {
+  ImportLeaseLostError,
+  ImportReferenceUnavailableError,
+  ImportRequestConflictError,
+  ProviderConnectionUnavailableError,
+  importBatchStates,
+  type ImportBatchState,
+  type ImportFailureCode,
+  type ImportProgress,
+  type PlaceImportBatch,
+  type PlaceImportBatchDetail,
+  type PlaceImportItem,
+  type ProviderConnectionProjection,
+} from './domain/imports.js'
 export { PostgresIngestionStore } from './adapters/persistence/postgres-ingestion-store.js'
+export { PostgresPlaceImports } from './adapters/persistence/postgres-place-imports.js'
+export { EncryptedFileCaptureArtifactStore } from './adapters/capture/encrypted-file-capture-artifact-store.js'
+export {
+  registerImportHttpRoutes,
+  type ImportHttpDependencies,
+} from './transport/http/register-import-http.js'

@@ -20,6 +20,11 @@ canonical identity changes and reference resolution. Their handoff is deliberate
 idempotent: composition translates a recorded decision into a canonical command. This avoids direct
 module imports and permits retry/review without treating provider evidence as an overwrite command.
 
+Stage 7에서 Ingestion은 연결 계정 Import 상태와 작업 실행 port를, Providers는 NAVER 캡처 해석을
+소유한다. 두 모듈은 서로의 내부 파일을 import하지 않는다. composition root가 구조적으로 호환되는
+NAVER source를 `ConnectedPlaceSource`에 주입한다. 검토용 Canonical·Library consumer port도
+entrypoint에서 각 소유 모듈의 공개 interface와 연결한다.
+
 Library, Visits, Writing은 서로 다른 owner다. Library는 visited 상태를 저장하지 않고,
 Visits는 Rating이나 Writing을 저장하지 않으며, Writing은 Canonical Place ID만 연결한다.
 각 transport는 platform 수준 product-authorization 결과에 의존한다. entrypoint는 제품

@@ -6,6 +6,11 @@ shell, and own reviewed Windows and Linux screenshot baselines. CI retains Playw
 actual images, diffs, and traces on failure. Each user-visible milestone adds success, denial, loading, empty, error, and recovery paths
 that it actually introduces.
 
+Stage 7의 브라우저 UI E2E는 아직 integration-gated다. review 화면을 연결할 때 인증된 BFF를
+통해 connection 목록, import 시작, partial progress, cancel/resume, duplicate/incomplete review,
+동일 command replay와 민감정보 비노출을 desktop/mobile에서 검증한다. 별도 opt-in Playwright
+acquisition smoke는 일반 E2E와 분리하고 전용 test account/profile만 사용한다.
+
 The E2E launcher injects the contract-owned active family-navigation test fixture when the caller has
 not supplied one. The fixture uses reserved example destinations and is test evidence only; it does
 not declare a real family service or active integration.

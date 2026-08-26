@@ -5,6 +5,7 @@ import {
   type AccessHttpDependencies,
 } from '../../modules/access/index.js'
 import { registerLibraryHttpRoutes, type LibraryHttpDependencies } from '../../modules/library/index.js'
+import { registerImportHttpRoutes, type ImportHttpDependencies } from '../../modules/ingestion/index.js'
 import { registerProviderHttpRoutes, type ProviderHttpDependencies } from '../../modules/providers/index.js'
 import { registerSearchHttpRoutes, type SearchHttpDependencies } from '../../modules/search/index.js'
 import { registerTaxonomyHttpRoutes, type TaxonomyHttpDependencies } from '../../modules/taxonomy/index.js'
@@ -19,6 +20,7 @@ type HealthPayload = Readonly<{
 export type HttpApplicationOptions = Readonly<{
   access?: AccessHttpDependencies
   library?: LibraryHttpDependencies
+  imports?: ImportHttpDependencies
   providers?: ProviderHttpDependencies
   search?: SearchHttpDependencies
   taxonomy?: TaxonomyHttpDependencies
@@ -50,6 +52,7 @@ export function buildHttpApplication(options: HttpApplicationOptions = {}): Fast
 
   if (options.access !== undefined) registerAccessHttpRoutes(application, options.access)
   if (options.library !== undefined) registerLibraryHttpRoutes(application, options.library)
+  if (options.imports !== undefined) registerImportHttpRoutes(application, options.imports)
   if (options.providers !== undefined) registerProviderHttpRoutes(application, options.providers)
   if (options.search !== undefined) registerSearchHttpRoutes(application, options.search)
   if (options.taxonomy !== undefined) registerTaxonomyHttpRoutes(application, options.taxonomy)
