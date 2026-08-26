@@ -5,7 +5,8 @@ disposable digest-pinned PostGIS runtime with random test-only credentials and e
 database preparation command twice. It proves migration
 ownership, intended runtime DML, runtime denial for DDL/ownership/history mutation, PostGIS presence,
 and GiST use in the query plan. It also runs the existing access use cases through the PostgreSQL
-adapter and proves bootstrap/resolution, role changes, last-owner protection, stale-write conflict,
+adapter and proves bootstrap/resolution, role changes, last-owner protection, central Owner
+onboarding/replacement, stale-write conflict,
 malformed-ID non-disclosure, and mutation/audit rollback. `npm run test:database-recovery` supplies
 the separate recovery seam. It uses two independently credentialed disposable runtimes, takes a
 custom-format Place database dump, restores it in isolation, and verifies credential rotation,
@@ -43,6 +44,11 @@ interface. They cover administrator success, owner-only denial, last-owner prote
 non-disclosure, optimistic conflict, and mutation/audit atomicity. Production pool composition and
 browser-session persistence now have source and real-PostgreSQL evidence; route activation and live
 Identity/Gateway protocol evidence remain separate work.
+
+Platform entitlement adapter tests generate a real ES256 assertion and verify exact audience,
+principal, contract, expiry, and `owner_revision`. The real PostGIS suite proves one Owner, automatic
+demotion/promotion, centrally-managed mutation denial, and audited projection. A live Identity
+Backend round trip remains a separate activation test.
 
 The same real PostGIS suite constructs the production Backend runtime through its public process
 interface. It proves initial readiness, current-consent publication, verifier injection, membership

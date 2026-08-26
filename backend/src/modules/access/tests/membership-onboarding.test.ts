@@ -112,4 +112,35 @@ describe('membership onboarding', () => {
 
     expect(result).toEqual({ status: 'existing', membership: existing })
   })
+
+  it('carries verified platform owner evidence into the atomic onboarding attempt', async () => {
+    const platformEntitlement = {
+      roles: ['platform_owner'],
+      revision: 8,
+      ownerRevision: 3,
+      expiresAt: '2026-08-25T12:01:00.000Z',
+    } as const
+    let captured: MembershipOnboardingAttempt | undefined
+
+    await completeMembershipOnboarding({
+      principal,
+      acceptedConsents: requiredConsents,
+      policy: {
+        requiredConsents,
+        initialUserGrade: 'newcomer',
+        initialProductTier: 'free',
+      },
+      platformEntitlement,
+      store: {
+        attemptAndAuditOnboarding: async (attempt) => {
+          captured = attempt
+          return { status: 'created', membership: attempt.membership }
+        },
+      },
+      nextMembershipId: () => 'membership-owner',
+      now: () => new Date('2026-08-25T12:00:00.000Z'),
+    })
+
+    expect(captured).toMatchObject({ platformEntitlement })
+  })
 })

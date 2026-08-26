@@ -1,6 +1,6 @@
 # ADR 0003: Place owns authorization from verified Identity evidence
 
-- Status: Accepted
+- Status: Superseded in part by ADR 0013
 - Date: 2026-08-25
 
 ## Context
@@ -13,9 +13,10 @@ an implicit authenticated guest.
 
 ## Decision
 
-The `access` module owns the boundary. An OIDC adapter verifies signature, exact issuer and audience,
-time claims, required scopes, and subject. Its domain output contains only `(issuer, subject)`.
-Place maps that pair to a local Membership and makes every authorization decision itself.
+`access` 모듈이 경계를 소유한다. OIDC 어댑터는 서명, 정확한 발급자와 대상, 시간 클레임, 주체를
+검증한다. 로그인 요청 scope와 선택적인 액세스 토큰 scope 클레임은 권한 근거가 아니다. 도메인
+출력에는 `(issuer, subject)`만 포함한다. Place는 이 쌍을 로컬 Membership에 연결하고 모든 인가
+결정을 직접 내린다.
 
 Authority Role (`member`, `reviewer`, `administrator`, `owner`), User Grade, and Product Tier are
 independent. Grades and tiers never grant administrative authority. Explicit resource grants may add

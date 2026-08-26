@@ -3,6 +3,9 @@
 ADRs record durable repository-local decisions. Copy `template.md`, assign the next number, state the
 status and date, link evidence, name consequences and supersession conditions, and update routed docs.
 
+현재 최신 접근 결정은 [`0013-project-signed-platform-owner.md`](0013-project-signed-platform-owner.md)이며,
+Identity의 서명된 단일 Platform Owner를 Place의 유일한 Owner로 투영하는 경계를 기록한다.
+
 Stage 7 결정은 `0011-connected-import-pipeline-and-provider-isolation.md`에 기록한다. 연결 계정
 작업, Provider parser 격리, 암호화 캡처, 명시적 검토와 Library 반영 경계를 정의한다.
 회원 PC의 session 경계와 다중 브라우저·다중 Provider 확장 구조는

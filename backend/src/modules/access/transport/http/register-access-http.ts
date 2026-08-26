@@ -16,11 +16,14 @@ import {
   resolveAccessSubject,
   UnregisteredPrincipalError,
 } from '../../application/resolve-access.js'
+import { synchronizePlatformOwner } from '../../application/synchronize-platform-owner.js'
 import type { AccessAuditSink } from '../../application/ports/access-audit-sink.js'
 import type { AuthorityRoleChangeStore } from '../../application/ports/authority-role-change-store.js'
 import type { MembershipDirectory } from '../../application/ports/membership-directory.js'
 import type { MembershipOnboardingStore } from '../../application/ports/membership-onboarding-store.js'
 import type { PrincipalVerifier } from '../../application/ports/principal-verifier.js'
+import type { PlatformEntitlementSource } from '../../application/ports/platform-entitlement-source.js'
+import type { PlatformOwnerProjectionStore } from '../../application/ports/platform-owner-projection-store.js'
 const membershipPathSchema = uuidSchema.transform((membershipId) => ({ membershipId }))
 
 export type AccessHttpDependencies = Readonly<{
@@ -33,6 +36,10 @@ export type AccessHttpDependencies = Readonly<{
     nextMembershipId: () => string
   }>
   authorityManagement?: Readonly<{ store: AuthorityRoleChangeStore }>
+  platformAccess?: Readonly<{
+    source: PlatformEntitlementSource
+    store: PlatformOwnerProjectionStore
+  }>
   now: () => Date
 }>
 
@@ -143,6 +150,20 @@ function membershipOnboardingUnavailable(
   return sendProblem(reply, problem)
 }
 
+function platformAccessUnavailable(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): FastifyReply {
+  return accessProblem(
+    request,
+    reply,
+    503,
+    'PLACE_PLATFORM_ACCESS_UNAVAILABLE',
+    'Platform access verification is temporarily unavailable',
+    true,
+  )
+}
+
 function accessProblem(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -171,10 +192,28 @@ async function verifyBearerPrincipal(
   const match = /^Bearer ([^\s]+)$/i.exec(request.headers.authorization ?? '')
   if (match === null) return undefined
   try {
-    return await verifier.verify(match[1]!)
+    return {
+      principal: await verifier.verify(match[1]!),
+      accessToken: match[1]!,
+    }
   } catch {
     return undefined
   }
+}
+
+async function synchronizeVerifiedPlatformAccess(
+  verified: NonNullable<Awaited<ReturnType<typeof verifyBearerPrincipal>>>,
+  dependencies: AccessHttpDependencies,
+) {
+  if (dependencies.platformAccess === undefined) return undefined
+  const evidence = await dependencies.platformAccess.source.evaluate(verified)
+  await synchronizePlatformOwner({
+    principal: verified.principal,
+    evidence,
+    store: dependencies.platformAccess.store,
+    now: dependencies.now,
+  })
+  return evidence
 }
 
 export function registerAccessHttpRoutes(
@@ -182,11 +221,16 @@ export function registerAccessHttpRoutes(
   dependencies: AccessHttpDependencies,
 ): void {
   application.get('/v1/me', async (request, reply) => {
-    const principal = await verifyBearerPrincipal(request, dependencies.principalVerifier)
-    if (principal === undefined) return authenticationRequired(request, reply)
+    const verified = await verifyBearerPrincipal(request, dependencies.principalVerifier)
+    if (verified === undefined) return authenticationRequired(request, reply)
+    try {
+      await synchronizeVerifiedPlatformAccess(verified, dependencies)
+    } catch {
+      return platformAccessUnavailable(request, reply)
+    }
     let subject
     try {
-      subject = await resolveAccessSubject(principal, dependencies.membershipDirectory)
+      subject = await resolveAccessSubject(verified.principal, dependencies.membershipDirectory)
     } catch (error) {
       if (error instanceof UnregisteredPrincipalError) return membershipRequired(request, reply)
       throw error
@@ -245,16 +289,20 @@ export function registerAccessHttpRoutes(
         },
       },
       async (request, reply) => {
-        const principal = await verifyBearerPrincipal(request, dependencies.principalVerifier)
-        if (principal === undefined) return authenticationRequired(request, reply)
+        const verified = await verifyBearerPrincipal(request, dependencies.principalVerifier)
+        if (verified === undefined) return authenticationRequired(request, reply)
         const body = membershipOnboardingRequestSchema.safeParse(request.body)
         if (!body.success) return invalidOnboardingRequest(request, reply)
         let result
         try {
+          const platformEntitlement = dependencies.platformAccess === undefined
+            ? undefined
+            : await dependencies.platformAccess.source.evaluate(verified)
           result = await completeMembershipOnboarding({
-            principal,
+            principal: verified.principal,
             acceptedConsents: body.data.acceptedConsents,
             policy: onboarding.policy,
+            ...(platformEntitlement === undefined ? {} : { platformEntitlement }),
             store: onboarding.store,
             nextMembershipId: onboarding.nextMembershipId,
             now: dependencies.now,
@@ -305,8 +353,8 @@ export function registerAccessHttpRoutes(
               ),
       },
       async (request, reply) => {
-        const principal = await verifyBearerPrincipal(request, dependencies.principalVerifier)
-        if (principal === undefined) return authenticationRequired(request, reply)
+        const verified = await verifyBearerPrincipal(request, dependencies.principalVerifier)
+        if (verified === undefined) return authenticationRequired(request, reply)
         const params = membershipPathSchema.safeParse(
           (request.params as { membershipId?: unknown }).membershipId,
         )
@@ -323,7 +371,11 @@ export function registerAccessHttpRoutes(
         }
         let actor
         try {
-          actor = await resolveAccessSubject(principal, dependencies.membershipDirectory)
+          await synchronizeVerifiedPlatformAccess(verified, dependencies)
+          actor = await resolveAccessSubject(
+            verified.principal,
+            dependencies.membershipDirectory,
+          )
         } catch (error) {
           if (error instanceof UnregisteredPrincipalError) return accessDenied(request, reply)
           return accessProblem(
@@ -373,6 +425,16 @@ export function registerAccessHttpRoutes(
             409,
             'PLACE_LAST_OWNER_PROTECTED',
             'The final active owner is protected',
+            false,
+          )
+        }
+        if (result.status === 'centrally-managed') {
+          return accessProblem(
+            request,
+            reply,
+            409,
+            'PLACE_AUTHORITY_CENTRALLY_MANAGED',
+            'Platform owner authority is centrally managed',
             false,
           )
         }

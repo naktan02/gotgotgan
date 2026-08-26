@@ -5,7 +5,7 @@ worker process composition. The HTTP process serves interactive product behavior
 worker consumes durable jobs and may run continuously or on demand.
 
 Current state: Stage 5 source implementation complete; Stage 2 integration remains in progress. The `access` module owns verified-principal mapping,
-Place roles and tiers, authorization, last-owner protection, and audit-safe decisions. `GET /v1/me`
+Place roles and tiers, authorization, centrally managed Owner projection, and audit-safe decisions. `GET /v1/me`
 is registered by the source-only production composition with the other access transports. That
 composition reads a protected runtime URL and membership-policy file, creates one bounded Pool,
 installs the OIDC resource-server verifier, reports database-backed readiness, and owns close. The
@@ -16,7 +16,9 @@ Place-owned roles, installs PostGIS as the administrator, and runs versioned mig
 The access module has a real PostgreSQL adapter for membership, bootstrap, authorization audit, and
 atomic authority-role changes. Its optional source-only onboarding transport verifies bearer
 evidence, rejects browser authority fields, and delegates current-consent creation to the access use
-case. The same optional route bundle publishes current consent discovery and an independently
+case. When platform access is enabled, it also verifies Identity's audience-bound ES256 entitlement,
+creates the sole Owner on first consent, and replaces a previous Owner by monotonic `owner_revision`.
+The same optional route bundle publishes current consent discovery and an independently
 optional authority-role administration transport. The production composition supplies their
 verifier, deployment-owned policy, ID source, and process-owned Pool only when
 `PLACE_HTTP_RUNTIME_MODE=production` is explicitly selected with complete configuration. No deployed

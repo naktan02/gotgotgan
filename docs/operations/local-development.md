@@ -87,7 +87,20 @@ npm run prepare:local
 성공 결과는 `state=ready`이며 `.runtime/local/compose.env`가 생긴다. Identity 클라이언트 등록은
 보안 경계를 바꾸는 작업이므로 사람 운영자의 명시적인 승인 없이 자동 생성하지 않는다.
 
-### 4. Web과 Backend 기동
+### 4. Identity 플랫폼 권한 Backend 준비
+
+Place OIDC client 등록이 끝난 뒤 Identity 저장소에서 전용 DB role·migration·ES256 키·허용 audience를
+한 번 준비한다. 이 단계는 사용자에게 역할을 부여하지 않는다.
+
+```powershell
+Set-Location C:\Users\PC\workspace\identity
+.\scripts\initialize-platform-access.ps1 -Start
+```
+
+Place Backend만 Identity의 비공개 `identity-services` 네트워크에 참가한다. 준비되지 않은 상태에서
+`PLACE_PLATFORM_ACCESS_ENABLED=true`로 실행하면 권한 검증은 실패 폐쇄한다.
+
+### 5. Web과 Backend 기동
 
 ```powershell
 docker compose --env-file .runtime/local/compose.env `
@@ -103,7 +116,7 @@ docker compose --env-file .runtime/local/compose.env `
 `http://localhost:3001/readyz`에서 수행한다. Web만 브라우저 진입점이며 Backend의 공개 포트는
 로컬 진단용이다. 운영 구성은 Backend를 Gateway나 브라우저에 노출하지 않는다.
 
-### 5. Connector 설치 전 확인
+### 6. Connector 설치 전 확인
 
 Web 로그인, Place 동의·membership 생성, 가져오기 페이지의 grant 발급까지 확인한 뒤에만
 `apps/member-connector/.output/chrome-mv3`를 Whale/Chrome/Edge의 압축 해제 확장으로 설치한다.

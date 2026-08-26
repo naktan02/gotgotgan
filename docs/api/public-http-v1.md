@@ -103,7 +103,8 @@ when its verifier, current consent policy, ID source, and transactional store ar
 never invokes it implicitly. The strict request accepts only bounded `acceptedConsents`; principal,
 Authority Role, User Grade, and Product Tier are rejected as browser input. The handler verifies the
 principal, compares consent versions with server-selected current policy, and calls the single
-transactional onboarding interface. It returns 201 for a new non-elevated membership, 200 for an
+transactional onboarding interface. It returns 201 for a new membership (non-elevated unless a
+server-verified Platform Owner assertion is present), 200 for an
 idempotently resolved existing membership, and safe correlated problems for malformed requests,
 invalid evidence, stale consent, or unavailable persistence. Production composition, Web BFF
 forwarding activation, Identity provisioning, and Gateway routing remain absent.
@@ -114,8 +115,8 @@ defaults or policy internals.
 
 `PATCH /v1/administration/memberships/{membershipId}/authority-role` is registered only with the
 authority-management store. It derives the acting member from bearer evidence, accepts only a UUID
-path identifier and `nextRole`, and delegates all administrator/owner, stale-role, and final-owner
-decisions to the access use case. Unauthorized callers receive 403 before target lookup. Outcomes
+path identifier and `member`, `reviewer`, or `administrator` as `nextRole`, and delegates stale-role
+and centrally-managed-owner decisions to the access use case. Unauthorized callers receive 403 before target lookup. Outcomes
 are safe projections or stable 404/409/503 problems; raw principal and audit details are excluded.
 
 The backend production composition registers these reviewed access transports together only after

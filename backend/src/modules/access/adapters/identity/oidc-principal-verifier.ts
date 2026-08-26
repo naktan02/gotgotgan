@@ -13,7 +13,6 @@ export type OidcPrincipalVerifierConfig = Readonly<{
   audience: string
   jwksUri: string
   algorithms: readonly ['RS256']
-  requiredScopes: readonly string[]
   allowInsecureLocalHttp?: boolean
 }>
 
@@ -47,23 +46,12 @@ function trustedOidcUrl(
   return url
 }
 
-function requiredScopesPresent(scopeClaim: unknown, requiredScopes: readonly string[]): boolean {
-  if (requiredScopes.length === 0) return true
-  if (typeof scopeClaim !== 'string') return false
-  const grantedScopes = new Set(scopeClaim.split(' ').filter(Boolean))
-  return requiredScopes.every((scope) => grantedScopes.has(scope))
-}
-
 export function createOidcPrincipalVerifier(
   config: OidcPrincipalVerifierConfig,
   keyResolver: JWTVerifyGetKey,
 ): PrincipalVerifier {
   trustedOidcUrl(config.issuer, 'issuer', config.allowInsecureLocalHttp === true)
   if (config.audience.trim() === '') throw new Error('audience must not be empty.')
-  if (config.requiredScopes.length === 0) throw new Error('at least one required scope is needed.')
-  if (config.requiredScopes.some((scope) => scope.trim() === '')) {
-    throw new Error('required scopes must not contain empty values.')
-  }
 
   return {
     async verify(accessToken: string): Promise<ExternalPrincipal> {
@@ -75,11 +63,7 @@ export function createOidcPrincipalVerifier(
           algorithms: [...config.algorithms],
           requiredClaims: ['sub', 'exp', 'iat'],
         })
-        if (
-          typeof payload.sub !== 'string' ||
-          payload.sub === '' ||
-          !requiredScopesPresent(payload.scope, config.requiredScopes)
-        ) {
+        if (typeof payload.sub !== 'string' || payload.sub === '') {
           throw new PrincipalVerificationError()
         }
         return { issuer: config.issuer, subject: payload.sub }

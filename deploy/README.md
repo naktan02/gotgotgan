@@ -83,6 +83,12 @@ bounded Pool values, strict `place-membership-policy.v1` file, and OIDC resource
 initial database failure prevents startup and later failure makes both Backend and Web readiness
 unhealthy.
 
+`PLACE_PLATFORM_ACCESS_ENABLED=true` additionally requires the private Identity entitlement
+endpoint, its JWKS URI, assertion issuer, the exact OIDC audience, and a bounded timeout. The local
+integration overlay connects only Backend to the external `identity-services` network; Web and
+PostGIS do not join it. Disabled mode preserves standalone development, while enabled verification
+fails closed.
+
 `identity/oidc-client.json` is the Place-owned, unprovisioned Identity input. The provisioner expands
 `PLACE_PUBLIC_ORIGIN`, delivers the generated client ID/secret through the approved secret sink, and
 runs only after callback routes, shared session storage, Gateway routing, health validation, and

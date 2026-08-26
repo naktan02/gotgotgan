@@ -9,6 +9,7 @@ import type {
   MembershipOnboardingOutcome,
   MembershipOnboardingStore,
 } from './ports/membership-onboarding-store.js'
+import type { PlatformEntitlementEvidence } from './ports/platform-entitlement-source.js'
 
 export class MembershipConsentRequiredError extends Error {
   constructor() {
@@ -56,6 +57,7 @@ export async function completeMembershipOnboarding(input: Readonly<{
   principal: ExternalPrincipal
   acceptedConsents: readonly MembershipConsent[]
   policy: MembershipOnboardingPolicy
+  platformEntitlement?: PlatformEntitlementEvidence
   store: MembershipOnboardingStore
   nextMembershipId: () => string
   now: () => Date
@@ -84,6 +86,9 @@ export async function completeMembershipOnboarding(input: Readonly<{
   return input.store.attemptAndAuditOnboarding({
     membership,
     consents: input.policy.requiredConsents,
+    ...(input.platformEntitlement === undefined
+      ? {}
+      : { platformEntitlement: input.platformEntitlement }),
     occurredAt: input.now().toISOString(),
   })
 }

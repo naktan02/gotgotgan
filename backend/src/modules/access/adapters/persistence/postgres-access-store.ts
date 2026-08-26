@@ -19,6 +19,11 @@ import type {
   MembershipOnboardingOutcome,
   MembershipOnboardingStore,
 } from '../../application/ports/membership-onboarding-store.js'
+import type {
+  PlatformOwnerProjectionAttempt,
+  PlatformOwnerProjectionOutcome,
+  PlatformOwnerProjectionStore,
+} from '../../application/ports/platform-owner-projection-store.js'
 
 const resourceGrantRowSchema = z.object({
   permission: z.enum(grantablePermissions),
@@ -26,6 +31,12 @@ const resourceGrantRowSchema = z.object({
   resourceId: z.string().nullable(),
 })
 const membershipIdSchema = z.string().uuid()
+const projectionRowSchema = z.object({
+  membership_id: z.string().uuid().nullable(),
+  previous_authority_role: z.enum(['member', 'reviewer', 'administrator']).nullable(),
+  authority_revision: z.coerce.number().int().nonnegative(),
+  owner_revision: z.coerce.number().int().nonnegative(),
+})
 
 const membershipRowSchema = z.object({
   id: z.string(),
@@ -175,7 +186,7 @@ async function recordBootstrapAttempt(
 async function recordRoleChangeAttempt(
   client: PoolClient,
   attempt: AuthorityRoleChangeAttempt,
-  outcome: 'changed' | 'unchanged' | 'last-owner-protected' | 'conflict',
+  outcome: 'changed' | 'unchanged' | 'last-owner-protected' | 'centrally-managed' | 'conflict',
 ): Promise<void> {
   await client.query(
     `
@@ -202,12 +213,172 @@ async function recordRoleChangeAttempt(
   )
 }
 
+async function recordPlatformOwnerProjection(
+  client: PoolClient,
+  attempt: PlatformOwnerProjectionAttempt,
+  outcome: PlatformOwnerProjectionOutcome['status'],
+  targetMembershipId: string | null,
+): Promise<void> {
+  await client.query(
+    `
+      INSERT INTO access.audit_events (
+        event_kind,
+        occurred_at,
+        target_membership_id,
+        outcome,
+        evidence
+      )
+      VALUES ('platform-owner-projection', $1, $2, $3, $4)
+    `,
+    [
+      attempt.occurredAt,
+      targetMembershipId,
+      outcome,
+      {
+        roles: attempt.evidence.roles,
+        authorityRevision: attempt.evidence.revision,
+        ownerRevision: attempt.evidence.ownerRevision,
+        expiresAt: attempt.evidence.expiresAt,
+      },
+    ],
+  )
+}
+
+async function applyPlatformOwnerProjection(
+  client: PoolClient,
+  attempt: PlatformOwnerProjectionAttempt,
+): Promise<PlatformOwnerProjectionOutcome> {
+  const projectionResult = await client.query(
+    `
+      SELECT membership_id, previous_authority_role, authority_revision, owner_revision
+      FROM access.platform_owner_projection
+      WHERE singleton = true
+      FOR UPDATE
+    `,
+  )
+  const projection = projectionRowSchema.parse(projectionResult.rows[0])
+  if (attempt.evidence.ownerRevision < projection.owner_revision) {
+    await recordPlatformOwnerProjection(client, attempt, 'stale', null)
+    return { status: 'stale' }
+  }
+
+  const claimsOwner = attempt.evidence.roles.includes('platform_owner')
+  const targetResult = claimsOwner
+    ? await client.query<{ id: string; authority_role: string }>(
+        `
+          SELECT id, authority_role
+          FROM access.memberships
+          WHERE issuer = $1 AND subject = $2
+          FOR UPDATE
+        `,
+        [attempt.principal.issuer, attempt.principal.subject],
+      )
+    : undefined
+  const target = targetResult?.rows[0]
+  const newerOwnerRevision = attempt.evidence.ownerRevision > projection.owner_revision
+
+  if (
+    !newerOwnerRevision && claimsOwner && target !== undefined &&
+    projection.membership_id !== null && projection.membership_id !== target.id
+  ) {
+    throw new Error('Platform owner assertion conflicts with the current owner revision.')
+  }
+
+  let nextMembershipId = projection.membership_id
+  let nextPreviousRole = projection.previous_authority_role
+  let changed = false
+
+  if (newerOwnerRevision && nextMembershipId === null) {
+    const legacyOwner = await client.query<{ id: string }>(
+      `
+        SELECT id
+        FROM access.memberships
+        WHERE authority_role = 'owner'
+        FOR UPDATE
+      `,
+    )
+    if (legacyOwner.rows[0] !== undefined) {
+      nextMembershipId = legacyOwner.rows[0].id
+      nextPreviousRole = 'member'
+    }
+  }
+
+  if (newerOwnerRevision && nextMembershipId !== null) {
+    await client.query(
+      `
+        UPDATE access.memberships
+        SET authority_role = $1, updated_at = $2
+        WHERE id = $3 AND authority_role = 'owner'
+      `,
+      [nextPreviousRole ?? 'member', attempt.occurredAt, nextMembershipId],
+    )
+    nextMembershipId = null
+    nextPreviousRole = null
+    changed = true
+  }
+
+  if (claimsOwner && target !== undefined && nextMembershipId === null) {
+    const previousRole = target.authority_role === 'owner' ? 'member' : target.authority_role
+    if (!['member', 'reviewer', 'administrator'].includes(previousRole)) {
+      throw new Error('Platform owner target has an invalid local authority role.')
+    }
+    await client.query(
+      `
+        UPDATE access.memberships
+        SET authority_role = 'owner', updated_at = $1
+        WHERE id = $2
+      `,
+      [attempt.occurredAt, target.id],
+    )
+    nextMembershipId = target.id
+    nextPreviousRole = previousRole as 'member' | 'reviewer' | 'administrator'
+    changed = true
+  }
+
+  await client.query(
+    `
+      UPDATE access.platform_owner_projection
+      SET
+        membership_id = $1,
+        previous_authority_role = $2,
+        authority_revision = GREATEST(authority_revision, $3),
+        owner_revision = GREATEST(owner_revision, $4),
+        evidence_expires_at = $5,
+        observed_at = $6
+      WHERE singleton = true
+    `,
+    [
+      nextMembershipId,
+      nextPreviousRole,
+      attempt.evidence.revision,
+      attempt.evidence.ownerRevision,
+      attempt.evidence.expiresAt,
+      attempt.occurredAt,
+    ],
+  )
+
+  const status = changed ? 'projected' : 'unchanged'
+  await recordPlatformOwnerProjection(client, attempt, status, target?.id ?? null)
+  const membershipResult = await client.query(
+    `${membershipProjection}
+     WHERE memberships.issuer = $1 AND memberships.subject = $2`,
+    [attempt.principal.issuer, attempt.principal.subject],
+  )
+  return {
+    status,
+    ...(membershipResult.rows[0] === undefined
+      ? {}
+      : { membership: toMembership(membershipResult.rows[0]) }),
+  }
+}
+
 export class PostgresAccessStore
   implements
     MembershipDirectory,
     MembershipOnboardingStore,
     InitialOwnerStore,
     AuthorityRoleChangeStore,
+    PlatformOwnerProjectionStore,
     AccessAuditSink {
   constructor(private readonly pool: Pool) {}
 
@@ -297,7 +468,7 @@ export class PostgresAccessStore
          FOR UPDATE OF memberships`,
         [attempt.membership.principal.issuer, attempt.membership.principal.subject],
       )
-      const membership = toMembership(selected.rows[0])
+      let membership = toMembership(selected.rows[0])
 
       for (const consent of attempt.consents) {
         await client.query(
@@ -312,11 +483,37 @@ export class PostgresAccessStore
         )
       }
 
+      if (attempt.platformEntitlement !== undefined) {
+        const projection = await applyPlatformOwnerProjection(client, {
+          principal: attempt.membership.principal,
+          evidence: attempt.platformEntitlement,
+          occurredAt: attempt.occurredAt,
+        })
+        membership = projection.membership ?? membership
+      }
+
       const outcome: MembershipOnboardingOutcome = {
         status: inserted.rowCount === 1 ? 'created' : 'existing',
         membership,
       }
       await recordOnboardingAttempt(client, attempt, outcome)
+      await client.query('COMMIT')
+      return outcome
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
+  }
+
+  async synchronizePlatformOwner(
+    attempt: PlatformOwnerProjectionAttempt,
+  ): Promise<PlatformOwnerProjectionOutcome> {
+    const client = await this.pool.connect()
+    try {
+      await client.query('BEGIN')
+      const outcome = await applyPlatformOwnerProjection(client, attempt)
       await client.query('COMMIT')
       return outcome
     } catch (error) {
@@ -357,7 +554,7 @@ export class PostgresAccessStore
 
   async attemptAndAuditRoleChange(
     attempt: AuthorityRoleChangeAttempt,
-  ): Promise<'changed' | 'unchanged' | 'last-owner-protected' | 'conflict'> {
+  ): Promise<'changed' | 'unchanged' | 'last-owner-protected' | 'centrally-managed' | 'conflict'> {
     const client = await this.pool.connect()
     try {
       await client.query('BEGIN')
@@ -390,6 +587,19 @@ export class PostgresAccessStore
         await recordRoleChangeAttempt(client, attempt, 'conflict')
         await client.query('COMMIT')
         return 'conflict'
+      }
+      const platformOwner = await client.query(
+        `
+          SELECT 1
+          FROM access.platform_owner_projection
+          WHERE singleton = true AND membership_id = $1
+        `,
+        [attempt.targetMembershipId],
+      )
+      if (platformOwner.rowCount === 1) {
+        await recordRoleChangeAttempt(client, attempt, 'centrally-managed')
+        await client.query('COMMIT')
+        return 'centrally-managed'
       }
       if (target.authority_role === attempt.nextRole) {
         await recordRoleChangeAttempt(client, attempt, 'unchanged')

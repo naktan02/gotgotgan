@@ -189,6 +189,59 @@ describe('GET /v1/me', () => {
     expect(response.body).not.toContain('subject-1')
     expect(response.body).not.toContain('verified-token')
   })
+
+  it('synchronizes verified platform owner evidence before returning membership', async () => {
+    const principal = { issuer: 'https://identity.example', subject: 'subject-1' }
+    let projected = false
+    const application = buildHttpApplication({
+      access: {
+        principalVerifier: { verify: async () => principal },
+        membershipDirectory: {
+          findByPrincipal: async () => ({
+            id: 'membership-1',
+            principal,
+            status: 'active',
+            authorityRole: projected ? 'owner' : 'member',
+            userGrade: 'founding-member',
+            productTier: 'standard',
+            resourceGrants: [],
+          }),
+        },
+        auditSink: { record: async () => undefined },
+        platformAccess: {
+          source: {
+            evaluate: async (input) => {
+              expect(input.accessToken).toBe('verified-token')
+              expect(input.principal).toEqual(principal)
+              return {
+                roles: ['platform_owner'],
+                revision: 8,
+                ownerRevision: 3,
+                expiresAt: '2026-08-25T12:01:00.000Z',
+              }
+            },
+          },
+          store: {
+            synchronizePlatformOwner: async () => {
+              projected = true
+              return { status: 'projected' }
+            },
+          },
+        },
+        now: () => new Date('2026-08-25T12:00:00.000Z'),
+      },
+    })
+    applications.add(application)
+
+    const response = await application.inject({
+      method: 'GET',
+      url: '/v1/me',
+      headers: { authorization: 'Bearer verified-token' },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({ authorityRole: 'owner' })
+  })
 })
 
 type HttpApplicationOptions = NonNullable<Parameters<typeof buildHttpApplication>[0]>
@@ -294,6 +347,61 @@ describe('POST /v1/memberships/onboarding', () => {
     })
     expect(response.body).not.toContain('subject-1')
     expect(response.body).not.toContain('verified-token')
+  })
+
+  it('passes central owner evidence into the atomic onboarding store operation', async () => {
+    const platformEntitlement = {
+      roles: ['platform_owner'],
+      revision: 8,
+      ownerRevision: 3,
+      expiresAt: '2026-08-26T00:01:00.000Z',
+    } as const
+    let observedEvidence: unknown
+    const application = buildHttpApplication({
+      access: {
+        principalVerifier: {
+          verify: async () => ({ issuer: 'https://identity.example', subject: 'subject-1' }),
+        },
+        membershipDirectory: { findByPrincipal: async () => undefined },
+        auditSink: { record: async () => undefined },
+        platformAccess: {
+          source: { evaluate: async () => platformEntitlement },
+          store: { synchronizePlatformOwner: async () => ({ status: 'unchanged' }) },
+        },
+        onboarding: {
+          policy: {
+            requiredConsents: [{ document: 'terms-of-service', version: '2026-08-26' }],
+            initialUserGrade: 'newcomer',
+            initialProductTier: 'free',
+          },
+          store: {
+            attemptAndAuditOnboarding: async (attempt) => {
+              observedEvidence = attempt.platformEntitlement
+              return {
+                status: 'created',
+                membership: { ...attempt.membership, authorityRole: 'owner' },
+              }
+            },
+          },
+          nextMembershipId: () => 'membership-1',
+        },
+        now: () => new Date('2026-08-26T00:00:00.000Z'),
+      },
+    })
+    applications.add(application)
+
+    const response = await application.inject({
+      method: 'POST',
+      url: '/v1/memberships/onboarding',
+      headers: { authorization: 'Bearer verified-token' },
+      payload: {
+        acceptedConsents: [{ document: 'terms-of-service', version: '2026-08-26' }],
+      },
+    })
+
+    expect(response.statusCode).toBe(201)
+    expect(response.json()).toMatchObject({ authorityRole: 'owner' })
+    expect(observedEvidence).toEqual(platformEntitlement)
   })
 
   it('rejects browser-supplied membership authority and identity fields', async () => {

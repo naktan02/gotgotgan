@@ -410,6 +410,71 @@ test('database preparation confines runtime authority and persists Place access 
     })
     assert.deepEqual(hiddenUnknownMembership, { status: 'forbidden' })
 
+    const platformOwnerPrincipal = {
+      issuer: `urn:place:test:${suffix}`,
+      subject: 'platform-owner-subject',
+    }
+    const platformOwnerOnboarding = await access.completeMembershipOnboarding({
+      principal: platformOwnerPrincipal,
+      acceptedConsents: requiredConsents,
+      policy: {
+        requiredConsents,
+        initialUserGrade: 'founding-member',
+        initialProductTier: 'standard',
+      },
+      platformEntitlement: {
+        roles: ['platform_owner'],
+        revision: 10,
+        ownerRevision: 1,
+        expiresAt: '2026-08-25T12:20:00.000Z',
+      },
+      store: accessStore,
+      nextMembershipId: () => '01991e65-835b-7535-8319-4e367561f731',
+      now: () => new Date('2026-08-25T12:08:00.000Z'),
+    })
+    assert.equal(platformOwnerOnboarding.membership.authorityRole, 'owner')
+    const replacedBootstrapOwner = await access.resolveAccessSubject(ownerPrincipal, accessStore)
+    assert.equal(replacedBootstrapOwner.membership.authorityRole, 'member')
+
+    const centrallyManaged = await access.changeMembershipAuthorityRole({
+      actor: { kind: 'member', membership: platformOwnerOnboarding.membership },
+      targetMembershipId: platformOwnerOnboarding.membership.id,
+      nextRole: 'administrator',
+      store: accessStore,
+      auditSink: accessStore,
+      now: () => new Date('2026-08-25T12:09:00.000Z'),
+    })
+    assert.deepEqual(centrallyManaged, {
+      status: 'centrally-managed',
+      targetMembershipId: platformOwnerOnboarding.membership.id,
+    })
+
+    await access.synchronizePlatformOwner({
+      principal: onboardingPrincipal,
+      evidence: {
+        roles: ['platform_owner'],
+        revision: 11,
+        ownerRevision: 2,
+        expiresAt: '2026-08-25T12:20:00.000Z',
+      },
+      store: accessStore,
+      now: () => new Date('2026-08-25T12:10:00.000Z'),
+    })
+    const previousPlatformOwner = await access.resolveAccessSubject(
+      platformOwnerPrincipal,
+      accessStore,
+    )
+    const currentPlatformOwner = await access.resolveAccessSubject(
+      onboardingPrincipal,
+      accessStore,
+    )
+    assert.equal(previousPlatformOwner.membership.authorityRole, 'member')
+    assert.equal(currentPlatformOwner.membership.authorityRole, 'owner')
+    const ownerCount = await administratorClient.query(
+      "SELECT count(*)::integer AS count FROM access.memberships WHERE authority_role = 'owner'",
+    )
+    assert.equal(ownerCount.rows[0].count, 1)
+
     const { createProductionHttpRuntime } = await import(
       '../../dist/entrypoints/http/production-runtime.js'
     )
@@ -437,7 +502,6 @@ test('database preparation confines runtime authority and persists Place access 
             audience: 'place-backend',
             jwksUri: 'https://identity.example/oauth/v2/keys',
             algorithms: ['RS256'],
-            requiredScopes: ['place.read'],
           },
         },
         membershipPolicy: {

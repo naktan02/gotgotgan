@@ -59,6 +59,13 @@ export type ProductionHttpConfig = Readonly<{
     }>
     artifacts: CaptureArtifactConfig
   }>
+  platformAccess?: Readonly<{
+    endpoint: URL
+    jwksUri: URL
+    assertionIssuer: string
+    audience: string
+    timeoutMilliseconds: number
+  }>
 }>
 
 const membershipPolicySchema = z
@@ -105,6 +112,15 @@ const productionEnvironmentSchema = z.object({
     .max(60_000),
   PLACE_MEMBERSHIP_POLICY_FILE: z.string().min(1),
   PLACE_CONNECTOR_RUNTIME_ENABLED: z.enum(['true', 'false']),
+  PLACE_PLATFORM_ACCESS_ENABLED: z.enum(['true', 'false']).default('false'),
+})
+
+const platformAccessEnvironmentSchema = z.object({
+  PLACE_PLATFORM_ACCESS_ENDPOINT: z.string().min(1),
+  PLACE_PLATFORM_ACCESS_JWKS_URI: z.string().min(1),
+  PLACE_PLATFORM_ACCESS_ASSERTION_ISSUER: z.string().trim().min(1),
+  PLACE_PLATFORM_ACCESS_AUDIENCE: z.string().trim().min(1),
+  PLACE_PLATFORM_ACCESS_TIMEOUT_MILLISECONDS: z.coerce.number().int().min(100).max(30_000),
 })
 
 function configurationError(): Error {
@@ -160,6 +176,35 @@ function providerUrl(value: string, requireTrailingSlash: boolean = false): URL 
     (requireTrailingSlash && !url.pathname.endsWith('/'))
   ) throw configurationError()
   return url
+}
+
+function platformAccessUrl(value: string): URL {
+  const url = new URL(value)
+  const localHttp = url.protocol === 'http:' && (
+    url.hostname === 'identity-platform-access' || url.hostname === 'localhost' ||
+    url.hostname.endsWith('.localhost') || url.hostname === '127.0.0.1' ||
+    url.hostname === '[::1]'
+  )
+  if (
+    (url.protocol !== 'https:' && !localHttp) ||
+    url.username !== '' || url.password !== '' || url.hash !== ''
+  ) throw configurationError()
+  return url
+}
+
+function loadPlatformAccessConfig(
+  environment: NodeJS.ProcessEnv,
+  oidcAudience: string,
+) {
+  const values = platformAccessEnvironmentSchema.parse(environment)
+  if (values.PLACE_PLATFORM_ACCESS_AUDIENCE !== oidcAudience) throw configurationError()
+  return {
+    endpoint: platformAccessUrl(values.PLACE_PLATFORM_ACCESS_ENDPOINT),
+    jwksUri: platformAccessUrl(values.PLACE_PLATFORM_ACCESS_JWKS_URI),
+    assertionIssuer: values.PLACE_PLATFORM_ACCESS_ASSERTION_ISSUER,
+    audience: values.PLACE_PLATFORM_ACCESS_AUDIENCE,
+    timeoutMilliseconds: values.PLACE_PLATFORM_ACCESS_TIMEOUT_MILLISECONDS,
+  }
 }
 
 function providerGroup(
@@ -303,6 +348,9 @@ export async function loadProductionHttpConfig(
     ])
     const policyDocument: unknown = JSON.parse(membershipPolicyJson)
     const policy = membershipPolicySchema.parse(policyDocument)
+    const platformAccess = values.PLACE_PLATFORM_ACCESS_ENABLED === 'true'
+      ? loadPlatformAccessConfig(environment, authentication.oidc.audience)
+      : undefined
     return {
       listener: readHttpRuntimeConfig(environment),
       database: {
@@ -320,6 +368,7 @@ export async function loadProductionHttpConfig(
       },
       ...(providers === undefined ? {} : { providers }),
       ...(connector === undefined ? {} : { connector }),
+      ...(platformAccess === undefined ? {} : { platformAccess }),
     }
   } catch {
     throw configurationError()

@@ -190,7 +190,6 @@ if (clientId !== undefined && clientId !== '') {
     PLACE_OIDC_CALLBACK_URL: `${publicOrigin.origin}/api/auth/oidc/callback`,
     PLACE_OIDC_POST_LOGIN_PATH: '/',
     PLACE_OIDC_SCOPES: 'openid profile offline_access',
-    PLACE_OIDC_REQUIRED_SCOPES: 'openid',
     PLACE_OIDC_JWKS_URI: `${identityOrigin.origin}/oauth/v2/keys`,
     PLACE_OIDC_TRANSACTION_TTL_SECONDS: '300',
     PLACE_OIDC_SESSION_TTL_SECONDS: '86400',

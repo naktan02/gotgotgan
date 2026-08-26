@@ -4,6 +4,14 @@
 .header p:not(.eyebrow) { max-width: 720px; margin: 8px 0 0; color: var(--muted); line-height: 1.55; }
 .eyebrow { margin: 0 0 5px; color: var(--accent); font-size: 12px; font-weight: 700; }
 .error { padding: 11px 24px; border-bottom: 1px solid #ecd0d0; background: #fff2f2; color: var(--danger); font-size: 13px; }
+.onboarding { margin: 18px 20px 0; padding: 20px; border: 1px solid var(--accent); border-radius: var(--radius-surface); background: var(--surface); }
+.onboarding h2 { margin: 0; font-size: 18px; }
+.onboarding > p:not(.eyebrow) { margin: 8px 0 0; color: var(--muted); line-height: 1.55; }
+.consentList { display: grid; gap: 10px; margin-top: 16px; }
+.consentList label { display: flex; align-items: center; gap: 9px; min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-control); }
+.consentList input { accent-color: var(--accent); }
+.consentList small { color: var(--muted); }
+.consentList .primaryButton { max-width: 280px; }
 .layout { display: grid; grid-template-columns: minmax(300px, 34%) minmax(0, 1fr); min-height: calc(100vh - 182px); }
 .controlPane { padding: 20px; border-right: 1px solid var(--line); background: #f9faf8; }
 .controlSection { padding: 18px; border: 1px solid var(--line); border-radius: var(--radius-surface); background: var(--surface); }

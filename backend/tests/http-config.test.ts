@@ -62,7 +62,6 @@ async function configurationEnvironment(
     PLACE_OIDC_ISSUER: 'https://identity.example',
     PLACE_OIDC_AUDIENCE: 'place-backend',
     PLACE_OIDC_JWKS_URI: 'https://identity.example/oauth/v2/keys',
-    PLACE_OIDC_REQUIRED_SCOPES: 'openid place.read',
     ...overrides,
   }
 }
@@ -105,7 +104,6 @@ describe('HTTP runtime configuration', () => {
           audience: 'place-backend',
           jwksUri: 'https://identity.example/oauth/v2/keys',
           algorithms: ['RS256'],
-          requiredScopes: ['openid', 'place.read'],
         },
       },
       membershipPolicy: {
@@ -186,6 +184,45 @@ describe('HTTP runtime configuration', () => {
         apiKey: 'google-secret', timeoutMilliseconds: 2500,
       },
     })
+  })
+
+  it('loads central platform access only when explicitly enabled for the OIDC audience', async () => {
+    const config = await loadProductionHttpConfig(await configurationEnvironment({
+      PLACE_PLATFORM_ACCESS_ENABLED: 'true',
+      PLACE_PLATFORM_ACCESS_ENDPOINT:
+        'https://platform-access.example/internal/v1/entitlements/evaluate',
+      PLACE_PLATFORM_ACCESS_JWKS_URI:
+        'https://platform-access.example/internal/v1/.well-known/jwks.json',
+      PLACE_PLATFORM_ACCESS_ASSERTION_ISSUER: 'personal-identity-platform-access',
+      PLACE_PLATFORM_ACCESS_AUDIENCE: 'place-backend',
+      PLACE_PLATFORM_ACCESS_TIMEOUT_MILLISECONDS: '3000',
+    }))
+
+    expect(config.platformAccess).toEqual({
+      endpoint: new URL('https://platform-access.example/internal/v1/entitlements/evaluate'),
+      jwksUri: new URL('https://platform-access.example/internal/v1/.well-known/jwks.json'),
+      assertionIssuer: 'personal-identity-platform-access',
+      audience: 'place-backend',
+      timeoutMilliseconds: 3000,
+    })
+  })
+
+  it('rejects partial central access configuration and a mismatched service audience', async () => {
+    await expect(loadProductionHttpConfig(await configurationEnvironment({
+      PLACE_PLATFORM_ACCESS_ENABLED: 'true',
+      PLACE_PLATFORM_ACCESS_ENDPOINT:
+        'https://platform-access.example/internal/v1/entitlements/evaluate',
+    }))).rejects.toThrow('Production HTTP configuration is invalid')
+    await expect(loadProductionHttpConfig(await configurationEnvironment({
+      PLACE_PLATFORM_ACCESS_ENABLED: 'true',
+      PLACE_PLATFORM_ACCESS_ENDPOINT:
+        'https://platform-access.example/internal/v1/entitlements/evaluate',
+      PLACE_PLATFORM_ACCESS_JWKS_URI:
+        'https://platform-access.example/internal/v1/.well-known/jwks.json',
+      PLACE_PLATFORM_ACCESS_ASSERTION_ISSUER: 'personal-identity-platform-access',
+      PLACE_PLATFORM_ACCESS_AUDIENCE: 'different-service',
+      PLACE_PLATFORM_ACCESS_TIMEOUT_MILLISECONDS: '3000',
+    }))).rejects.toThrow('Production HTTP configuration is invalid')
   })
 
   it('rejects partial provider groups and endpoints carrying credentials', async () => {

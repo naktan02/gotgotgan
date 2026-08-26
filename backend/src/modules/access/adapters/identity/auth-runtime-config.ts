@@ -26,7 +26,6 @@ export function readAuthRuntimeConfig(environment: NodeJS.ProcessEnv): AuthRunti
       PLACE_OIDC_ISSUER: z.string().url(),
       PLACE_OIDC_AUDIENCE: z.string().min(1),
       PLACE_OIDC_JWKS_URI: z.string().url(),
-      PLACE_OIDC_REQUIRED_SCOPES: z.string().trim().min(1),
     })
     .parse(environment)
 
@@ -37,7 +36,6 @@ export function readAuthRuntimeConfig(environment: NodeJS.ProcessEnv): AuthRunti
       audience: oidc.PLACE_OIDC_AUDIENCE,
       jwksUri: oidc.PLACE_OIDC_JWKS_URI,
       algorithms: ['RS256'],
-      requiredScopes: oidc.PLACE_OIDC_REQUIRED_SCOPES.split(' ').filter(Boolean),
       ...(common.PLACE_OIDC_ALLOW_INSECURE_LOCAL_HTTP === 'true'
         ? { allowInsecureLocalHttp: true }
         : {}),

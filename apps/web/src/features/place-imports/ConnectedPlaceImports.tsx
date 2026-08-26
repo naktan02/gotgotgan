@@ -6,7 +6,12 @@ import {
   connectorGrantSchema,
   type ConnectorExtensionEvent,
 } from '@place/contracts/connector'
-import { problemSchema } from '@place/contracts/http'
+import {
+  currentMembershipConsentsSchema,
+  membershipOnboardingRequestSchema,
+  membershipOnboardingResultSchema,
+  problemSchema,
+} from '@place/contracts/http'
 import {
   placeImportBatchDetailSchema,
   placeImportBatchSchema,
@@ -52,7 +57,7 @@ const stateMessages: Readonly<Record<PlaceImportBatch['state'], string>> = {
 }
 
 class ImportBrowserProblem extends Error {
-  constructor(message: string, readonly retryable: boolean) {
+  constructor(message: string, readonly retryable: boolean, readonly code?: string) {
     super(message)
   }
 }
@@ -67,6 +72,7 @@ async function responsePayload(response: Response): Promise<unknown> {
     throw new ImportBrowserProblem(
       parsed.success ? parsed.data.title : '가져오기를 처리하지 못했습니다.',
       parsed.success ? parsed.data.retryable : true,
+      parsed.success ? parsed.data.code : undefined,
     )
   }
   return payload
@@ -176,10 +182,51 @@ export function ConnectedPlaceImports() {
   const [connectorChecking, setConnectorChecking] = useState(true)
   const [connectorReady, setConnectorReady] = useState<ConnectorReady>()
   const [connectorProgress, setConnectorProgress] = useState<ConnectorProgress>()
+  const [onboardingRequired, setOnboardingRequired] = useState(false)
+  const [onboardingConsents, setOnboardingConsents] = useState<
+    ReturnType<typeof currentMembershipConsentsSchema.parse>['consents']
+  >()
+  const [acceptedConsentKeys, setAcceptedConsentKeys] = useState<ReadonlySet<string>>(new Set())
+  const [onboardingBusy, setOnboardingBusy] = useState(false)
   const connectorSession = useRef<ConnectorPageSession | undefined>(undefined)
   const activeConnectorOperation = useRef<string | undefined>(undefined)
   const startCommand = useRef<string | undefined>(undefined)
   const reviewCommands = useRef(new Map<string, string>())
+
+  const loadConnections = useCallback(async () => {
+    try {
+      const projection = providerConnectionListSchema.parse(
+        await requestJson('/api/imports/connections'),
+      )
+      setConnections(projection.items)
+      setSelectedConnectionId(
+        projection.items.find((item) => item.status === 'ready')?.connectionId,
+      )
+      setOnboardingRequired(false)
+    } catch (failure) {
+      if (failure instanceof ImportBrowserProblem && failure.code === 'PLACE_ACCESS_DENIED') {
+        setOnboardingRequired(true)
+        setError(undefined)
+        try {
+          const current = currentMembershipConsentsSchema.parse(
+            await requestJson('/api/membership-consents/current'),
+          )
+          setOnboardingConsents(current.consents)
+          setAcceptedConsentKeys(new Set())
+        } catch (consentFailure) {
+          setError(
+            consentFailure instanceof Error
+              ? consentFailure.message
+              : '현재 Place 이용 동의를 불러오지 못했습니다.',
+          )
+        }
+        return
+      }
+      setError(
+        failure instanceof Error ? failure.message : '연결 계정을 불러오지 못했습니다.',
+      )
+    }
+  }, [])
 
   const loadDetail = useCallback(async (batchId: string) => {
     const parsed = placeImportBatchDetailSchema.parse(await requestJson(`/api/imports/${batchId}`))
@@ -205,19 +252,39 @@ export function ConnectedPlaceImports() {
   }, [probeConnector])
 
   useEffect(() => {
-    let active = true
-    void requestJson('/api/imports/connections')
-      .then((payload) => providerConnectionListSchema.parse(payload))
-      .then((projection) => {
-        if (!active) return
-        setConnections(projection.items)
-        setSelectedConnectionId(projection.items.find((item) => item.status === 'ready')?.connectionId)
+    void loadConnections()
+  }, [loadConnections])
+
+  async function completeOnboarding() {
+    if (
+      onboardingConsents === undefined ||
+      acceptedConsentKeys.size !== onboardingConsents.length
+    ) return
+    setOnboardingBusy(true)
+    setError(undefined)
+    try {
+      const request = membershipOnboardingRequestSchema.parse({
+        acceptedConsents: onboardingConsents,
       })
-      .catch((failure: unknown) => {
-        if (active) setError(failure instanceof Error ? failure.message : '연결 계정을 불러오지 못했습니다.')
-      })
-    return () => { active = false }
-  }, [])
+      const result = membershipOnboardingResultSchema.parse(
+        await requestJson('/api/memberships/onboarding', {
+          method: 'POST',
+          body: JSON.stringify(request),
+        }),
+      )
+      if (result.authorityRole !== 'owner') {
+        throw new ImportBrowserProblem('Platform Owner 권한을 Place에 연결하지 못했습니다.', true)
+      }
+      setOnboardingRequired(false)
+      setOnboardingConsents(undefined)
+      setAcceptedConsentKeys(new Set())
+      await loadConnections()
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Place 가입을 완료하지 못했습니다.')
+    } finally {
+      setOnboardingBusy(false)
+    }
+  }
 
   useEffect(() => {
     if (batch === undefined || !activeStates.has(batch.state)) return
@@ -363,6 +430,55 @@ export function ConnectedPlaceImports() {
       </header>
 
       {error !== undefined && <div className={styles.error} role="alert">{error}</div>}
+
+      {onboardingRequired && (
+        <section aria-labelledby="place-onboarding-title" className={styles.onboarding}>
+          <p className={styles.eyebrow}>첫 서비스 연결</p>
+          <h2 id="place-onboarding-title">Place 이용 동의 후 Owner로 연결합니다</h2>
+          <p>
+            중앙 플랫폼 Owner 권한은 확인되었습니다. 아래 현재 문서에 동의하면 이 계정을
+            Place의 유일한 Owner로 자동 연결합니다.
+          </p>
+          {onboardingConsents === undefined ? (
+            <p className={styles.muted}>현재 동의 문서를 불러오는 중입니다.</p>
+          ) : (
+            <div className={styles.consentList}>
+              {onboardingConsents.map((consent) => {
+                const key = `${consent.document}:${consent.version}`
+                const label = consent.document === 'terms-of-service'
+                  ? '서비스 이용약관'
+                  : consent.document === 'privacy-policy'
+                    ? '개인정보 처리방침'
+                    : consent.document
+                return (
+                  <label key={key}>
+                    <input
+                      checked={acceptedConsentKeys.has(key)}
+                      disabled={onboardingBusy}
+                      onChange={(event) => setAcceptedConsentKeys((current) => {
+                        const next = new Set(current)
+                        if (event.target.checked) next.add(key)
+                        else next.delete(key)
+                        return next
+                      })}
+                      type="checkbox"
+                    />
+                    <span>{label} <small>{consent.version}</small></span>
+                  </label>
+                )
+              })}
+              <button
+                className={styles.primaryButton}
+                disabled={onboardingBusy || acceptedConsentKeys.size !== onboardingConsents.length}
+                onClick={() => void completeOnboarding()}
+                type="button"
+              >
+                동의하고 Owner 연결
+              </button>
+            </div>
+          )}
+        </section>
+      )}
 
       <div className={styles.layout}>
         <aside className={styles.controlPane}>

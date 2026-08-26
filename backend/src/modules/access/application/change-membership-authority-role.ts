@@ -13,6 +13,7 @@ export type MembershipAuthorityRoleChange =
   | Readonly<{ status: 'forbidden' }>
   | Readonly<{ status: 'not-found' }>
   | Readonly<{ status: 'last-owner-protected'; targetMembershipId: string }>
+  | Readonly<{ status: 'centrally-managed'; targetMembershipId: string }>
   | Readonly<{ status: 'conflict'; targetMembershipId: string }>
   | Readonly<{ status: 'unchanged'; targetMembershipId: string }>
 
@@ -53,6 +54,9 @@ export async function changeMembershipAuthorityRole(input: Readonly<{
   })
   if (outcome === 'last-owner-protected') {
     return { status: 'last-owner-protected', targetMembershipId: target.id }
+  }
+  if (outcome === 'centrally-managed') {
+    return { status: 'centrally-managed', targetMembershipId: target.id }
   }
   if (outcome === 'conflict') return { status: 'conflict', targetMembershipId: target.id }
   if (outcome === 'unchanged') return { status: 'unchanged', targetMembershipId: target.id }

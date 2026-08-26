@@ -47,6 +47,7 @@ export {
   MembershipConsentRequiredError,
   type MembershipOnboardingPolicy,
 } from './application/complete-membership-onboarding.js'
+export { synchronizePlatformOwner } from './application/synchronize-platform-owner.js'
 export type { AccessAuditEvent, AccessAuditSink } from './application/ports/access-audit-sink.js'
 export type {
   BootstrapAuthority,
@@ -64,6 +65,16 @@ export type {
 } from './application/ports/membership-onboarding-store.js'
 export type { PrincipalVerifier } from './application/ports/principal-verifier.js'
 export type {
+  PlatformEntitlementEvidence,
+  PlatformEntitlementSource,
+  PlatformRoleCode,
+} from './application/ports/platform-entitlement-source.js'
+export type {
+  PlatformOwnerProjectionAttempt,
+  PlatformOwnerProjectionOutcome,
+  PlatformOwnerProjectionStore,
+} from './application/ports/platform-owner-projection-store.js'
+export type {
   AuthorityRoleChangeStore,
   AuthorityRoleChangeAttempt,
 } from './application/ports/authority-role-change-store.js'
@@ -80,3 +91,8 @@ export {
   createRemoteOidcPrincipalVerifier,
   type OidcPrincipalVerifierConfig,
 } from './adapters/identity/oidc-principal-verifier.js'
+export {
+  createRemotePlatformEntitlementSource,
+  PlatformEntitlementVerificationError,
+  type PlatformEntitlementSourceConfig,
+} from './adapters/entitlements/remote-platform-entitlement-source.js'

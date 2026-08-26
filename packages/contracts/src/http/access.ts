@@ -38,7 +38,7 @@ export const membershipOnboardingResultSchema = z.object({
 }).strict()
 
 export const authorityRoleChangeRequestSchema = z.object({
-  nextRole: authorityRoleSchema,
+  nextRole: z.enum(['member', 'reviewer', 'administrator']),
 }).strict()
 
 export const authorityRoleChangeResultSchema = z.object({

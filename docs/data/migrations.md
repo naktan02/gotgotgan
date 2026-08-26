@@ -21,6 +21,12 @@ audit events. It grants no membership or audit deletion authority. The third mig
 metadata are stored; `place_app` receives select/insert/delete but no update or DDL authority.
 Application startup never receives administrator/migration credentials and never performs DDL.
 
+Migration `000018` replaces the legacy owner index with a unique Owner constraint and creates the
+singleton `access.platform_owner_projection` checkpoint. It records authority/owner revision,
+preserved prior Place role, assertion expiry, and observation time; the runtime role receives only
+the bounded select/update access required for atomic projection. Audit events add the
+`platform-owner-projection` kind.
+
 Migrations `000005` and `000006` add the Stage 3 resolution foundation. `ingestion` tables retain
 append-only Source Observations, Place Candidates, and Resolution Decisions. `places` adds canonical
 status/version, aliases, provider identities, applied-decision fingerprints, redirects, and lineage.

@@ -1,17 +1,19 @@
 # Identity
 
-Identity remains the common login authority. Place later registers an OIDC client/manifest and maps
-verified `(issuer, subject)` to a local membership. Place owns roles, tiers, grants, visibility,
-provider connections, and final resource authorization.
+Identity remains the common login authority and the authority for one cross-product
+`platform_owner`. Place maps verified `(issuer, subject)` to a local membership and projects only a
+signed, Place-audience-bound `platform_owner` entitlement into its sole local `owner`. Place owns
+all other roles, tiers, grants, visibility, provider connections, and final resource authorization.
 
 Adding Place should require client configuration and integration tests, not new Identity business
 tables or Place-specific login logic. The Studio guest contract is Automation-owned and is not reused;
 public Place reading is anonymous until a distinct authenticated guest requirement exists.
 
-The resource-server adapter uses an injected HTTPS issuer, audience, JWKS URI, fixed algorithm
-allow-list, required time claims, and required scopes. It produces only `(issuer, subject)`; email and
-token roles are ignored. The OIDC client is not provisioned until Place owns a working callback,
-deployable release, Gateway route/health declaration, and the workspace onboarding validation gate.
+리소스 서버 어댑터는 주입된 HTTPS 발급자, 대상, JWKS URI, 고정 알고리즘 허용 목록, 필수 시간
+클레임과 주체를 검증한다. 결과로 `(issuer, subject)`만 만들고 이메일, 토큰 역할과 선택적인 scope
+클레임은 권한 근거로 사용하지 않는다. 로그인 요청에 필요한 scope는 Web OIDC 클라이언트가 별도로
+보낸다. OIDC 클라이언트 프로비저닝은 Place가 정상 콜백, 배포 가능한 릴리스, Gateway 경로·상태
+선언과 워크스페이스 온보딩 검증 게이트를 갖춘 뒤에 진행한다.
 
 The service-owned manifest is `deploy/identity/oidc-client.json`. It declares a confidential web
 client, an environment-expanded public origin, and no Identity role assertions; it is an
@@ -37,10 +39,21 @@ opaque-cookie session; the token never enters a browser response. This requires 
 Identity table or login change. Production activation, client provisioning, and public Gateway
 validation remain intentionally absent.
 
-The Backend production composition now installs the resource-server verifier from injected issuer,
-audience, JWKS URI, and scopes; it still performs no network discovery at configuration time and
-cannot use test auth. This closes the Place-owned composition gate only. Provisioning the client,
-mounting its generated secret, and verifying the real issuer remain Identity-owned integration work.
+Backend 운영 구성은 주입된 발급자, 대상과 JWKS URI로 리소스 서버 검증기를 설치한다. 설정 시점의
+네트워크 탐색은 수행하지 않고 테스트 인증도 사용할 수 없다. 이는 Place 소유 구성 게이트만 닫는다.
+클라이언트 프로비저닝, 생성된 비밀 마운트와 실제 발급자 검증은 계속 Identity 소유 통합 작업이다.
+
+## Platform Owner entitlement
+
+The optional Identity Backend call uses `platform-entitlement-response.v1` over the private
+`identity-services` network. Place verifies ES256, `typ=platform-entitlement+jwt`, assertion issuer,
+Place audience, `(identity_issuer, sub)`, expiration, and `owner_revision`; it never reads Identity
+tables. On onboarding and authenticated Backend access, a newer owner revision atomically replaces
+the local Owner and appends audit evidence. `platform_admin` and `platform_operator` remain global
+staff ranks and do not grant Place `administrator` or `reviewer` authority.
+
+The Compose and application wiring are currently `source-only` and optional. No public Gateway path
+is added for this internal Interface, and no user has been assigned by source initialization.
 
 ## 로컬 HTTP 예외
 

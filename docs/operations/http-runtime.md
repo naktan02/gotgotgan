@@ -1,26 +1,25 @@
-# HTTP runtime
+# HTTP 런타임
 
-Backend startup requires deployment-injected `PLACE_HTTP_HOST`, `PLACE_HTTP_PORT`, and an explicit
-`PLACE_HTTP_RUNTIME_MODE`. `source-only` exposes lifecycle routes only. `production` additionally
-requires a protected runtime database URL, bounded Pool settings, OIDC resource-server settings, and
-a protected membership-policy file. It verifies PostgreSQL before startup, registers every reviewed
-access transport, reports Pool failure through `/readyz`, and closes Fastify before its Pool.
+Backend 시작에는 배포가 주입하는 `PLACE_HTTP_HOST`, `PLACE_HTTP_PORT`와 명시적인
+`PLACE_HTTP_RUNTIME_MODE`가 필요하다. `source-only`는 수명주기 경로만 노출한다. `production`은
+보호된 런타임 데이터베이스 URL, 제한된 Pool 설정, OIDC 리소스 서버 설정과 보호된 멤버십 정책
+파일도 요구한다. 시작 전에 PostgreSQL을 검증하고, 검토된 접근 전송 계층을 등록하며, Pool 장애를
+`/readyz`로 보고하고 Pool보다 먼저 Fastify를 종료한다.
 
-The backend production settings are:
+Backend 운영 설정은 다음과 같다.
 
 - `PLACE_DATABASE_URL_FILE` containing one complete PostgreSQL URL;
 - `PLACE_DATABASE_MAX_CONNECTIONS` from 1 through 100;
 - `PLACE_DATABASE_IDLE_TIMEOUT_MILLISECONDS` from 1 through 600,000;
 - `PLACE_DATABASE_CONNECTION_TIMEOUT_MILLISECONDS` from 1 through 60,000;
 - `PLACE_MEMBERSHIP_POLICY_FILE` containing one strict `place-membership-policy.v1` JSON document;
-- `PLACE_AUTH_MODE=oidc`; and
-- `PLACE_OIDC_ISSUER`, `PLACE_OIDC_AUDIENCE`, `PLACE_OIDC_JWKS_URI`, and
-  `PLACE_OIDC_REQUIRED_SCOPES`.
+- `PLACE_AUTH_MODE=oidc`
+- `PLACE_OIDC_ISSUER`, `PLACE_OIDC_AUDIENCE`, `PLACE_OIDC_JWKS_URI`
 
-The membership policy contains `requiredConsents`, `initialUserGrade`, and `initialProductTier`.
-Its published shape is `packages/contracts/membership/membership-policy.v1.schema.json`. There is no
-repository default for documents, versions, grades, or tiers. Test auth remains rejected by the
-production loader.
+멤버십 정책은 `requiredConsents`, `initialUserGrade`, `initialProductTier`를 포함한다. 공개 스키마는
+`packages/contracts/membership/membership-policy.v1.schema.json`이다. 문서, 버전, 등급, 티어에 대한
+저장소 기본값은 없다. 운영 로더는 테스트 인증을 계속 거부한다. 로그인 요청 범위는 별도의
+`PLACE_OIDC_SCOPES`로 지정하며, 액세스 토큰 검증은 서명·발급자·대상·시간·주체 클레임을 확인한다.
 
 `loadOidcProcessRuntimeConfig` requires these secret-file references:
 

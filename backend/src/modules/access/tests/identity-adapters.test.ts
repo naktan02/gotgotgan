@@ -39,22 +39,20 @@ function config(): OidcPrincipalVerifierConfig {
     audience,
     jwksUri: 'https://identity.example/jwks',
     algorithms: ['RS256'],
-    requiredScopes: ['place.read'],
   }
 }
 
 describe('OIDC principal verification', () => {
-  it('returns only exact issuer and subject after cryptographic and claim checks', async () => {
-    const { token, keyResolver } = await signedToken({ email: 'display-only@example.test' })
+  it('returns only exact issuer and subject when a valid access token has no scope claim', async () => {
+    const { token, keyResolver } = await signedToken({
+      scope: undefined,
+      email: 'display-only@example.test',
+    })
     const verifier = createOidcPrincipalVerifier(config(), keyResolver)
     await expect(verifier.verify(token)).resolves.toEqual({ issuer, subject: 'subject-1' })
   })
 
-  it('rejects a wrong audience or a missing required scope with a safe error', async () => {
-    const missingScope = await signedToken({ scope: 'profile' })
-    await expect(
-      createOidcPrincipalVerifier(config(), missingScope.keyResolver).verify(missingScope.token),
-    ).rejects.toEqual(new PrincipalVerificationError())
+  it('rejects a wrong audience with a safe error', async () => {
     const wrongAudience = await signedToken({}, 'another-service')
     await expect(
       createOidcPrincipalVerifier(config(), wrongAudience.keyResolver).verify(wrongAudience.token),

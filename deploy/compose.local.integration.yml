@@ -11,11 +11,19 @@ services:
   backend:
     environment:
       PLACE_OIDC_ALLOW_INSECURE_LOCAL_HTTP: "true"
+      PLACE_PLATFORM_ACCESS_ENABLED: "true"
+      PLACE_PLATFORM_ACCESS_ENDPOINT: http://identity-platform-access:8090/internal/v1/entitlements/evaluate
+      PLACE_PLATFORM_ACCESS_JWKS_URI: http://identity-platform-access:8090/internal/v1/.well-known/jwks.json
+      PLACE_PLATFORM_ACCESS_ASSERTION_ISSUER: personal-identity-platform-access
+      PLACE_PLATFORM_ACCESS_AUDIENCE: ${PLACE_OIDC_AUDIENCE:?PLACE_OIDC_AUDIENCE is required}
+      PLACE_PLATFORM_ACCESS_TIMEOUT_MILLISECONDS: "3000"
     extra_hosts:
       - "identity.localhost:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - identity-services
 
   database-prepare:
     profiles: [local-lifecycle]
@@ -50,3 +58,8 @@ secrets:
     file: ${PLACE_MIGRATION_DATABASE_PASSWORD_FILE:?PLACE_MIGRATION_DATABASE_PASSWORD_FILE is required}
   place_database_password:
     file: ${PLACE_DATABASE_PASSWORD_FILE:?PLACE_DATABASE_PASSWORD_FILE is required}
+
+networks:
+  identity-services:
+    external: true
+    name: ${IDENTITY_SERVICE_NETWORK:-platform-service-network}

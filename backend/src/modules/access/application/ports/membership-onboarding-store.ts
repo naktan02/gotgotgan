@@ -1,8 +1,10 @@
 import type { Membership, MembershipConsent } from '../../domain/model.js'
+import type { PlatformEntitlementEvidence } from './platform-entitlement-source.js'
 
 export type MembershipOnboardingAttempt = Readonly<{
   membership: Membership
   consents: readonly MembershipConsent[]
+  platformEntitlement?: PlatformEntitlementEvidence
   occurredAt: string
 }>
 

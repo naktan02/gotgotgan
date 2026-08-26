@@ -16,5 +16,5 @@ export interface AuthorityRoleChangeStore {
    */
   attemptAndAuditRoleChange(
     attempt: AuthorityRoleChangeAttempt,
-  ): Promise<'changed' | 'unchanged' | 'last-owner-protected' | 'conflict'>
+  ): Promise<'changed' | 'unchanged' | 'last-owner-protected' | 'centrally-managed' | 'conflict'>
 }

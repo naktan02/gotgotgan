@@ -4,9 +4,11 @@ import { Pool } from 'pg'
 
 import {
   authorizeAndAudit,
+  createRemotePlatformEntitlementSource,
   createRemoteOidcPrincipalVerifier,
   PostgresAccessStore,
   resolveAccessSubject,
+  synchronizePlatformOwner,
   UnregisteredPrincipalError,
   type OidcPrincipalVerifierConfig,
   type PrincipalVerifier,
@@ -80,6 +82,15 @@ export async function createProductionHttpRuntime(
     await pool.query('SELECT 1')
     const store = new PostgresAccessStore(pool)
     const now = dependencies.now ?? (() => new Date())
+    const platformEntitlementSource = config.platformAccess === undefined
+      ? undefined
+      : createRemotePlatformEntitlementSource({
+          endpoint: config.platformAccess.endpoint,
+          jwksUri: config.platformAccess.jwksUri,
+          assertionIssuer: config.platformAccess.assertionIssuer,
+          audience: config.platformAccess.audience,
+          timeoutMs: config.platformAccess.timeoutMilliseconds,
+        })
     const productAuthorizer: ProductAuthorizer = async (authorization, permission) => {
       const token = /^Bearer ([^\s]+)$/i.exec(authorization ?? '')?.[1]
       if (token === undefined) return { status: 'authentication-required' }
@@ -90,6 +101,13 @@ export async function createProductionHttpRuntime(
         return { status: 'authentication-required' }
       }
       try {
+        if (platformEntitlementSource !== undefined) {
+          const evidence = await platformEntitlementSource.evaluate({
+            accessToken: token,
+            principal,
+          })
+          await synchronizePlatformOwner({ principal, evidence, store, now })
+        }
         const subject = await resolveAccessSubject(principal, store)
         const decision = await authorizeAndAudit({ subject, request: { permission }, auditSink: store, now })
         return decision.allowed && subject.kind === 'member'
@@ -207,6 +225,9 @@ export async function createProductionHttpRuntime(
           nextMembershipId: dependencies.nextMembershipId ?? randomUUID,
         },
         authorityManagement: { store },
+        ...(platformEntitlementSource === undefined ? {} : {
+          platformAccess: { source: platformEntitlementSource, store },
+        }),
         now,
       },
       library: { authorizer: productAuthorizer, store: libraryStore, now },

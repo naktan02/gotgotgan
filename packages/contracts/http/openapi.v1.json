@@ -3640,8 +3640,7 @@
             "enum": [
               "member",
               "reviewer",
-              "administrator",
-              "owner"
+              "administrator"
             ]
           }
         },
