@@ -35,6 +35,7 @@ export function createNextConnectorLifecycle(dependencies: Readonly<{
         }
         backend = dependencies.createBackend({
           origin: required(environment, 'PLACE_BACKEND_ORIGIN'),
+          publicOrigin: required(environment, 'PLACE_CONNECTOR_PUBLIC_ORIGIN'),
           timeoutMilliseconds: timeout,
         })
         return { state: 'ready' as const }

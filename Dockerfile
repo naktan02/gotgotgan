@@ -52,5 +52,8 @@ COPY --chown=node:node backend/migrations ./backend/migrations
 COPY --chown=node:node deploy/database-runtime.json ./deploy/database-runtime.json
 COPY --from=backend-build --chown=node:node /workspace/packages/contracts/dist ./packages/contracts/dist
 COPY --from=backend-build --chown=node:node /workspace/packages/contracts/package.json ./packages/contracts/package.json
+RUN mkdir -p /var/lib/place/captures
+RUN chown node:node /var/lib/place/captures
+RUN chmod 0700 /var/lib/place/captures
 USER node
 CMD ["node", "backend/dist/entrypoints/http/main.js"]

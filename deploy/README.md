@@ -113,6 +113,11 @@ docker compose -f deploy/compose.database.yml config
 
 The image base is digest-pinned. With Docker running, validate targets from the repository root:
 
+`backend-runtime` 이미지는 `/var/lib/place/captures`를 `node` 소유의 `0700` 디렉터리로 미리 만든다.
+새 named volume은 이 소유권을 상속해야 하며, 기존 volume을 재사용할 때는 배포 전에 Backend 실행
+사용자가 해당 경로에 쓸 수 있는지 확인한다. 캡처 파일은 보호된 keyring으로 암호화된 뒤 이 private
+volume에만 저장한다.
+
 ```powershell
 docker build --target web-runtime --tag place-web-source .
 docker build --target backend-runtime --tag place-backend-source .

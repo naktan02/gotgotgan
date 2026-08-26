@@ -22,15 +22,18 @@ function grant(placeOrigin = 'https://place.example') {
 
 describe('browser connector HTTP', () => {
   it('binds a grant to the authenticated public origin', async () => {
-    const issueGrant = vi.fn(async () => Response.json(grant()))
+    const publicOrigin = 'http://localhost:3000'
+    const issueGrant = vi.fn(async () => Response.json(grant(publicOrigin)))
     const http = createBrowserConnectorHttp({
       resolveAuthRuntime: () => ({ bff: { resolveSession: async () => ({
         tokens: { accessToken: 'server-access-token' },
       }) } }) as never,
-      resolveConnectorBackend: () => ({ issueGrant, submitCapture: vi.fn(), ready: vi.fn() }),
+      resolveConnectorBackend: () => ({
+        publicOrigin, issueGrant, submitCapture: vi.fn(), ready: vi.fn(),
+      }),
       createCorrelationRef: () => 'correlation-fixture',
     })
-    const response = await http.issueGrant(new Request('https://place.example/api/connector/grants', {
+    const response = await http.issueGrant(new Request('http://web:3000/api/connector/grants', {
       method: 'POST',
       body: JSON.stringify({
         schemaVersion: 'place-connector-grant-request.v1', installationId,
@@ -40,7 +43,7 @@ describe('browser connector HTTP', () => {
     }))
 
     expect(response.status).toBe(200)
-    expect(issueGrant).toHaveBeenCalledWith('server-access-token', expect.any(Object), 'https://place.example')
+    expect(issueGrant).toHaveBeenCalledWith('server-access-token', expect.any(Object), publicOrigin)
   })
 
   it('accepts only matching connector authorization, sequence, and checksum receipts', async () => {
@@ -52,10 +55,13 @@ describe('browser connector HTTP', () => {
     }))
     const http = createBrowserConnectorHttp({
       resolveAuthRuntime: () => undefined,
-      resolveConnectorBackend: () => ({ issueGrant: vi.fn(), submitCapture, ready: vi.fn() }),
+      resolveConnectorBackend: () => ({
+        publicOrigin: 'http://localhost:3000',
+        issueGrant: vi.fn(), submitCapture, ready: vi.fn(),
+      }),
       createCorrelationRef: () => 'correlation-fixture',
     })
-    const response = await http.submitCapture(new Request('https://place.example/api/connector/captures', {
+    const response = await http.submitCapture(new Request('http://web:3000/api/connector/captures', {
       method: 'POST',
       headers: {
         authorization: `PlaceConnector ${token}`,
@@ -70,7 +76,7 @@ describe('browser connector HTTP', () => {
 
     expect(response.status).toBe(200)
     expect(submitCapture).toHaveBeenCalledWith(
-      `PlaceConnector ${token}`, expect.any(Object), 'https://place.example',
+      `PlaceConnector ${token}`, expect.any(Object), 'http://localhost:3000',
     )
   })
 })

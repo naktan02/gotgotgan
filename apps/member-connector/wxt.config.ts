@@ -10,7 +10,7 @@ export default defineConfig({
     return {
     name: 'Place Connector',
     description: '현재 브라우저 세션으로 개인 장소 목록을 Place에 연결합니다.',
-    permissions: ['storage'],
+    permissions: ['scripting', 'storage'],
     host_permissions: [`${placeOrigin}/*`],
     optional_host_permissions: ['https://pages.map.naver.com/*'],
     ...(browser === 'firefox'

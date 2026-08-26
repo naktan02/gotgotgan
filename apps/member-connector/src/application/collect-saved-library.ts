@@ -6,7 +6,10 @@ import {
   type ConnectorResultCode,
 } from '@place/contracts/connector'
 
-import type { CaptureSubmission } from './ports/capture-submission.js'
+import {
+  CaptureSubmissionError,
+  type CaptureSubmission,
+} from './ports/capture-submission.js'
 import type { ProviderSession } from './ports/provider-session.js'
 import type {
   SavedPlaceCapturePayload,
@@ -173,9 +176,16 @@ export async function collectSavedLibrary(
       payload: capture.payload,
       checksum: await checksum(capture.payload),
     })
-    const receipt = connectorCaptureReceiptSchema.parse(
-      await dependencies.submission.submit({ grant, batch, signal: input.signal }),
-    )
+    let submitted
+    try {
+      submitted = await dependencies.submission.submit({ grant, batch, signal: input.signal })
+    } catch (error) {
+      if (error instanceof CaptureSubmissionError) {
+        throw operationError(error.code, error.retryable, error.message)
+      }
+      throw error
+    }
+    const receipt = connectorCaptureReceiptSchema.parse(submitted)
     if (
       receipt.operationId !== grant.operationId ||
       receipt.acceptedSequence !== sequence ||

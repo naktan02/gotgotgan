@@ -50,8 +50,8 @@ const expectedProviderPermission = 'https://pages.map.naver.com/*'
 const failures = []
 for (const [browser, value] of [['chromium', chromium], ['firefox', firefox]]) {
   if (value.manifest_version !== 3) failures.push(`${browser} must use Manifest V3`)
-  if (value.permissions?.join(',') !== 'storage') {
-    failures.push(`${browser} must request only the storage base permission`)
+  if (value.permissions?.join(',') !== 'scripting,storage') {
+    failures.push(`${browser} must request only the scripting and storage base permissions`)
   }
   if (value.content_scripts?.[0]?.matches?.join(',') !== expectedMatch) {
     failures.push(`${browser} must bridge only the configured Place public origin`)

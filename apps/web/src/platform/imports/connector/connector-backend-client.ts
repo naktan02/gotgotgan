@@ -1,5 +1,8 @@
+import { connectorPublicOriginSchema } from '@place/contracts/connector'
+
 export type ConnectorBackendClientConfig = Readonly<{
   origin: string
+  publicOrigin: string
   timeoutMilliseconds: number
   request?: (input: URL, init: RequestInit) => Promise<Response>
 }>
@@ -15,7 +18,9 @@ export function createConnectorBackendClient(config: ConnectorBackendClientConfi
   } catch {
     throw configurationError()
   }
+  const publicOrigin = connectorPublicOriginSchema.safeParse(config.publicOrigin).data
   if (
+    publicOrigin === undefined ||
     !['http:', 'https:'].includes(origin.protocol) ||
     origin.username !== '' || origin.password !== '' || origin.pathname !== '/' ||
     origin.search !== '' || origin.hash !== '' ||
@@ -44,6 +49,7 @@ export function createConnectorBackendClient(config: ConnectorBackendClientConfi
   })
 
   return {
+    publicOrigin,
     ready: () => request(new URL('/readyz', origin), {
       cache: 'no-store', redirect: 'error',
       signal: AbortSignal.timeout(config.timeoutMilliseconds),

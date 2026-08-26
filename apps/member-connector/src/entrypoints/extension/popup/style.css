@@ -27,6 +27,11 @@ h1 {
   font-size: 18px;
 }
 
+h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
 p {
   line-height: 1.5;
 }
@@ -35,4 +40,35 @@ p {
   margin-bottom: 0;
   color: #65706c;
   font-size: 12px;
+}
+
+section {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid #dbe3df;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.origin {
+  margin: 4px 0 12px;
+  color: #65706c;
+  font-size: 12px;
+}
+
+button {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  background: #39705d;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:disabled {
+  color: #65706c;
+  background: #e3e9e6;
+  cursor: default;
 }

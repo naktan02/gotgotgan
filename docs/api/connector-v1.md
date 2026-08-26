@@ -16,8 +16,9 @@ smoke만 `integration-gated`로 남아 있다.
 
 - Place page → 확장: `probe`, `prepare-import`, `start`, `cancel` command만 보낸다.
 - 확장 → Place page: `ready`, `prepared`, `progress`, `result` event만 보낸다.
-- `prepare-import`는 사용자의 즉시 클릭에서 선택된 Provider의 exact origin 권한만 요청한다.
-- 확장 → 공개 Place BFF: 순서가 있는 bounded capture batch를 제출하고 receipt를 받는다.
+- `prepare-import`는 선택된 Provider의 exact origin 권한을 확인하고, 없으면 확장 소유 권한 탭을 연다.
+- 확장 → 공개 Place BFF: grant의 exact Place origin 탭에서 isolated world same-origin 요청으로 순서가
+  있는 bounded capture batch를 제출하고 receipt를 받는다.
 - Provider page/session → Place: cookie, token, 비밀번호, MFA 값, browser profile 경로를 보내지 않는다.
 
 메시지는 `version`, `operationId`, `installationId`와 Provider/browser 식별자를 명시한다. 지원하지
@@ -50,9 +51,13 @@ checksum이 있다. 서버 receipt의 operation·sequence·checksum과 누적 it
 
 ## Provider 권한과 NAVER Adapter
 
-manifest의 기본 권한은 `storage`다. Place content bridge와 capture BFF에는 build가 주입한 정확한
-Place origin만 사용한다. NAVER 가져오기를 선택하면 `https://pages.map.naver.com/*`만 선택 권한으로
-요청한다. NAVER Adapter는 현재 브라우저 session을 first-party JSON 요청으로 조용히 확인하고 모든
+manifest의 기본 권한은 `scripting`, `storage`다. Place content bridge와 capture BFF에는 build가
+주입한 정확한 Place origin만 사용한다. Capture 제출은 해당 Place 탭의 isolated world에서
+same-origin으로 실행한다. `scripting`은 이 제출과 선택 권한이 있는 Provider 페이지의 isolated
+world 요청에만 사용한다. NAVER 가져오기를 선택하면 확장 소유 권한
+탭에서 사용자가 직접 누른 Provider 버튼이 `https://pages.map.naver.com/*`만 선택 권한으로 요청한다.
+NAVER Adapter는 background의 third-party 요청에 browser cookie를 의존하지 않고, 로그인된 NAVER
+저장 페이지 안에서 first-party JSON 요청으로 session을 조용히 확인하고 모든
 폴더와 bookmark 페이지를 bounded 순회한다. 목록 ID·이름·목록 순서·장소 순서를 캡처에 보존한다.
 
 Kakao·Google은 각 Provider Adapter와 비식별 fixture가 생길 때 exact optional permission을 별도로
@@ -69,7 +74,7 @@ Kakao·Google은 각 Provider Adapter와 비식별 fixture가 생길 때 exact o
 | Safari | 없음 | packaging·signing·install 환경 없음 | `not-integrated` |
 
 Whale 전용 복제 프로젝트나 산출물을 만들지 않는다. Chromium 산출물을 공유하되 실제 Whale
-설치·메시지·선택 권한·NAVER session smoke가 통과하기 전에는 지원 완료로 표시하지 않는다.
+설치·메시지·Provider 권한 탭·선택 권한·NAVER session smoke가 통과하기 전에는 지원 완료로 표시하지 않는다.
 
 ## 검증
 

@@ -1,6 +1,6 @@
 import { chromium } from 'playwright'
 
-import type { NaverAuthenticatedJsonClient } from '../../../adapters/providers/naver/naver-saved-place-collector.js'
+import type { AuthenticatedJsonClient } from '../../../application/ports/authenticated-json-client.js'
 
 type BrowserFetchResult =
   | Readonly<{
@@ -78,7 +78,7 @@ export class PlaywrightAuthenticatedJsonSession {
     this.launchPersistentContext = configuration.launchPersistentContext ?? defaultLaunchPersistentContext
   }
 
-  async use<T>(operation: (client: NaverAuthenticatedJsonClient) => Promise<T>): Promise<T> {
+  async use<T>(operation: (client: AuthenticatedJsonClient) => Promise<T>): Promise<T> {
     if (new URL(this.configuration.sessionUrl).origin !== this.configuration.allowedOrigin) {
       throw new Error('Authenticated member request is invalid')
     }
@@ -93,7 +93,7 @@ export class PlaywrightAuthenticatedJsonSession {
         waitUntil: 'domcontentloaded',
         timeout: this.configuration.requestTimeoutMilliseconds,
       })
-      const client: NaverAuthenticatedJsonClient = {
+      const client: AuthenticatedJsonClient = {
         get: async ({ url, maximumBytes, signal }) => {
           if (url.origin !== this.configuration.allowedOrigin || maximumBytes <= 0) {
             throw new Error('Authenticated member request is invalid')

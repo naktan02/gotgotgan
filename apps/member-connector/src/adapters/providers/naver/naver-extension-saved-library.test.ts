@@ -20,7 +20,10 @@ describe('NAVER extension saved-library adapter', () => {
       get: async ({ url }: { url: URL }) => url.pathname.endsWith('/folders')
         ? json({ folderList: [{ shareID: 'folder-a', name: '후쿠오카 여행' }], totalCount: 1 })
         : json({ bookmarkList: [
-          { bookmarkId: 'bookmark-a', sid: 'place-a', name: '라멘 A' },
+          {
+            bookmarkId: 'bookmark-a', sid: 'place-a', name: '라멘 A', displayName: '',
+            address: '', mcidName: '',
+          },
           { bookmarkId: 'bookmark-b', sid: 'place-b', name: '라멘 B' },
         ], totalCount: 2 }),
     }
@@ -43,7 +46,7 @@ describe('NAVER extension saved-library adapter', () => {
       lists: [{
         listId: 'folder-a', name: '후쿠오카 여행', position: 0,
         bookmarks: [
-          expect.objectContaining({ bookmarkId: 'bookmark-a', placeId: 'place-a', position: 0 }),
+          { bookmarkId: 'bookmark-a', placeId: 'place-a', name: '라멘 A', position: 0 },
           expect.objectContaining({ bookmarkId: 'bookmark-b', placeId: 'place-b', position: 1 }),
         ],
       }],
@@ -53,6 +56,24 @@ describe('NAVER extension saved-library adapter', () => {
   it('classifies an expired browser session without exposing its response', async () => {
     const session = new NaverProviderSession({
       get: async () => ({ status: 401, contentType: 'text/html', body: new Uint8Array() }),
+    })
+    await expect(session.probe({ signal: AbortSignal.timeout(1_000) })).resolves.toBe('reauth-required')
+  })
+
+  it('classifies Chrome opaque login redirects as reauthentication', async () => {
+    const session = new NaverProviderSession({
+      get: async () => ({ status: 0, contentType: '', body: new Uint8Array() }),
+    })
+    await expect(session.probe({ signal: AbortSignal.timeout(1_000) })).resolves.toBe('reauth-required')
+  })
+
+  it('classifies a successful NAVER login HTML response as reauthentication', async () => {
+    const session = new NaverProviderSession({
+      get: async () => ({
+        status: 200,
+        contentType: 'text/html; charset=utf-8',
+        body: new TextEncoder().encode('<html></html>'),
+      }),
     })
     await expect(session.probe({ signal: AbortSignal.timeout(1_000) })).resolves.toBe('reauth-required')
   })

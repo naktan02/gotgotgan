@@ -317,7 +317,10 @@ export function ConnectedPlaceImports() {
     const idempotencyKey = crypto.randomUUID()
     try {
       if (!(await session.prepare('naver'))) {
-        throw new ImportBrowserProblem('NAVER 목록 접근 권한이 허용되지 않았습니다.', false)
+        throw new ImportBrowserProblem(
+          '새로 열린 Place Connector 권한 탭에서 NAVER 접근을 허용한 뒤 다시 시도해 주세요.',
+          false,
+        )
       }
       const grant = connectorGrantSchema.parse(await requestJson('/api/connector/grants', {
         method: 'POST',

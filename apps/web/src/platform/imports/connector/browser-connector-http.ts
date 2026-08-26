@@ -85,7 +85,7 @@ export function createBrowserConnectorHttp(dependencies: Readonly<{
             dependencies.createCorrelationRef(), false,
           )
         }
-        const publicOrigin = new URL(request.url).origin
+        const publicOrigin = backend.publicOrigin
         const response = await backend.issueGrant(session.tokens.accessToken, body, publicOrigin)
         if (!response.ok) return rejected(response)
         const grant = connectorGrantSchema.safeParse(await responseJson(response)).data
@@ -117,9 +117,7 @@ export function createBrowserConnectorHttp(dependencies: Readonly<{
       }
       if (request.headers.get('x-place-connector-operation') !== batch.operationId) return invalid()
       try {
-        const response = await backend.submitCapture(
-          authorization, batch, new URL(request.url).origin,
-        )
+        const response = await backend.submitCapture(authorization, batch, backend.publicOrigin)
         if (!response.ok) return rejected(response)
         const receipt = connectorCaptureReceiptSchema.safeParse(await responseJson(response)).data
         if (

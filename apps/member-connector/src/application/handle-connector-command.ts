@@ -25,6 +25,7 @@ type Dependencies = Readonly<{
   getInstallationId(): Promise<string>
   operations: ReadonlyMap<ConnectorProviderKey, SavedLibraryOperation>
   prepareProviders?: ReadonlyMap<ConnectorProviderKey, () => Promise<boolean>>
+  reauthenticateProviders?: ReadonlyMap<ConnectorProviderKey, () => Promise<void>>
 }>
 
 type HandleInput = Readonly<{
@@ -149,6 +150,13 @@ export class ConnectorCommandHandler {
           false,
         )
       } else if (error instanceof ConnectorOperationError) {
+        if (error.code === 'reauth-required') {
+          try {
+            await this.dependencies.reauthenticateProviders?.get(grant.providerKey)?.()
+          } catch {
+            // Preserve the actionable result even when the browser cannot open a tab.
+          }
+        }
         await this.emitResult(
           input.emit,
           input.command.requestId,

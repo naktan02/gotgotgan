@@ -27,7 +27,10 @@ Firefox/Safari runtime 변경이 서로 영향을 준다.
    Extension background/content/popup과 CLI는 조립만 하는 얇은 entrypoint다.
 4. Connector application은 Provider-neutral `SavedPlaceSource`, `ProviderSession`,
    `CaptureSubmission` Interface에 의존한다. folder/share ID, endpoint, schema, pagination, tab,
-   permission, message, upload chunk와 retry는 각 Adapter가 숨긴다.
+   permission, message, upload chunk와 retry는 각 Adapter가 숨긴다. Provider JSON 요청은 background의
+   third-party cookie 전송에 의존하지 않고, exact optional permission을 받은 Provider 페이지의
+   isolated world에서 same-origin으로 실행한다. Place capture 제출도 grant의 exact public origin 탭에서
+   isolated world same-origin 요청으로 실행한다.
 5. `packages/contracts/connector`가 Place page handshake, versioned message, progress, cancel,
    bounded capture batch, upload receipt와 error schema를 소유한다. Source code와 prose에 같은 enum을
    중복 관리하지 않고 이 계약에서 검증·생성한다.
@@ -36,8 +39,10 @@ Firefox/Safari runtime 변경이 서로 영향을 준다.
    batch 상한과 공개 Place origin에 묶는다. 확장에 Web cookie, 장기 bearer, 임의 upload URL, private
    Backend 주소를 전달하지 않는다.
 7. Provider·Place origin은 검토된 build allowlist다. Provider host permission은 사용자가 해당 Provider를
-   연결하거나 가져오기를 선택할 때만 요청한다. 임의 URL fetch나 사용자가 고른 private endpoint를
-   지원하지 않는다.
+   연결하거나 가져오기를 선택했을 때 확장 소유 권한 탭을 열고, 그 탭의 Provider 버튼을 직접 누를 때만
+   요청한다. Provider별 exact optional permission은 하나의 권한 레지스트리에서 관리한다. 임의 URL
+   fetch나 사용자가 고른 private endpoint를 지원하지 않는다. `scripting`은 권한 레지스트리의 exact
+   origin과 Provider Adapter가 고정한 요청 URL을 이중 검증한 뒤 isolated world에만 주입한다.
 8. MVP에는 사용자별 서버, localhost daemon, native-messaging host가 없다. 확장을 사용할 수 없는
    모바일·브라우저와 설치 거부 사용자는 수동 JSON/file capture를 같은 Ingestion 계약으로 제출한다.
 9. Playwright와 현재 전용-profile CLI는 Provider 관찰, fixture/replay, 확장 E2E, opt-in live smoke,

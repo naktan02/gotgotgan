@@ -53,9 +53,13 @@ WXT `0.21.4`와 Vite `6.4.3`을 고정했다. Chrome·Edge·Whale은 Chromium Ma
 공유하고 Firefox는 별도 Manifest V3 산출물을 만든다. Whale 전용 코드를 복제하지 않으며 browser
 감지는 Whale을 Chrome보다 먼저 판별한다. Safari는 아직 산출물이 없다.
 
-현재 manifest의 기본 권한은 `storage`이고 Place content bridge와 upload에는 빌드 시 주입한 정확한
-공개 origin 하나만 사용한다. NAVER는 `https://pages.map.naver.com/*`를 optional host permission으로
-두고 사용자가 가져오기를 선택한 즉시 클릭에서만 요청한다. 실제 배포 산출물은 다음처럼 만든다.
+현재 manifest의 기본 권한은 `scripting`, `storage`이고 Place content bridge와 upload에는 빌드 시
+주입한 정확한 공개 origin 하나만 사용한다. Capture 제출은 그 Place origin의 열린 탭에서 isolated
+world same-origin 요청으로 수행한다. `scripting`은 이 Place 제출과 사용자가 선택 권한을 부여한
+Provider 페이지의 same-origin JSON 요청에만 사용한다. NAVER는
+`https://pages.map.naver.com/*`를 optional host permission으로 둔다. Place에서 가져오기를 선택했을 때
+권한이 없으면 확장 소유 권한 탭을 열고, 사용자가 해당 Provider 버튼을 직접 눌렀을 때만 요청한다.
+실제 배포 산출물은 다음처럼 만든다.
 
 ```powershell
 $env:WXT_PLACE_CONNECTOR_PUBLIC_ORIGIN='https://<public-place-origin>'

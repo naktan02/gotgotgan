@@ -139,6 +139,10 @@ test('production composition consumes immutable images while local composition o
     dockerfile,
     /COPY --chown=node:node deploy\/database-runtime\.json \.\/deploy\/database-runtime\.json/,
   )
+  assert.match(
+    dockerfile,
+    /RUN mkdir -p \/var\/lib\/place\/captures\s+RUN chown node:node \/var\/lib\/place\/captures\s+RUN chmod 0700 \/var\/lib\/place\/captures\s+USER node/,
+  )
   assert.doesNotMatch(productionCompose, /^\s+build:/m)
   assert.doesNotMatch(productionCompose, /^\s+ports:/m)
   assert.match(baseCompose, /worker-capture-sweep:/)

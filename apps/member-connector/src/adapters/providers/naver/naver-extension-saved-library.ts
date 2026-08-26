@@ -1,19 +1,24 @@
 import { ConnectorOperationError } from '../../../application/collect-saved-library.js'
+import type { AuthenticatedJsonClient } from '../../../application/ports/authenticated-json-client.js'
 import type { ProviderSession } from '../../../application/ports/provider-session.js'
 import type {
   SavedPlaceCapturePayload,
   SavedPlaceSource,
 } from '../../../application/ports/saved-place-source.js'
-import { BrowserOriginPermissionDeniedError } from '../../browser/webextensions/authenticated-json-client.js'
+import { BrowserOriginPermissionDeniedError } from '../../browser/webextensions/provider-page-json-client.js'
 import {
   NaverSavedPlaceCollector,
-  type NaverAuthenticatedJsonClient,
 } from './naver-saved-place-collector.js'
 
 const apiBaseUrl = 'https://pages.map.naver.com/save-pages/api/maps-bookmark/v3/'
 
 function compactText(value: string, maximum: number): string {
   return [...value].slice(0, maximum).join('')
+}
+
+function optionalCompactText(value: string | undefined, maximum: number): string | undefined {
+  if (value === undefined || value.length === 0) return undefined
+  return compactText(value, maximum)
 }
 
 function mappedError(error: unknown): ConnectorOperationError {
@@ -36,7 +41,7 @@ function mappedError(error: unknown): ConnectorOperationError {
 export class NaverProviderSession implements ProviderSession {
   readonly providerKey = 'naver' as const
 
-  constructor(private readonly client: NaverAuthenticatedJsonClient) {}
+  constructor(private readonly client: AuthenticatedJsonClient) {}
 
   async probe(input: Readonly<{ signal: AbortSignal }>) {
     const url = new URL('folders', apiBaseUrl)
@@ -49,9 +54,13 @@ export class NaverProviderSession implements ProviderSession {
         maximumBytes: 1_048_576,
         signal: input.signal,
       })
-      if (new Set([301, 302, 303, 307, 308, 401, 403, 405]).has(response.status)) {
+      if (new Set([0, 301, 302, 303, 307, 308, 401, 403, 405]).has(response.status)) {
         return 'reauth-required' as const
       }
+      if (
+        response.status >= 200 && response.status < 300 &&
+        response.contentType.toLowerCase().includes('text/html')
+      ) return 'reauth-required' as const
       if (
         response.status >= 200 && response.status < 300 &&
         response.contentType.toLowerCase().includes('json')
@@ -68,7 +77,7 @@ export class NaverExtensionSavedPlaceSource implements SavedPlaceSource {
 
   constructor(
     private readonly collector: NaverSavedPlaceCollector,
-    private readonly client: NaverAuthenticatedJsonClient,
+    private readonly client: AuthenticatedJsonClient,
     private readonly maximumBatchItems = 500,
   ) {}
 
@@ -103,23 +112,24 @@ export class NaverExtensionSavedPlaceSource implements SavedPlaceSource {
             listId: list.listId,
             name: compactText(list.name, 200),
             position: listPosition,
-            bookmarks: bookmarks.map((bookmark, index) => ({
-              bookmarkId: bookmark.bookmarkId,
-              ...(bookmark.providerPlaceId === undefined
-                ? {}
-                : { placeId: bookmark.providerPlaceId }),
-              name: compactText(bookmark.displayName ?? bookmark.name, 300),
-              position: start + index,
-              ...(bookmark.address === undefined
-                ? {}
-                : { address: compactText(bookmark.address, 500) }),
-              ...(bookmark.categoryLabel === undefined
-                ? {}
-                : { category: compactText(bookmark.categoryLabel, 300) }),
-              ...(bookmark.latitude === undefined || bookmark.longitude === undefined
-                ? {}
-                : { latitude: bookmark.latitude, longitude: bookmark.longitude }),
-            })),
+            bookmarks: bookmarks.map((bookmark, index) => {
+              const displayName = optionalCompactText(bookmark.displayName, 300)
+              const address = optionalCompactText(bookmark.address, 500)
+              const category = optionalCompactText(bookmark.categoryLabel, 300)
+              return {
+                bookmarkId: bookmark.bookmarkId,
+                ...(bookmark.providerPlaceId === undefined
+                  ? {}
+                  : { placeId: bookmark.providerPlaceId }),
+                name: displayName ?? compactText(bookmark.name, 300),
+                position: start + index,
+                ...(address === undefined ? {} : { address }),
+                ...(category === undefined ? {} : { category }),
+                ...(bookmark.latitude === undefined || bookmark.longitude === undefined
+                  ? {}
+                  : { latitude: bookmark.latitude, longitude: bookmark.longitude }),
+              }
+            }),
           }],
           nextCursor: null,
         })

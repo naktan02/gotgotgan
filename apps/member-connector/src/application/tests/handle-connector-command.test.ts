@@ -4,6 +4,7 @@ import type {
 } from '@place/contracts/connector'
 import { describe, expect, it, vi } from 'vitest'
 
+import { ConnectorOperationError } from '../collect-saved-library.js'
 import { ConnectorCommandHandler } from '../handle-connector-command.js'
 
 const operationId = '01992d20-7000-7000-8000-000000000041'
@@ -104,5 +105,37 @@ describe('ConnectorCommandHandler', () => {
     })
     expect(events.map((event) => event.kind)).toEqual(['progress', 'result'])
     expect(events.at(-1)).toMatchObject({ code: 'completed', retryable: false })
+  })
+
+  it('opens provider reauthentication before reporting that user action is required', async () => {
+    const reauthenticate = vi.fn(async () => undefined)
+    const events: ConnectorExtensionEvent[] = []
+    const handler = new ConnectorCommandHandler({
+      browserKey: 'chrome',
+      getInstallationId: async () => installationId,
+      operations: new Map([['naver', async () => {
+        throw new ConnectorOperationError(
+          'reauth-required',
+          false,
+          'Provider reauthentication is required',
+        )
+      }]]),
+      reauthenticateProviders: new Map([['naver', reauthenticate]]),
+    })
+
+    await handler.handle({
+      sourceOrigin: grant.placeOrigin,
+      command: {
+        schemaVersion: 'place-connector-command.v1',
+        channel: 'place-connector',
+        requestId,
+        kind: 'start-import',
+        grant,
+      },
+      emit: (event) => { events.push(event) },
+    })
+
+    expect(reauthenticate).toHaveBeenCalledOnce()
+    expect(events.at(-1)).toMatchObject({ kind: 'result', code: 'reauth-required' })
   })
 })

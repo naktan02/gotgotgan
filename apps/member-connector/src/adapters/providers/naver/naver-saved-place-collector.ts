@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import type { AuthenticatedJsonClient } from '../../../application/ports/authenticated-json-client.js'
+
 const identifierSchema = z.union([
   z.string().min(1).max(512),
   z.number().int().safe(),
@@ -99,18 +101,6 @@ export type NaverSavedPlaceCollection = Readonly<{
   }>
 }>
 
-export interface NaverAuthenticatedJsonClient {
-  get(input: Readonly<{
-    url: URL
-    maximumBytes: number
-    signal: AbortSignal
-  }>): Promise<Readonly<{
-    status: number
-    contentType: string
-    body: Uint8Array
-  }>>
-}
-
 type CollectorConfiguration = Readonly<{
   apiBaseUrl: string
   folderPageSize: number
@@ -203,7 +193,7 @@ export class NaverSavedPlaceCollector {
   }
 
   async collectAll(input: Readonly<{
-    client: NaverAuthenticatedJsonClient
+    client: AuthenticatedJsonClient
     signal: AbortSignal
   }>): Promise<NaverSavedPlaceCollection> {
     let requestCount = 0
