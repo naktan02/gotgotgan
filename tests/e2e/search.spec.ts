@@ -120,25 +120,25 @@ test('captures the reviewed search workspace sizes', async ({ page }, testInfo) 
 
   if (testInfo.project.name === 'desktop-chromium') {
     await page.setViewportSize({ width: 1440, height: 900 })
-    await expect(page).toHaveScreenshot('place-search-1440x900.png', { fullPage: true })
+    await expect.soft(page).toHaveScreenshot('place-search-1440x900.png', { fullPage: true })
     await page.setViewportSize({ width: 1280, height: 800 })
-    await expect(page).toHaveScreenshot('place-search-1280x800.png', { fullPage: true })
+    await expect.soft(page).toHaveScreenshot('place-search-1280x800.png', { fullPage: true })
 
     await submitSearch(page, '부분 결과')
     await expect(page.getByText('일부 검색 소스의 결과가 지연되거나 누락되었습니다.')).toBeVisible()
-    await expect(page).toHaveScreenshot('place-search-partial-1280x800.png', {
+    await expect.soft(page).toHaveScreenshot('place-search-partial-1280x800.png', {
       fullPage: true, maxDiffPixelRatio: 0.01,
     })
 
     await submitSearch(page, '느린 검색')
     await expect.poll(async () => page.getByText('검색 중…').isVisible()).toBe(true)
-    await expect(page).toHaveScreenshot('place-search-loading-1280x800.png', {
+    await expect.soft(page).toHaveScreenshot('place-search-loading-1280x800.png', {
       fullPage: true, maxDiffPixelRatio: 0.01,
     })
 
     await submitSearch(page, '오류')
     await expect(page.getByRole('alert').filter({ hasText: '검색 결과를 불러오지 못했습니다.' })).toBeVisible()
-    await expect(page).toHaveScreenshot('place-search-error-1280x800.png', {
+    await expect.soft(page).toHaveScreenshot('place-search-error-1280x800.png', {
       fullPage: true, maxDiffPixelRatio: 0.01,
     })
   } else {
