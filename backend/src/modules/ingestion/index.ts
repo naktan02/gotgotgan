@@ -22,6 +22,7 @@ export { materializeSuggestedPlace } from './application/materialize-suggested-p
 export { requestPlaceImport } from './application/request-place-import.js'
 export { reviewImportItem } from './application/review-import-item.js'
 export { createImportWorker } from './application/run-import-worker.js'
+export { sweepExpiredImportCaptures } from './application/sweep-expired-import-captures.js'
 export type {
   CaptureArtifactReplayStore,
   CaptureArtifactStore,
@@ -44,6 +45,10 @@ export type {
   PreparedImportItem,
 } from './application/ports/import-worker-store.js'
 export type { ImportManagementStore } from './application/ports/import-management-store.js'
+export type {
+  ExpiredImportCapture,
+  ImportCaptureRetentionStore,
+} from './application/ports/import-capture-retention-store.js'
 export type {
   ImportedPlaceLibraryPort,
 } from './application/ports/imported-place-library.js'

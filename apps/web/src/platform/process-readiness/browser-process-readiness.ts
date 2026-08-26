@@ -1,5 +1,6 @@
 import { readNextOidcRuntime } from '../auth/next-oidc-lifecycle'
 import { readNextMembershipRuntime } from '../membership/next-membership-lifecycle'
+import { readNextImportRuntime } from '../imports/next-import-lifecycle'
 
 type Environment = Readonly<Record<string, string | undefined>>
 
@@ -7,6 +8,9 @@ type Dependencies = Readonly<{
   environment: Environment
   resolveOidcRuntime: () => Readonly<{ ready: () => Promise<void> }> | undefined
   resolveMembershipBackend: () =>
+    | Readonly<{ ready: () => Promise<Response> }>
+    | undefined
+  resolveImportBackend: () =>
     | Readonly<{ ready: () => Promise<Response> }>
     | undefined
 }>
@@ -43,11 +47,17 @@ export function createBrowserProcessReadiness(dependencies: Dependencies) {
           dependencies.environment,
           'PLACE_MEMBERSHIP_RUNTIME_ENABLED',
         )
+        const importRequired = activated(
+          dependencies.environment,
+          'PLACE_IMPORT_RUNTIME_ENABLED',
+        )
         const oidcRuntime = dependencies.resolveOidcRuntime()
         const membershipBackend = dependencies.resolveMembershipBackend()
+        const importBackend = dependencies.resolveImportBackend()
         if (
           (oidcRequired && oidcRuntime === undefined) ||
-          (membershipRequired && membershipBackend === undefined)
+          (membershipRequired && membershipBackend === undefined) ||
+          (importRequired && importBackend === undefined)
         ) {
           return response('unavailable')
         }
@@ -56,6 +66,13 @@ export function createBrowserProcessReadiness(dependencies: Dependencies) {
         if (membershipRequired) {
           checks.push(
             membershipBackend!.ready().then((backendResponse) => {
+              if (!backendResponse.ok) throw new Error('backend unavailable')
+            }),
+          )
+        }
+        if (importRequired) {
+          checks.push(
+            importBackend!.ready().then((backendResponse) => {
               if (!backendResponse.ok) throw new Error('backend unavailable')
             }),
           )
@@ -73,4 +90,5 @@ export const browserProcessReadiness = createBrowserProcessReadiness({
   environment: process.env,
   resolveOidcRuntime: readNextOidcRuntime,
   resolveMembershipBackend: readNextMembershipRuntime,
+  resolveImportBackend: readNextImportRuntime,
 })

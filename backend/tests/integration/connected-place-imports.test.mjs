@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
+import { access, mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import test from 'node:test'
 
 import { startPreparedPlaceDatabase } from './support/prepared-place-database.mjs'
@@ -21,6 +24,7 @@ const ids = {
 
 test('connected import is durable, replay-safe, fenced, and publicly sanitized', { timeout: 120_000 }, async () => {
   const database = await startPreparedPlaceDatabase('connected-place-imports')
+  const captureRoot = await mkdtemp(join(tmpdir(), 'place-capture-integration-'))
   try {
     const ingestion = await import('../../dist/modules/ingestion/index.js')
     const store = new ingestion.PostgresPlaceImports(database.pool)
@@ -81,6 +85,14 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
 
     const body = new TextEncoder().encode('{"fixture":true}')
     const checksum = createHash('sha256').update(body).digest('hex')
+    let captureClock = new Date(at)
+    const captureStore = new ingestion.EncryptedFileCaptureArtifactStore({
+      root: captureRoot,
+      activeKeyId: 'integration-key',
+      keys: { 'integration-key': new Uint8Array(32).fill(7) },
+      maximumBytes: 1_048_576,
+      now: () => captureClock,
+    })
     const source = {
       providerKey: 'naver',
       readPage: async () => ({
@@ -110,12 +122,7 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
     const worker = ingestion.createImportWorker({
       workerId: 'integration-worker',
       store,
-      captureStore: {
-        put: async (capture) => ({
-          reference: `capture:${capture.artifactId}`,
-          checksum: capture.checksum,
-        }),
-      },
+      captureStore,
       sources: [source],
       nextId: () => generated.shift(),
       now: () => new Date(at),
@@ -197,7 +204,23 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
       attempts: 1, captures: 1, items: 1, observations: 1, candidates: 1,
       decisions: 1, canonical_places: 1, provider_links: 1, saved_places: 1,
     })
+
+    captureClock = new Date('2026-08-28T11:00:00.000Z')
+    assert.deepEqual(await ingestion.sweepExpiredImportCaptures({
+      expiredAt: captureClock.toISOString(),
+      limit: 10,
+      retention: store,
+      artifacts: captureStore,
+    }), { examined: 1, deleted: 1, missing: 0, failed: 0 })
+    await assert.rejects(access(join(captureRoot, `${ids.artifact}.capture`)), { code: 'ENOENT' })
+    assert.deepEqual(await ingestion.sweepExpiredImportCaptures({
+      expiredAt: '2026-08-29T11:00:00.000Z',
+      limit: 10,
+      retention: store,
+      artifacts: captureStore,
+    }), { examined: 0, deleted: 0, missing: 0, failed: 0 })
   } finally {
     await database.close()
+    await rm(captureRoot, { recursive: true, force: true })
   }
 })

@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -84,5 +84,39 @@ describe('encrypted capture artifact store', () => {
       batchId: '01992d20-b000-7000-8000-000000000011',
       providerKey: 'naver',
     })).toBeUndefined()
+  })
+
+  it('deletes only expired artifacts inside the expected batch and provider boundary', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'place-captures-'))
+    directories.push(root)
+    const body = new TextEncoder().encode('{}')
+    let now = new Date('2026-08-26T11:00:00.000Z')
+    const store = new EncryptedFileCaptureArtifactStore({
+      root, activeKeyId: 'active', keys: { active: new Uint8Array(32).fill(5) },
+      maximumBytes: 100, now: () => now,
+    })
+    const artifactId = '01992d20-b000-7000-8000-000000000020'
+    const batchId = '01992d20-b000-7000-8000-000000000021'
+    const stored = await store.put({
+      artifactId, batchId, providerKey: 'naver', body,
+      checksum: createHash('sha256').update(body).digest('hex'),
+      contentType: 'application/json', retentionUntil: '2026-08-27T11:00:00.000Z',
+    })
+
+    await expect(store.delete({
+      reference: stored.reference, batchId, providerKey: 'naver',
+    })).rejects.toThrow('not expired')
+    now = new Date('2026-08-28T11:00:00.000Z')
+    await expect(store.delete({
+      reference: stored.reference, batchId: '01992d20-b000-7000-8000-000000000099',
+      providerKey: 'naver',
+    })).rejects.toThrow('invalid')
+    await expect(store.delete({
+      reference: stored.reference, batchId, providerKey: 'naver',
+    })).resolves.toBe('deleted')
+    await expect(access(join(root, `${artifactId}.capture`))).rejects.toThrow()
+    await expect(store.delete({
+      reference: stored.reference, batchId, providerKey: 'naver',
+    })).resolves.toBe('missing')
   })
 })

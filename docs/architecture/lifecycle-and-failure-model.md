@@ -4,9 +4,12 @@ HTTP owns listen, readiness, drain, and close. Worker owns job claim, lease rene
 attempt recording, cancellation observation, and lease release. Browser contexts and capture handles
 are opened and closed inside one claimed attempt.
 
-Stage 1 implements only HTTP lifecycle and an explicit worker `--check`; it does not claim work.
-Future failure recovery persists job and evidence state before retry. Process death must not imply
-success or permit simultaneous ownership after lease expiry.
+Stage 7의 Import Worker use case는 claim/renew/fencing과 attempt 결과를 DB에 먼저 남긴다. 하지만
+실제 Provider profile composition은 아직 연결하지 않아 실행 entrypoint의 live acquisition은
+fail-closed다. 별도 capture expiry 명령은 DB Pool과 encrypted file store를 한 실행 안에서 생성하고
+성공·실패 모두에서 닫는다. 파일 삭제 뒤 DB 표식이 실패하면 다음 sweep이 missing artifact를
+멱등 처리하고 표식을 재시도한다. Process death must not imply success or permit simultaneous
+ownership after lease expiry.
 
 Backend `source-only` mode owns Fastify only. Backend `production` mode validates all configuration,
 constructs the verifier, connects one bounded Pool, and performs an initial query before becoming

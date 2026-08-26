@@ -22,8 +22,10 @@ implemented and tested in disposable environments but not deployed or active. No
 client, Gateway route, family composer, or AI connection is active.
 
 Stage 7은 진행 중이다. 연결 메타데이터, durable Import queue, lease/fencing, NAVER 승인 캡처
-parser, 암호화 artifact replay, preview/review API와 실제 PostGIS 검증은 source-only로 구현되었다.
-실제 NAVER test account의 Playwright acquisition, profile lifecycle, Web review UI/E2E는
+parser, 암호화 artifact replay, preview/review API, Web BFF와 반응형 검토 화면, 만료 artifact
+물리 삭제 작업을 source-only로 구현했다. desktop/mobile Playwright와 실제 PostGIS는 검토 재시도,
+민감정보 비노출, DB 삭제 표식과 암호화 파일 삭제를 검증한다. 실제 NAVER test account의
+Playwright acquisition, 전용 profile lifecycle과 관찰 자료 기반 parser-change fixture는
 integration-gated이며 완료로 표시하지 않는다.
 
 Stage 3's source foundation includes immutable ingestion evidence/candidates/decisions and

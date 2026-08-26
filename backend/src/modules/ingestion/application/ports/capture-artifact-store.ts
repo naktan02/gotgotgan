@@ -16,4 +16,9 @@ export interface CaptureArtifactReplayStore extends CaptureArtifactStore {
     batchId: string
     providerKey: 'naver' | 'kakao' | 'google'
   }>): Promise<Uint8Array | undefined>
+  delete(input: Readonly<{
+    reference: string
+    batchId: string
+    providerKey: 'naver' | 'kakao' | 'google'
+  }>): Promise<'deleted' | 'missing'>
 }

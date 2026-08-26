@@ -6,8 +6,10 @@ does not change module ownership.
 
 Stage 7 Worker의 durable queue, lease/fencing, NAVER 승인 캡처 parser와 암호화 replay adapter는
 `source-only`다. `--check`는 이 capability와 live acquisition의 `integration-gated` 상태를 구분해
-출력한다. 실제 profile lifecycle과 Playwright acquisition 설정이 없으므로 일반 startup은 계속
-fail-closed이며 production Compose에는 활성 Worker를 추가하지 않는다.
+출력한다. `--sweep-expired-captures`는 별도 1회 유지보수 명령으로, 보호된 DB URL·AES keyring,
+private capture volume과 bounded batch를 조립하고 종료 시 Pool을 닫는다. production Compose는
+이 명령만 opt-in `maintenance` profile로 선언한다. 실제 profile lifecycle과 Playwright acquisition
+설정이 없으므로 연결 계정 수집 Worker의 일반 startup은 계속 fail-closed다.
 
 The source-only runtime exposes local health/readiness scaffolds and the Stage 2 shell/access code.
 Gateway, Identity, provider, map, family navigation, and AI delivery states remain `not-integrated`
@@ -27,7 +29,8 @@ complete HTTPS endpoint/secret-file/timeout group is present. The local search s
 independent, so a provider timeout or throttle cannot make personal search unavailable. Provider
 credentials never enter Web configuration or payloads. Omitted groups are disabled; partial groups
 fail startup. The acquisition Worker remains `not-integrated` and no browser profile lifecycle is
-created by this HTTP-only stage.
+created by this HTTP-only stage. Web Import BFF readiness is independently activated and checks the
+fixed internal Backend origin without exposing it to the browser.
 
 `deploy/application-runtime.json` fixes Web as the only future Gateway-facing process. Backend and
 Worker remain internal; browsers cannot select or call Backend directly. The Compose base publishes
@@ -40,7 +43,8 @@ targets. The worker uses the backend image with a different command. Local Compo
 build targets. The port-free base and production overlay consume injected immutable image
 coordinates, while the deployment planner binds Web and Backend to one source revision and preserves
 the database during application-only rollback. Compose requires every host and port from deployment
-configuration and activates the worker scaffold only in a verification profile.
+configuration. Worker `--check` stays in the verification profile; capture expiry cleanup is an
+operator-invoked maintenance profile and is not a scheduler or live acquisition activation.
 The producer release declaration binds those two targets and four process roles to one
 `place@<commit>` revision while retaining `source-only` deployment state. The manual release
 workflow owns GHCR publication, BuildKit SBOM/provenance extraction, published-platform-digest

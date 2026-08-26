@@ -12,6 +12,11 @@ must not import business modules or another project.
 저장하지 않는다. runtime role은 작업 상태와 preview에 필요한 제한된 DML만 가지며 immutable
 evidence의 update/delete 권한은 계속 갖지 않는다.
 
+`000014`는 캡처 본문이 아니라 artifact 삭제 완료 시각 `deleted_at`만 추가한다. 보존기한 전 삭제
+표식을 DB constraint로 거부하고 미삭제 만료 행만 찾는 partial index를 유지한다. runtime role은
+이 한 column의 UPDATE만 추가로 가지며 캡처 메타데이터의 다른 값이나 immutable evidence를 변경할
+수 없다.
+
 `000003` adds Web-owned browser OIDC transaction and session persistence. It stores only encrypted
 payloads plus authenticated metadata and grants the runtime role select/insert/delete rather than
 schema or arbitrary update authority.

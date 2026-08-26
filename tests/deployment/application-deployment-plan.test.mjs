@@ -119,6 +119,16 @@ test('production composition consumes immutable images while local composition o
   assert.match(localCompose, /target: backend-runtime/)
   assert.doesNotMatch(productionCompose, /^\s+build:/m)
   assert.doesNotMatch(productionCompose, /^\s+ports:/m)
+  assert.match(baseCompose, /worker-capture-sweep:/)
+  assert.match(baseCompose, /profiles: \[maintenance\]/)
+  assert.match(
+    baseCompose,
+    /main\.js", "--sweep-expired-captures"/,
+  )
+  assert.match(productionCompose, /PLACE_IMPORT_RUNTIME_ENABLED: "true"/)
+  assert.match(productionCompose, /PLACE_CAPTURE_KEYRING_FILE: \/run\/secrets\/place_capture_keyring/)
+  assert.match(productionCompose, /PLACE_CAPTURE_ROOT: \/var\/lib\/place\/captures/)
+  assert.match(productionCompose, /place-captures:\/var\/lib\/place\/captures/)
 
   const applicationRuntime = JSON.parse(runtimeDocument)
   assert.deepEqual(applicationRuntime.artifactInputs, {
@@ -138,5 +148,15 @@ test('production composition consumes immutable images while local composition o
     unit: 'place-application',
     database: 'preserve',
     migration: 'application-only',
+  })
+  assert.deepEqual(applicationRuntime.processes.worker, {
+    exposure: 'internal',
+    activation: 'optional',
+    configurationGroups: [
+      'worker-database-pool',
+      'capture-artifact-store',
+      'capture-retention-sweep',
+    ],
+    secretFileRoles: ['database-url', 'capture-keyring'],
   })
 })

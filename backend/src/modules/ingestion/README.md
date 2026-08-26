@@ -35,3 +35,8 @@ receipt를 소유한다. HTTP 요청은 작업만 큐에 넣고 Worker가 별도
 수집 결과는 preview다. create/link/skip 명시 검토가 immutable observation, candidate, reviewer
 decision을 기록한 후 Places와 Library의 consumer port를 호출한다. 동일 command는 receipt로
 재생되고 다른 command가 같은 item을 처리하려 하면 충돌한다.
+
+보존 만료 정리는 `ImportCaptureRetentionStore`와 `CaptureArtifactReplayStore` 두 공개 port를 조립한
+bounded use case다. DB adapter는 만료·미삭제 메타데이터와 삭제 표식만 소유하고, encrypted file
+adapter는 opaque reference의 물리 파일만 소유한다. 한쪽이 다른 쪽 구현이나 경로를 알지 않으며
+entrypoint가 수명주기를 조립한다.

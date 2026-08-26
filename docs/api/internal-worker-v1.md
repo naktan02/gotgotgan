@@ -20,3 +20,8 @@ attempt 종료를 수행한다. 만료 lease를 재획득하면 이전 attempt�
 작업 claim 내부에는 불투명 secret/profile 참조가 포함될 수 있지만 Worker 결과, HTTP, Web,
 로그에는 포함하지 않는다. 인증 만료·MFA·CAPTCHA·동의·parser drift는 사용자 조치로, rate limit과
 일시 장애는 상한이 있는 backoff로, checksum 불일치는 영구 실패로 분류한다.
+
+캡처 만료 정리는 Import claim과 별도인 유지보수 명령이다. 만료 메타데이터만 bounded batch로
+선택하고 암호화 artifact를 삭제한 후 `deleted_at`을 기록한다. 개별 실패는 수량으로만 보고하며
+secret/profile/capture reference를 출력하지 않는다. 이 명령은 Provider 브라우저나 profile을 열지
+않고 acquisition lease를 대신하지 않는다.

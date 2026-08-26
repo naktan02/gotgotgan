@@ -8,6 +8,7 @@ describe('browser process readiness', () => {
       environment: {},
       resolveOidcRuntime: () => undefined,
       resolveMembershipBackend: () => undefined,
+      resolveImportBackend: () => undefined,
     })
 
     const response = await readiness.check()
@@ -22,6 +23,7 @@ describe('browser process readiness', () => {
       environment: {
         PLACE_OIDC_RUNTIME_ENABLED: 'true',
         PLACE_MEMBERSHIP_RUNTIME_ENABLED: 'true',
+        PLACE_IMPORT_RUNTIME_ENABLED: 'true',
       },
       resolveOidcRuntime: () => ({
         ready: async () => void observed.push('oidc'),
@@ -32,10 +34,16 @@ describe('browser process readiness', () => {
           return new Response(null, { status: 200 })
         },
       }),
+      resolveImportBackend: () => ({
+        ready: async () => {
+          observed.push('imports')
+          return new Response(null, { status: 200 })
+        },
+      }),
     })
 
     expect((await ready.check()).status).toBe(200)
-    expect(observed.sort()).toEqual(['membership', 'oidc'])
+    expect(observed.sort()).toEqual(['imports', 'membership', 'oidc'])
 
     const unavailable = createBrowserProcessReadiness({
       environment: { PLACE_MEMBERSHIP_RUNTIME_ENABLED: 'true' },
@@ -45,6 +53,7 @@ describe('browser process readiness', () => {
           throw new Error('backend-secret at internal.backend.example')
         },
       }),
+      resolveImportBackend: () => undefined,
     })
     const response = await unavailable.check()
     const body = await response.text()
@@ -64,6 +73,7 @@ describe('browser process readiness', () => {
       environment: { PLACE_OIDC_RUNTIME_ENABLED: 'true' },
       resolveOidcRuntime: () => undefined,
       resolveMembershipBackend: () => undefined,
+      resolveImportBackend: () => undefined,
     })
 
     expect((await readiness.check()).status).toBe(503)

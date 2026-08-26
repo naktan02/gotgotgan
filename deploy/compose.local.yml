@@ -17,3 +17,8 @@ services:
     build:
       context: ..
       target: backend-runtime
+
+  worker-capture-sweep:
+    build:
+      context: ..
+      target: backend-runtime

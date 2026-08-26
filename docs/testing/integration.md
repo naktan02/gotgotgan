@@ -20,7 +20,9 @@ substitute for protocol or database semantics at these seams.
 Stage 7 전용 disposable PostGIS 검증은 connection의 불투명 참조 저장, Import 요청 재생, 작업
 claim/attempt/capture/item 영속화, review create, observation/candidate/decision, Canonical provider
 link, 개인 Library 저장과 최종 completed 상태를 한 흐름으로 실행한다. 공개 projection에서
-profile/secret/cookie가 보이지 않고 동일 review 재실행이 replay되는지도 확인한다.
+profile/secret/cookie가 보이지 않고 동일 review 재실행이 replay되는지도 확인한다. 같은 수직 검증은
+실제 AES-256-GCM 파일 adapter로 artifact를 저장하고 보존기한 뒤 sweep하여 파일 삭제와 DB
+`deleted_at` 표식, 반복 실행의 빈 결과까지 확인한다.
 
 Stage 2 tests the HTTP access seam through an injected verifier, membership directory, and audit
 sink. The web tests the OIDC BFF and `openid-client` adapter with deterministic doubles, including

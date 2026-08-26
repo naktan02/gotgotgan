@@ -13,7 +13,8 @@ const allowed = {
 const forbiddenBuckets = ['components', 'services', 'stores', 'hooks']
 const allowedPlatformDependencies = new Map([
   ['membership', new Set(['auth'])],
-  ['process-readiness', new Set(['auth', 'membership'])],
+  ['imports', new Set(['auth'])],
+  ['process-readiness', new Set(['auth', 'imports', 'membership'])],
   ['publications', new Set(['backend-http'])],
   ['search', new Set(['backend-http'])],
 ])

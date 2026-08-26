@@ -9,14 +9,17 @@ image references and keeps all Place processes under one product-owned Compose p
 
 - `web`: standalone Next.js runtime;
 - `backend`: Fastify HTTP runtime with explicit `source-only` or `production` mode; and
-- `worker-check`: opt-in verification profile for the separately runnable worker artifact.
+- `worker-check`: opt-in verification profile for the separately runnable worker artifact; and
+- `worker-capture-sweep`: opt-in maintenance profile for one bounded expiry sweep.
 
 `compose.local.yml` alone adds Docker build targets and explicit standalone host ports while Web
 integrations and Backend access transports remain source-only by default. Local validation still
 supplies explicit image tags for the resulting builds. `compose.production.yml` selects Backend
-production composition, activates Web OIDC and membership runtimes, mounts the database/OIDC secret-file roles
-plus the non-secret membership policy, and joins the injected Place data network. It publishes no
-Backend host port. All addresses, files, pool bounds, timeouts, issuer/audience/scopes, and policy are
+production composition, activates Web OIDC/membership/Import BFF runtimes, mounts protected secret
+files plus the non-secret membership policy, and joins the injected Place data network. The optional
+maintenance worker mounts the same database secret, a dedicated capture keyring, and an external
+private capture volume. It publishes no Backend host port and does not activate live provider
+acquisition. All addresses, files, pool bounds, timeouts, issuer/audience/scopes, and policy are
 required deployment inputs.
 
 Production image inputs must be immutable coordinates in the form
@@ -60,8 +63,8 @@ The Web OIDC configuration consumes `PLACE_DATABASE_URL_FILE`,
 `PLACE_OIDC_CLIENT_SECRET_FILE`, and `PLACE_OIDC_ENCRYPTION_KEYRING_FILE`. A deployment secret sink
 mounts those files read-only; direct credential environment values are unsupported. Non-secret
 issuer, client ID, callback, scope, TTL, pool, and cleanup settings remain injected and fail closed.
-Production overlay sets `PLACE_OIDC_RUNTIME_ENABLED=true` and
-`PLACE_MEMBERSHIP_RUNTIME_ENABLED=true`; false or missing keeps each source-only integration
+Production overlay sets `PLACE_OIDC_RUNTIME_ENABLED=true`,
+`PLACE_MEMBERSHIP_RUNTIME_ENABLED=true`, and `PLACE_IMPORT_RUNTIME_ENABLED=true`; false or missing keeps each source-only integration
 disconnected, while any other value fails startup.
 
 The Backend base defaults to explicit `PLACE_HTTP_RUNTIME_MODE=source-only` and registers lifecycle

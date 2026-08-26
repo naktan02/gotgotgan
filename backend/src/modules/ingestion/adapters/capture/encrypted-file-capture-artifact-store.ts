@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 
 import { z } from 'zod'
@@ -153,6 +153,38 @@ export class EncryptedFileCaptureArtifactStore implements CaptureArtifactReplayS
       return new Uint8Array(body)
     } catch {
       throw artifactError()
+    }
+  }
+
+  async delete(input: Parameters<CaptureArtifactReplayStore['delete']>[0]): Promise<'deleted' | 'missing'> {
+    const matched = referencePattern.exec(input.reference)
+    if (matched === null) return 'missing'
+    let decoded: unknown
+    try {
+      decoded = JSON.parse(await readFile(this.path(matched[1]!), 'utf8'))
+    } catch (error) {
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT') {
+        return 'missing'
+      }
+      throw artifactError()
+    }
+    const parsed = envelopeSchema.safeParse(decoded)
+    if (!parsed.success) throw artifactError()
+    const envelope = parsed.data
+    if (envelope.batchId !== input.batchId || envelope.providerKey !== input.providerKey) {
+      throw artifactError()
+    }
+    if (new Date(envelope.retentionUntil).getTime() > this.config.now().getTime()) {
+      throw new Error('Capture artifact is not expired')
+    }
+    try {
+      await unlink(this.path(matched[1]!))
+      return 'deleted'
+    } catch (error) {
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT') {
+        return 'missing'
+      }
+      throw error
     }
   }
 

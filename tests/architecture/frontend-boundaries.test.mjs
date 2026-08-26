@@ -29,6 +29,8 @@ test('accepts frontend inward dependencies and explicit feature public contracts
     'shells/workspace/Shell.tsx': "import { search } from '../../features/search/public/index'; void search",
     'platform/auth/session.ts': 'export const session = true',
     'platform/membership/browser.ts': "import { session } from '../auth/session'; void session",
+    'platform/imports/browser.ts': "import { session } from '../auth/session'; void session",
+    'platform/process-readiness/check.ts': "import '../auth/session'; import '../imports/browser'; import '../membership/browser'",
   })
   assert.deepEqual(await inspectFrontendArchitecture(root), [])
 })

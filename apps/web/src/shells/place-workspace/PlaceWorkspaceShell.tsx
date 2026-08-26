@@ -10,16 +10,19 @@ import styles from './place-workspace-shell.module.css'
 const placeNavigation = [
   { id: 'home', label: '작업 공간', href: '/' },
   { id: 'search', label: '장소 찾기', href: '/search' },
+  { id: 'imports', label: '가져오기', href: '/imports' },
 ] as const
 
 export function PlaceWorkspaceShell({
   children,
   currentPage = 'home',
   familyNavigation,
+  stageLabel = '로컬 검색',
 }: Readonly<{
   children?: React.ReactNode
   currentPage?: (typeof placeNavigation)[number]['id']
   familyNavigation: FamilyNavigation
+  stageLabel?: string
 }>) {
   const [navigationOpen, setNavigationOpen] = useState(false)
 
@@ -37,7 +40,7 @@ export function PlaceWorkspaceShell({
           <span aria-hidden="true" className={styles.menuGlyph} />
         </button>
         <span className={styles.wordmark}>Place</span>
-        <span className={styles.stage}>로컬 검색</span>
+        <span className={styles.stage}>{stageLabel}</span>
       </header>
 
       <aside

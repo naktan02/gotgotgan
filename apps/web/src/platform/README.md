@@ -6,4 +6,6 @@ and process-pool adapters. The `membership` folder owns the independent browser/
 its stateless runtime. Membership may consume the narrow auth session interface; auth must not import
 membership. Each folder README records its activation gates.
 The `process-readiness` folder is the only platform owner allowed to aggregate the narrow auth and
-membership readiness interfaces; it owns neither lifecycle.
+membership/import readiness interfaces; it owns none of their lifecycles. The `imports` folder owns
+the authenticated browser/backend bridge for connected-account Import and may consume only the
+narrow auth session interface.

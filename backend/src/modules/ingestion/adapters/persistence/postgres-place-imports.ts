@@ -2,6 +2,10 @@ import type { Pool, PoolClient } from 'pg'
 
 import type { ImportManagementStore } from '../../application/ports/import-management-store.js'
 import type {
+  ExpiredImportCapture,
+  ImportCaptureRetentionStore,
+} from '../../application/ports/import-capture-retention-store.js'
+import type {
   ImportReviewResult,
   ImportReviewStore,
   ReviewableImportItem,
@@ -144,7 +148,8 @@ export class PostgresPlaceImports implements
   ImportWorkerStore,
   ProviderConnectionStore,
   ImportManagementStore,
-  ImportReviewStore {
+  ImportReviewStore,
+  ImportCaptureRetentionStore {
   constructor(private readonly pool: Pool) {}
 
   async registerConnection(command: ProviderConnectionRegistration) {
@@ -201,6 +206,45 @@ export class PostgresPlaceImports implements
       status: row.status,
       lastVerifiedAt: row.last_verified_at === null ? null : iso(row.last_verified_at),
     }))
+  }
+
+  async findExpired(input: Readonly<{
+    expiredAt: string
+    limit: number
+  }>): Promise<readonly ExpiredImportCapture[]> {
+    const selected = await this.pool.query<{
+      id: string
+      batch_id: string
+      provider_key: 'naver' | 'kakao' | 'google'
+      artifact_reference: string
+    }>(
+      `SELECT capture.id, capture.batch_id, batch.provider_key, capture.artifact_reference
+       FROM ingestion.import_capture_artifacts AS capture
+       JOIN ingestion.import_batches AS batch ON batch.id = capture.batch_id
+       WHERE capture.retained_until <= $1::timestamptz AND capture.deleted_at IS NULL
+       ORDER BY capture.retained_until, capture.id
+       LIMIT $2`,
+      [input.expiredAt, input.limit],
+    )
+    return selected.rows.map((row) => ({
+      captureId: row.id,
+      batchId: row.batch_id,
+      providerKey: row.provider_key,
+      artifactReference: row.artifact_reference,
+    }))
+  }
+
+  async markDeleted(input: Readonly<{
+    captureId: string
+    deletedAt: string
+  }>): Promise<'marked' | 'already-deleted'> {
+    const updated = await this.pool.query(
+      `UPDATE ingestion.import_capture_artifacts
+       SET deleted_at = $2::timestamptz
+       WHERE id = $1::uuid AND deleted_at IS NULL AND retained_until <= $2::timestamptz`,
+      [input.captureId, input.deletedAt],
+    )
+    return updated.rowCount === 1 ? 'marked' : 'already-deleted'
   }
 
   async requestImport(command: ImportRequestCommand) {

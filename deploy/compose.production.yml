@@ -3,6 +3,7 @@ services:
     environment:
       PLACE_OIDC_RUNTIME_ENABLED: "true"
       PLACE_MEMBERSHIP_RUNTIME_ENABLED: "true"
+      PLACE_IMPORT_RUNTIME_ENABLED: "true"
       PLACE_DATABASE_URL_FILE: /run/secrets/place_database_url
       PLACE_OIDC_CLIENT_SECRET_FILE: /run/secrets/place_oidc_client_secret
       PLACE_OIDC_ENCRYPTION_KEYRING_FILE: /run/secrets/place_oidc_encryption_keyring
@@ -20,12 +21,31 @@ services:
       PLACE_OIDC_CLEANUP_INTERVAL_SECONDS: ${PLACE_OIDC_CLEANUP_INTERVAL_SECONDS:?PLACE_OIDC_CLEANUP_INTERVAL_SECONDS is required}
       PLACE_BACKEND_ORIGIN: ${PLACE_BACKEND_ORIGIN:?PLACE_BACKEND_ORIGIN is required}
       PLACE_MEMBERSHIP_BACKEND_TIMEOUT_MILLISECONDS: ${PLACE_MEMBERSHIP_BACKEND_TIMEOUT_MILLISECONDS:?PLACE_MEMBERSHIP_BACKEND_TIMEOUT_MILLISECONDS is required}
+      PLACE_IMPORT_BACKEND_TIMEOUT_MILLISECONDS: ${PLACE_IMPORT_BACKEND_TIMEOUT_MILLISECONDS:?PLACE_IMPORT_BACKEND_TIMEOUT_MILLISECONDS is required}
     secrets:
       - place_database_url
       - place_oidc_client_secret
       - place_oidc_encryption_keyring
     networks:
       - default
+      - place-data
+
+  worker-capture-sweep:
+    environment:
+      PLACE_DATABASE_URL_FILE: /run/secrets/place_database_url
+      PLACE_WORKER_DATABASE_MAX_CONNECTIONS: ${PLACE_WORKER_DATABASE_MAX_CONNECTIONS:?PLACE_WORKER_DATABASE_MAX_CONNECTIONS is required}
+      PLACE_WORKER_DATABASE_IDLE_TIMEOUT_MILLISECONDS: ${PLACE_WORKER_DATABASE_IDLE_TIMEOUT_MILLISECONDS:?PLACE_WORKER_DATABASE_IDLE_TIMEOUT_MILLISECONDS is required}
+      PLACE_WORKER_DATABASE_CONNECTION_TIMEOUT_MILLISECONDS: ${PLACE_WORKER_DATABASE_CONNECTION_TIMEOUT_MILLISECONDS:?PLACE_WORKER_DATABASE_CONNECTION_TIMEOUT_MILLISECONDS is required}
+      PLACE_CAPTURE_ROOT: /var/lib/place/captures
+      PLACE_CAPTURE_KEYRING_FILE: /run/secrets/place_capture_keyring
+      PLACE_CAPTURE_MAXIMUM_BYTES: ${PLACE_CAPTURE_MAXIMUM_BYTES:?PLACE_CAPTURE_MAXIMUM_BYTES is required}
+      PLACE_CAPTURE_SWEEP_BATCH_SIZE: ${PLACE_CAPTURE_SWEEP_BATCH_SIZE:?PLACE_CAPTURE_SWEEP_BATCH_SIZE is required}
+    secrets:
+      - place_database_url
+      - place_capture_keyring
+    volumes:
+      - place-captures:/var/lib/place/captures
+    networks:
       - place-data
     depends_on:
       backend:
@@ -59,6 +79,8 @@ secrets:
     file: ${PLACE_OIDC_CLIENT_SECRET_FILE:?PLACE_OIDC_CLIENT_SECRET_FILE is required}
   place_oidc_encryption_keyring:
     file: ${PLACE_OIDC_ENCRYPTION_KEYRING_FILE:?PLACE_OIDC_ENCRYPTION_KEYRING_FILE is required}
+  place_capture_keyring:
+    file: ${PLACE_CAPTURE_KEYRING_FILE:?PLACE_CAPTURE_KEYRING_FILE is required}
 
 configs:
   place_membership_policy:
@@ -68,3 +90,8 @@ networks:
   place-data:
     external: true
     name: ${PLACE_DATA_NETWORK:?PLACE_DATA_NETWORK is required}
+
+volumes:
+  place-captures:
+    external: true
+    name: ${PLACE_CAPTURE_VOLUME:?PLACE_CAPTURE_VOLUME is required}

@@ -23,7 +23,8 @@
       "configurationGroups": [
         "web-listener",
         "oidc-client",
-        "membership-backend"
+        "membership-backend",
+        "import-backend"
       ],
       "secretFileRoles": [
         "database-url",
@@ -48,8 +49,15 @@
     "worker": {
       "exposure": "internal",
       "activation": "optional",
-      "configurationGroups": [],
-      "secretFileRoles": []
+      "configurationGroups": [
+        "worker-database-pool",
+        "capture-artifact-store",
+        "capture-retention-sweep"
+      ],
+      "secretFileRoles": [
+        "database-url",
+        "capture-keyring"
+      ]
     }
   },
   "connections": {

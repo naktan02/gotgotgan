@@ -12,6 +12,10 @@ entrypoint registers them and owns lifecycle only.
 UUID와 idempotency UUID만 받아 batch를 큐에 넣는다. `GET /v1/imports/{batchId}`는 preview와
 진행률을 반환하고 cancel/resume은 별도 POST다. `POST /v1/import-reviews`는 command UUID, item
 UUID, create/link/skip 중 하나만 받는다. member, role, cookie, profile, 캡처 본문은 받지 않는다.
+브라우저는 이 Backend 주소를 직접 호출하지 않는다. Web의 동일 출처 `/api/imports...`,
+`/api/import-reviews`, `/api/imports/connections` BFF가 서버 세션의 access token을 내부에서만
+전달하고 request·response를 생성 계약으로 다시 검증한다. 런타임이 비활성이거나 Backend 응답이
+계약을 벗어나면 안전한 correlated problem으로 fail closed한다.
 
 `POST /v1/search/places`는 익명 공개 장소 검색과 optional bearer 회원 검색을 한 계약으로
 제공한다. request는 query, optional bounds, Taxonomy key filter, opaque cursor, 최대 50개 limit를
