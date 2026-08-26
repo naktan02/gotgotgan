@@ -16,8 +16,11 @@ type Pending = Readonly<{
   cancel(): void
 }>
 
+type PendingSettlement = 'accepted' | 'cancelled' | 'timeout'
+
 export class ConnectorPageSession {
   private readonly pending = new Map<string, Pending>()
+  private readonly activeOperations = new Map<string, string>()
   private readonly listener: (event: MessageEvent<unknown>) => void
   private closed = false
 
@@ -44,26 +47,38 @@ export class ConnectorPageSession {
     requestId: string
     timeoutMilliseconds: number
     accept(event: ConnectorExtensionEvent): T | undefined
+    onSettled?: (settlement: PendingSettlement) => void
   }>): Promise<T | undefined> {
     return new Promise((resolve) => {
+      const settle = (settlement: PendingSettlement, result?: T) => {
+        input.onSettled?.(settlement)
+        resolve(result)
+      }
       const timer = window.setTimeout(() => {
         this.pending.delete(input.requestId)
-        resolve(undefined)
+        settle('timeout')
       }, input.timeoutMilliseconds)
       this.pending.set(input.requestId, {
         accept: (event) => {
           const accepted = input.accept(event)
           if (accepted === undefined) return false
           window.clearTimeout(timer)
-          resolve(accepted)
+          settle('accepted', accepted)
           return true
         },
         cancel: () => {
           window.clearTimeout(timer)
-          resolve(undefined)
+          settle('cancelled')
         },
       })
     })
+  }
+
+  private cancelPending(requestId: string): void {
+    const pending = this.pending.get(requestId)
+    if (pending === undefined) return
+    this.pending.delete(requestId)
+    pending.cancel()
   }
 
   async probe(timeoutMilliseconds = 800): Promise<ReadyEvent | undefined> {
@@ -103,6 +118,7 @@ export class ConnectorPageSession {
     timeoutMilliseconds = 300_000,
   ): Promise<ResultEvent | undefined> {
     const requestId = crypto.randomUUID()
+    this.activeOperations.set(grant.operationId, requestId)
     const response = this.waitFor<ResultEvent>({
       requestId,
       timeoutMilliseconds,
@@ -113,23 +129,46 @@ export class ConnectorPageSession {
         }
         return event.kind === 'result' ? event : undefined
       },
+      onSettled: (settlement) => {
+        if (this.activeOperations.get(grant.operationId) !== requestId) return
+        this.activeOperations.delete(grant.operationId)
+        if (settlement === 'timeout') this.sendCancellation(grant.operationId)
+      },
     })
-    this.command({
-      schemaVersion: 'place-connector-command.v1', channel: 'place-connector',
-      requestId, kind: 'start-import', grant,
-    })
+    try {
+      this.command({
+        schemaVersion: 'place-connector-command.v1', channel: 'place-connector',
+        requestId, kind: 'start-import', grant,
+      })
+    } catch (error) {
+      this.cancelPending(requestId)
+      throw error
+    }
     return response
   }
 
-  cancel(operationId: string): void {
+  private sendCancellation(operationId: string): void {
     this.command({
       schemaVersion: 'place-connector-command.v1', channel: 'place-connector',
       requestId: crypto.randomUUID(), kind: 'cancel-import', operationId,
     })
   }
 
+  cancel(operationId: string): void {
+    const requestId = this.activeOperations.get(operationId)
+    try {
+      this.sendCancellation(operationId)
+    } finally {
+      if (requestId !== undefined) {
+        this.activeOperations.delete(operationId)
+        this.cancelPending(requestId)
+      }
+    }
+  }
+
   close(): void {
     if (this.closed) return
+    for (const operationId of [...this.activeOperations.keys()]) this.cancel(operationId)
     this.closed = true
     this.page.removeEventListener('message', this.listener as EventListener)
     for (const pending of this.pending.values()) pending.cancel()

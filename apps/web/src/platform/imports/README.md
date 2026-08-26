@@ -7,7 +7,9 @@
 - `connector/browser-connector-http.ts`는 grant route에서 OIDC session을 요구하고 capture route에서는
   Web cookie 대신 `PlaceConnector` authorization만 허용한 뒤 모든 입출력을 다시 검증한다.
 - `connector/connector-page-session.ts`는 window message의 origin/source/version/operation을 검증하고
-  probe·prepare·start·cancel 및 progress/result 수명주기를 한 곳에서 닫는다.
+  probe·prepare·start·cancel 및 progress/result 수명주기를 한 곳에서 닫는다. `start` timeout,
+  명시적 `cancel`, 화면 unmount의 `close`는 활성 작업에 `cancel-import`를 전송하고 대기 중인
+  Promise와 timer를 정리한다. 이미 terminal `result`를 받은 작업에는 취소를 전송하지 않는다.
 - `connector/next-connector-lifecycle.ts`는 명시적 활성화와 bounded timeout을 소유하며 비활성 또는
   부분 설정 상태에서는 fail closed한다.
 

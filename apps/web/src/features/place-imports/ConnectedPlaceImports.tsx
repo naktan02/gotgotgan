@@ -210,7 +210,6 @@ export function ConnectedPlaceImports() {
   const [acceptedConsentKeys, setAcceptedConsentKeys] = useState<ReadonlySet<string>>(new Set())
   const [onboardingBusy, setOnboardingBusy] = useState(false)
   const connectorSession = useRef<ConnectorPageSession | undefined>(undefined)
-  const activeConnectorOperation = useRef<string | undefined>(undefined)
   const startCommand = useRef<string | undefined>(undefined)
   const reviewCommands = useRef(new Map<string, string>())
 
@@ -354,9 +353,7 @@ export function ConnectedPlaceImports() {
           idempotencyKey,
         }),
       }))
-      activeConnectorOperation.current = grant.operationId
       const result = await session.start(grant, (event) => setConnectorProgress(event.progress))
-      activeConnectorOperation.current = undefined
       if (result === undefined) throw new ImportBrowserProblem('확장 프로그램 응답 시간이 초과되었습니다.', true)
       if (result.code !== 'completed' || result.importBatchId === undefined) {
         throw new ImportBrowserProblem(
@@ -370,7 +367,6 @@ export function ConnectedPlaceImports() {
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : '브라우저 가져오기를 시작하지 못했습니다.')
     } finally {
-      activeConnectorOperation.current = undefined
       setBusy(false)
     }
   }
