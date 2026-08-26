@@ -48,11 +48,11 @@ NAVER·Kakao·Google은 같은 확장의 Provider Adapter이며 Provider별 확�
 Firefox, Safari 차이는 Provider leaf로 역류하지 않는다. Stage 10 외부 저장은 Import용 Source를
 비대하게 만들지 않고 별도 `SavedPlaceTarget` Interface를 사용한다. ADR 0012가 이 경계를 고정한다.
 
-Ingestion은 Provider Identity별 공동 Fulfillment Job과 회원별 Intent도 소유한다. 이 깊은 module
-interface는 cache-first 판정, 상세 보강, evidence 기록, Canonical create/link, Library fan-out을
-한 작업 수명주기로 감춘다. Places와 Library는 기존 공개 port로만 주입되고, Provider 상세 Adapter는
-회원 ID·ImportBatch·사용자 profile을 보지 않는다. 새 Provider는 이 interface를 바꾸지 않고
-자신의 `PlaceEnrichmentSource` Adapter만 추가한다.
+Ingestion은 Provider Identity별 공동 Materialization Job과 회원별 Intent도 소유한다. 이 깊은 module
+interface는 Source Snapshot evidence 기록, Canonical lookup/create/link, Library fan-out을 한 작업
+수명주기로 감춘다. Places와 Library는 기존 공개 port로만 주입된다. Provider 상세 상태와 후속 Job은
+개인 저장과 분리하며 회원 ID·ImportBatch·사용자 profile을 Provider 상세 Adapter에 전달하지 않는다.
+새 Provider는 공통 materialization interface를 바꾸지 않고 자신의 수집·상세 Adapter leaf만 추가한다.
 
 Library, Visits, Writing은 서로 다른 owner다. Library는 visited 상태를 저장하지 않고,
 Visits는 Rating이나 Writing을 저장하지 않으며, Writing은 Canonical Place ID만 연결한다.

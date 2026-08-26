@@ -23,6 +23,7 @@ import {
 } from '@place/contracts/imports'
 
 import { ConnectorPageSession } from '@/platform/imports/connector/connector-page-session'
+import { buildProviderOpenLinks } from '@/platform/maps/provider-open-links'
 
 import styles from './connected-place-imports.module.css'
 
@@ -48,7 +49,7 @@ const stateMessages: Readonly<Record<PlaceImportBatch['state'], string>> = {
   queued: '가져오기를 기다리고 있습니다.',
   running: '저장 목록을 가져오는 중입니다.',
   partial: '일부 목록을 가져온 뒤 다음 묶음을 기다리고 있습니다.',
-  enriching: '장소의 최신 상세 정보를 확인하고 있습니다.',
+  enriching: '가져온 장소를 개인 컬렉션에 저장하고 있습니다.',
   'needs-user-action': 'Provider 계정에서 추가 확인이 필요합니다.',
   'needs-review': '직접 확인할 장소가 있습니다.',
   completed: '가져오기가 완료되었습니다.',
@@ -96,7 +97,7 @@ function ImportProgress({ batch }: Readonly<{ batch: PlaceImportBatch }>) {
     <dl aria-label="가져오기 진행 상황" className={styles.progress}>
       <div><dt>발견</dt><dd>{progress.discovered}</dd></div>
       <div><dt>자동 확인</dt><dd>{progress.ready}</dd></div>
-      <div><dt>상세 확인</dt><dd>{progress.enriching}</dd></div>
+      <div><dt>저장 준비</dt><dd>{progress.enriching}</dd></div>
       <div><dt>검토 필요</dt><dd>{progress.reviewRequired}</dd></div>
       <div><dt>저장</dt><dd>{progress.applied}</dd></div>
       <div><dt>건너뜀</dt><dd>{progress.skipped}</dd></div>
@@ -119,18 +120,34 @@ function ItemReview({
   const [canonicalPlaceId, setCanonicalPlaceId] = useState('')
   const resolved = item.status === 'applied' || item.status === 'skipped'
   const enriching = item.status === 'enriching'
+  const openLinks = buildProviderOpenLinks(item)
   return (
     <li className={styles.item}>
       <div className={styles.itemHeading}>
         <div><p className={styles.listName}>{item.listName}</p><h3>{item.name}</h3></div>
         <span className={styles.itemStatus}>
-          {resolved ? '처리됨' : enriching ? '상세 확인 중' : '검토 필요'}
+          {resolved
+            ? item.detailStatus === 'pending' ? '저장됨 · 상세 대기' : '저장됨'
+            : enriching ? '저장 준비 중' : '검토 필요'}
         </span>
       </div>
       <p className={styles.itemFacts}>
         {item.address ?? '주소 정보 없음'}
         {item.categoryLabel === null ? '' : ` · ${item.categoryLabel}`}
       </p>
+      <dl className={styles.sourceIdentity} aria-label="원본 장소 식별자">
+        <div><dt>출처</dt><dd>{item.providerKey.toUpperCase()}</dd></div>
+        <div><dt>목록 ID</dt><dd title={item.sourceListId}>{item.sourceListId}</dd></div>
+        <div><dt>항목 ID</dt><dd title={item.sourceItemId}>{item.sourceItemId}</dd></div>
+        <div><dt>장소 ID</dt><dd title={item.providerPlaceId}>{item.providerPlaceId ?? '없음'}</dd></div>
+      </dl>
+      <nav aria-label={`${item.name} 지도에서 열기`} className={styles.openLinks}>
+        {openLinks.map((link) => (
+          <a href={link.href} key={link.providerKey} rel="noopener noreferrer" target="_blank">
+            {link.label}에서 열기
+          </a>
+        ))}
+      </nav>
       {item.reviewReasons.length > 0 && (
         <ul aria-label="검토 사유" className={styles.reasons}>
           {item.reviewReasons.map((reason) => (

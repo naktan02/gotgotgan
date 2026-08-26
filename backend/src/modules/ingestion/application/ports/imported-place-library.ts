@@ -8,6 +8,8 @@ export interface ImportedPlaceLibraryPort {
       providerKey: 'naver' | 'kakao' | 'google'
       connectionId: string
       listId: string
+      itemId: string
+      providerPlaceId: string
       listName: string
       listPosition: number
       position: number

@@ -78,6 +78,8 @@ export const placeImportItemSchema = z.object({
   batchId: uuidSchema,
   providerKey: providerKeySchema,
   providerPlaceId: z.string().min(1).max(512).optional(),
+  sourceListId: z.string().min(1).max(512),
+  sourceItemId: z.string().min(1).max(512),
   listName: z.string().min(1).max(200),
   name: z.string().min(1).max(300),
   address: z.string().min(1).max(500).nullable(),
@@ -89,6 +91,7 @@ export const placeImportItemSchema = z.object({
   status: z.enum(['enriching', 'ready', 'needs-review', 'applied', 'skipped', 'failed']),
   reviewReasons: z.array(z.string().min(1).max(120)).max(10),
   canonicalPlaceId: uuidSchema.optional(),
+  detailStatus: z.enum(['pending', 'available', 'unavailable']),
 }).strict()
 
 export const placeImportBatchDetailSchema = z.object({

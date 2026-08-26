@@ -155,6 +155,25 @@ export class PostgresLibraryStore implements LibraryStore, ImportedPlaceSaveStor
         )
       }
       await client.query(
+        `INSERT INTO library.collection_place_import_provenance (
+           collection_id, canonical_place_id, provider_key,
+           source_connection_reference, source_list_id, source_item_id,
+           provider_place_id, first_imported_at, last_imported_at
+         ) VALUES (
+           $1::uuid,$2::uuid,$3,$4::uuid,$5,$6,$7,$8::timestamptz,$8::timestamptz
+         )
+         ON CONFLICT (collection_id, canonical_place_id) DO UPDATE
+         SET provider_key = EXCLUDED.provider_key,
+             source_connection_reference = EXCLUDED.source_connection_reference,
+             source_list_id = EXCLUDED.source_list_id,
+             source_item_id = EXCLUDED.source_item_id,
+             provider_place_id = EXCLUDED.provider_place_id,
+             last_imported_at = EXCLUDED.last_imported_at`,
+        [collectionId, attempt.canonicalPlaceId, attempt.source.providerKey,
+          attempt.source.connectionId, attempt.source.listId, attempt.source.itemId,
+          attempt.source.providerPlaceId, attempt.occurredAt],
+      )
+      await client.query(
         `UPDATE library.collections
          SET updated_at = greatest(updated_at, $2::timestamptz)
          WHERE id = $1::uuid`,

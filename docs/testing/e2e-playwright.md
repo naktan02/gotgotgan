@@ -19,9 +19,10 @@ background → NAVER session → capture → 공개 BFF receipt를 검증하는 
 Chrome·Edge·Whale이 공유하는 Chromium 산출물도 각 브라우저 실설치 smoke를 따로 기록하며, 특히
 Whale은 이 evidence 전까지 `integration-gated`다.
 
-같은 Import E2E는 `enriching` batch/item을 desktop·mobile에서 표시하고, 상세 확인 중에는
-create/link/skip 검토 control이 노출되지 않는지도 검증한다. fixture가 이후 `needs-review`로 전환되면
-기존 동일 command 재시도와 검토 흐름을 계속 실행한다.
+같은 Import E2E는 `enriching` batch/item을 desktop·mobile에서 저장 준비 상태로 표시하고,
+create/link/skip 검토 control이 노출되지 않는지도 검증한다. 저장된 item은 Source List·Item·Provider
+Place ID, `상세 대기`, NAVER·Google Maps·카카오맵 열기 링크를 표시한다. fixture가 이후
+`needs-review`로 전환되면 기존 동일 command 재시도와 검토 흐름을 계속 실행한다.
 
 The E2E launcher injects the contract-owned active family-navigation test fixture when the caller has
 not supplied one. The fixture uses reserved example destinations and is test evidence only; it does

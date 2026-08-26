@@ -23,13 +23,15 @@ domain meaning rather than storage or framework structure.
 | Place Candidate | A normalized interpretation derived from one Source Observation and awaiting a resolution outcome. | Canonical Place or verified Place knowledge. |
 | Resolution Decision | Immutable evidence of how a Place Candidate or canonical conflict was classified under a named policy or reviewer. | The canonical mutation itself. |
 | Imported Place Fulfillment Intent | 회원이 연결 목록에서 선택한 Provider 장소를 자신의 Library에 저장하려는 멱등 의도. | Provider 로그인 세션이나 Canonical Place 자체. |
-| Place Fulfillment Job | 동일한 Provider Place Identity의 여러 Fulfillment Intent를 합쳐 Canonical cache 확인과 필요한 상세 보강을 한 번 수행하는 작업. | 회원별 ImportBatch 또는 사용자 브라우저 profile. |
+| Place Fulfillment Job | 동일한 Provider Place Identity의 여러 Fulfillment Intent를 합쳐 가져온 Source Snapshot을 Canonical Place와 회원 Library에 멱등 반영하는 작업. | Provider 상세 조회 작업이나 회원별 ImportBatch. |
+| Provider Place Detail State | Provider Place Identity별 상세 관찰 준비 상태. `available`은 정규화된 상세 Source Observation을 반드시 가리키며, 개인 저장 성공 여부와 독립적이다. | ImportItem 상태나 Canonical Place 존재 여부. |
 | Place Redirect | A durable reference from a merged Canonical Place to the surviving Canonical Place. | Deletion or alias text. |
 | Place Lineage | Immutable merge or split history that explains how Canonical Place identity and provider links changed. | Current Place state. |
 | Personal Library | A member's Place-owned organization of saved/wanted state, collections, tags, and personal ratings. | Canonical Place data. |
 | Collection | A member-owned, ordered grouping of Canonical Place references. An imported provider folder may initialize one, but it remains Place-owned and independently renameable. | Taxonomy Node or a provider folder itself. |
 | Source List | A provider-owned folder or saved-list identity observed during import, including its source name and order. | A Place Collection or provider-neutral category. |
 | Collection Import Provenance | The member-scoped mapping from one Provider connection and Source List to the Place Collection created for it. | Shared ownership or permission to overwrite the Collection name. |
+| Collection Place Import Provenance | 한 Collection membership이 어떤 Provider 연결·Source List·Source Item·Provider Place Identity에서 왔는지 나타내는 회원 범위 출처. | Canonical Place identity 또는 Provider 폴더 자체. |
 | Place Preferences | The member-owned saved, wanted, and current personal-rating values for one Canonical Place. The values are independent and `visited` is not stored here. | Visit history or provider rating. |
 | Personal Rating | A member's current 0.1-to-5.0 evaluation of a Canonical Place, with private change history. | Provider rating or public aggregate. |
 | Visit | A repeatable occurrence connecting a member to a Canonical Place. | Saved/wanted state. |

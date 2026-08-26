@@ -93,10 +93,12 @@ function itemProjection(value: unknown): unknown {
     schemaVersion: value.schemaVersion, itemId: value.itemId, batchId: value.batchId,
     providerKey: value.providerKey,
     ...(value.providerPlaceId === undefined ? {} : { providerPlaceId: value.providerPlaceId }),
+    sourceListId: value.sourceListId, sourceItemId: value.sourceItemId,
     listName: value.listName, name: value.name, address: value.address,
     categoryLabel: value.categoryLabel, location, status: value.status,
     reviewReasons: value.reviewReasons,
     ...(value.canonicalPlaceId === undefined ? {} : { canonicalPlaceId: value.canonicalPlaceId }),
+    detailStatus: value.detailStatus,
   }
 }
 

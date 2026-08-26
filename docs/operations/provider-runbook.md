@@ -41,14 +41,13 @@ bounded batch로 실행하며 Canonical/Ingestion evidence를 삭제하지 않�
 drift, latency를 분류한다. 안정된 direct HTTP adapter와 공식/local fallback이 없으면 hot path로
 활성화하지 않는다.
 
-연결 목록 Import에서는 회원의 현재 browser session과 서버 상세 보강 profile을 별도 운영 대상으로
-다룬다. 회원 session은 하나의 Place Connector 확장이 사용하며 Provider별 exact-origin permission,
-session probe, 일회성 grant, batch 상한, progress/cancel, tab/listener/resource close를 점검한다. Provider
-cookie·token·profile 경로는 Place로 보내지 않는다. Provider별 확장을 만들지 않고 NAVER·Kakao·Google
-Adapter의 delivery state를 따로 기록한다. 서버 profile은
-Fulfillment miss의 공개 상세 보강만 담당하며 회원 ID나 목록 이름을 받지 않는다. Canonical cache
-hit은 서버 profile도 호출하지 않는다. 실제 NAVER profile Adapter가 추가되기 전까지 이 경로는
-fixture/PostGIS 검증만 있는 source-only 상태다.
+연결 목록 Import에서 회원 session은 하나의 Place Connector 확장이 사용하며 Provider별 exact-origin
+permission, session probe, 일회성 grant, batch 상한, progress/cancel, tab/listener/resource close를
+점검한다. Provider cookie·token·profile 경로는 Place로 보내지 않는다. Provider별 확장을 만들지 않고
+NAVER·Kakao·Google Adapter의 delivery state를 따로 기록한다. 가져온 snapshot의 private Collection
+저장은 Provider profile 없이 실행한다. 후속 상세 보강에 서버 profile이 필요하면 별도 read-only
+workload로 운영하고 회원 ID나 목록 이름을 전달하지 않는다. 실제 NAVER 상세 Adapter가 추가되기
+전까지 상세 Job은 integration-gated다.
 
 실제 Whale/NAVER 확장 경로를 검증하기 전의 진단·재현용 회원 로컬 NAVER 관찰은
 [`../../apps/member-connector/README.md`](../../apps/member-connector/README.md)의

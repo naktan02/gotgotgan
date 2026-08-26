@@ -34,20 +34,24 @@ function detail(state: string) {
     items: state === 'partial' ? [] : [
       {
         schemaVersion: 'place-import-item.v1', itemId: duplicateItemId, batchId,
-        providerKey: 'naver', providerPlaceId: 'naver-place-1', listName: '후쿠오카 여행',
+        providerKey: 'naver', providerPlaceId: 'naver-place-1',
+        sourceListId: 'fukuoka-list', sourceItemId: 'ramen-bookmark', listName: '후쿠오카 여행',
         name: '신카이 라멘 본점', address: '일본 후쿠오카시 하카타구', categoryLabel: '라멘',
         location: { latitude: 33.5902, longitude: 130.4207 },
         status: state === 'completed' || reviewedItems.has(duplicateItemId)
           ? 'applied'
           : state === 'enriching' ? 'enriching' : 'needs-review',
         reviewReasons: state === 'enriching' || state === 'completed' ? [] : ['possible-duplicate'],
+        detailStatus: 'pending',
       },
       {
         schemaVersion: 'place-import-item.v1', itemId: incompleteItemId, batchId,
-        providerKey: 'naver', listName: '가보고 싶은 곳', name: '이름만 기록한 여행 장소',
+        providerKey: 'naver', sourceListId: 'wishlist', sourceItemId: 'manual-bookmark',
+        listName: '가보고 싶은 곳', name: '이름만 기록한 여행 장소',
         address: null, categoryLabel: null, location: null,
         status: state === 'completed' || reviewedItems.has(incompleteItemId) ? 'applied' : 'needs-review',
         reviewReasons: state === 'completed' ? [] : ['missing-address', 'provider-place-id-unavailable'],
+        detailStatus: 'unavailable',
       },
     ],
   }
@@ -161,8 +165,23 @@ test('reviews a resumable NAVER import without exposing provider account materia
 
   const duplicate = page.getByRole('listitem').filter({ hasText: '신카이 라멘 본점' })
   const incomplete = page.getByRole('listitem').filter({ hasText: '이름만 기록한 여행 장소' })
-  await expect(page.getByText('장소의 최신 상세 정보를 확인하고 있습니다.')).toBeVisible()
-  await expect(duplicate).toContainText('상세 확인 중')
+  await expect(page.getByText('가져온 장소를 개인 컬렉션에 저장하고 있습니다.')).toBeVisible()
+  await expect(duplicate).toContainText('저장 준비 중')
+  await expect(duplicate).toContainText('목록 IDfukuoka-list')
+  await expect(duplicate).toContainText('항목 IDramen-bookmark')
+  await expect(duplicate).toContainText('장소 IDnaver-place-1')
+  await expect(duplicate.getByRole('link', { name: 'NAVER 지도에서 열기' })).toHaveAttribute(
+    'href',
+    /map\.naver\.com/,
+  )
+  await expect(duplicate.getByRole('link', { name: 'Google Maps에서 열기' })).toHaveAttribute(
+    'href',
+    /google\.com\/maps\/search/,
+  )
+  await expect(duplicate.getByRole('link', { name: '카카오맵에서 열기' })).toHaveAttribute(
+    'href',
+    /map\.kakao\.com/,
+  )
   await expect(duplicate.getByRole('button', { name: '새 장소로 저장' })).toHaveCount(0)
 
   await duplicate.getByRole('button', { name: '새 장소로 저장' }).click()

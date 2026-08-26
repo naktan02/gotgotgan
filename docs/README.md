@@ -37,11 +37,11 @@ origin·sequence·checksum·상한 검증, 암호화 원본과 PostGIS ImportBat
 Kakao·Google Provider Adapter, 실제 Whale/NAVER session smoke, parser-change live fixture와 서버 상세
 profile Adapter는 integration-gated이며 완료로 표시하지 않는다.
 
-Provider Place ID가 안정된 item은 `enriching` intent와 같은 transaction에 기록된다. Provider
-Identity별 공동 Fulfillment Job은 Canonical cache를 먼저 확인하고 hit이면 외부 호출 없이 Library에
-저장한다. miss일 때만 주입된 상세 Adapter를 호출하며 동일 장소의 여러 회원 intent를 한 번의 보강과
-Canonical create/link로 처리한다. 실제 사용자 PC Connector, NAVER 내부 요청과 서버 profile Adapter는
-여전히 integration-gated다.
+Provider Place ID가 안정된 item은 Source List·Item ID와 함께 `enriching` intent로 기록된다. Provider
+Identity별 공동 materialization job은 기존 Canonical link를 재사용하고, 없으면 가져온 snapshot을
+근거로 create/link한 뒤 회원의 private Collection에 즉시 멱등 저장한다. Provider 상세 상태와 후속
+보강 Job은 이 저장 수명주기와 분리된다. 실제 NAVER 상세 경로 관찰과 상세 Job은 여전히
+integration-gated다.
 
 Stage 3's source foundation includes immutable ingestion evidence/candidates/decisions and
 fingerprint-idempotent canonical create/link/merge/split/retire behavior with redirect and lineage

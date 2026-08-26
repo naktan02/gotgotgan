@@ -57,6 +57,8 @@ export type PlaceImportItem = Readonly<{
   batchId: string
   providerKey: 'naver' | 'kakao' | 'google'
   providerPlaceId?: string
+  sourceListId: string
+  sourceItemId: string
   listName: string
   name: string
   address: string | null
@@ -65,6 +67,7 @@ export type PlaceImportItem = Readonly<{
   status: 'enriching' | 'ready' | 'needs-review' | 'applied' | 'skipped' | 'failed'
   reviewReasons: readonly string[]
   canonicalPlaceId?: string
+  detailStatus: 'pending' | 'available' | 'unavailable'
 }>
 
 export type PlaceImportBatchDetail = Readonly<{

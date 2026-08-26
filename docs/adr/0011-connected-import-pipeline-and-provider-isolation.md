@@ -6,6 +6,8 @@
 회원 session 획득 방식에 관한 결정 9~11은
 [`0012-cross-browser-member-connector.md`](0012-cross-browser-member-connector.md)가 구체화한다.
 전용 Playwright profile은 주 회원 흐름이 아니라 진단·재현·E2E·통제된 fallback이다.
+개인 Library 저장보다 Provider 상세를 먼저 요구한 결정 7~8은
+[`0014-imported-snapshot-first-personal-save.md`](0014-imported-snapshot-first-personal-save.md)가 대체한다.
 
 ## 배경
 

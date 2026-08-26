@@ -3,8 +3,8 @@
 ADRs record durable repository-local decisions. Copy `template.md`, assign the next number, state the
 status and date, link evidence, name consequences and supersession conditions, and update routed docs.
 
-현재 최신 접근 결정은 [`0013-project-signed-platform-owner.md`](0013-project-signed-platform-owner.md)이며,
-Identity의 서명된 단일 Platform Owner를 Place의 유일한 Owner로 투영하는 경계를 기록한다.
+현재 최신 Import 결정은 [`0014-imported-snapshot-first-personal-save.md`](0014-imported-snapshot-first-personal-save.md)이며,
+가져온 스냅샷의 개인 Library 저장과 후속 상세 보강을 분리한다.
 
 Stage 7 결정은 `0011-connected-import-pipeline-and-provider-isolation.md`에 기록한다. 연결 계정
 작업, Provider parser 격리, 암호화 캡처, 명시적 검토와 Library 반영 경계를 정의한다.
@@ -30,3 +30,7 @@ Stage 7 결정은 `0011-connected-import-pipeline-and-provider-isolation.md`에 
   암호화 capture, 검토와 Library 이행을 분리한다.
 - `0012-cross-browser-member-connector.md`: 기존 browser session을 사용하는 하나의 다중 Provider
   Connector와 browser/provider/upload Adapter 경계를 정의한다.
+- `0013-project-signed-platform-owner.md`: Identity의 서명된 단일 Platform Owner를 Place의 유일한
+  Owner로 투영하는 경계를 정의한다.
+- `0014-imported-snapshot-first-personal-save.md`: 안정된 Provider Place Identity의 Source Snapshot을
+  즉시 개인 Library에 저장하고 Provider 상세 상태와 후속 Job을 분리한다.

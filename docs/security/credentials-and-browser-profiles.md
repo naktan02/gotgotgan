@@ -58,7 +58,8 @@ profile 경로는 보고서에 남지 않으며 서버 전송도 구현하지 �
 MVP에는 사용자별 서버, localhost daemon, native-messaging host가 없다. 확장을 쓸 수 없는 모바일·
 브라우저와 설치 거부 사용자는 수동 JSON/file capture를 같은 Ingestion 계약으로 제출한다.
 
-상세 보강용 서버 Provider profile은 사용자 profile과 별개인 배포 소유 read-only workload다.
-Fulfillment Worker는 회원 ID를 Provider Adapter에 전달하지 않고 Provider Place ID만 전달한다.
-profile reference와 key는 보호 저장소에서 composition 시 해석하며 DB, Web payload, 로그에 나타나지
-않는다. 공식·공개 상세 경로로 충분하면 서버 profile도 사용하지 않는다.
+개인 Collection Materialization Worker는 Provider profile이나 Provider Adapter를 전혀 사용하지 않는다.
+후속 상세 보강에 서버 Provider profile이 필요하다면 사용자 profile과 별개인 배포 소유 read-only
+workload로 두고 Provider Place ID만 전달한다. profile reference와 key는 보호 저장소에서 composition
+시에만 해석하며 DB, Web payload, 로그에 나타나지 않는다. 공식·공개 상세 경로로 충분하면 서버
+profile도 사용하지 않는다.

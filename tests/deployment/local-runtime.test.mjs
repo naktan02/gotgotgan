@@ -62,6 +62,8 @@ test('local runtime preparation is secret-safe, resumable, and origin-bound', as
     assert.match(composeEnvironment, /^PLACE_WORKER_DATABASE_MAX_CONNECTIONS=2$/m)
     assert.match(composeEnvironment, /^PLACE_WORKER_DATABASE_IDLE_TIMEOUT_MILLISECONDS=30000$/m)
     assert.match(composeEnvironment, /^PLACE_WORKER_DATABASE_CONNECTION_TIMEOUT_MILLISECONDS=5000$/m)
+    assert.match(composeEnvironment, /^PLACE_IMPORT_MATERIALIZATION_LEASE_MILLISECONDS=60000$/m)
+    assert.match(composeEnvironment, /^PLACE_IMPORT_MATERIALIZATION_IDLE_MILLISECONDS=1000$/m)
     assert.doesNotMatch(composeEnvironment, /test-only-client-secret/)
     assert.doesNotMatch(composeEnvironment, new RegExp(originalPassword.trim()))
   } finally {

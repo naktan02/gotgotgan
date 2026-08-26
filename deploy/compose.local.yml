@@ -22,3 +22,8 @@ services:
     build:
       context: ..
       target: backend-runtime
+
+  worker-import-materialization:
+    build:
+      context: ..
+      target: backend-runtime

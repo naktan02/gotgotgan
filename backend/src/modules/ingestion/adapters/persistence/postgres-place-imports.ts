@@ -63,6 +63,8 @@ type ItemRow = Readonly<{
   batch_id: string
   provider_key: 'naver' | 'kakao' | 'google'
   provider_place_id: string | null
+  source_list_id: string
+  source_item_id: string
   list_name: string
   display_name: string
   address: string | null
@@ -72,6 +74,7 @@ type ItemRow = Readonly<{
   status: PlaceImportItem['status']
   review_reasons: readonly string[]
   canonical_place_id: string | null
+  detail_status: 'pending' | 'available' | 'unavailable'
 }>
 
 type ClaimRow = Readonly<{
@@ -112,6 +115,7 @@ type FulfillmentItemRow = Readonly<{
   provider_key: 'naver' | 'kakao' | 'google'
   provider_place_id: string
   source_list_id: string
+  source_item_id: string
   source_list_position: number
   source_position: number
   list_name: string
@@ -197,6 +201,8 @@ function item(row: ItemRow): PlaceImportItem {
     batchId: row.batch_id,
     providerKey: row.provider_key,
     ...(row.provider_place_id === null ? {} : { providerPlaceId: row.provider_place_id }),
+    sourceListId: row.source_list_id,
+    sourceItemId: row.source_item_id,
     listName: row.list_name,
     name: row.display_name,
     address: row.address,
@@ -207,6 +213,7 @@ function item(row: ItemRow): PlaceImportItem {
     status: row.status,
     reviewReasons: row.review_reasons,
     ...(row.canonical_place_id === null ? {} : { canonicalPlaceId: row.canonical_place_id }),
+    detailStatus: row.detail_status,
   }
 }
 
@@ -234,6 +241,7 @@ function fulfillmentItem(row: FulfillmentItemRow): ReviewableImportItem {
     providerKey: row.provider_key,
     providerPlaceId: row.provider_place_id,
     sourceListId: row.source_list_id,
+    sourceItemId: row.source_item_id,
     sourceListPosition: row.source_list_position,
     sourcePosition: row.source_position,
     listName: row.list_name,
@@ -326,20 +334,20 @@ async function insertPreparedImportItems(
   for (const imported of input.items) {
     const insertedItem = await client.query<{ id: string }>(
       `INSERT INTO ingestion.import_items (
-         id, batch_id, capture_id, source_item_key, provider_place_id,
+         id, batch_id, capture_id, source_item_key, source_item_id, provider_place_id,
          source_list_id, source_list_position, source_position, list_name,
          display_name, address, category_label, location, status, review_reasons,
          observation_id, candidate_id, decision_id, proposed_place_id, created_at, updated_at
        ) VALUES (
-         $1::uuid,$2::uuid,$3::uuid,$4,$5,$6,$7,$8,$9,$10,$11,$12,
-         CASE WHEN $13::double precision IS NULL THEN NULL
-           ELSE ST_SetSRID(ST_MakePoint($14, $13), 4326) END,
-         $15,$16::text[],$17::uuid,$18::uuid,$19::uuid,$20::uuid,
-         $21::timestamptz,$21::timestamptz
+         $1::uuid,$2::uuid,$3::uuid,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,
+         CASE WHEN $14::double precision IS NULL THEN NULL
+           ELSE ST_SetSRID(ST_MakePoint($15, $14), 4326) END,
+         $16,$17::text[],$18::uuid,$19::uuid,$20::uuid,$21::uuid,
+         $22::timestamptz,$22::timestamptz
         ) ON CONFLICT (batch_id, source_item_key) DO NOTHING
         RETURNING id`,
       [imported.itemId, input.batchId, input.captureId,
-        imported.sourceItemKey, imported.providerPlaceId ?? null,
+        imported.sourceItemKey, imported.sourceItemId, imported.providerPlaceId ?? null,
         imported.sourceListId, imported.sourceListPosition,
         imported.sourcePosition, imported.listName,
         imported.name, imported.address, imported.categoryLabel,
@@ -348,7 +356,17 @@ async function insertPreparedImportItems(
         imported.reviewReasons, imported.observationId, imported.candidateId,
         imported.decisionId, imported.proposedPlaceId, input.recordedAt],
     )
-    if (insertedItem.rows[0] === undefined || imported.fulfillment === undefined) continue
+    if (insertedItem.rows[0] === undefined) continue
+    if (imported.providerPlaceId !== undefined) {
+      await client.query(
+        `INSERT INTO ingestion.provider_place_detail_statuses (
+           provider_key, provider_place_id, status, requested_at, updated_at
+         ) VALUES ($1,$2,'pending',$3::timestamptz,$3::timestamptz)
+         ON CONFLICT (provider_key, provider_place_id) DO NOTHING`,
+        [input.providerKey, imported.providerPlaceId, input.recordedAt],
+      )
+    }
+    if (imported.fulfillment === undefined) continue
     const fulfillment = imported.fulfillment
     const job = await client.query<{ id: string }>(
       `INSERT INTO ingestion.import_place_fulfillment_jobs AS job (
@@ -1068,13 +1086,21 @@ export class PostgresPlaceImports implements
     if (selectedBatch === undefined) return undefined
     const items = await this.pool.query<ItemRow>(
       `SELECT imported.id, imported.batch_id, batch.provider_key, imported.provider_place_id,
+              imported.source_list_id, imported.source_item_id,
               imported.list_name, imported.display_name, imported.address,
               imported.category_label, imported.status, imported.review_reasons,
               imported.canonical_place_id,
+              CASE
+                WHEN imported.provider_place_id IS NULL THEN 'unavailable'
+                ELSE coalesce(detail.status, 'pending')
+              END AS detail_status,
               CASE WHEN imported.location IS NULL THEN NULL ELSE ST_Y(imported.location) END AS latitude,
               CASE WHEN imported.location IS NULL THEN NULL ELSE ST_X(imported.location) END AS longitude
        FROM ingestion.import_items AS imported
        JOIN ingestion.import_batches AS batch ON batch.id = imported.batch_id
+       LEFT JOIN ingestion.provider_place_detail_statuses AS detail
+         ON detail.provider_key = batch.provider_key
+        AND detail.provider_place_id = imported.provider_place_id
        WHERE imported.batch_id = $1::uuid
        ORDER BY imported.id
        LIMIT 200`,
@@ -1191,6 +1217,7 @@ export class PostgresPlaceImports implements
         provider_key: 'naver' | 'kakao' | 'google'
         provider_place_id: string | null
         source_list_id: string
+        source_item_id: string
         source_list_position: number
         source_position: number
         list_name: string
@@ -1212,7 +1239,7 @@ export class PostgresPlaceImports implements
       }>(
         `SELECT imported.id AS item_id, imported.batch_id, batch.member_id,
                 batch.connection_id, batch.provider_key, imported.provider_place_id,
-                imported.source_list_id, imported.source_list_position,
+                imported.source_list_id, imported.source_item_id, imported.source_list_position,
                 imported.source_position,
                 imported.list_name, imported.display_name,
                 imported.address, imported.category_label, imported.status AS item_status,
@@ -1301,6 +1328,7 @@ export class PostgresPlaceImports implements
         providerKey: row.provider_key,
         ...(row.provider_place_id === null ? {} : { providerPlaceId: row.provider_place_id }),
         sourceListId: row.source_list_id,
+        sourceItemId: row.source_item_id,
         sourceListPosition: row.source_list_position,
         sourcePosition: row.source_position,
         listName: row.list_name,
@@ -1461,7 +1489,7 @@ export class PostgresPlaceImports implements
       const items = await client.query<FulfillmentItemRow>(
         `SELECT imported.id AS item_id, imported.batch_id, batch.member_id,
                 batch.connection_id, batch.provider_key, imported.provider_place_id,
-                imported.source_list_id, imported.source_list_position,
+                imported.source_list_id, imported.source_item_id, imported.source_list_position,
                 imported.source_position, imported.list_name,
                 imported.display_name, imported.address, imported.category_label,
                 imported.observation_id, imported.candidate_id, imported.decision_id,

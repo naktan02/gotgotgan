@@ -11,6 +11,7 @@ export type ProviderConnectionHandle = Readonly<{
 export type ConnectedPlaceItem = Readonly<{
   sourceItemKey: string
   sourceListId: string
+  sourceItemId: string
   sourceListPosition: number
   sourcePosition: number
   providerPlaceId?: string

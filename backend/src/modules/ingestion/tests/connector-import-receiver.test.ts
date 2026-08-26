@@ -122,7 +122,7 @@ describe('connector import receiver', () => {
         parse: () => ({
           kind: 'page', nextCursor: null,
           items: [{
-            sourceItemKey: 'list-1:item-1', sourceListId: 'list-1',
+            sourceItemKey: 'list-1:item-1', sourceListId: 'list-1', sourceItemId: 'item-1',
             sourceListPosition: 0, sourcePosition: 0, providerPlaceId: 'provider-place-1',
             listName: '후쿠오카', name: '라멘', address: '주소', categoryLabel: '음식점',
             location: { latitude: 33.59, longitude: 130.4 }, reviewReasons: [],

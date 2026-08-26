@@ -43,6 +43,14 @@
 .listName { margin: 0; color: var(--accent); font-size: 11px; font-weight: 650; }
 .itemStatus { color: var(--muted); font-size: 12px; }
 .itemFacts { margin: 8px 0; color: var(--muted); font-size: 13px; }
+.sourceIdentity { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 10px 0 0; color: var(--muted); font-size: 11px; }
+.sourceIdentity div { display: flex; min-width: 0; gap: 4px; }
+.sourceIdentity dt { font-weight: 700; }
+.sourceIdentity dd { max-width: 180px; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.openLinks { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+.openLinks a { border: 1px solid var(--line-strong); border-radius: var(--radius-control); color: var(--ink); padding: 7px 10px; font-size: 12px; font-weight: 650; text-decoration: none; }
+.openLinks a:hover { border-color: var(--accent); color: var(--accent); }
+.openLinks a:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
 .reasons { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0; list-style: none; }
 .reasons li { border: 1px solid #e8d7b5; border-radius: 999px; background: #fff8e9; color: #73511e; padding: 4px 8px; font-size: 11px; }
 .reviewResult { margin: 10px 0 0; color: var(--accent); font-size: 13px; font-weight: 700; }

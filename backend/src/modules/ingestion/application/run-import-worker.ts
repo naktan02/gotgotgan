@@ -153,7 +153,7 @@ export function createImportWorker(dependencies: Readonly<{
           decisionId: dependencies.nextId(),
           proposedPlaceId: dependencies.nextId(),
         }
-        return item.providerPlaceId === undefined || item.reviewReasons.length > 0
+        return item.providerPlaceId === undefined
           ? prepared
           : {
               ...prepared,

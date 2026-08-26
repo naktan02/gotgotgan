@@ -24,6 +24,7 @@ describe('NAVER saved-place capture parser', () => {
       items: [{
         sourceItemKey: 'list_fixture_001:bookmark_fixture_001',
         sourceListId: 'list_fixture_001',
+        sourceItemId: 'bookmark_fixture_001',
         sourceListPosition: 0,
         sourcePosition: 0,
         providerPlaceId: 'place_fixture_001',

@@ -5,14 +5,13 @@ import type {
 } from './ports/imported-place-fulfillment-store.js'
 import type { ImportedPlaceLibraryPort } from './ports/imported-place-library.js'
 import type { IngestionStore } from './ports/ingestion-store.js'
-import type { PlaceEnrichmentSource } from './ports/place-enrichment-source.js'
 import { recordImportedPlaceEvidence } from './record-imported-place-evidence.js'
 import { recordPlaceCandidate } from './record-place-candidate.js'
 import { recordResolutionDecision } from './record-resolution-decision.js'
 import { recordSourceObservation } from './record-source-observation.js'
 import { ImportReferenceUnavailableError } from '../domain/imports.js'
 
-const enrichmentPolicyVersion = 'connected-import-enrichment.v1'
+const snapshotPolicyVersion = 'connected-import-source-snapshot.v1'
 const cacheHitPolicyVersion = 'connected-import-cache-hit.v1'
 
 export function createImportedPlaceFulfillmentWorker(dependencies: Readonly<{
@@ -21,50 +20,13 @@ export function createImportedPlaceFulfillmentWorker(dependencies: Readonly<{
   ingestionStore: IngestionStore
   canonical: CanonicalPlaceMaterializationPort
   library: ImportedPlaceLibraryPort
-  sources: readonly PlaceEnrichmentSource[]
   now: () => Date
   leaseMilliseconds: number
-  maximumAttempts: number
-  retryDelayMilliseconds: (attemptCount: number) => number
 }>) {
-  const sources = new Map(dependencies.sources.map((source) => [source.providerKey, source]))
-  if (sources.size !== dependencies.sources.length) {
-    throw new Error('Place enrichment source keys must be unique.')
-  }
   if (
     dependencies.workerId.length === 0 ||
-    !Number.isInteger(dependencies.leaseMilliseconds) || dependencies.leaseMilliseconds <= 0 ||
-    !Number.isInteger(dependencies.maximumAttempts) || dependencies.maximumAttempts <= 0
+    !Number.isInteger(dependencies.leaseMilliseconds) || dependencies.leaseMilliseconds <= 0
   ) throw new Error('Imported place fulfillment worker configuration is invalid.')
-
-  async function finishFailure(
-    claim: ImportedPlaceFulfillmentClaim,
-    code: 'provider-rate-limited' | 'provider-unavailable' | 'provider-parser-drift' | 'capture-invalid',
-    retryable: boolean,
-    finishedAt: string,
-  ) {
-    const mayRetry = retryable && claim.attemptCount < dependencies.maximumAttempts
-    const retryAt = mayRetry
-      ? new Date(
-          new Date(finishedAt).getTime() + dependencies.retryDelayMilliseconds(claim.attemptCount),
-        ).toISOString()
-      : undefined
-    await dependencies.store.finishFulfillmentJob({
-      claim,
-      outcome: {
-        kind: 'failure',
-        code,
-        retryable: mayRetry,
-        ...(retryAt === undefined ? {} : { retryAt }),
-      },
-      finishedAt,
-    })
-    return {
-      status: mayRetry ? 'retry-scheduled' as const : 'failed' as const,
-      jobId: claim.jobId,
-      code,
-    }
-  }
 
   async function fulfill(
     claim: ImportedPlaceFulfillmentClaim,
@@ -91,6 +53,8 @@ export function createImportedPlaceFulfillmentWorker(dependencies: Readonly<{
           providerKey: item.providerKey,
           connectionId: item.connectionId,
           listId: item.sourceListId,
+          itemId: item.sourceItemId,
+          providerPlaceId: item.providerPlaceId!,
           listName: item.listName,
           listPosition: item.sourceListPosition,
           position: item.sourcePosition,
@@ -144,57 +108,45 @@ export function createImportedPlaceFulfillmentWorker(dependencies: Readonly<{
           fulfilled,
         }
       }
-
-      const source = sources.get(claim.providerKey)
-      if (source === undefined) {
-        return finishFailure(claim, 'provider-unavailable', false, dependencies.now().toISOString())
-      }
-      let result
-      try {
-        result = await source.readDetail({
-          providerPlaceId: claim.providerPlaceId,
-          signal: AbortSignal.timeout(Math.min(dependencies.leaseMilliseconds, 60_000)),
-        })
-      } catch {
-        return finishFailure(claim, 'provider-unavailable', true, dependencies.now().toISOString())
-      }
       const finishedAt = dependencies.now().toISOString()
-      if (result.kind === 'failure') {
-        return finishFailure(claim, result.code, result.retryable, finishedAt)
-      }
-      if (result.place.reviewReasons.length > 0) {
-        await dependencies.store.finishFulfillmentJob({
-          claim,
-          outcome: { kind: 'needs-review', detail: result.place },
-          finishedAt,
-        })
-        return { status: 'needs-review' as const, jobId: claim.jobId }
+      const sourceItem = claim.items[0]
+      if (sourceItem === undefined) {
+        throw new ImportReferenceUnavailableError('Imported place source snapshot is unavailable.')
       }
 
       await recordSourceObservation({
         id: claim.observationId,
         providerKey: claim.providerKey,
         externalPlaceId: claim.providerPlaceId,
-        acquisitionKind: result.evidence.acquisitionKind,
-        payloadChecksum: result.evidence.checksum,
-        parserVersion: result.evidence.parserVersion,
-        observedAt: result.evidence.observedAt,
+        acquisitionKind: sourceItem.capture.acquisitionKind,
+        payloadChecksum: sourceItem.capture.checksum,
+        parserVersion: sourceItem.capture.parserVersion,
+        observedAt: sourceItem.capture.observedAt,
         acquiredAt: finishedAt,
-        facts: result.place,
-        confidence: 0.9,
+        captureReference: sourceItem.capture.reference,
+        facts: {
+          name: sourceItem.name,
+          address: sourceItem.address,
+          categoryLabel: sourceItem.categoryLabel,
+          location: sourceItem.location,
+          listName: sourceItem.listName,
+        },
+        confidence: 0.8,
         store: dependencies.ingestionStore,
       })
       await recordPlaceCandidate({
         id: claim.candidateId,
         sourceObservationId: claim.observationId,
-        parserVersion: result.evidence.parserVersion,
-        name: result.place.name,
-        ...(result.place.address === null ? {} : { address: result.place.address }),
-        ...(result.place.location === null ? {} : { location: result.place.location }),
+        parserVersion: sourceItem.capture.parserVersion,
+        name: sourceItem.name,
+        ...(sourceItem.address === null ? {} : { address: sourceItem.address }),
+        ...(sourceItem.location === null ? {} : { location: sourceItem.location }),
         attributes: {
-          categoryLabel: result.place.categoryLabel,
+          categoryLabel: sourceItem.categoryLabel,
           providerKey: claim.providerKey,
           externalPlaceId: claim.providerPlaceId,
+          sourceListId: sourceItem.sourceListId,
+          sourceItemId: sourceItem.sourceItemId,
         },
         createdAt: finishedAt,
         store: dependencies.ingestionStore,
@@ -203,9 +155,9 @@ export function createImportedPlaceFulfillmentWorker(dependencies: Readonly<{
         id: claim.decisionId,
         candidateId: claim.candidateId,
         decision: { kind: 'create-place', canonicalPlaceId: claim.proposedPlaceId },
-        decidedBy: { kind: 'policy', reference: enrichmentPolicyVersion },
+        decidedBy: { kind: 'policy', reference: snapshotPolicyVersion },
         evidenceObservationIds: [claim.observationId],
-        rationale: 'connected-import:verified-provider-detail',
+        rationale: 'connected-import:source-snapshot-save-intent',
         decidedAt: finishedAt,
         store: dependencies.ingestionStore,
       })
@@ -218,7 +170,7 @@ export function createImportedPlaceFulfillmentWorker(dependencies: Readonly<{
           placeId: claim.proposedPlaceId,
           providerIdentity: identity,
         },
-        policyVersion: enrichmentPolicyVersion,
+        policyVersion: snapshotPolicyVersion,
         occurredAt: finishedAt,
       })
       if (applied.status === 'identity-already-linked') {
@@ -228,7 +180,7 @@ export function createImportedPlaceFulfillmentWorker(dependencies: Readonly<{
         }
         canonicalPlaceId = linked.placeId
       } else if (applied.status !== 'applied' && applied.status !== 'replayed') {
-        throw new ImportReferenceUnavailableError(`Canonical enrichment failed: ${applied.status}`)
+        throw new ImportReferenceUnavailableError(`Canonical materialization failed: ${applied.status}`)
       }
       const fulfilled = await fulfill(claim, canonicalPlaceId, finishedAt)
       return {

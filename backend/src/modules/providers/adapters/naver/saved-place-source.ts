@@ -45,6 +45,7 @@ const pageSchema = z.object({
 export type NaverSavedPlaceItem = Readonly<{
   sourceItemKey: string
   sourceListId: string
+  sourceItemId: string
   sourceListPosition: number
   sourcePosition: number
   providerPlaceId?: string
@@ -97,6 +98,7 @@ export function parseNaverSavedPlaceCapture(input: Readonly<{
     items: page.data.lists.flatMap((list, sourceListPosition) => list.bookmarks.map((bookmark, sourcePosition) => ({
       sourceItemKey: `${list.listId}:${bookmark.bookmarkId}`,
       sourceListId: list.listId,
+      sourceItemId: bookmark.bookmarkId,
       sourceListPosition: list.position ?? sourceListPosition,
       sourcePosition: bookmark.position ?? sourcePosition,
       ...(bookmark.placeId === undefined ? {} : { providerPlaceId: bookmark.placeId }),

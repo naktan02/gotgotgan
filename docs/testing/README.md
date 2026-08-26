@@ -11,10 +11,11 @@ cleanup. Playwright covers rapid typing cancellation, ambiguous branches, keyboa
 provider partial failure, full-search fallback, and Import cancel/resume/review retry. Live map/provider
 checks require explicit opt-in and never supply shared personal credentials.
 
-Fulfillment PostGIS는 동일 Provider Place ID의 여러 회원 intent가 job 하나와 상세 호출 하나를
-공유하고, 이후 Canonical cache hit이 Provider 호출 없이 Library에 저장되는지 검증한다. Import
-Playwright는 `enriching` 상태에서 검토 control이 노출되지 않다가 `needs-review` 전환 후에만 활성화되는
-desktop/mobile 흐름도 검증한다.
+Materialization PostGIS는 동일 Provider Place ID의 여러 회원 intent가 job 하나를 공유하고, 외부 상세
+호출 없이 snapshot으로 Canonical Place와 각 회원 Collection에 저장되는지 검증한다. 상세 상태는
+정규화 관찰이 생길 때까지 `pending`이며 저장을 롤백하지 않는다. Import Playwright는 `enriching`
+상태에서 검토 control이 노출되지 않다가 `needs-review` 전환 후에만 활성화되는 desktop/mobile 흐름과
+명시적 Source List/Item/Provider Place ID 및 지도 열기 링크를 검증한다.
 
 현재 진단용 로컬 커넥터 unit test는 로그인 중 response capture 미등록, exact-origin body opt-in,
 provider 하위 origin의 metadata-only discovery, body 크기 제한, query·동적 경로·민감 키·값 제거,

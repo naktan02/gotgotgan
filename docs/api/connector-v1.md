@@ -8,7 +8,7 @@ Schema는 `packages/contracts/connector/place-connector.v1.schema.json`으로 �
 현재 확장 계약·NAVER Provider Adapter·WebExtensions Adapter·고정 Place origin 업로드 Adapter,
 Web BFF, Backend의 `/v1/connector-grants`와 `/v1/connector-captures` 수신 경계는 `source-only`다.
 Backend는 실제 PostGIS에서 grant 재발급, 이전 token 폐기, 순서·상한·checksum 검증, 암호화 원본,
-정규화 ImportItem과 상세화 intent를 하나의 ImportBatch에 연결한다. Chromium/Firefox 산출물과 가짜
+정규화 ImportItem과 Collection materialization intent를 하나의 ImportBatch에 연결한다. Chromium/Firefox 산출물과 가짜
 확장을 이용한 desktop/mobile imports E2E도 검증한다. Whale 실제 설치와 로그인된 NAVER session
 smoke만 `integration-gated`로 남아 있다.
 
@@ -41,7 +41,7 @@ origin과 일치할 때만 grant와 capture를 처리한다.
 Backend는 grant token 원문을 저장하지 않고 SHA-256 digest만 보관한다. 같은 회원·멱등 키·요청은
 동일 operation과 ImportBatch를 재사용하면서 새 token으로 회전하며, 이전 token은 즉시 무효가 된다.
 캡처는 `pending` receipt와 보존 메타데이터를 먼저 예약하고 AES-256-GCM 원본 저장 뒤 ImportItem,
-Fulfillment intent, 누적 receipt를 한 transaction으로 확정한다. 전송이 끊기면 같은 sequence와
+Materialization intent, 누적 receipt를 한 transaction으로 확정한다. 전송이 끊기면 같은 sequence와
 checksum만 재개할 수 있고, 앞 순서를 건너뛰거나 기존 sequence의 내용을 바꾸면 충돌한다.
 
 각 batch에는 0부터 증가하는 sequence, 마지막 batch 여부, item 수, UTF-8 JSON payload와 SHA-256

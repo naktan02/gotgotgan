@@ -140,6 +140,8 @@ export async function reviewImportItem(input: Readonly<{
       providerKey: item.providerKey,
       connectionId: item.connectionId,
       listId: item.sourceListId,
+      itemId: item.sourceItemId,
+      providerPlaceId: identity.externalPlaceId,
       listName: item.listName,
       listPosition: item.sourceListPosition,
       position: item.sourcePosition,

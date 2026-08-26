@@ -68,6 +68,7 @@ describe('acquisition worker interface', () => {
         items: [{
           sourceItemKey: 'list_test_001:bookmark_test_001',
           sourceListId: 'list_test_001',
+          sourceItemId: 'bookmark_test_001',
           sourceListPosition: 0,
           sourcePosition: 0,
           providerPlaceId: 'place_test_001',
@@ -124,6 +125,7 @@ describe('acquisition worker interface', () => {
       items: [{
         sourceItemKey: 'list_test_001:bookmark_test_001',
         sourceListId: 'list_test_001',
+        sourceItemId: 'bookmark_test_001',
         sourceListPosition: 0,
         sourcePosition: 0,
         itemId: expect.any(String),

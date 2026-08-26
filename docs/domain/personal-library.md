@@ -21,5 +21,9 @@ membership 위치로 보존한다. 같은 Provider 연결과 목록 ID를 다시
 멱등 반영한다. 회원이 Place에서 Collection 이름을 바꾼 뒤에는 Provider 쪽 이름이 바뀌어도 이를
 덮어쓰지 않고 원본 이름 snapshot만 갱신한다.
 
+각 membership의 `Collection Place Import Provenance`는 Source Connection·List·Item ID와 Provider
+Place ID를 별도 열로 보존한다. 따라서 NAVER·Google·Kakao의 식별자가 섞이지 않고, 재수집과 후속
+상세 관찰이 동일한 원본 항목과 Provider Place Identity를 정확히 찾을 수 있다.
+
 Provider 폴더는 개인 정리 방식이므로 Taxonomy Node가 아니다. 하나의 Canonical Place가 여러 원본
 폴더에 있으면 저장 preference와 Canonical Place는 하나지만 각 Collection membership은 모두 유지한다.

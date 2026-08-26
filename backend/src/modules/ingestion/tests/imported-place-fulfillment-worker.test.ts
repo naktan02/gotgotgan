@@ -6,7 +6,6 @@ import {
   type ImportedPlaceFulfillmentStore,
   type ImportedPlaceLibraryPort,
   type IngestionStore,
-  type PlaceEnrichmentSource,
 } from '../index.js'
 
 const at = '2026-08-26T13:00:00.000Z'
@@ -22,7 +21,7 @@ const claim = {
   decisionId: '01992d20-b000-7000-8000-000000000005',
   proposedPlaceId: '01992d20-b000-7000-8000-000000000006',
   lease: {
-    owner: 'enrichment-worker-a',
+    owner: 'materialization-worker-a',
     generation: 1,
     expiresAt: '2026-08-26T13:01:00.000Z',
   },
@@ -34,11 +33,12 @@ const claim = {
     providerKey: 'naver' as const,
     providerPlaceId: 'naver-place-001',
     sourceListId: 'list-fukuoka',
+    sourceItemId: 'bookmark-ramen',
     sourceListPosition: 0,
     sourcePosition: 0,
     listName: '후쿠오카 여행',
-    name: '센카이 라멘',
-    address: '일본 후쿠오카현 후쿠오카시',
+    name: '라멘 가게',
+    address: '일본 후쿠오카',
     categoryLabel: '라멘',
     location: { latitude: 33.5902, longitude: 130.4207 },
     observationId: '01992d20-b000-7000-8000-000000000013',
@@ -78,48 +78,26 @@ function fixture(input: Readonly<{ linked: boolean }>) {
   const library: ImportedPlaceLibraryPort = {
     saveImportedPlace: vi.fn(async () => ({ status: 'applied' as const })),
   }
-  const source: PlaceEnrichmentSource = {
-    providerKey: 'naver',
-    readDetail: vi.fn(async () => ({
-      kind: 'detail' as const,
-      evidence: {
-        checksum: 'b'.repeat(64),
-        parserVersion: 'naver-place-detail.v1',
-        acquisitionKind: 'structured-web' as const,
-        observedAt: at,
-      },
-      place: {
-        name: '센카이 라멘 본점',
-        address: '일본 후쿠오카현 후쿠오카시 하카타구',
-        categoryLabel: '라멘',
-        location: { latitude: 33.5902, longitude: 130.4207 },
-        reviewReasons: [],
-      },
-    })),
-  }
   return {
-    store, ingestionStore, canonical, library, source,
+    store, ingestionStore, canonical, library,
     appended, completedItems, finishedJobs,
   }
 }
 
 function worker(dependencies: ReturnType<typeof fixture>) {
   return createImportedPlaceFulfillmentWorker({
-    workerId: 'enrichment-worker-a',
+    workerId: 'materialization-worker-a',
     store: dependencies.store,
     ingestionStore: dependencies.ingestionStore,
     canonical: dependencies.canonical,
     library: dependencies.library,
-    sources: [dependencies.source],
     now: () => new Date(at),
     leaseMilliseconds: 60_000,
-    maximumAttempts: 5,
-    retryDelayMilliseconds: (attempt) => attempt * 1_000,
   })
 }
 
-describe('imported place fulfillment worker interface', () => {
-  it('saves a linked canonical place without calling provider enrichment', async () => {
+describe('imported place materialization worker interface', () => {
+  it('saves a linked canonical place from explicit provider provenance', async () => {
     const dependencies = fixture({ linked: true })
 
     await expect(worker(dependencies).runOne()).resolves.toEqual({
@@ -129,7 +107,6 @@ describe('imported place fulfillment worker interface', () => {
       fulfilled: 1,
     })
 
-    expect(dependencies.source.readDetail).not.toHaveBeenCalled()
     expect(dependencies.canonical.apply).not.toHaveBeenCalled()
     expect(dependencies.library.saveImportedPlace).toHaveBeenCalledWith({
       commandId: firstItem.itemId,
@@ -140,6 +117,8 @@ describe('imported place fulfillment worker interface', () => {
         providerKey: 'naver',
         connectionId: firstItem.connectionId,
         listId: firstItem.sourceListId,
+        itemId: firstItem.sourceItemId,
+        providerPlaceId: firstItem.providerPlaceId,
         listName: firstItem.listName,
         listPosition: firstItem.sourceListPosition,
         position: firstItem.sourcePosition,
@@ -149,18 +128,17 @@ describe('imported place fulfillment worker interface', () => {
       itemId: firstItem.itemId,
       canonicalPlaceId,
     })])
-    expect(dependencies.finishedJobs).toEqual([expect.objectContaining({
-      outcome: { kind: 'completed', canonicalPlaceId },
-    })])
   })
 
-  it('enriches one missing provider identity once and fulfills every waiting member', async () => {
+  it('creates one canonical place from the imported snapshot and fulfills every member', async () => {
     const dependencies = fixture({ linked: false })
     const second = {
       ...firstItem,
       itemId: '01992d20-b000-7000-8000-000000000020',
       batchId: '01992d20-b000-7000-8000-000000000021',
       memberId: '01992d20-b000-7000-8000-000000000022',
+      sourceListId: 'list-ramen',
+      sourceItemId: 'bookmark-ramen-2',
       observationId: '01992d20-b000-7000-8000-000000000023',
       candidateId: '01992d20-b000-7000-8000-000000000024',
       decisionId: '01992d20-b000-7000-8000-000000000025',
@@ -177,59 +155,37 @@ describe('imported place fulfillment worker interface', () => {
       fulfilled: 2,
     })
 
-    expect(dependencies.source.readDetail).toHaveBeenCalledTimes(1)
-    expect(dependencies.source.readDetail).toHaveBeenCalledWith({
-      providerPlaceId: claim.providerPlaceId,
-      signal: expect.any(AbortSignal),
-    })
-    expect(JSON.stringify(vi.mocked(dependencies.source.readDetail).mock.calls)).not.toMatch(
-      /member|profile|cookie|secret/i,
-    )
-    expect(dependencies.canonical.apply).toHaveBeenCalledTimes(1)
+    expect(dependencies.canonical.apply).toHaveBeenCalledWith(expect.objectContaining({
+      policyVersion: 'connected-import-source-snapshot.v1',
+      command: {
+        kind: 'create-place',
+        placeId: claim.proposedPlaceId,
+        providerIdentity: {
+          providerKey: claim.providerKey,
+          externalPlaceId: claim.providerPlaceId,
+        },
+      },
+    }))
     expect(dependencies.library.saveImportedPlace).toHaveBeenCalledTimes(2)
     expect(dependencies.completedItems).toHaveLength(2)
+    expect(dependencies.appended).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: claim.observationId, kind: 'source-observation' }),
+      expect.objectContaining({ id: claim.candidateId, kind: 'place-candidate' }),
+      expect.objectContaining({ id: claim.decisionId, kind: 'resolution-decision' }),
+    ]))
   })
 
-  it('keeps uncertain enrichment reviewable without canonical or library mutation', async () => {
+  it('does not block a personal save when the source snapshot has no address or coordinates', async () => {
     const dependencies = fixture({ linked: false })
-    dependencies.source.readDetail = vi.fn(async () => ({
-      kind: 'detail' as const,
-      evidence: {
-        checksum: 'd'.repeat(64), parserVersion: 'naver-place-detail.v1',
-        acquisitionKind: 'structured-web' as const, observedAt: at,
-      },
-      place: {
-        name: '이름이 비슷한 장소', address: null, categoryLabel: null, location: null,
-        reviewReasons: ['missing-address', 'possible-duplicate'],
-      },
+    dependencies.store.claimNextFulfillment = vi.fn(async () => ({
+      ...claim,
+      items: [{ ...firstItem, address: null, location: null }],
     }))
 
-    await expect(worker(dependencies).runOne()).resolves.toEqual({
-      status: 'needs-review', jobId: claim.jobId,
+    await expect(worker(dependencies).runOne()).resolves.toMatchObject({
+      status: 'completed', fulfilled: 1,
     })
-
-    expect(dependencies.canonical.apply).not.toHaveBeenCalled()
-    expect(dependencies.library.saveImportedPlace).not.toHaveBeenCalled()
-    expect(dependencies.finishedJobs).toEqual([expect.objectContaining({
-      outcome: expect.objectContaining({ kind: 'needs-review' }),
-    })])
-  })
-
-  it('schedules a bounded retry when provider detail is temporarily unavailable', async () => {
-    const dependencies = fixture({ linked: false })
-    dependencies.source.readDetail = vi.fn(async () => ({
-      kind: 'failure' as const, code: 'provider-unavailable' as const, retryable: true,
-    }))
-
-    await expect(worker(dependencies).runOne()).resolves.toEqual({
-      status: 'retry-scheduled', jobId: claim.jobId, code: 'provider-unavailable',
-    })
-
-    expect(dependencies.finishedJobs).toEqual([expect.objectContaining({
-      outcome: {
-        kind: 'failure', code: 'provider-unavailable', retryable: true,
-        retryAt: '2026-08-26T13:00:01.000Z',
-      },
-    })])
+    expect(dependencies.canonical.apply).toHaveBeenCalledOnce()
+    expect(dependencies.library.saveImportedPlace).toHaveBeenCalledOnce()
   })
 })

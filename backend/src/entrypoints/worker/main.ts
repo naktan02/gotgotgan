@@ -5,6 +5,8 @@ type WorkerCheck = Readonly<{
   capabilities: readonly [
     'durable-import-queue',
     'cache-first-place-fulfillment',
+    'source-snapshot-place-materialization',
+    'provider-detail-pending-state',
     'naver-capture-parser',
     'encrypted-capture-replay',
     'capture-expiry-sweep',
@@ -20,6 +22,8 @@ function describeWorkerScaffold(): WorkerCheck {
     capabilities: [
       'durable-import-queue',
       'cache-first-place-fulfillment',
+      'source-snapshot-place-materialization',
+      'provider-detail-pending-state',
       'naver-capture-parser',
       'encrypted-capture-replay',
       'capture-expiry-sweep',
@@ -41,6 +45,31 @@ async function main(): Promise<void> {
     const result = await runCaptureExpirySweep(await loadCaptureSweepConfig(process.env))
     process.stdout.write(`${JSON.stringify({ operation: 'capture-expiry-sweep', ...result })}\n`)
     if (result.failed > 0) throw new Error('Capture expiry sweep did not complete')
+    return
+  }
+  if (
+    process.argv.includes('--materialize-imported-places') ||
+    process.argv.includes('--run-import-materialization')
+  ) {
+    const continuous = process.argv.includes('--run-import-materialization')
+    const [{ loadImportMaterializationConfig }, { runImportMaterialization }] = await Promise.all([
+      import('./config.js'),
+      import('./import-materialization-runtime.js'),
+    ])
+    const controller = new AbortController()
+    const stop = () => controller.abort()
+    process.once('SIGINT', stop)
+    process.once('SIGTERM', stop)
+    try {
+      const result = await runImportMaterialization(
+        await loadImportMaterializationConfig(process.env),
+        { continuous, signal: controller.signal },
+      )
+      process.stdout.write(`${JSON.stringify({ operation: 'import-materialization', ...result })}\n`)
+    } finally {
+      process.removeListener('SIGINT', stop)
+      process.removeListener('SIGTERM', stop)
+    }
     return
   }
   throw new Error('Live provider acquisition is integration-gated')

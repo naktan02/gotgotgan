@@ -4,13 +4,16 @@ import { z } from 'zod'
 
 import { loadCaptureArtifactConfig } from '../../platform/config/capture-artifacts.js'
 
-const environmentSchema = z.object({
+const databaseEnvironmentSchema = z.object({
   PLACE_DATABASE_URL_FILE: z.string().min(1),
   PLACE_WORKER_DATABASE_MAX_CONNECTIONS: z.coerce.number().int().min(1).max(10),
   PLACE_WORKER_DATABASE_IDLE_TIMEOUT_MILLISECONDS: z.coerce
     .number().int().min(1).max(600_000),
   PLACE_WORKER_DATABASE_CONNECTION_TIMEOUT_MILLISECONDS: z.coerce
     .number().int().min(1).max(60_000),
+})
+
+const environmentSchema = databaseEnvironmentSchema.extend({
   PLACE_CAPTURE_ROOT: z.string().min(1),
   PLACE_CAPTURE_KEYRING_FILE: z.string().min(1),
   PLACE_CAPTURE_MAXIMUM_BYTES: z.coerce
@@ -18,13 +21,24 @@ const environmentSchema = z.object({
   PLACE_CAPTURE_SWEEP_BATCH_SIZE: z.coerce.number().int().min(1).max(1_000),
 })
 
+const materializationEnvironmentSchema = databaseEnvironmentSchema.extend({
+  PLACE_IMPORT_MATERIALIZATION_LEASE_MILLISECONDS: z.coerce
+    .number().int().min(1_000).max(600_000).default(60_000),
+  PLACE_IMPORT_MATERIALIZATION_IDLE_MILLISECONDS: z.coerce
+    .number().int().min(100).max(60_000).default(1_000),
+  PLACE_IMPORT_MATERIALIZATION_MAXIMUM_JOBS: z.coerce
+    .number().int().min(1).max(100_000).default(10_000),
+})
+
+export type WorkerDatabaseConfig = Readonly<{
+  connectionString: string
+  maxConnections: number
+  idleTimeoutMilliseconds: number
+  connectionTimeoutMilliseconds: number
+}>
+
 export type CaptureSweepConfig = Readonly<{
-  database: Readonly<{
-    connectionString: string
-    maxConnections: number
-    idleTimeoutMilliseconds: number
-    connectionTimeoutMilliseconds: number
-  }>
+  database: WorkerDatabaseConfig
   artifacts: Readonly<{
     root: string
     activeKeyId: string
@@ -34,8 +48,15 @@ export type CaptureSweepConfig = Readonly<{
   limit: number
 }>
 
+export type ImportMaterializationConfig = Readonly<{
+  database: WorkerDatabaseConfig
+  leaseMilliseconds: number
+  idleMilliseconds: number
+  maximumJobs: number
+}>
+
 function configurationError(): Error {
-  return new Error('Capture sweep configuration is invalid')
+  return new Error('Worker configuration is invalid')
 }
 
 async function readOneLineFile(path: string): Promise<string> {
@@ -57,13 +78,27 @@ function databaseConnectionString(value: string): string {
   return value
 }
 
+async function workerDatabaseConfig(
+  values: z.infer<typeof databaseEnvironmentSchema>,
+): Promise<WorkerDatabaseConfig> {
+  return {
+    connectionString: databaseConnectionString(
+      await readOneLineFile(values.PLACE_DATABASE_URL_FILE),
+    ),
+    maxConnections: values.PLACE_WORKER_DATABASE_MAX_CONNECTIONS,
+    idleTimeoutMilliseconds: values.PLACE_WORKER_DATABASE_IDLE_TIMEOUT_MILLISECONDS,
+    connectionTimeoutMilliseconds:
+      values.PLACE_WORKER_DATABASE_CONNECTION_TIMEOUT_MILLISECONDS,
+  }
+}
+
 export async function loadCaptureSweepConfig(
   environment: NodeJS.ProcessEnv,
 ): Promise<CaptureSweepConfig> {
   try {
     const values = environmentSchema.parse(environment)
-    const [databaseUrl, artifacts] = await Promise.all([
-      readOneLineFile(values.PLACE_DATABASE_URL_FILE),
+    const [database, artifacts] = await Promise.all([
+      workerDatabaseConfig(values),
       loadCaptureArtifactConfig({
         root: values.PLACE_CAPTURE_ROOT,
         keyringFile: values.PLACE_CAPTURE_KEYRING_FILE,
@@ -72,14 +107,26 @@ export async function loadCaptureSweepConfig(
     ])
     return {
       database: {
-        connectionString: databaseConnectionString(databaseUrl),
-        maxConnections: values.PLACE_WORKER_DATABASE_MAX_CONNECTIONS,
-        idleTimeoutMilliseconds: values.PLACE_WORKER_DATABASE_IDLE_TIMEOUT_MILLISECONDS,
-        connectionTimeoutMilliseconds:
-          values.PLACE_WORKER_DATABASE_CONNECTION_TIMEOUT_MILLISECONDS,
+        ...database,
       },
       artifacts,
       limit: values.PLACE_CAPTURE_SWEEP_BATCH_SIZE,
+    }
+  } catch {
+    throw configurationError()
+  }
+}
+
+export async function loadImportMaterializationConfig(
+  environment: NodeJS.ProcessEnv,
+): Promise<ImportMaterializationConfig> {
+  try {
+    const values = materializationEnvironmentSchema.parse(environment)
+    return {
+      database: await workerDatabaseConfig(values),
+      leaseMilliseconds: values.PLACE_IMPORT_MATERIALIZATION_LEASE_MILLISECONDS,
+      idleMilliseconds: values.PLACE_IMPORT_MATERIALIZATION_IDLE_MILLISECONDS,
+      maximumJobs: values.PLACE_IMPORT_MATERIALIZATION_MAXIMUM_JOBS,
     }
   } catch {
     throw configurationError()

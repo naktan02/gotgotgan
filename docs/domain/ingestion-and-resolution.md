@@ -27,11 +27,13 @@ Stage 7 흐름은 `queued → running → partial/needs-user-action/needs-review
 보장한다. 안정된 Provider identity가 있는 정상 item에는 목록 가져오기 승인이 Library 저장 intent가 된다.
 
 안정된 Provider Place Identity가 있는 item은 `enriching` 상태의 Fulfillment Intent와 함께 같은
-transaction에 기록한다. 공동 Fulfillment Job은 먼저 Places 공개 interface로 Provider Identity를
-조회한다. 이미 연결됐다면 외부 Provider를 호출하지 않고 각 Import 증거와 정책 link decision을
-기록한 뒤 요청 회원의 Library에 저장한다. 연결되지 않았을 때만 서버 소유 상세 Adapter를 호출한다.
+transaction에 기록한다. 공동 Materialization Job은 먼저 Places 공개 interface로 Provider Identity를
+조회한다. 이미 연결됐다면 각 Import 증거와 정책 link decision을 기록하고, 연결되지 않았다면 가져온
+Source Snapshot을 근거로 한 번 create/link한다. 이후 요청 회원의 private Collection에 외부 상세
+호출 없이 멱등 저장한다.
 
-같은 `(provider key, provider place ID)`의 여러 intent는 job 하나를 공유한다. 상세 증거가 충분하면
-한 번 create/link한 Canonical Place를 모든 대기 회원에게 멱등 저장한다. 정보가 불완전하거나 충돌하면
-자동 Canonical 생성 대신 각 item을 `needs-review`로 전환한다. 최종 실패는 intent를 보존한 상태로
+같은 `(provider key, provider place ID)`의 여러 intent는 job 하나를 공유한다. Provider 상세 상태는
+`pending` 또는 정규화된 Source Observation을 참조하는 `available`이며 개인 저장 상태와 독립적이다.
+후속 상세 Job은 `pending`이거나 참조 관찰이 유효하지 않을 때만 대상이 된다. Provider Identity가
+없거나 snapshot을 안전하게 연결할 수 없을 때만 item을 `needs-review`로 전환한다. 최종 실패는 intent를 보존한 상태로
 명시적인 실패가 되며, retryable 실패는 lease와 fencing을 유지한 채 다시 예약한다.

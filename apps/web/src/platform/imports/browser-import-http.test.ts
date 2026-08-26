@@ -147,6 +147,48 @@ describe('browser import HTTP', () => {
     expect(resolveImportBackend).not.toHaveBeenCalled()
   })
 
+  it('projects explicit source identity and detail status without internal source keys', async () => {
+    const http = createBrowserImportHttp({
+      resolveAuthRuntime: sessionRuntime,
+      resolveImportBackend: () => ({
+        ready: async () => new Response(), connections: async () => new Response(),
+        start: async () => new Response(), cancel: async () => new Response(),
+        resume: async () => new Response(), review: async () => new Response(),
+        detail: async () => Response.json({
+          schemaVersion: 'place-import-batch-detail.v1',
+          batch: {
+            schemaVersion: 'place-import-batch.v1', batchId, connectionId,
+            providerKey: 'naver', state: 'completed',
+            progress: { discovered: 1, ready: 0, reviewRequired: 0, enriching: 0, applied: 1, skipped: 0, failed: 0 },
+            createdAt: '2026-08-26T00:00:00.000Z', updatedAt: '2026-08-26T00:01:00.000Z',
+          },
+          items: [{
+            schemaVersion: 'place-import-item.v1', itemId, batchId,
+            providerKey: 'naver', providerPlaceId: 'place-1',
+            sourceListId: 'list-1', sourceItemId: 'bookmark-1',
+            listName: '여행', name: '장소', address: null, categoryLabel: null,
+            location: null, status: 'applied', reviewReasons: [], detailStatus: 'pending',
+            sourceItemKey: 'must-not-cross', captureReference: 'must-not-cross',
+          }],
+        }),
+      }),
+      createCorrelationRef: () => 'unused',
+    })
+
+    const response = await http.detail(
+      new Request(`https://place.example/api/imports/${batchId}`),
+      batchId,
+    )
+    const body = await response.text()
+
+    expect(response.status).toBe(200)
+    expect(JSON.parse(body).items[0]).toMatchObject({
+      providerKey: 'naver', providerPlaceId: 'place-1',
+      sourceListId: 'list-1', sourceItemId: 'bookmark-1', detailStatus: 'pending',
+    })
+    expect(body).not.toMatch(/sourceItemKey|captureReference|must-not-cross/)
+  })
+
   it('forwards a strict review command and returns a sanitized result', async () => {
     const http = createBrowserImportHttp({
       resolveAuthRuntime: sessionRuntime,

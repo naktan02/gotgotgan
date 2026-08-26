@@ -10,7 +10,7 @@ import { startPreparedPlaceDatabase } from './support/prepared-place-database.mj
 const id = (suffix) => `01992d21-1000-7000-8000-${String(suffix).padStart(12, '0')}`
 const at = '2026-08-26T14:00:00.000Z'
 
-test('missing imported places coalesce for enrichment and later imports use the canonical cache', { timeout: 120_000 }, async () => {
+test('imported snapshots coalesce for immediate save while details remain pending', { timeout: 120_000 }, async () => {
   const database = await startPreparedPlaceDatabase('imported-place-fulfillment')
   const captureRoot = await mkdtemp(join(tmpdir(), 'place-fulfillment-capture-'))
   try {
@@ -52,6 +52,7 @@ test('missing imported places coalesce for enrichment and later imports use the 
         items: [{
           sourceItemKey: 'list_fixture:shared_place',
           sourceListId: 'list_fixture',
+          sourceItemId: 'shared_place',
           sourceListPosition: 0,
           sourcePosition: 0,
           providerPlaceId: 'naver-shared-place',
@@ -64,6 +65,7 @@ test('missing imported places coalesce for enrichment and later imports use the 
         }, {
           sourceItemKey: 'list_fixture_secondary:shared_place',
           sourceListId: 'list_fixture_secondary',
+          sourceItemId: 'shared_place',
           sourceListPosition: 1,
           sourcePosition: 0,
           providerPlaceId: 'naver-shared-place',
@@ -138,45 +140,18 @@ test('missing imported places coalesce for enrichment and later imports use the 
     `)
     assert.deepEqual(queued.rows[0], { jobs: 1, intents: 4 })
 
-    let detailReads = 0
-    const detailSource = {
-      providerKey: 'naver',
-      readDetail: async () => {
-        detailReads += 1
-        return {
-          kind: 'detail',
-          evidence: {
-            checksum: 'c'.repeat(64),
-            parserVersion: 'naver-place-detail.v1',
-            acquisitionKind: 'structured-web',
-            observedAt: at,
-          },
-          place: {
-            name: '센카이 라멘 본점',
-            address: '일본 후쿠오카현 후쿠오카시 하카타구',
-            categoryLabel: '라멘',
-            location: { latitude: 33.5902, longitude: 130.4207 },
-            reviewReasons: [],
-          },
-        }
-      },
-    }
     const fulfillment = ingestion.createImportedPlaceFulfillmentWorker({
-      workerId: 'fulfillment-worker',
+      workerId: 'materialization-worker',
       store,
       ingestionStore,
       canonical,
       library: importedLibrary,
-      sources: [detailSource],
       now: () => new Date(at),
       leaseMilliseconds: 60_000,
-      maximumAttempts: 5,
-      retryDelayMilliseconds: (attempt) => attempt * 1_000,
     })
     const fulfilled = await fulfillment.runOne()
     assert.equal(fulfilled.status, 'completed')
     assert.equal(fulfilled.fulfilled, 4)
-    assert.equal(detailReads, 1)
     assert.equal((await store.getImport(first.memberId, first.batchId)).batch.state, 'completed')
     assert.equal((await store.getImport(second.memberId, second.batchId)).batch.state, 'completed')
 
@@ -184,7 +159,6 @@ test('missing imported places coalesce for enrichment and later imports use the 
     const cached = await fulfillment.runOne()
     assert.equal(cached.status, 'completed')
     assert.equal(cached.fulfilled, 2)
-    assert.equal(detailReads, 1)
     assert.equal((await store.getImport(third.memberId, third.batchId)).batch.state, 'completed')
 
     const results = await database.pool.query(`
@@ -194,7 +168,9 @@ test('missing imported places coalesce for enrichment and later imports use the 
         (SELECT count(*)::int FROM library.place_preferences WHERE saved) AS saved_places,
         (SELECT count(*)::int FROM library.collections) AS collections,
         (SELECT count(*)::int FROM library.collection_import_provenance) AS import_provenance,
+        (SELECT count(*)::int FROM library.collection_place_import_provenance) AS item_provenance,
         (SELECT count(*)::int FROM library.collection_places) AS collection_places,
+        (SELECT count(*)::int FROM ingestion.provider_place_detail_statuses WHERE status = 'pending') AS pending_details,
         (SELECT count(*)::int FROM ingestion.import_place_fulfillment_jobs) AS jobs,
         (SELECT attempt_count FROM ingestion.import_place_fulfillment_jobs) AS demand_attempts,
         (SELECT count(*)::int FROM ingestion.import_place_fulfillment_intents WHERE state = 'applied') AS applied_intents
@@ -205,7 +181,9 @@ test('missing imported places coalesce for enrichment and later imports use the 
       saved_places: 3,
       collections: 6,
       import_provenance: 6,
+      item_provenance: 6,
       collection_places: 6,
+      pending_details: 1,
       jobs: 1,
       demand_attempts: 1,
       applied_intents: 6,

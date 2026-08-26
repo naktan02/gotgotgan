@@ -58,3 +58,8 @@ services:
     image: ${PLACE_BACKEND_IMAGE:?PLACE_BACKEND_IMAGE is required}
     command: ["node", "backend/dist/entrypoints/worker/main.js", "--sweep-expired-captures"]
     restart: "no"
+
+  worker-import-materialization:
+    image: ${PLACE_BACKEND_IMAGE:?PLACE_BACKEND_IMAGE is required}
+    command: ["node", "backend/dist/entrypoints/worker/main.js", "--run-import-materialization"]
+    restart: unless-stopped

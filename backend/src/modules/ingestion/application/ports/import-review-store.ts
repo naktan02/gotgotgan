@@ -13,6 +13,7 @@ export type ReviewableImportItem = Readonly<{
   providerKey: 'naver' | 'kakao' | 'google'
   providerPlaceId?: string
   sourceListId: string
+  sourceItemId: string
   sourceListPosition: number
   sourcePosition: number
   listName: string

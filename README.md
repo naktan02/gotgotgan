@@ -68,11 +68,11 @@ Web은 교체 요청 취소, 키보드·모바일 선택, 동명 지점 구분, 
 지원한다. 이 기능도 source-only이며 live credential, 선수집 corpus, browser automation을
 활성화하지 않는다.
 
-Stage 7은 연결 목록의 안정된 Provider Place ID를 `enriching` Intent로 기록한다. Provider Identity별
-공동 Fulfillment Job은 Canonical cache를 먼저 확인해 기존 장소면 외부 요청 없이 회원 Library에
-저장하고, 미등록 장소만 주입된 서버 상세 Adapter로 보강한다. 동일 장소를 여러 회원이 요청해도
-상세 호출과 Canonical 생성은 한 번이며 각 Library 저장은 멱등이다. 실제 사용자 PC Connector,
-NAVER 내부 요청, 서버 profile Adapter와 production Worker 활성화는 아직 integration-gated다.
+Stage 7은 연결 목록의 안정된 Provider Place ID와 Source List·Item ID를 보존하고, 가져온 snapshot을
+Provider Identity별 공동 작업에서 Canonical Place와 회원의 private Collection에 즉시 멱등 반영한다.
+상세 보강은 개인 저장과 독립된 `pending`/`available` 상태로 관리하며 `available`은 정규화된 관찰을
+반드시 참조한다. 실제 NAVER 상세 경로 관찰과 상세 Job은 아직 integration-gated다. 가져온 장소는
+상세 대기 중에도 NAVER·Google Maps·카카오맵에서 열 수 있다.
 회원 PC용 `apps/member-connector`는 현재 로그인된 browser profile을 재사용하는 하나의 다중
 브라우저·다중 Provider 확장으로 진행한다. NAVER·Kakao·Google은 Provider Adapter로 격리하고
 일회성 grant로만 캡처를 제출한다. Versioned handshake/grant/batch/receipt 계약, provider-neutral

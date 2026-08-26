@@ -183,9 +183,11 @@ test('production composition consumes immutable images while local composition o
   })
   assert.deepEqual(applicationRuntime.processes.worker, {
     exposure: 'internal',
-    activation: 'optional',
+    activation: 'active',
     configurationGroups: [
       'worker-database-pool',
+      'import-source-snapshot-materialization',
+      'provider-detail-pending-state',
       'capture-artifact-store',
       'capture-retention-sweep',
     ],

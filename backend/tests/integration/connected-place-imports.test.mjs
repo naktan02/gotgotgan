@@ -20,6 +20,11 @@ const ids = {
   proposedPlace: '01992d20-8000-7000-8000-000000000010',
   idempotency: '01992d20-8000-7000-8000-000000000011',
   reviewCommand: '01992d20-8000-7000-8000-000000000012',
+  fulfillmentJob: '01992d20-8000-7000-8000-000000000013',
+  fulfillmentObservation: '01992d20-8000-7000-8000-000000000014',
+  fulfillmentCandidate: '01992d20-8000-7000-8000-000000000015',
+  fulfillmentDecision: '01992d20-8000-7000-8000-000000000016',
+  materializedPlace: '01992d20-8000-7000-8000-000000000017',
 }
 
 test('connected import is durable, replay-safe, fenced, and publicly sanitized', { timeout: 120_000 }, async () => {
@@ -108,6 +113,7 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
         items: [{
           sourceItemKey: 'list_fixture:bookmark_fixture',
           sourceListId: 'list_fixture',
+          sourceItemId: 'bookmark_fixture',
           sourceListPosition: 0,
           sourcePosition: 0,
           providerPlaceId: 'place_fixture',
@@ -121,7 +127,11 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
         nextCursor: null,
       }),
     }
-    const generated = [ids.artifact, ids.item, ids.observation, ids.candidate, ids.decision, ids.proposedPlace]
+    const generated = [
+      ids.artifact, ids.item, ids.observation, ids.candidate, ids.decision, ids.proposedPlace,
+      ids.fulfillmentJob, ids.fulfillmentObservation, ids.fulfillmentCandidate,
+      ids.fulfillmentDecision, ids.materializedPlace,
+    ]
     const worker = ingestion.createImportWorker({
       workerId: 'integration-worker',
       store,
@@ -135,28 +145,26 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
       retryDelayMilliseconds: (attempt) => attempt * 1_000,
     })
     assert.deepEqual(await worker.runOne(), {
-      status: 'processed', batchId: ids.batch, batchState: 'needs-review', itemCount: 1,
+      status: 'processed', batchId: ids.batch, batchState: 'enriching', itemCount: 1,
     })
     assert.deepEqual(await worker.runOne(), { status: 'idle' })
 
     const detail = await store.getImport(ids.member, ids.batch)
-    assert.equal(detail.batch.state, 'needs-review')
+    assert.equal(detail.batch.state, 'enriching')
     assert.equal(detail.batch.progress.discovered, 1)
     assert.equal(detail.items[0].name, '센카이 라멘')
-    assert.equal(detail.items[0].status, 'needs-review')
+    assert.equal(detail.items[0].status, 'enriching')
+    assert.equal(detail.items[0].sourceItemId, 'bookmark_fixture')
+    assert.equal(detail.items[0].detailStatus, 'pending')
     assert.doesNotMatch(JSON.stringify(detail), /profile:|secret:|cookie/i)
 
     const places = await import('../../dist/modules/places/index.js')
     const library = await import('../../dist/modules/library/index.js')
     const canonicalStore = new places.PostgresCanonicalResolutionStore(database.pool)
     const libraryStore = new library.PostgresLibraryStore(database.pool)
-    const reviewed = await ingestion.reviewImportItem({
-      memberId: ids.member,
-      commandId: ids.reviewCommand,
-      itemId: ids.item,
-      action: { kind: 'create-place' },
-      occurredAt: '2026-08-26T11:01:00.000Z',
-      reviewStore: store,
+    const materialization = ingestion.createImportedPlaceFulfillmentWorker({
+      workerId: 'materialization-worker',
+      store,
       ingestionStore: new ingestion.PostgresIngestionStore(database.pool),
       canonical: {
         resolveProviderIdentity: (identity) => canonicalStore.resolveProviderIdentity(identity),
@@ -165,28 +173,13 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
       library: {
         saveImportedPlace: (input) => library.saveImportedPlace({ ...input, store: libraryStore }),
       },
+      now: () => new Date('2026-08-26T11:01:00.000Z'),
+      leaseMilliseconds: 60_000,
     })
-    assert.deepEqual(reviewed, {
-      status: 'applied', commandId: ids.reviewCommand, itemId: ids.item,
-      canonicalPlaceId: ids.proposedPlace,
+    assert.deepEqual(await materialization.runOne(), {
+      status: 'completed', jobId: ids.fulfillmentJob,
+      canonicalPlaceId: ids.materializedPlace, fulfilled: 1,
     })
-    const reviewedAgain = await ingestion.reviewImportItem({
-      memberId: ids.member,
-      commandId: ids.reviewCommand,
-      itemId: ids.item,
-      action: { kind: 'create-place' },
-      occurredAt: '2026-08-26T11:01:00.000Z',
-      reviewStore: store,
-      ingestionStore: new ingestion.PostgresIngestionStore(database.pool),
-      canonical: {
-        resolveProviderIdentity: (identity) => canonicalStore.resolveProviderIdentity(identity),
-        apply: (attempt) => places.applyCanonicalResolution({ ...attempt, store: canonicalStore }),
-      },
-      library: {
-        saveImportedPlace: (input) => library.saveImportedPlace({ ...input, store: libraryStore }),
-      },
-    })
-    assert.equal(reviewedAgain.status, 'replayed')
     const completed = await store.getImport(ids.member, ids.batch)
     assert.equal(completed.batch.state, 'completed')
     assert.equal(completed.items[0].status, 'applied')
@@ -204,12 +197,13 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
         (SELECT count(*)::int FROM library.place_preferences WHERE saved) AS saved_places,
         (SELECT count(*)::int FROM library.collections) AS collections,
         (SELECT count(*)::int FROM library.collection_import_provenance) AS import_provenance,
+        (SELECT count(*)::int FROM library.collection_place_import_provenance) AS item_provenance,
         (SELECT count(*)::int FROM library.collection_places) AS collection_places
     `)
     assert.deepEqual(evidenceCount.rows[0], {
-      attempts: 1, captures: 1, items: 1, observations: 1, candidates: 1,
-      decisions: 1, canonical_places: 1, provider_links: 1, saved_places: 1,
-      collections: 1, import_provenance: 1, collection_places: 1,
+      attempts: 1, captures: 1, items: 1, observations: 2, candidates: 2,
+      decisions: 2, canonical_places: 1, provider_links: 1, saved_places: 1,
+      collections: 1, import_provenance: 1, item_provenance: 1, collection_places: 1,
     })
 
     captureClock = new Date('2026-08-28T11:00:00.000Z')
@@ -395,6 +389,8 @@ test('browser connector grants and captures resume safely into one durable impor
       batchId: importBatchId,
       providerKey: 'naver',
       providerPlaceId: 'naver-place-1',
+      sourceListId: 'fukuoka-list',
+      sourceItemId: 'ramen-bookmark',
       listName: '후쿠오카',
       name: '라멘 가게',
       address: '후쿠오카 주소',
@@ -402,6 +398,7 @@ test('browser connector grants and captures resume safely into one durable impor
       location: { latitude: 33.59, longitude: 130.4 },
       status: 'enriching',
       reviewReasons: [],
+      detailStatus: 'pending',
     })
     const persisted = await database.pool.query(`
       SELECT

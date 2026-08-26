@@ -43,7 +43,7 @@ function preparedItem(item: ConnectedPlaceItem, nextId: () => string): PreparedI
     decisionId: nextId(),
     proposedPlaceId: nextId(),
   }
-  return item.providerPlaceId === undefined || item.reviewReasons.length > 0
+  return item.providerPlaceId === undefined
     ? prepared
     : {
         ...prepared,

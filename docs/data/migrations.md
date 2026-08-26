@@ -55,3 +55,9 @@ Identity별 공동 Fulfillment Job, 회원별 item intent, fenced attempt를 생
 provider_place_id)` unique 제약으로 여러 회원의 같은 장소 상세 요청을 한 작업으로 합친다. runtime
 role은 이 작업 상태에 필요한 DML만 가지며 Places·Library schema를 직접 조회하는 권한을 Ingestion
 Adapter에 추가하지 않는다.
+
+Migration `000019`는 불투명 합성 key에서 Provider의 `source_item_id`를 분리해 list/item identity를
+각각 보존한다. Provider Place Identity별 상세 상태는 `pending` 또는 정규화된 Source Observation을
+가리키는 `available`만 허용한다. `library.collection_place_import_provenance`는 Collection membership과
+같은 transaction에서 Source Connection·List·Item·Provider Place ID를 보존하며, Provider 상세 실패가
+이미 저장된 private Collection을 되돌리지 않게 한다.

@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { loadCaptureSweepConfig } from './config.js'
+import { loadCaptureSweepConfig, loadImportMaterializationConfig } from './config.js'
 
 const temporaryDirectories: string[] = []
 
@@ -43,7 +43,7 @@ afterEach(async () => {
   )))
 })
 
-describe('capture expiry sweep configuration', () => {
+describe('worker configuration', () => {
   it('loads bounded database, artifact and sweep settings from protected files', async () => {
     const config = await loadCaptureSweepConfig(await validEnvironment())
 
@@ -63,7 +63,7 @@ describe('capture expiry sweep configuration', () => {
     const environment = await validEnvironment({ PLACE_CAPTURE_ROOT: 'relative/captures' })
 
     await expect(loadCaptureSweepConfig(environment)).rejects.toEqual(
-      new Error('Capture sweep configuration is invalid'),
+      new Error('Worker configuration is invalid'),
     )
   })
 
@@ -79,7 +79,7 @@ describe('capture expiry sweep configuration', () => {
     }))
 
     await expect(loadCaptureSweepConfig(environment)).rejects.toEqual(
-      new Error('Capture sweep configuration is invalid'),
+      new Error('Worker configuration is invalid'),
     )
   })
 
@@ -87,7 +87,26 @@ describe('capture expiry sweep configuration', () => {
     const environment = await validEnvironment({ PLACE_CAPTURE_SWEEP_BATCH_SIZE: '1001' })
 
     await expect(loadCaptureSweepConfig(environment)).rejects.toEqual(
-      new Error('Capture sweep configuration is invalid'),
+      new Error('Worker configuration is invalid'),
     )
+  })
+
+  it('loads bounded import materialization settings without capture credentials', async () => {
+    const environment = await validEnvironment({
+      PLACE_IMPORT_MATERIALIZATION_LEASE_MILLISECONDS: '45000',
+      PLACE_IMPORT_MATERIALIZATION_IDLE_MILLISECONDS: '750',
+      PLACE_IMPORT_MATERIALIZATION_MAXIMUM_JOBS: '5000',
+    })
+    delete environment.PLACE_CAPTURE_ROOT
+    delete environment.PLACE_CAPTURE_KEYRING_FILE
+    delete environment.PLACE_CAPTURE_MAXIMUM_BYTES
+    delete environment.PLACE_CAPTURE_SWEEP_BATCH_SIZE
+
+    await expect(loadImportMaterializationConfig(environment)).resolves.toMatchObject({
+      leaseMilliseconds: 45_000,
+      idleMilliseconds: 750,
+      maximumJobs: 5_000,
+      database: { maxConnections: 2 },
+    })
   })
 })

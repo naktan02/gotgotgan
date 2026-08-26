@@ -8,6 +8,8 @@ export type ImportedPlaceSaveAttempt = Readonly<{
     providerKey: 'naver' | 'kakao' | 'google'
     connectionId: string
     listId: string
+    itemId: string
+    providerPlaceId: string
     listName: string
     collectionName: string
     listPosition: number

@@ -17,11 +17,12 @@ UUID, create/link/skip 중 하나만 받는다. member, role, cookie, profile, �
 전달하고 request·response를 생성 계약으로 다시 검증한다. 런타임이 비활성이거나 Backend 응답이
 계약을 벗어나면 안전한 correlated problem으로 fail closed한다.
 
-Import item의 `enriching`은 안정된 Provider Place ID가 공동 Fulfillment Job에서 처리 중임을 뜻한다.
-batch progress의 `enriching`은 이 item 수를 표시한다. Worker는 Canonical cache를 먼저 확인하므로
-DB hit은 Provider 상세 요청 없이 `applied`로 바뀐다. DB miss는 같은 Provider identity의 다른 회원
-intent와 합쳐져 상세 보강 후 자동 저장되며, 불확실한 결과만 `needs-review`가 된다. 이 상태는
-cookie, profile reference, 내부 job ID를 공개하지 않는다.
+Import item의 `enriching`은 안정된 Provider Place ID와 Source Snapshot을 공동 Materialization Job에서
+개인 Collection에 저장 중임을 뜻한다. batch progress의 `enriching`은 이 item 수를 표시한다. Worker는
+Canonical link를 재사용하거나 snapshot 근거로 create/link한 뒤 Provider 상세 요청 없이 `applied`로
+바꾼다. item projection은 `sourceListId`, `sourceItemId`, `providerPlaceId`를 서로 구분하고 상세 상태를
+`pending`/`available`/`unavailable`로 반환한다. cookie, profile reference, 내부 job ID와 불투명 내부
+item key는 공개하지 않는다.
 
 `POST /v1/search/places`는 익명 공개 장소 검색과 optional bearer 회원 검색을 한 계약으로
 제공한다. request는 query, optional bounds, Taxonomy key filter, opaque cursor, 최대 50개 limit를

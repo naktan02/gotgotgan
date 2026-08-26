@@ -11,10 +11,10 @@ private capture volume과 bounded batch를 조립하고 종료 시 Pool을 닫�
 이 명령만 opt-in `maintenance` profile로 선언한다. 실제 profile lifecycle과 Playwright acquisition
 설정이 없으므로 연결 계정 수집 Worker의 일반 startup은 계속 fail-closed다.
 
-Provider Identity별 cache-first Fulfillment Worker와 PostgreSQL queue는 source-only로 추가됐다.
-이 Worker는 Canonical hit이면 Provider를 호출하지 않고 Library 반영만 수행하며, miss일 때만 주입된
-`PlaceEnrichmentSource`를 호출한다. 서버 상세 보강용 실제 NAVER service-profile Adapter는 아직
-없으므로 production acquisition command나 Compose process를 활성화하지 않는다. 회원 PC Connector의
+Provider Identity별 Materialization Worker는 PostgreSQL queue를 계속 claim하며 가져온 Source Snapshot을
+Canonical Place와 회원 Library에 반영한다. 이 Worker는 외부 Provider나 사용자 profile을 호출하지
+않으므로 Web·Backend와 독립된 내부 Compose process로 활성화한다. Provider 상세 상태와 후속 상세 Job은
+이 수명주기와 분리되어 있으며 실제 NAVER 상세 경로 관찰 전에는 활성화하지 않는다. 회원 PC Connector의
 NAVER 목록 수집 Adapter는 별도 browser artifact에 있으며 Worker나 Docker에 포함되지 않는다.
 
 회원 PC용 `member-connector`는 배포 Web/Backend/Worker나 Docker 수평 확장 단위가 아니다. 목표 runtime은
@@ -36,8 +36,9 @@ profile의 로그인 성공은 제품 완료 조건이 아니며 Playwright 진�
 유지한다. Extension capture Adapter, Web의 grant/capture BFF route와 Backend
 `/v1/connector-grants`·`/v1/connector-captures` 수신 endpoint는 source-only로 연결됐다. Backend HTTP
 프로세스가 짧은 수명 grant와 캡처 수신을 소유하고 암호화 capture volume을 maintenance sweep과
-공유한다. 이 경로는 별도 acquisition Worker를 깨우지 않고 ImportBatch·ImportItem·Fulfillment intent를
-직접 영속화한다. 실제 Whale/NAVER session smoke와 상세 보강 Worker 활성화는 integration-gated다.
+공유한다. 이 경로는 별도 acquisition Worker를 깨우지 않고 ImportBatch·ImportItem·Materialization intent를
+직접 영속화한다. 활성 Materialization Worker가 이를 private Collection에 반영한다. 실제 Whale/NAVER
+session smoke와 Provider 상세 Job은 integration-gated다.
 
 The source-only runtime exposes local health/readiness scaffolds and the Stage 2 shell/access code.
 Gateway, Identity, provider, map, family navigation, and AI delivery states remain `not-integrated`
@@ -71,8 +72,9 @@ targets. The worker uses the backend image with a different command. Local Compo
 build targets. The port-free base and production overlay consume injected immutable image
 coordinates, while the deployment planner binds Web and Backend to one source revision and preserves
 the database during application-only rollback. Compose requires every host and port from deployment
-configuration. Worker `--check` stays in the verification profile; capture expiry cleanup is an
-operator-invoked maintenance profile and is not a scheduler or live acquisition activation.
+configuration. Worker `--check` stays in the verification profile; snapshot materialization is an
+active internal process, while capture expiry cleanup is an operator-invoked maintenance profile and
+is not a scheduler or live acquisition activation.
 The producer release declaration binds those two targets and four process roles to one
 `place@<commit>` revision while retaining `source-only` deployment state. The manual release
 workflow owns GHCR publication, BuildKit SBOM/provenance extraction, published-platform-digest

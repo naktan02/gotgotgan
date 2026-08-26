@@ -7,13 +7,21 @@ replay adapter가 source로 존재한다. `--check`는 `source-only` capability�
 `integration-gated` 상태를 출력한다. test account의 profile lifecycle과 Playwright acquisition이
 검증되기 전에는 일반 acquisition startup을 허용하지 않는다.
 
-source-only Worker에는 Provider Identity별 cache-first Fulfillment loop도 있다. 목록 item과 intent는
-acquisition transaction에서 함께 생성된다. Fulfillment는 Canonical link를 먼저 조회하고 miss일 때만
-주입된 Provider 상세 Adapter를 호출하며, 여러 회원 intent를 한 job에서 처리한다. 실제 NAVER 서비스
-profile 설정과 실행 명령은 아직 만들지 않았으므로 `--check` capability만 보고 production 수집이
-활성화됐다고 판단하면 안 된다.
+Provider Identity별 Materialization loop는 목록 item과 같은 transaction에서 만든 intent를 claim한다.
+Canonical link가 있으면 재사용하고, 없으면 가져온 Source Snapshot evidence로 create/link한 뒤 여러
+회원 intent를 private Collection에 멱등 반영한다. Provider 상세 Adapter나 사용자 profile은 호출하지
+않는다. Compose의 `worker-import-materialization`은 이 loop를 계속 실행하고 장애 시 재시작한다.
 
-만료 캡처 정리는 acquisition loop와 분리된 1회 명령이다.
+```powershell
+node backend/dist/entrypoints/worker/main.js --run-import-materialization
+node backend/dist/entrypoints/worker/main.js --materialize-imported-places
+```
+
+첫 명령은 서비스용 연속 실행이고 두 번째는 기존 대기 작업 전환·운영 복구용 bounded 1회 실행이다.
+둘 다 보호된 DB URL, lease, idle poll, 1회 최대 작업 수 설정만 사용한다. 상세 상태 `pending`을
+`available`로 바꾸는 Provider 상세 Job은 별도이며 실제 상세 경로를 검증하기 전에는 실행하지 않는다.
+
+만료 캡처 정리는 Materialization loop와 분리된 1회 명령이다.
 
 ```powershell
 node backend/dist/entrypoints/worker/main.js --sweep-expired-captures

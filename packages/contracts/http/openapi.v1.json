@@ -2536,6 +2536,16 @@
                   "minLength": 1,
                   "maxLength": 512
                 },
+                "sourceListId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                "sourceItemId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
                 "listName": {
                   "type": "string",
                   "minLength": 1,
@@ -2621,6 +2631,14 @@
                   "type": "string",
                   "format": "uuid",
                   "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "detailStatus": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "available",
+                    "unavailable"
+                  ]
                 }
               },
               "required": [
@@ -2628,13 +2646,16 @@
                 "itemId",
                 "batchId",
                 "providerKey",
+                "sourceListId",
+                "sourceItemId",
                 "listName",
                 "name",
                 "address",
                 "categoryLabel",
                 "location",
                 "status",
-                "reviewReasons"
+                "reviewReasons",
+                "detailStatus"
               ],
               "additionalProperties": false
             }
