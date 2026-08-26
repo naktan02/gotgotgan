@@ -106,6 +106,14 @@ function ImportProgress({ batch }: Readonly<{ batch: PlaceImportBatch }>) {
   )
 }
 
+function itemStatusLabel(item: PlaceImportItem): string {
+  if (item.status === 'applied' || item.status === 'skipped') {
+    return item.detailStatus === 'pending' ? '저장됨 · 상세 대기' : '저장됨'
+  }
+  if (item.status === 'enriching') return '저장 준비 중'
+  return '검토 필요'
+}
+
 function ItemReview({
   item,
   busy,
@@ -125,11 +133,7 @@ function ItemReview({
     <li className={styles.item}>
       <div className={styles.itemHeading}>
         <div><p className={styles.listName}>{item.listName}</p><h3>{item.name}</h3></div>
-        <span className={styles.itemStatus}>
-          {resolved
-            ? item.detailStatus === 'pending' ? '저장됨 · 상세 대기' : '저장됨'
-            : enriching ? '저장 준비 중' : '검토 필요'}
-        </span>
+        <span className={styles.itemStatus}>{itemStatusLabel(item)}</span>
       </div>
       <p className={styles.itemFacts}>
         {item.address ?? '주소 정보 없음'}

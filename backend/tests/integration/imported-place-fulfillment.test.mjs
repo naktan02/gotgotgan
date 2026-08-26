@@ -63,6 +63,19 @@ test('imported snapshots coalesce for immediate save while details remain pendin
           location: null,
           reviewReasons: [],
         }, {
+          sourceItemKey: 'list_fixture:shared_place_duplicate',
+          sourceListId: 'list_fixture',
+          sourceItemId: 'shared_place_duplicate',
+          sourceListPosition: 0,
+          sourcePosition: 1,
+          providerPlaceId: 'naver-shared-place',
+          listName: '가보고 싶은 곳',
+          name: '센카이 라멘',
+          address: null,
+          categoryLabel: '라멘',
+          location: null,
+          reviewReasons: [],
+        }, {
           sourceItemKey: 'list_fixture_secondary:shared_place',
           sourceListId: 'list_fixture_secondary',
           sourceItemId: 'shared_place',
@@ -108,7 +121,7 @@ test('imported snapshots coalesce for immediate save while details remain pendin
         nextJobId: () => jobId,
         now: () => new Date(at),
       })
-      const generated = Array.from({ length: 21 }, (_, index) => id(sequence + 10 + index))
+      const generated = Array.from({ length: 32 }, (_, index) => id(sequence + 10 + index))
       const acquisition = ingestion.createImportWorker({
         workerId: `acquisition-${sequence}`,
         store,
@@ -122,11 +135,11 @@ test('imported snapshots coalesce for immediate save while details remain pendin
         retryDelayMilliseconds: (attempt) => attempt * 1_000,
       })
       assert.deepEqual(await acquisition.runOne(), {
-        status: 'processed', batchId, batchState: 'enriching', itemCount: 2,
+        status: 'processed', batchId, batchState: 'enriching', itemCount: 3,
       })
       const detail = await store.getImport(memberId, batchId)
       assert.equal(detail.batch.state, 'enriching')
-      assert.equal(detail.batch.progress.enriching, 2)
+      assert.equal(detail.batch.progress.enriching, 3)
       assert.equal(detail.items[0].status, 'enriching')
       return { memberId, batchId }
     }
@@ -138,7 +151,7 @@ test('imported snapshots coalesce for immediate save while details remain pendin
         (SELECT count(*)::int FROM ingestion.import_place_fulfillment_jobs) AS jobs,
         (SELECT count(*)::int FROM ingestion.import_place_fulfillment_intents) AS intents
     `)
-    assert.deepEqual(queued.rows[0], { jobs: 1, intents: 4 })
+    assert.deepEqual(queued.rows[0], { jobs: 1, intents: 6 })
 
     const fulfillment = ingestion.createImportedPlaceFulfillmentWorker({
       workerId: 'materialization-worker',
@@ -151,14 +164,14 @@ test('imported snapshots coalesce for immediate save while details remain pendin
     })
     const fulfilled = await fulfillment.runOne()
     assert.equal(fulfilled.status, 'completed')
-    assert.equal(fulfilled.fulfilled, 4)
+    assert.equal(fulfilled.fulfilled, 6)
     assert.equal((await store.getImport(first.memberId, first.batchId)).batch.state, 'completed')
     assert.equal((await store.getImport(second.memberId, second.batchId)).batch.state, 'completed')
 
     const third = await registerMemberAndImport(300)
     const cached = await fulfillment.runOne()
     assert.equal(cached.status, 'completed')
-    assert.equal(cached.fulfilled, 2)
+    assert.equal(cached.fulfilled, 3)
     assert.equal((await store.getImport(third.memberId, third.batchId)).batch.state, 'completed')
 
     const results = await database.pool.query(`
@@ -181,12 +194,83 @@ test('imported snapshots coalesce for immediate save while details remain pendin
       saved_places: 3,
       collections: 6,
       import_provenance: 6,
-      item_provenance: 6,
+      item_provenance: 9,
       collection_places: 6,
       pending_details: 1,
       jobs: 1,
       demand_attempts: 1,
-      applied_intents: 6,
+      applied_intents: 9,
+    })
+
+    const snapshot = await database.pool.query(`
+      SELECT observation.id AS observation_id, candidate.id AS candidate_id
+      FROM ingestion.source_observations AS observation
+      JOIN ingestion.place_candidates AS candidate
+        ON candidate.source_observation_id = observation.id
+      WHERE observation.provider_key = 'naver'
+        AND observation.external_place_id = 'naver-shared-place'
+        AND observation.observation_kind = 'general'
+      LIMIT 1
+    `)
+    assert.equal(snapshot.rowCount, 1)
+    await assert.rejects(
+      database.pool.query(
+        `INSERT INTO ingestion.provider_place_detail_observations (
+           provider_key, provider_place_id, source_observation_id,
+           place_candidate_id, normalized_at
+         ) VALUES ('naver','naver-shared-place',$1::uuid,$2::uuid,$3::timestamptz)`,
+        [snapshot.rows[0].observation_id, snapshot.rows[0].candidate_id, at],
+      ),
+      (error) => error.code === '23503',
+    )
+
+    const detailObservationId = id(900)
+    const detailCandidateId = id(901)
+    await ingestion.recordSourceObservation({
+      id: detailObservationId,
+      providerKey: 'naver',
+      externalPlaceId: 'naver-shared-place',
+      observationKind: 'provider-detail',
+      acquisitionKind: 'browser-network',
+      payloadChecksum: 'b'.repeat(64),
+      parserVersion: 'naver-place-detail.v1',
+      observedAt: at,
+      acquiredAt: at,
+      facts: { name: '센카이 라멘', detail: true },
+      confidence: 0.9,
+      store: ingestionStore,
+    })
+    await ingestion.recordPlaceCandidate({
+      id: detailCandidateId,
+      sourceObservationId: detailObservationId,
+      parserVersion: 'provider-detail-normalizer.v1',
+      name: '센카이 라멘',
+      attributes: { providerKey: 'naver', externalPlaceId: 'naver-shared-place' },
+      createdAt: at,
+      store: ingestionStore,
+    })
+    await database.pool.query(
+      `INSERT INTO ingestion.provider_place_detail_observations (
+         provider_key, provider_place_id, source_observation_id,
+         place_candidate_id, normalized_at
+       ) VALUES ('naver','naver-shared-place',$1::uuid,$2::uuid,$3::timestamptz)`,
+      [detailObservationId, detailCandidateId, at],
+    )
+    await database.pool.query(
+      `UPDATE ingestion.provider_place_detail_statuses
+       SET status = 'available', last_detail_observation_id = $1::uuid,
+           updated_at = $2::timestamptz
+       WHERE provider_key = 'naver' AND provider_place_id = 'naver-shared-place'`,
+      [detailObservationId, at],
+    )
+    const available = await database.pool.query(`
+      SELECT status, last_detail_observation_id
+      FROM ingestion.provider_place_detail_statuses
+      WHERE provider_key = 'naver' AND provider_place_id = 'naver-shared-place'
+    `)
+    assert.deepEqual(available.rows[0], {
+      status: 'available',
+      last_detail_observation_id: detailObservationId,
     })
   } finally {
     await database.close()

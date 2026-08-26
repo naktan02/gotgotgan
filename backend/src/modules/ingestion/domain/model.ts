@@ -8,6 +8,9 @@ export const acquisitionKinds = [
 ] as const
 export type AcquisitionKind = (typeof acquisitionKinds)[number]
 
+export const sourceObservationKinds = ['general', 'provider-detail'] as const
+export type SourceObservationKind = (typeof sourceObservationKinds)[number]
+
 export type GeoPoint = Readonly<{ latitude: number; longitude: number }>
 
 export type SourceObservationRecord = Readonly<{
@@ -15,6 +18,7 @@ export type SourceObservationRecord = Readonly<{
   id: string
   providerKey: string
   externalPlaceId: string
+  observationKind: SourceObservationKind
   acquisitionKind: AcquisitionKind
   payloadChecksum: string
   parserVersion: string

@@ -39,7 +39,34 @@ describe('provider-neutral ingestion recording', () => {
     }
 
     await expect(recordSourceObservation(input)).resolves.toEqual({ status: 'recorded' })
-    await expect(recordSourceObservation(input)).resolves.toEqual({ status: 'replayed' })
+    await expect(recordSourceObservation({ ...input, observationKind: 'general' }))
+      .resolves.toEqual({ status: 'replayed' })
+    expect(store.records.get(input.id)).toEqual(expect.objectContaining({
+      observationKind: 'general',
+    }))
+  })
+
+  it('marks provider detail evidence separately from general observations', async () => {
+    const store = new MemoryIngestionStore()
+    const id = '01992a10-50d5-71a3-a79b-d9940d4a883e'
+    await recordSourceObservation({
+      id,
+      providerKey: 'naver',
+      externalPlaceId: 'provider-place-42',
+      observationKind: 'provider-detail',
+      acquisitionKind: 'structured-web',
+      payloadChecksum: 'b'.repeat(64),
+      parserVersion: 'naver-place-detail-v1',
+      observedAt: '2026-08-26T01:00:00.000Z',
+      acquiredAt: '2026-08-26T01:00:01.000Z',
+      facts: { name: 'detail fixture' },
+      confidence: 0.9,
+      store,
+    })
+
+    expect(store.records.get(id)).toEqual(expect.objectContaining({
+      observationKind: 'provider-detail',
+    }))
   })
 
   it('records a normalized candidate without treating it as canonical truth', async () => {

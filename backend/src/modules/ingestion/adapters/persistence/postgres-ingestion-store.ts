@@ -25,12 +25,14 @@ export class PostgresIngestionStore implements IngestionStore {
   private async appendObservation(record: SourceObservationRecord) {
     const inserted = await this.pool.query(
       `INSERT INTO ingestion.source_observations (
-         id, provider_key, external_place_id, acquisition_kind, payload_checksum, parser_version,
+         id, provider_key, external_place_id, observation_kind,
+         acquisition_kind, payload_checksum, parser_version,
          observed_at, acquired_at, capture_reference, facts, confidence, fingerprint
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
        ON CONFLICT (id) DO NOTHING`,
-      [record.id, record.providerKey, record.externalPlaceId, record.acquisitionKind,
-        record.payloadChecksum, record.parserVersion, record.observedAt, record.acquiredAt,
+      [record.id, record.providerKey, record.externalPlaceId, record.observationKind,
+        record.acquisitionKind, record.payloadChecksum, record.parserVersion,
+        record.observedAt, record.acquiredAt,
         record.captureReference ?? null, record.facts, record.confidence, record.fingerprint],
     )
     if (inserted.rowCount === 1) return 'recorded' as const

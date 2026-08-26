@@ -1,5 +1,6 @@
 export {
   acquisitionKinds,
+  sourceObservationKinds,
   IngestionIdConflictError,
   InvalidIngestionRecordError,
   type AcquisitionKind,
@@ -9,6 +10,7 @@ export {
   type ResolutionDecision,
   type ResolutionDecisionRecord,
   type SourceObservationRecord,
+  type SourceObservationKind,
 } from './domain/model.js'
 export { recordSourceObservation } from './application/record-source-observation.js'
 export { recordPlaceCandidate } from './application/record-place-candidate.js'
@@ -73,6 +75,7 @@ export type {
   ImportedPlaceLibraryPort,
 } from './application/ports/imported-place-library.js'
 export type {
+  FulfillableImportItem,
   ImportedPlaceFulfillmentClaim,
   ImportedPlaceFulfillmentOutcome,
   ImportedPlaceFulfillmentStore,

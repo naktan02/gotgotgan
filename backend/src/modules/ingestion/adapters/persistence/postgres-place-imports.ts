@@ -18,6 +18,7 @@ import type {
   PreparedImportItem,
 } from '../../application/ports/import-worker-store.js'
 import type {
+  FulfillableImportItem,
   ImportedPlaceFulfillmentClaim,
   ImportedPlaceFulfillmentOutcome,
   ImportedPlaceFulfillmentStore,
@@ -232,7 +233,7 @@ function connectorReceipt(row: ConnectorReceiptRow) {
   }
 }
 
-function fulfillmentItem(row: FulfillmentItemRow): ReviewableImportItem {
+function fulfillmentItem(row: FulfillmentItemRow): FulfillableImportItem {
   return {
     itemId: row.item_id,
     batchId: row.batch_id,
@@ -279,21 +280,27 @@ async function selectBatch(
   return row === undefined ? undefined : batch(row)
 }
 
-async function refreshBatchProgress(
+async function refreshBatchProgresses(
   client: Pool | PoolClient,
-  batchId: string,
+  batchIds: readonly string[],
   updatedAt: string,
 ): Promise<void> {
+  if (batchIds.length === 0) return
   await client.query(
-    `WITH counts AS (
-       SELECT count(*)::int AS discovered,
+    `WITH target_batches AS (
+       SELECT DISTINCT unnest($1::uuid[]) AS batch_id
+     ), counts AS (
+       SELECT target.batch_id,
+              count(imported.id)::int AS discovered,
               count(*) FILTER (WHERE status = 'ready')::int AS ready,
               count(*) FILTER (WHERE status = 'needs-review')::int AS review_required,
               count(*) FILTER (WHERE status = 'enriching')::int AS enriching,
               count(*) FILTER (WHERE status = 'applied')::int AS applied,
               count(*) FILTER (WHERE status = 'skipped')::int AS skipped,
               count(*) FILTER (WHERE status = 'failed')::int AS failed
-       FROM ingestion.import_items WHERE batch_id = $1::uuid
+       FROM target_batches AS target
+       LEFT JOIN ingestion.import_items AS imported ON imported.batch_id = target.batch_id
+       GROUP BY target.batch_id
      )
      UPDATE ingestion.import_batches AS batch
      SET state = CASE
@@ -312,9 +319,17 @@ async function refreshBatchProgress(
          failed_count = counts.failed,
          updated_at = $2::timestamptz
      FROM counts
-     WHERE batch.id = $1::uuid AND batch.state <> 'cancelled'`,
-    [batchId, updatedAt],
+     WHERE batch.id = counts.batch_id AND batch.state <> 'cancelled'`,
+    [batchIds, updatedAt],
   )
+}
+
+async function refreshBatchProgress(
+  client: Pool | PoolClient,
+  batchId: string,
+  updatedAt: string,
+): Promise<void> {
+  await refreshBatchProgresses(client, [batchId], updatedAt)
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -331,87 +346,164 @@ async function insertPreparedImportItems(
     recordedAt: string
   }>,
 ): Promise<void> {
+  if (input.items.length === 0) return
   for (const imported of input.items) {
-    const insertedItem = await client.query<{ id: string }>(
-      `INSERT INTO ingestion.import_items (
-         id, batch_id, capture_id, source_item_key, source_item_id, provider_place_id,
-         source_list_id, source_list_position, source_position, list_name,
-         display_name, address, category_label, location, status, review_reasons,
-         observation_id, candidate_id, decision_id, proposed_place_id, created_at, updated_at
-       ) VALUES (
-         $1::uuid,$2::uuid,$3::uuid,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,
-         CASE WHEN $14::double precision IS NULL THEN NULL
-           ELSE ST_SetSRID(ST_MakePoint($15, $14), 4326) END,
-         $16,$17::text[],$18::uuid,$19::uuid,$20::uuid,$21::uuid,
-         $22::timestamptz,$22::timestamptz
-        ) ON CONFLICT (batch_id, source_item_key) DO NOTHING
-        RETURNING id`,
-      [imported.itemId, input.batchId, input.captureId,
-        imported.sourceItemKey, imported.sourceItemId, imported.providerPlaceId ?? null,
-        imported.sourceListId, imported.sourceListPosition,
-        imported.sourcePosition, imported.listName,
-        imported.name, imported.address, imported.categoryLabel,
-        imported.location?.latitude ?? null, imported.location?.longitude ?? null,
-        imported.fulfillment === undefined ? 'needs-review' : 'enriching',
-        imported.reviewReasons, imported.observationId, imported.candidateId,
-        imported.decisionId, imported.proposedPlaceId, input.recordedAt],
-    )
-    if (insertedItem.rows[0] === undefined) continue
-    if (imported.providerPlaceId !== undefined) {
-      await client.query(
-        `INSERT INTO ingestion.provider_place_detail_statuses (
-           provider_key, provider_place_id, status, requested_at, updated_at
-         ) VALUES ($1,$2,'pending',$3::timestamptz,$3::timestamptz)
-         ON CONFLICT (provider_key, provider_place_id) DO NOTHING`,
-        [input.providerKey, imported.providerPlaceId, input.recordedAt],
-      )
+    if (imported.fulfillment !== undefined && imported.providerPlaceId === undefined) {
+      throw new ImportReferenceUnavailableError('Fulfillment requires a provider place identity.')
     }
-    if (imported.fulfillment === undefined) continue
-    const fulfillment = imported.fulfillment
-    const job = await client.query<{ id: string }>(
-      `INSERT INTO ingestion.import_place_fulfillment_jobs AS job (
-         id, provider_key, provider_place_id, state, available_at,
-         observation_id, candidate_id, decision_id, proposed_place_id,
-         created_at, updated_at
-       ) VALUES (
-         $1::uuid,$2,$3,'queued',$4::timestamptz,
-         $5::uuid,$6::uuid,$7::uuid,$8::uuid,$4::timestamptz,$4::timestamptz
+  }
+
+  const preparedRows = input.items.map((imported) => ({
+    item_id: imported.itemId,
+    source_item_key: imported.sourceItemKey,
+    source_item_id: imported.sourceItemId,
+    provider_place_id: imported.providerPlaceId ?? null,
+    source_list_id: imported.sourceListId,
+    source_list_position: imported.sourceListPosition,
+    source_position: imported.sourcePosition,
+    list_name: imported.listName,
+    display_name: imported.name,
+    address: imported.address,
+    category_label: imported.categoryLabel,
+    latitude: imported.location?.latitude ?? null,
+    longitude: imported.location?.longitude ?? null,
+    status: imported.fulfillment === undefined ? 'needs-review' : 'enriching',
+    review_reasons: imported.reviewReasons,
+    observation_id: imported.observationId,
+    candidate_id: imported.candidateId,
+    decision_id: imported.decisionId,
+    proposed_place_id: imported.proposedPlaceId,
+  }))
+  const insertedItems = await client.query<{ id: string }>(
+    `WITH prepared AS (
+       SELECT * FROM jsonb_to_recordset($4::jsonb) AS item(
+         item_id uuid, source_item_key text, source_item_id text, provider_place_id text,
+         source_list_id text, source_list_position integer, source_position integer,
+         list_name text, display_name text, address text, category_label text,
+         latitude double precision, longitude double precision, status text,
+         review_reasons text[], observation_id uuid, candidate_id uuid,
+         decision_id uuid, proposed_place_id uuid
        )
-       ON CONFLICT (provider_key, provider_place_id) DO UPDATE
-       SET state = CASE
-             WHEN job.state IN ('completed', 'failed') THEN 'queued'
-             ELSE job.state
-           END,
-           available_at = CASE
-             WHEN job.state IN ('completed', 'failed') THEN EXCLUDED.available_at
-             ELSE job.available_at
-           END,
-           attempt_count = CASE
-             WHEN job.state IN ('completed', 'failed') THEN 0
-             ELSE job.attempt_count
-           END,
-           failure_code = CASE
-             WHEN job.state IN ('completed', 'failed') THEN NULL
-             ELSE job.failure_code
-           END,
-           failure_retryable = CASE
-             WHEN job.state IN ('completed', 'failed') THEN NULL
-             ELSE job.failure_retryable
-           END,
-           updated_at = EXCLUDED.updated_at
-       RETURNING job.id`,
-      [fulfillment.jobId, input.providerKey, imported.providerPlaceId,
-        input.recordedAt, fulfillment.observationId, fulfillment.candidateId,
-        fulfillment.decisionId, fulfillment.proposedPlaceId],
-    )
+     )
+     INSERT INTO ingestion.import_items (
+       id, batch_id, capture_id, source_item_key, source_item_id, provider_place_id,
+       source_list_id, source_list_position, source_position, list_name,
+       display_name, address, category_label, location, status, review_reasons,
+       observation_id, candidate_id, decision_id, proposed_place_id, created_at, updated_at
+     )
+     SELECT item_id,$1::uuid,$2::uuid,source_item_key,source_item_id,provider_place_id,
+            source_list_id,source_list_position,source_position,list_name,
+            display_name,address,category_label,
+            CASE WHEN latitude IS NULL THEN NULL
+              ELSE ST_SetSRID(ST_MakePoint(longitude, latitude), 4326) END,
+            status,review_reasons,observation_id,candidate_id,decision_id,proposed_place_id,
+            $3::timestamptz,$3::timestamptz
+     FROM prepared
+     ON CONFLICT (batch_id, source_item_key) DO NOTHING
+     RETURNING id`,
+    [input.batchId, input.captureId, input.recordedAt, JSON.stringify(preparedRows)],
+  )
+  const insertedIds = new Set(insertedItems.rows.map((row) => row.id))
+  if (insertedIds.size === 0) return
+  const inserted = input.items.filter((item) => insertedIds.has(item.itemId))
+
+  const providerPlaceIds = [...new Set(inserted.flatMap((item) =>
+    item.providerPlaceId === undefined ? [] : [item.providerPlaceId]))]
+  if (providerPlaceIds.length > 0) {
     await client.query(
-      `INSERT INTO ingestion.import_place_fulfillment_intents (
-         item_id, job_id, state, created_at, updated_at
-       ) VALUES ($1::uuid,$2::uuid,'pending',$3::timestamptz,$3::timestamptz)
-       ON CONFLICT (item_id) DO NOTHING`,
-      [insertedItem.rows[0].id, job.rows[0]!.id, input.recordedAt],
+      `INSERT INTO ingestion.provider_place_detail_statuses (
+         provider_key, provider_place_id, status, requested_at, updated_at
+       )
+       SELECT $1, provider_place_id, 'pending', $3::timestamptz, $3::timestamptz
+       FROM unnest($2::text[]) AS provider_place_id
+       ON CONFLICT (provider_key, provider_place_id) DO NOTHING`,
+      [input.providerKey, providerPlaceIds, input.recordedAt],
     )
   }
+
+  const fulfillmentByPlace = new Map<string, NonNullable<PreparedImportItem['fulfillment']>>()
+  for (const imported of inserted) {
+    if (imported.fulfillment !== undefined) {
+      if (imported.providerPlaceId === undefined) {
+        throw new ImportReferenceUnavailableError('Fulfillment requires a provider place identity.')
+      }
+      if (!fulfillmentByPlace.has(imported.providerPlaceId)) {
+        fulfillmentByPlace.set(imported.providerPlaceId, imported.fulfillment)
+      }
+    }
+  }
+  if (fulfillmentByPlace.size === 0) return
+  const jobRows = [...fulfillmentByPlace].map(([providerPlaceId, fulfillment]) => ({
+    provider_place_id: providerPlaceId,
+    job_id: fulfillment.jobId,
+    observation_id: fulfillment.observationId,
+    candidate_id: fulfillment.candidateId,
+    decision_id: fulfillment.decisionId,
+    proposed_place_id: fulfillment.proposedPlaceId,
+  }))
+  const jobs = await client.query<{ id: string; provider_place_id: string }>(
+    `WITH prepared AS (
+       SELECT * FROM jsonb_to_recordset($3::jsonb) AS job_input(
+         provider_place_id text, job_id uuid, observation_id uuid,
+         candidate_id uuid, decision_id uuid, proposed_place_id uuid
+       )
+     )
+     INSERT INTO ingestion.import_place_fulfillment_jobs AS job (
+       id, provider_key, provider_place_id, state, available_at,
+       observation_id, candidate_id, decision_id, proposed_place_id,
+       created_at, updated_at
+     )
+     SELECT job_id,$1,provider_place_id,'queued',$2::timestamptz,
+            observation_id,candidate_id,decision_id,proposed_place_id,
+            $2::timestamptz,$2::timestamptz
+     FROM prepared
+     ON CONFLICT (provider_key, provider_place_id) DO UPDATE
+     SET state = CASE
+           WHEN job.state IN ('completed', 'failed') THEN 'queued'
+           ELSE job.state
+         END,
+         available_at = CASE
+           WHEN job.state IN ('completed', 'failed') THEN EXCLUDED.available_at
+           ELSE job.available_at
+         END,
+         attempt_count = CASE
+           WHEN job.state IN ('completed', 'failed') THEN 0
+           ELSE job.attempt_count
+         END,
+         failure_code = CASE
+           WHEN job.state IN ('completed', 'failed') THEN NULL
+           ELSE job.failure_code
+         END,
+         failure_retryable = CASE
+           WHEN job.state IN ('completed', 'failed') THEN NULL
+           ELSE job.failure_retryable
+         END,
+         updated_at = EXCLUDED.updated_at
+     RETURNING job.id, job.provider_place_id`,
+    [input.providerKey, input.recordedAt, JSON.stringify(jobRows)],
+  )
+  const jobIdByProviderPlace = new Map(
+    jobs.rows.map((row) => [row.provider_place_id, row.id]),
+  )
+  const intentRows = inserted.flatMap((imported) => {
+    if (imported.fulfillment === undefined || imported.providerPlaceId === undefined) return []
+    const jobId = jobIdByProviderPlace.get(imported.providerPlaceId)
+    return jobId === undefined ? [] : [{ item_id: imported.itemId, job_id: jobId }]
+  })
+  await client.query(
+    `WITH prepared AS (
+       SELECT * FROM jsonb_to_recordset($2::jsonb) AS intent_input(
+         item_id uuid, job_id uuid
+       )
+     )
+     INSERT INTO ingestion.import_place_fulfillment_intents (
+       item_id, job_id, state, created_at, updated_at
+     )
+     SELECT item_id,job_id,'pending',$1::timestamptz,$1::timestamptz
+     FROM prepared
+     ON CONFLICT (item_id) DO NOTHING`,
+    [input.recordedAt, JSON.stringify(intentRows)],
+  )
 }
 
 async function updateImportBatchAfterCapture(
@@ -1548,17 +1640,23 @@ export class PostgresPlaceImports implements
     return renewed.rowCount === 1
   }
 
-  async completeFulfillmentItem(input: Readonly<{
+  async completeFulfillmentItems(input: Readonly<{
     claim: ImportedPlaceFulfillmentClaim
-    itemId: string
+    itemIds: readonly string[]
     canonicalPlaceId: string
     completedAt: string
   }>): Promise<void> {
+    const itemIds = [...new Set(input.itemIds)]
+    if (itemIds.length === 0) {
+      throw new ImportReferenceUnavailableError('Imported place fulfillment items are unavailable.')
+    }
     const client = await this.pool.connect()
     try {
       await client.query('BEGIN')
       const completed = await client.query<{ batch_id: string }>(
-        `WITH owned AS (
+        `WITH requested AS (
+           SELECT unnest($4::uuid[]) AS item_id
+         ), owned AS (
            SELECT id FROM ingestion.import_place_fulfillment_jobs
            WHERE id = $1::uuid AND state = 'leased' AND lease_owner = $2
              AND lease_generation = $3
@@ -1567,8 +1665,8 @@ export class PostgresPlaceImports implements
            UPDATE ingestion.import_place_fulfillment_intents AS intent
            SET state = 'applied', canonical_place_id = $5::uuid,
                updated_at = $6::timestamptz
-           FROM owned
-           WHERE intent.job_id = owned.id AND intent.item_id = $4::uuid
+           FROM owned, requested
+           WHERE intent.job_id = owned.id AND intent.item_id = requested.item_id
              AND intent.state = 'pending'
            RETURNING intent.item_id
          )
@@ -1579,11 +1677,14 @@ export class PostgresPlaceImports implements
          WHERE imported.id = updated_intent.item_id
          RETURNING imported.batch_id`,
         [input.claim.jobId, input.claim.lease.owner, input.claim.lease.generation,
-          input.itemId, input.canonicalPlaceId, input.completedAt],
+          itemIds, input.canonicalPlaceId, input.completedAt],
       )
-      const row = completed.rows[0]
-      if (row === undefined) throw new ImportLeaseLostError()
-      await refreshBatchProgress(client, row.batch_id, input.completedAt)
+      if (completed.rows.length !== itemIds.length) throw new ImportLeaseLostError()
+      await refreshBatchProgresses(
+        client,
+        [...new Set(completed.rows.map((row) => row.batch_id))],
+        input.completedAt,
+      )
       await client.query('COMMIT')
     } catch (error) {
       await client.query('ROLLBACK').catch(() => undefined)
@@ -1709,16 +1810,15 @@ export class PostgresPlaceImports implements
             input.outcome.code, retry, input.finishedAt],
         )
       }
-      for (const row of batches.rows) {
-        await refreshBatchProgress(client, row.batch_id, input.finishedAt)
-        if (input.outcome.kind === 'failure') {
-          await client.query(
-            `UPDATE ingestion.import_batches
-             SET failure_code = $2, failure_retryable = $3
-             WHERE id = $1::uuid AND state <> 'cancelled'`,
-            [row.batch_id, input.outcome.code, input.outcome.retryable],
-          )
-        }
+      const batchIds = batches.rows.map((row) => row.batch_id)
+      await refreshBatchProgresses(client, batchIds, input.finishedAt)
+      if (input.outcome.kind === 'failure' && batchIds.length > 0) {
+        await client.query(
+          `UPDATE ingestion.import_batches
+           SET failure_code = $2, failure_retryable = $3
+           WHERE id = ANY($1::uuid[]) AND state <> 'cancelled'`,
+          [batchIds, input.outcome.code, input.outcome.retryable],
+        )
       }
       await client.query('COMMIT')
     } catch (error) {

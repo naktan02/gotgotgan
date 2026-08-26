@@ -60,7 +60,7 @@ describe('import materialization runtime', () => {
         .mockResolvedValueOnce(claim)
         .mockResolvedValueOnce(undefined),
       renewFulfillmentLease: vi.fn(async () => true),
-      completeFulfillmentItem: vi.fn(async () => undefined),
+      completeFulfillmentItems: vi.fn(async () => undefined),
       finishFulfillmentJob: vi.fn(async () => undefined),
     }
 

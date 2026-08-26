@@ -2,6 +2,7 @@ import {
   assertIsoTimestamp,
   assertProviderKey,
   InvalidIngestionRecordError,
+  type SourceObservationKind,
   type SourceObservationRecord,
 } from '../domain/model.js'
 import { appendIngestionRecord } from './append-record.js'
@@ -9,7 +10,10 @@ import { fingerprint } from './fingerprint.js'
 import type { IngestionStore } from './ports/ingestion-store.js'
 
 export async function recordSourceObservation(
-  input: Omit<SourceObservationRecord, 'kind' | 'fingerprint'> & Readonly<{ store: IngestionStore }>,
+  input: Omit<SourceObservationRecord, 'kind' | 'fingerprint' | 'observationKind'> & Readonly<{
+    observationKind?: SourceObservationKind
+    store: IngestionStore
+  }>,
 ) {
   assertProviderKey(input.providerKey)
   assertIsoTimestamp(input.observedAt, 'observedAt')
@@ -23,11 +27,14 @@ export async function recordSourceObservation(
   if (input.confidence < 0 || input.confidence > 1) {
     throw new InvalidIngestionRecordError('confidence must be between zero and one')
   }
-  const { store, ...values } = input
+  const { store, observationKind = 'general', ...values } = input
   const record: SourceObservationRecord = {
     kind: 'source-observation',
     ...values,
-    fingerprint: fingerprint({ kind: 'source-observation', ...values }),
+    observationKind,
+    fingerprint: fingerprint(observationKind === 'general'
+      ? { kind: 'source-observation', ...values }
+      : { kind: 'source-observation', ...values, observationKind }),
   }
   return appendIngestionRecord(record, store)
 }

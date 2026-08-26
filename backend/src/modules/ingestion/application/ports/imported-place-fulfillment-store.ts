@@ -2,6 +2,10 @@ import type { ImportFailureCode } from '../../domain/imports.js'
 import type { ReviewableImportItem } from './import-review-store.js'
 import type { EnrichedPlaceDetail } from './place-enrichment-source.js'
 
+export type FulfillableImportItem = Omit<ReviewableImportItem, 'providerPlaceId'> & Readonly<{
+  providerPlaceId: string
+}>
+
 export type ImportedPlaceFulfillmentClaim = Readonly<{
   jobId: string
   providerKey: 'naver' | 'kakao' | 'google'
@@ -12,7 +16,7 @@ export type ImportedPlaceFulfillmentClaim = Readonly<{
   decisionId: string
   proposedPlaceId: string
   lease: Readonly<{ owner: string; generation: number; expiresAt: string }>
-  items: readonly ReviewableImportItem[]
+  items: readonly FulfillableImportItem[]
 }>
 
 export type ImportedPlaceFulfillmentOutcome =
@@ -39,9 +43,9 @@ export interface ImportedPlaceFulfillmentStore {
     renewedAt: string
     leaseUntil: string
   }>): Promise<boolean>
-  completeFulfillmentItem(input: Readonly<{
+  completeFulfillmentItems(input: Readonly<{
     claim: ImportedPlaceFulfillmentClaim
-    itemId: string
+    itemIds: readonly string[]
     canonicalPlaceId: string
     completedAt: string
   }>): Promise<void>

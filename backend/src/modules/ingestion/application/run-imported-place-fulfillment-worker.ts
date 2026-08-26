@@ -54,7 +54,7 @@ export function createImportedPlaceFulfillmentWorker(dependencies: Readonly<{
           connectionId: item.connectionId,
           listId: item.sourceListId,
           itemId: item.sourceItemId,
-          providerPlaceId: item.providerPlaceId!,
+          providerPlaceId: item.providerPlaceId,
           listName: item.listName,
           listPosition: item.sourceListPosition,
           position: item.sourcePosition,
@@ -63,14 +63,14 @@ export function createImportedPlaceFulfillmentWorker(dependencies: Readonly<{
       if (saved.status !== 'applied' && saved.status !== 'replayed') {
         throw new ImportReferenceUnavailableError(`Imported place save failed: ${saved.status}`)
       }
-      await dependencies.store.completeFulfillmentItem({
-        claim,
-        itemId: item.itemId,
-        canonicalPlaceId,
-        completedAt: occurredAt,
-      })
       fulfilled += 1
     }
+    await dependencies.store.completeFulfillmentItems({
+      claim,
+      itemIds: claim.items.map((item) => item.itemId),
+      canonicalPlaceId,
+      completedAt: occurredAt,
+    })
     await dependencies.store.finishFulfillmentJob({
       claim,
       outcome: { kind: 'completed', canonicalPlaceId },

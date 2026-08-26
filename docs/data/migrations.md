@@ -61,3 +61,8 @@ Migration `000019`는 불투명 합성 key에서 Provider의 `source_item_id`를
 가리키는 `available`만 허용한다. `library.collection_place_import_provenance`는 Collection membership과
 같은 transaction에서 Source Connection·List·Item·Provider Place ID를 보존하며, Provider 상세 실패가
 이미 저장된 private Collection을 되돌리지 않게 한다.
+
+Migration `000020`은 Collection membership이 아니라 Provider·Connection·List·Item 원본 식별자를
+장소 provenance의 key로 사용해 같은 membership에 합쳐진 여러 Source Item을 모두 보존한다. 상세
+`available` 참조는 같은 Provider Place Identity의 `provider-detail` Source Observation과 그 관찰에서
+정규화된 Place Candidate를 묶은 `provider_place_detail_observations`만 가리킬 수 있다.

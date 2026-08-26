@@ -68,3 +68,9 @@ preference, Collection, membership, provenance와 command receipt를 한 transac
 sequence별 capture receipt를 추가한다. grant token은 SHA-256 digest로만 저장하고 공개 origin·Provider·
 item/byte/batch 상한을 operation에 고정한다. receipt는 암호화 artifact 메타데이터를 참조하는
 `pending`/`committed` 두 단계이며 runtime role은 token 회전, 누적 진행과 완료에 필요한 열만 갱신한다.
+
+`000019`는 ImportItem의 Source List·Item identity를 분리하고 Provider Place Identity별 상세 상태와
+Collection Place Import Provenance를 추가한다. `000020`은 provenance의 key를 원본 Source Item
+identity로 교체해 같은 membership의 복수 원본을 보존한다. 또한 `provider-detail` Source Observation,
+그 관찰의 정규화 Candidate, 동일 Provider Place Identity를 하나의 참조로 묶어 `available` 상세 상태가
+임의의 관찰을 가리킬 수 없게 한다.

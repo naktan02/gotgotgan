@@ -63,7 +63,7 @@ function fixture(input: Readonly<{ linked: boolean }>) {
   const store: ImportedPlaceFulfillmentStore = {
     claimNextFulfillment: vi.fn(async () => claim),
     renewFulfillmentLease: vi.fn(async () => true),
-    completeFulfillmentItem: vi.fn(async (item) => { completedItems.push(item) }),
+    completeFulfillmentItems: vi.fn(async (items) => { completedItems.push(items) }),
     finishFulfillmentJob: vi.fn(async (job) => { finishedJobs.push(job) }),
   }
   const ingestionStore: IngestionStore = {
@@ -125,7 +125,7 @@ describe('imported place materialization worker interface', () => {
       },
     })
     expect(dependencies.completedItems).toEqual([expect.objectContaining({
-      itemId: firstItem.itemId,
+      itemIds: [firstItem.itemId],
       canonicalPlaceId,
     })])
   })
@@ -167,7 +167,10 @@ describe('imported place materialization worker interface', () => {
       },
     }))
     expect(dependencies.library.saveImportedPlace).toHaveBeenCalledTimes(2)
-    expect(dependencies.completedItems).toHaveLength(2)
+    expect(dependencies.completedItems).toEqual([expect.objectContaining({
+      itemIds: [firstItem.itemId, second.itemId],
+      canonicalPlaceId: claim.proposedPlaceId,
+    })])
     expect(dependencies.appended).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: claim.observationId, kind: 'source-observation' }),
       expect.objectContaining({ id: claim.candidateId, kind: 'place-candidate' }),
