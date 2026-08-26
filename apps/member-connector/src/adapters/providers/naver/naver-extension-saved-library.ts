@@ -79,6 +79,18 @@ export class NaverExtensionSavedPlaceSource implements SavedPlaceSource {
     } catch (error) {
       throw mappedError(error)
     }
+    if (collected.lists.length === 0) {
+      yield {
+        itemCount: 0,
+        payload: JSON.stringify({
+          schemaVersion: 'place-naver-saved-capture.v1',
+          kind: 'page',
+          lists: [],
+          nextCursor: null,
+        }),
+      }
+      return
+    }
     for (const [listPosition, list] of collected.lists.entries()) {
       const pageCount = Math.max(1, Math.ceil(list.bookmarks.length / this.maximumBatchItems))
       for (let page = 0; page < pageCount; page += 1) {

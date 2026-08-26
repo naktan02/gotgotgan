@@ -33,9 +33,11 @@ source-only로 연결됐지만 실제 브라우저 설치·업데이트·서명�
 현재 visible Chrome context를 생성하는 login, redacted observation, bounded local collection은 확장
 이전의 source-only 진단 CLI다. 전체 저장목록 결과는 메모리에서 폐기되고 합계만 출력한다. 전용
 profile의 로그인 성공은 제품 완료 조건이 아니며 Playwright 진단·fixture/replay·E2E·통제된 fallback으로
-유지한다. Extension capture Adapter와 Web의 grant/capture BFF route는 source-only지만 Backend
-`/v1/connector-grants`와 `/v1/connector-captures` 수신 endpoint가 아직 없으므로 ImportBatch delivery는
-`not-integrated`다. Docker/Compose Worker가 회원 캡처를 받는 활성 경로도 없다.
+유지한다. Extension capture Adapter, Web의 grant/capture BFF route와 Backend
+`/v1/connector-grants`·`/v1/connector-captures` 수신 endpoint는 source-only로 연결됐다. Backend HTTP
+프로세스가 짧은 수명 grant와 캡처 수신을 소유하고 암호화 capture volume을 maintenance sweep과
+공유한다. 이 경로는 별도 acquisition Worker를 깨우지 않고 ImportBatch·ImportItem·Fulfillment intent를
+직접 영속화한다. 실제 Whale/NAVER session smoke와 상세 보강 Worker 활성화는 integration-gated다.
 
 The source-only runtime exposes local health/readiness scaffolds and the Stage 2 shell/access code.
 Gateway, Identity, provider, map, family navigation, and AI delivery states remain `not-integrated`

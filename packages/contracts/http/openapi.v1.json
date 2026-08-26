@@ -77,6 +77,122 @@
         }
       }
     },
+    "/api/connector/grants": {
+      "post": {
+        "operationId": "issuePlaceConnectorGrantForBrowser",
+        "summary": "issuePlaceConnectorGrantForBrowser",
+        "security": [
+          {
+            "placeBrowserSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectorGrantRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Replay the operation with a rotated connector token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorGrant"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Create an origin-bound connector operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorGrant"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "409": {
+            "$ref": "#/components/responses/ProductConflict"
+          },
+          "503": {
+            "description": "The fixed internal Place Backend is unavailable"
+          }
+        }
+      }
+    },
+    "/api/connector/captures": {
+      "post": {
+        "operationId": "submitPlaceConnectorCaptureForBrowser",
+        "summary": "submitPlaceConnectorCaptureForBrowser",
+        "security": [
+          {
+            "placeConnector": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectorCaptureBatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Replay an already committed capture",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorCaptureReceipt"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accept and durably commit a capture",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorCaptureReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/ConnectorGrantInvalid"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "409": {
+            "$ref": "#/components/responses/ProductConflict"
+          },
+          "503": {
+            "description": "The fixed internal Place Backend is unavailable"
+          }
+        }
+      }
+    },
     "/api/membership-consents/current": {
       "get": {
         "operationId": "getCurrentPlaceMembershipConsentsForBrowser",
@@ -478,6 +594,136 @@
           },
           "403": {
             "$ref": "#/components/responses/AccessDenied"
+          }
+        }
+      }
+    },
+    "/v1/connector-grants": {
+      "post": {
+        "operationId": "issuePlaceConnectorGrant",
+        "summary": "issuePlaceConnectorGrant",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-place-public-origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ConnectorPublicOrigin"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectorGrantRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Replay the operation with a rotated connector token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorGrant"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Create an origin-bound connector operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorGrant"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "409": {
+            "$ref": "#/components/responses/ProductConflict"
+          }
+        }
+      }
+    },
+    "/v1/connector-captures": {
+      "post": {
+        "operationId": "submitPlaceConnectorCapture",
+        "summary": "submitPlaceConnectorCapture",
+        "security": [
+          {
+            "placeConnector": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-place-public-origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ConnectorPublicOrigin"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectorCaptureBatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Replay an already committed capture",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorCaptureReceipt"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accept and durably commit a capture",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorCaptureReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/ConnectorGrantInvalid"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "409": {
+            "$ref": "#/components/responses/ProductConflict"
           }
         }
       }
@@ -1389,9 +1635,275 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT"
+      },
+      "placeBrowserSession": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__Host-place_session"
+      },
+      "placeConnector": {
+        "type": "http",
+        "scheme": "PlaceConnector"
       }
     },
     "schemas": {
+      "ConnectorPublicOrigin": {
+        "type": "string",
+        "format": "uri"
+      },
+      "ConnectorGrantRequest": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "place-connector-grant-request.v1"
+          },
+          "installationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "browserKey": {
+            "type": "string",
+            "enum": [
+              "chrome",
+              "edge",
+              "whale",
+              "firefox",
+              "safari",
+              "chromium-other"
+            ]
+          },
+          "providerKey": {
+            "type": "string",
+            "enum": [
+              "naver",
+              "kakao",
+              "google"
+            ]
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "import-saved-library"
+            ]
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "installationId",
+          "browserKey",
+          "providerKey",
+          "operation",
+          "idempotencyKey"
+        ],
+        "additionalProperties": false
+      },
+      "ConnectorGrant": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "place-connector-grant.v1"
+          },
+          "operationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "providerKey": {
+            "type": "string",
+            "enum": [
+              "naver",
+              "kakao",
+              "google"
+            ]
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "import-saved-library"
+            ]
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "token": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 8192,
+            "pattern": "^[A-Za-z0-9._~-]+$"
+          },
+          "placeOrigin": {
+            "type": "string",
+            "format": "uri"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "maximumItems": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100000
+              },
+              "maximumBytes": {
+                "type": "integer",
+                "minimum": 1024,
+                "maximum": 134217728
+              },
+              "maximumBatches": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000
+              },
+              "maximumBatchBytes": {
+                "type": "integer",
+                "minimum": 1024,
+                "maximum": 4194304
+              }
+            },
+            "required": [
+              "maximumItems",
+              "maximumBytes",
+              "maximumBatches",
+              "maximumBatchBytes"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "operationId",
+          "providerKey",
+          "operation",
+          "idempotencyKey",
+          "token",
+          "placeOrigin",
+          "expiresAt",
+          "limits"
+        ],
+        "additionalProperties": false
+      },
+      "ConnectorCaptureBatch": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "place-connector-capture-batch.v1"
+          },
+          "operationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "providerKey": {
+            "type": "string",
+            "enum": [
+              "naver",
+              "kakao",
+              "google"
+            ]
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "final": {
+            "type": "boolean"
+          },
+          "itemCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 500
+          },
+          "contentType": {
+            "type": "string",
+            "const": "application/json"
+          },
+          "payload": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 4194304
+          },
+          "checksum": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "operationId",
+          "providerKey",
+          "sequence",
+          "final",
+          "itemCount",
+          "contentType",
+          "payload",
+          "checksum"
+        ],
+        "additionalProperties": false
+      },
+      "ConnectorCaptureReceipt": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "place-connector-capture-receipt.v1"
+          },
+          "operationId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "acceptedSequence": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "acceptedChecksum": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "receivedItems": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "receivedBytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 134217728
+          },
+          "importBatchId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "operationId",
+          "acceptedSequence",
+          "acceptedChecksum",
+          "receivedItems",
+          "receivedBytes",
+          "importBatchId"
+        ],
+        "additionalProperties": false
+      },
       "LibraryCommandRequest": {
         "type": "object",
         "properties": {
@@ -4600,6 +5112,16 @@
       },
       "AuthenticationRequired": {
         "description": "The bearer token is missing or invalid",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "ConnectorGrantInvalid": {
+        "description": "The connector grant is missing, expired, or invalid",
         "content": {
           "application/problem+json": {
             "schema": {

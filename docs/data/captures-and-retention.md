@@ -16,3 +16,9 @@ credentials. S3-compatible storage is introduced only after a second adapter or 
 물리 삭제한 뒤 삭제 시각을 표시한다. 이미 없는 파일도 성공적인 멱등 정리로 표시하며, 항목별 실패는
 다른 항목을 막지 않지만 명령 전체는 non-zero로 종료되어 운영자가 다시 실행할 수 있다. DB는 감사용
 checksum·parser version·보존기한과 삭제 시각을 남기고 캡처 본문은 보존하지 않는다.
+
+브라우저 Connector 수신은 파일과 DB 사이의 부분 실패를 숨기지 않는다. Backend는 sequence별
+`pending` receipt와 `import_capture_artifacts` 메타데이터를 먼저 같은 DB transaction에 기록한 뒤
+결정적인 `capture:<uuid>` 위치에 암호화 파일을 쓴다. 성공하면 ImportItem·Fulfillment intent·누적
+item/byte·`committed` receipt를 한 transaction으로 확정한다. 파일 쓰기나 프로세스가 중단되면 같은
+operation·sequence·checksum 재전송이 기존 예약을 이어 쓰며 새 artifact나 Item을 중복 생성하지 않는다.

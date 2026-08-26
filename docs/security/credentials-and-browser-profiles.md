@@ -34,6 +34,13 @@ sequence, checksum이 요청과 일치해야 한다. Chromium·Firefox manifest�
 NAVER는 `https://pages.map.naver.com/*`만 optional host permission으로 선언한다. 사용자가 NAVER
 가져오기를 선택한 즉시 클릭에서만 이를 요청하며 Kakao·Google 권한은 아직 선언하지 않는다.
 
+Backend는 OIDC로 확인한 회원에게만 grant를 발급하고 token 원문 대신 digest만 저장한다. 동일한
+멱등 요청을 재개하면 operation과 ImportBatch는 유지하되 token을 회전해 이전 값을 폐기한다. capture는
+공개 origin, provider, operation, 증가 sequence, checksum과 누적 상한을 모두 확인한다. 원본은
+배포 keyring의 AES-256-GCM으로 private volume에 저장하고 DB에는 불투명 `capture:` 참조와 보존 기한만
+남긴다. 캡처 파일과 DB 확정 사이의 장애는 `pending` receipt로 재개하며, 보존 만료 sweep이 DB와
+파일 삭제를 조정한다.
+
 현재 로컬 커넥터는 목표 확장 이전의 진단 도구로 저장소 밖 절대 경로의 전용 Chrome profile만 열고
 로그인과 관찰을 별도 명령으로 분리한다. 로그인 명령에는 response listener가 없다. 관찰 명령은
 `naver.com` 계열의 query 없는
@@ -44,9 +51,9 @@ profile 경로는 보고서에 남지 않으며 서버 전송도 구현하지 �
 못하므로 주 회원 경계가 아니라 Playwright 진단·fixture/replay·E2E·통제된 fallback이다.
 
 전체 저장목록 수집도 first-party page 안에서 실행해 cookie와 요청 header를 브라우저 context 밖으로
-꺼내지 않는다. 수집된 장소 값은 현재 메모리에서만 처리하고 CLI에는 합계만 출력한다. 캡처 제출을
-추가할 때는 로그인된 Place 회원이 승인한 일회성·짧은 수명의 upload grant를 versioned connector
-계약으로 만들며, Web session cookie나 장기 bearer token을 확장이나 로컬 CLI 설정으로 복사하지 않는다.
+꺼내지 않는다. 진단 CLI는 계속 합계만 출력하고 값을 폐기한다. 제품 확장은 로그인된 Place 회원이
+승인한 일회성·짧은 수명의 upload grant로만 캡처를 제출하며, Web session cookie나 장기 bearer token을
+확장이나 로컬 CLI 설정으로 복사하지 않는다.
 
 MVP에는 사용자별 서버, localhost daemon, native-messaging host가 없다. 확장을 쓸 수 없는 모바일·
 브라우저와 설치 거부 사용자는 수동 JSON/file capture를 같은 Ingestion 계약으로 제출한다.

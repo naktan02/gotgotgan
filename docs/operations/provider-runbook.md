@@ -75,4 +75,6 @@ JSON/file capture를 사용하며 사용자별 localhost 서버나 native host�
 Chromium·Firefox Manifest V3 build와 manifest 검사는 source-only로 통과한다. Chromium 산출물 하나를
 Chrome·Edge·Whale에 사용한다. Whale은 실설치 smoke가 없으므로 build 호환과 실제 지원을 구분한다.
 Firefox는 별도 산출물과 website content data declaration을 검사한다. Web의 공개 BFF route는 있지만
-Backend grant/capture receiver가 없으므로 실제 ImportBatch 전달은 아직 활성화하지 않는다.
+Backend grant/capture receiver와 PostGIS ImportBatch 영속화도 source-only로 연결됐다. 운영 활성화 전에는
+공개 origin, grant TTL과 상한, capture keyring·private volume, Web/Backend timeout을 모두 주입하고
+Whale에서 기존 NAVER session을 쓰는 실제 한 번의 전체 목록 smoke를 수행한다.

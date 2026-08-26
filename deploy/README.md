@@ -12,15 +12,12 @@ image references and keeps all Place processes under one product-owned Compose p
 - `worker-check`: opt-in verification profile for the separately runnable worker artifact; and
 - `worker-capture-sweep`: opt-in maintenance profile for one bounded expiry sweep.
 
-`compose.local.yml` alone adds Docker build targets and explicit standalone host ports while Web
-integrations and Backend access transports remain source-only by default. Local validation still
-supplies explicit image tags for the resulting builds. `compose.production.yml` selects Backend
-production composition, activates Web OIDC/membership/Import BFF runtimes, mounts protected secret
-files plus the non-secret membership policy, and joins the injected Place data network. The optional
-maintenance worker mounts the same database secret, a dedicated capture keyring, and an external
-private capture volume. It publishes no Backend host port and does not activate live provider
-acquisition. All addresses, files, pool bounds, timeouts, issuer/audience/scopes, and policy are
-required deployment inputs.
+`compose.local.yml`만 Docker build target과 명시적 standalone host port를 추가하며 Web integration과
+Backend transport는 기본적으로 source-only다. `compose.production.yml`은 Backend production
+composition과 Web OIDC·membership·Import·Connector BFF를 활성화한다. Backend와 선택적 보존 정리
+Worker는 같은 보호 capture keyring과 외부 private capture volume을 사용한다. Backend host port를
+게시하지 않고 live Provider acquisition이나 상세 보강 Worker를 활성화하지 않는다. 주소, 파일,
+Pool 상한, timeout, issuer/audience/scope, Connector TTL·용량 상한과 policy는 모두 배포 입력이다.
 
 Production image inputs must be immutable coordinates in the form
 `<registry>/<repository>@sha256:<64 lowercase hex>`. Run `npm run plan:deployment` before an

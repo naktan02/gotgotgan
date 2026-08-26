@@ -50,7 +50,7 @@ export function createConnectorBackendClient(config: ConnectorBackendClientConfi
     }),
     issueGrant: (accessToken: string, body: unknown, publicOrigin: string) =>
       send('/v1/connector-grants', `Bearer ${accessToken}`, body, publicOrigin),
-    submitCapture: (authorization: string, body: unknown) =>
-      send('/v1/connector-captures', authorization, body),
+    submitCapture: (authorization: string, body: unknown, publicOrigin: string) =>
+      send('/v1/connector-captures', authorization, body, publicOrigin),
   }
 }

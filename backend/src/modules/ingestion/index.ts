@@ -23,9 +23,26 @@ export { requestPlaceImport } from './application/request-place-import.js'
 export { reviewImportItem } from './application/review-import-item.js'
 export { createImportWorker } from './application/run-import-worker.js'
 export {
+  createConnectorImportReceiver,
+  type ConnectorImportReceiver,
+  type ConnectorReceiverRejection,
+} from './application/receive-connector-import.js'
+export {
   createImportedPlaceFulfillmentWorker,
 } from './application/run-imported-place-fulfillment-worker.js'
 export { sweepExpiredImportCaptures } from './application/sweep-expired-import-captures.js'
+export type {
+  ConnectorCaptureParseResult,
+  ConnectorCaptureParser,
+} from './application/ports/connector-capture-parser.js'
+export type {
+  ConnectorCaptureCommit,
+  ConnectorCaptureRejection,
+  ConnectorCaptureReservation,
+  ConnectorImportGrantCommand,
+  ConnectorImportLimits,
+  ConnectorImportStore,
+} from './application/ports/connector-import-store.js'
 export type {
   CaptureArtifactReplayStore,
   CaptureArtifactStore,
@@ -101,3 +118,7 @@ export {
   registerImportHttpRoutes,
   type ImportHttpDependencies,
 } from './transport/http/register-import-http.js'
+export {
+  registerConnectorHttpRoutes,
+  type ConnectorHttpDependencies,
+} from './transport/http/register-connector-http.js'

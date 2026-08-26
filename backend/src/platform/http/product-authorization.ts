@@ -16,8 +16,9 @@ export function sendProductProblem(
   code: string,
   title: string,
   retryable = false,
+  authenticationScheme: 'Bearer' | 'PlaceConnector' = 'Bearer',
 ): FastifyReply {
-  if (status === 401) reply.header('WWW-Authenticate', 'Bearer')
+  if (status === 401) reply.header('WWW-Authenticate', authenticationScheme)
   return reply
     .header('cache-control', 'no-store')
     .header('x-content-type-options', 'nosniff')

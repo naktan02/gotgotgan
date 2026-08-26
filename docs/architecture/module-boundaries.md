@@ -39,6 +39,11 @@ NAVER folder/bookmark schema와 전체 pagination은 `adapters/providers/naver`�
 못하므로 주 회원 경계가 아니라 Playwright 진단·fixture/replay·E2E·통제된 fallback으로 남긴다.
 확장 제출은 이 Adapter나 Backend source를 직접 import하지 않고 versioned connector 계약으로 연결한다.
 
+Backend의 Connector 수신도 Ingestion 안에서 깊은 interface 하나로 닫는다. HTTP와 production
+composition은 `issueGrant`와 `submitCapture`만 호출하고, Postgres operation/receipt, 암호화 artifact,
+Provider-neutral parser port는 내부 조립 세부사항이다. production composition만 Providers 공개
+`parseNaverSavedPlaceCapture`를 parser port로 바꾸며 Ingestion은 Providers 내부 경로를 역참조하지 않는다.
+
 NAVER·Kakao·Google은 같은 확장의 Provider Adapter이며 Provider별 확장을 만들지 않는다. Chromium,
 Firefox, Safari 차이는 Provider leaf로 역류하지 않는다. Stage 10 외부 저장은 Import용 Source를
 비대하게 만들지 않고 별도 `SavedPlaceTarget` Interface를 사용한다. ADR 0012가 이 경계를 고정한다.

@@ -1,6 +1,14 @@
 import { z, type ZodType } from 'zod'
 
 import {
+  connectorCaptureBatchSchema,
+  connectorCaptureReceiptSchema,
+  connectorGrantRequestSchema,
+  connectorGrantSchema,
+  connectorPublicOriginSchema,
+} from '../connector/index.js'
+
+import {
   authorityRoleChangeRequestSchema,
   authorityRoleChangeResultSchema,
   currentMembershipConsentsSchema,
@@ -53,6 +61,8 @@ import {
 
 const anonymous: readonly unknown[] = []
 const bearer = [{ placeBearer: [] }]
+const browserSession = [{ placeBrowserSession: [] }]
+const connectorGrant = [{ placeConnector: [] }]
 const optionalBearer = [{ placeBearer: [] }, {}]
 
 const ref = (section: 'responses' | 'schemas', name: string) => ({
@@ -76,6 +86,7 @@ function operation(
   operationId: string,
   responses: Readonly<Record<string, unknown>>,
   options: Readonly<{
+    parameters?: readonly unknown[]
     security?: readonly unknown[]
     requestSchema?: string
     summary?: string
@@ -85,6 +96,7 @@ function operation(
     operationId,
     summary: options.summary ?? operationId,
     ...(options.security === undefined ? {} : { security: options.security }),
+    ...(options.parameters === undefined ? {} : { parameters: options.parameters }),
     ...(options.requestSchema === undefined ? {} : {
       requestBody: requestBody(options.requestSchema),
     }),
@@ -131,6 +143,13 @@ const pathParameters = {
   },
 }
 
+const connectorOriginHeader = {
+  name: 'x-place-public-origin',
+  in: 'header',
+  required: true,
+  schema: ref('schemas', 'ConnectorPublicOrigin'),
+}
+
 const paths = {
   '/healthz': { get: operation('getPlaceHealth', { '200': described('Process is alive') }) },
   '/readyz': { get: operation('getPlaceReadiness', {
@@ -149,6 +168,30 @@ const paths = {
   '/api/auth/logout': { post: operation('endPlaceBrowserSession', {
     '303': described('Delete the server-side session and redirect locally'),
     '503': ref('responses', 'BrowserAuthUnavailable'),
+  }) },
+  '/api/connector/grants': { post: operation('issuePlaceConnectorGrantForBrowser', {
+    '200': described('Replay the operation with a rotated connector token', 'ConnectorGrant'),
+    '201': described('Create an origin-bound connector operation', 'ConnectorGrant'),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '401': ref('responses', 'AuthenticationRequired'),
+    '403': ref('responses', 'AccessDenied'),
+    '409': ref('responses', 'ProductConflict'),
+    '503': described('The fixed internal Place Backend is unavailable'),
+  }, {
+    security: browserSession,
+    requestSchema: 'ConnectorGrantRequest',
+  }) },
+  '/api/connector/captures': { post: operation('submitPlaceConnectorCaptureForBrowser', {
+    '200': described('Replay an already committed capture', 'ConnectorCaptureReceipt'),
+    '202': described('Accept and durably commit a capture', 'ConnectorCaptureReceipt'),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '401': ref('responses', 'ConnectorGrantInvalid'),
+    '403': ref('responses', 'AccessDenied'),
+    '409': ref('responses', 'ProductConflict'),
+    '503': described('The fixed internal Place Backend is unavailable'),
+  }, {
+    security: connectorGrant,
+    requestSchema: 'ConnectorCaptureBatch',
   }) },
   '/api/membership-consents/current': { get: operation(
     'getCurrentPlaceMembershipConsentsForBrowser',
@@ -230,6 +273,30 @@ const paths = {
     '401': ref('responses', 'AuthenticationRequired'),
     '403': ref('responses', 'AccessDenied'),
   }, { security: bearer }) },
+  '/v1/connector-grants': { post: operation('issuePlaceConnectorGrant', {
+    '200': described('Replay the operation with a rotated connector token', 'ConnectorGrant'),
+    '201': described('Create an origin-bound connector operation', 'ConnectorGrant'),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '401': ref('responses', 'AuthenticationRequired'),
+    '403': ref('responses', 'AccessDenied'),
+    '409': ref('responses', 'ProductConflict'),
+  }, {
+    security: bearer,
+    requestSchema: 'ConnectorGrantRequest',
+    parameters: [connectorOriginHeader],
+  }) },
+  '/v1/connector-captures': { post: operation('submitPlaceConnectorCapture', {
+    '200': described('Replay an already committed capture', 'ConnectorCaptureReceipt'),
+    '202': described('Accept and durably commit a capture', 'ConnectorCaptureReceipt'),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '401': ref('responses', 'ConnectorGrantInvalid'),
+    '403': ref('responses', 'AccessDenied'),
+    '409': ref('responses', 'ProductConflict'),
+  }, {
+    security: connectorGrant,
+    requestSchema: 'ConnectorCaptureBatch',
+    parameters: [connectorOriginHeader],
+  }) },
   '/v1/imports': { post: operation('requestPlaceImport', {
     '200': described('Return an idempotently replayed import batch', 'PlaceImportBatch'),
     '202': described('Queue a connected-account import', 'PlaceImportBatch'),
@@ -370,6 +437,11 @@ const paths = {
 }
 
 const schemas: Readonly<Record<string, ZodType>> = {
+  ConnectorPublicOrigin: connectorPublicOriginSchema,
+  ConnectorGrantRequest: connectorGrantRequestSchema,
+  ConnectorGrant: connectorGrantSchema,
+  ConnectorCaptureBatch: connectorCaptureBatchSchema,
+  ConnectorCaptureReceipt: connectorCaptureReceiptSchema,
   LibraryCommandRequest: libraryCommandRequestSchema,
   ProviderConnectionList: providerConnectionListSchema,
   PlaceImportRequest: placeImportRequestSchema,
@@ -438,6 +510,8 @@ export function buildOpenApiDocument() {
     components: {
       securitySchemes: {
         placeBearer: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+        placeBrowserSession: { type: 'apiKey', in: 'cookie', name: '__Host-place_session' },
+        placeConnector: { type: 'http', scheme: 'PlaceConnector' },
       },
       schemas: Object.fromEntries(
         Object.entries(schemas).map(([name, schema]) => [name, openApiSchema(schema)]),
@@ -447,6 +521,7 @@ export function buildOpenApiDocument() {
         ProductNotFound: problemResponse('The owned resource or disclosed publication is unavailable'),
         ProductConflict: problemResponse('The request conflicts with prior state'),
         AuthenticationRequired: problemResponse('The bearer token is missing or invalid'),
+        ConnectorGrantInvalid: problemResponse('The connector grant is missing, expired, or invalid'),
         AccessDenied: problemResponse('The principal lacks Place access'),
         BrowserAuthRejected: problemResponse('The browser login transaction was rejected'),
         BrowserAuthUnavailable: problemResponse('Browser authentication is inactive or unavailable'),

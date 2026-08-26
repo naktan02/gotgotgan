@@ -79,8 +79,10 @@ NAVER 내부 요청, 서버 profile Adapter와 production Worker 활성화는 �
 수집 application Interface, WebExtensions Adapter, 고정 공개-origin upload Adapter와 Chromium·Firefox
 Manifest V3 build 검증은 source-only로 구현했다. Chrome·Edge·Whale은 Chromium 산출물 하나를
 공유하지만 실제 Whale 설치는 아직 검증하지 않았다. 실제 Provider Adapter·host permission·공개 BFF
-route·ImportBatch 연결도 아직 없다. 기존 전용 Chrome profile 로그인, 비식별 관찰과 NAVER 전체
-pagination 수집은 진단·fixture/replay·E2E·fallback으로만 남긴다.
+route와 Backend grant/capture receiver·ImportBatch 연결은 NAVER에 대해 source-only로 구현했다. grant
+token digest, origin·sequence·상한·checksum, 암호화 원본, 정규화 Item과 Fulfillment intent를 실제
+PostGIS로 검증했다. 실제 Whale 설치와 로그인된 NAVER session smoke는 아직 남아 있다. 기존 전용
+Chrome profile 로그인, 비식별 관찰과 NAVER 전체 pagination 수집은 진단·fixture/replay·E2E·fallback으로만 남긴다.
 
 ## Repository boundaries
 

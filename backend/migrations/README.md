@@ -59,3 +59,8 @@ Identity의 여러 회원 요청은 unique job 하나를 공유한다. 취소된
 원본 목록의 대응을 기록하는 `library.collection_import_provenance`를 만든다. Provider 목록 재수집은
 같은 provenance를 재사용하되 회원이 수정한 Collection 이름을 덮어쓰지 않는다. Library 저장 adapter는
 preference, Collection, membership, provenance와 command receipt를 한 transaction으로 반영한다.
+
+`000017`은 회원 브라우저 설치별 Provider connection 재사용, 짧은 수명 Connector operation과
+sequence별 capture receipt를 추가한다. grant token은 SHA-256 digest로만 저장하고 공개 origin·Provider·
+item/byte/batch 상한을 operation에 고정한다. receipt는 암호화 artifact 메타데이터를 참조하는
+`pending`/`committed` 두 단계이며 runtime role은 token 회전, 누적 진행과 완료에 필요한 열만 갱신한다.

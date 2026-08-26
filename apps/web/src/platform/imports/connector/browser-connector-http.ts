@@ -117,7 +117,9 @@ export function createBrowserConnectorHttp(dependencies: Readonly<{
       }
       if (request.headers.get('x-place-connector-operation') !== batch.operationId) return invalid()
       try {
-        const response = await backend.submitCapture(authorization, batch)
+        const response = await backend.submitCapture(
+          authorization, batch, new URL(request.url).origin,
+        )
         if (!response.ok) return rejected(response)
         const receipt = connectorCaptureReceiptSchema.safeParse(await responseJson(response)).data
         if (

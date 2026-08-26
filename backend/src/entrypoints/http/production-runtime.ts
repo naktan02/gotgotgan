@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 
 import { Pool } from 'pg'
 
@@ -14,10 +14,13 @@ import {
 import { PostgresLibraryStore, saveImportedPlace } from '../../modules/library/index.js'
 import {
   materializeSuggestedPlace,
+  createConnectorImportReceiver,
+  EncryptedFileCaptureArtifactStore,
   PostgresIngestionStore,
   PostgresPlaceImports,
   recordSuggestionObservation,
   type CanonicalPlaceMaterializationPort,
+  type ConnectorCaptureParser,
 } from '../../modules/ingestion/index.js'
 import {
   applyCanonicalResolution,
@@ -30,6 +33,7 @@ import {
   KakaoOfficialPlaceSearch,
   NaverOfficialPlaceSearch,
   OfficialProviderHttpClient,
+  parseNaverSavedPlaceCapture,
   type ProviderPlaceDetails,
   type ProviderPlaceSearch,
   type ProviderPlaceSuggestions,
@@ -170,6 +174,28 @@ export async function createProductionHttpRuntime(
       },
     })
     const taxonomyStore = new PostgresTaxonomyStore(pool)
+    const connector = config.connector === undefined
+      ? undefined
+      : createConnectorImportReceiver({
+          store: placeImports,
+          artifacts: new EncryptedFileCaptureArtifactStore({
+            ...config.connector.artifacts,
+            now,
+          }),
+          parsers: [{
+            providerKey: 'naver',
+            parserVersion: 'naver-saved-place.v1',
+            acquisitionKind: 'browser-network',
+            parse: (input) => {
+              const parsed = parseNaverSavedPlaceCapture(input)
+              return parsed.kind === 'page' ? parsed : { kind: 'rejected' as const }
+            },
+          } satisfies ConnectorCaptureParser],
+          config: config.connector,
+          nextId: randomUUID,
+          nextToken: () => randomBytes(32).toString('base64url'),
+          now,
+        })
     const application = buildHttpApplication({
       access: {
         principalVerifier,
@@ -184,6 +210,14 @@ export async function createProductionHttpRuntime(
         now,
       },
       library: { authorizer: productAuthorizer, store: libraryStore, now },
+      ...(connector === undefined ? {} : {
+        connector: {
+          authorizer: productAuthorizer,
+          receiver: connector,
+          maximumCaptureRequestBytes:
+            config.connector!.limits.maximumBatchBytes * 2 + 65_536,
+        },
+      }),
       imports: {
         authorizer: productAuthorizer,
         requestStore: placeImports,

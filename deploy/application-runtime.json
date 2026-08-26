@@ -24,7 +24,8 @@
         "web-listener",
         "oidc-client",
         "membership-backend",
-        "import-backend"
+        "import-backend",
+        "connector-backend"
       ],
       "secretFileRoles": [
         "database-url",
@@ -40,10 +41,13 @@
         "backend-listener",
         "oidc-resource-server",
         "membership-policy",
-        "database-pool"
+        "database-pool",
+        "connector-receiver",
+        "capture-artifact-store"
       ],
       "secretFileRoles": [
-        "database-url"
+        "database-url",
+        "capture-keyring"
       ]
     },
     "worker": {

@@ -134,7 +134,7 @@ export async function collectSavedLibrary(
   let importBatchId: string | undefined
 
   if (current.done) {
-    current = { done: false, value: { itemCount: 0, payload: '{"items":[]}' } }
+    throw operationError('provider-drift', false, 'Provider source produced no capture document')
   }
 
   while (!current.done) {

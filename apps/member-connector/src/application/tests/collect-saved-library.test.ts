@@ -121,6 +121,18 @@ describe('collectSavedLibrary', () => {
     expect(collect).not.toHaveBeenCalled()
   })
 
+  it('rejects a provider source that omits its provider-specific empty capture', async () => {
+    await expect(collectSavedLibrary({
+      session: activeSession,
+      source: source([]),
+      submission: submission([]),
+      now: () => new Date('2026-08-26T10:00:00.000Z'),
+    }, {
+      grant: grant(),
+      signal: new AbortController().signal,
+    })).rejects.toMatchObject({ code: 'provider-drift', retryable: false })
+  })
+
   it('rejects a batch before upload when the operation grant limit is exceeded', async () => {
     const submit = vi.fn(async ({ batch }: { batch: ConnectorCaptureBatch }) => ({
       schemaVersion: 'place-connector-capture-receipt.v1' as const,

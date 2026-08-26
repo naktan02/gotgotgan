@@ -231,3 +231,199 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
     await rm(captureRoot, { recursive: true, force: true })
   }
 })
+
+test('browser connector grants and captures resume safely into one durable import batch', { timeout: 120_000 }, async () => {
+  const database = await startPreparedPlaceDatabase('browser-connector-imports')
+  const captureRoot = await mkdtemp(join(tmpdir(), 'place-browser-connector-'))
+  try {
+    const ingestion = await import('../../dist/modules/ingestion/index.js')
+    const providers = await import('../../dist/modules/providers/index.js')
+    const store = new ingestion.PostgresPlaceImports(database.pool)
+    const memberId = '01992d32-0000-7000-8000-000000000001'
+    const installationId = '01992d32-0000-7000-8000-000000000002'
+    const idempotencyKey = '01992d32-0000-7000-8000-000000000003'
+    const operationId = '01992d32-0000-7000-8000-000000000004'
+    const connectionId = '01992d32-0000-7000-8000-000000000005'
+    const importBatchId = '01992d32-0000-7000-8000-000000000006'
+    const generated = [
+      operationId, connectionId, importBatchId,
+      '01992d32-0000-7000-8000-000000000007',
+      '01992d32-0000-7000-8000-000000000008',
+      '01992d32-0000-7000-8000-000000000009',
+      ...Array.from({ length: 20 }, (_, index) =>
+        `01992d32-0000-7000-8001-${String(index + 1).padStart(12, '0')}`),
+    ]
+    const tokens = [
+      'first-connector-token-that-will-be-rotated',
+      'second-connector-token-that-remains-active',
+    ]
+    const at = new Date('2026-08-26T11:00:00.000Z')
+    await database.pool.query(
+      `INSERT INTO access.memberships (
+         id, issuer, subject, status, authority_role, user_grade, product_tier, created_at, updated_at
+       ) VALUES ($1::uuid,'urn:place:test','browser-connector-member','active','member','newcomer','free',$2,$2)`,
+      [memberId, at.toISOString()],
+    )
+    const artifacts = new ingestion.EncryptedFileCaptureArtifactStore({
+      root: captureRoot,
+      activeKeyId: 'connector-integration',
+      keys: { 'connector-integration': new Uint8Array(32).fill(9) },
+      maximumBytes: 1_048_576,
+      now: () => at,
+    })
+    const receiver = ingestion.createConnectorImportReceiver({
+      store,
+      artifacts,
+      parsers: [{
+        providerKey: 'naver',
+        parserVersion: 'naver-saved-place.v1',
+        acquisitionKind: 'browser-network',
+        parse: (input) => {
+          const parsed = providers.parseNaverSavedPlaceCapture(input)
+          return parsed.kind === 'page' ? parsed : { kind: 'rejected' }
+        },
+      }],
+      config: {
+        publicOrigin: 'https://place.example',
+        grantTtlMilliseconds: 600_000,
+        captureRetentionMilliseconds: 86_400_000,
+        limits: {
+          maximumItems: 10_000,
+          maximumBytes: 10_485_760,
+          maximumBatches: 100,
+          maximumBatchBytes: 1_048_576,
+        },
+      },
+      nextId: () => generated.shift(),
+      nextToken: () => tokens.shift(),
+      now: () => at,
+    })
+    const request = {
+      schemaVersion: 'place-connector-grant-request.v1',
+      installationId,
+      browserKey: 'whale',
+      providerKey: 'naver',
+      operation: 'import-saved-library',
+      idempotencyKey,
+    }
+    const firstGrant = await receiver.issueGrant({
+      memberId, publicOrigin: 'https://place.example', request,
+    })
+    assert.equal(firstGrant.status, 'created')
+    const resumedGrant = await receiver.issueGrant({
+      memberId, publicOrigin: 'https://place.example', request,
+    })
+    assert.equal(resumedGrant.status, 'replayed')
+    assert.equal(resumedGrant.grant.operationId, operationId)
+    assert.equal(resumedGrant.grant.token, 'second-connector-token-that-remains-active')
+
+    const payload = JSON.stringify({
+      schemaVersion: 'place-naver-saved-capture.v1',
+      kind: 'page',
+      lists: [{
+        listId: 'fukuoka-list', name: '후쿠오카', position: 0,
+        bookmarks: [{
+          bookmarkId: 'ramen-bookmark', placeId: 'naver-place-1', position: 0,
+          name: '라멘 가게', address: '후쿠오카 주소', category: '음식점',
+          latitude: 33.59, longitude: 130.4,
+        }],
+      }],
+      nextCursor: null,
+    })
+    const checksum = createHash('sha256').update(payload).digest('hex')
+    const capture = {
+      schemaVersion: 'place-connector-capture-batch.v1',
+      operationId,
+      providerKey: 'naver',
+      sequence: 0,
+      final: false,
+      itemCount: 1,
+      contentType: 'application/json',
+      payload,
+      checksum,
+    }
+    assert.deepEqual(await receiver.submitCapture({
+      token: 'first-connector-token-that-will-be-rotated',
+      publicOrigin: 'https://place.example',
+      batch: capture,
+    }), { status: 'rejected', reason: 'invalid-grant' })
+    const accepted = await receiver.submitCapture({
+      token: 'second-connector-token-that-remains-active',
+      publicOrigin: 'https://place.example',
+      batch: capture,
+    })
+    assert.equal(accepted.status, 'accepted')
+    assert.equal(accepted.receipt.importBatchId, importBatchId)
+    assert.equal(accepted.receipt.receivedItems, 1)
+    assert.equal(accepted.receipt.receivedBytes, Buffer.byteLength(payload))
+    assert.equal((await store.getImport(memberId, importBatchId)).batch.state, 'partial')
+    assert.deepEqual(await receiver.submitCapture({
+      token: 'second-connector-token-that-remains-active',
+      publicOrigin: 'https://place.example',
+      batch: { ...capture, sequence: 2, final: true },
+    }), { status: 'rejected', reason: 'operation-conflict' })
+    const finalPayload = JSON.stringify({
+      schemaVersion: 'place-naver-saved-capture.v1',
+      kind: 'page', lists: [], nextCursor: null,
+    })
+    const finalChecksum = createHash('sha256').update(finalPayload).digest('hex')
+    const completed = await receiver.submitCapture({
+      token: 'second-connector-token-that-remains-active',
+      publicOrigin: 'https://place.example',
+      batch: {
+        ...capture, sequence: 1, final: true, itemCount: 0,
+        payload: finalPayload, checksum: finalChecksum,
+      },
+    })
+    assert.equal(completed.status, 'accepted')
+    assert.equal(completed.receipt.receivedItems, 1)
+    assert.equal(
+      completed.receipt.receivedBytes,
+      Buffer.byteLength(payload) + Buffer.byteLength(finalPayload),
+    )
+    assert.equal((await receiver.submitCapture({
+      token: 'second-connector-token-that-remains-active',
+      publicOrigin: 'https://place.example',
+      batch: capture,
+    })).status, 'replayed')
+
+    const detail = await store.getImport(memberId, importBatchId)
+    assert.equal(detail.batch.state, 'enriching')
+    assert.equal(detail.items.length, 1)
+    assert.deepEqual(detail.items[0], {
+      itemId: detail.items[0].itemId,
+      batchId: importBatchId,
+      providerKey: 'naver',
+      providerPlaceId: 'naver-place-1',
+      listName: '후쿠오카',
+      name: '라멘 가게',
+      address: '후쿠오카 주소',
+      categoryLabel: '음식점',
+      location: { latitude: 33.59, longitude: 130.4 },
+      status: 'enriching',
+      reviewReasons: [],
+    })
+    const persisted = await database.pool.query(`
+      SELECT
+        (SELECT count(*)::int FROM ingestion.provider_connections) AS connections,
+        (SELECT count(*)::int FROM ingestion.import_batches) AS batches,
+        (SELECT count(*)::int FROM ingestion.import_jobs) AS acquisition_jobs,
+        (SELECT count(*)::int FROM ingestion.connector_import_operations) AS operations,
+        (SELECT count(*)::int FROM ingestion.connector_capture_receipts WHERE state = 'committed') AS receipts,
+        (SELECT count(*)::int FROM ingestion.import_capture_artifacts) AS artifacts,
+        (SELECT count(*)::int FROM ingestion.import_items) AS items,
+        (SELECT count(*)::int FROM ingestion.import_place_fulfillment_intents) AS fulfillment_intents,
+        (SELECT token_digest FROM ingestion.connector_import_operations LIMIT 1) AS token_digest
+    `)
+    assert.deepEqual(persisted.rows[0], {
+      connections: 1, batches: 1, acquisition_jobs: 0, operations: 1,
+      receipts: 2, artifacts: 2, items: 1, fulfillment_intents: 1,
+      token_digest: createHash('sha256')
+        .update('second-connector-token-that-remains-active').digest('hex'),
+    })
+    assert.doesNotMatch(JSON.stringify(persisted.rows[0]), /second-connector-token/)
+  } finally {
+    await database.close()
+    await rm(captureRoot, { recursive: true, force: true })
+  }
+})

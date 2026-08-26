@@ -69,6 +69,8 @@ describe('browser connector HTTP', () => {
     }))
 
     expect(response.status).toBe(200)
-    expect(submitCapture).toHaveBeenCalledWith(`PlaceConnector ${token}`, expect.any(Object))
+    expect(submitCapture).toHaveBeenCalledWith(
+      `PlaceConnector ${token}`, expect.any(Object), 'https://place.example',
+    )
   })
 })

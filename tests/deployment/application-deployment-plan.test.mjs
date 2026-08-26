@@ -126,6 +126,8 @@ test('production composition consumes immutable images while local composition o
     /main\.js", "--sweep-expired-captures"/,
   )
   assert.match(productionCompose, /PLACE_IMPORT_RUNTIME_ENABLED: "true"/)
+  assert.match(productionCompose, /PLACE_CONNECTOR_RUNTIME_ENABLED: "true"/)
+  assert.match(productionCompose, /PLACE_CONNECTOR_PUBLIC_ORIGIN:/)
   assert.match(productionCompose, /PLACE_CAPTURE_KEYRING_FILE: \/run\/secrets\/place_capture_keyring/)
   assert.match(productionCompose, /PLACE_CAPTURE_ROOT: \/var\/lib\/place\/captures/)
   assert.match(productionCompose, /place-captures:\/var\/lib\/place\/captures/)
@@ -159,4 +161,7 @@ test('production composition consumes immutable images while local composition o
     ],
     secretFileRoles: ['database-url', 'capture-keyring'],
   })
+  assert.deepEqual(applicationRuntime.processes.backend.secretFileRoles, [
+    'database-url', 'capture-keyring',
+  ])
 })

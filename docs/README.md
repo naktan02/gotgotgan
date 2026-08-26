@@ -32,8 +32,10 @@ parser, 암호화 artifact replay, preview/review API, Web BFF와 반응형 검�
 결정했다. Versioned Connector 계약, provider-neutral application Interface, browser/upload Adapter와
 Chromium·Firefox Manifest V3 build 검증은 source-only다. Chrome·Edge·Whale은 Chromium 산출물을
 공유하지만 Whale 실설치 evidence는 아직 없다. Provider host permission, 실제 Provider Adapter, 공개
-BFF capture route, parser-change fixture와 서버 상세 profile Adapter는 integration-gated이며 완료로
-표시하지 않는다.
+BFF capture route와 Backend receiver는 NAVER에 대해 source-only로 연결됐다. grant rotation,
+origin·sequence·checksum·상한 검증, 암호화 원본과 PostGIS ImportBatch 영속화도 통합 검증한다.
+Kakao·Google Provider Adapter, 실제 Whale/NAVER session smoke, parser-change live fixture와 서버 상세
+profile Adapter는 integration-gated이며 완료로 표시하지 않는다.
 
 Provider Place ID가 안정된 item은 `enriching` intent와 같은 transaction에 기록된다. Provider
 Identity별 공동 Fulfillment Job은 Canonical cache를 먼저 확인하고 hit이면 외부 호출 없이 Library에

@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 
 import { z } from 'zod'
+import { connectorPublicOriginSchema } from '@place/contracts/connector'
 
 import {
   readAuthRuntimeConfig,
@@ -12,6 +13,10 @@ import type {
   KakaoOfficialSearchConfig,
   NaverOfficialSearchConfig,
 } from '../../modules/providers/index.js'
+import {
+  loadCaptureArtifactConfig,
+  type CaptureArtifactConfig,
+} from '../../platform/config/capture-artifacts.js'
 
 const httpRuntimeSchema = z.object({
   PLACE_HTTP_HOST: z.string().min(1),
@@ -41,6 +46,18 @@ export type ProductionHttpConfig = Readonly<{
     naver?: NaverOfficialSearchConfig
     kakao?: KakaoOfficialSearchConfig
     google?: GoogleOfficialPlacesConfig
+  }>
+  connector?: Readonly<{
+    publicOrigin: string
+    grantTtlMilliseconds: number
+    captureRetentionMilliseconds: number
+    limits: Readonly<{
+      maximumItems: number
+      maximumBytes: number
+      maximumBatches: number
+      maximumBatchBytes: number
+    }>
+    artifacts: CaptureArtifactConfig
   }>
 }>
 
@@ -87,6 +104,7 @@ const productionEnvironmentSchema = z.object({
     .min(1)
     .max(60_000),
   PLACE_MEMBERSHIP_POLICY_FILE: z.string().min(1),
+  PLACE_CONNECTOR_RUNTIME_ENABLED: z.enum(['true', 'false']),
 })
 
 function configurationError(): Error {
@@ -164,6 +182,43 @@ function providerTimeout(value: string): number {
   return parsed.data
 }
 
+const connectorEnvironmentSchema = z.object({
+  PLACE_CONNECTOR_PUBLIC_ORIGIN: connectorPublicOriginSchema,
+  PLACE_CONNECTOR_GRANT_TTL_SECONDS: z.coerce.number().int().min(60).max(3_600),
+  PLACE_CONNECTOR_CAPTURE_RETENTION_SECONDS: z.coerce.number().int().min(3_600).max(2_592_000),
+  PLACE_CONNECTOR_MAXIMUM_ITEMS: z.coerce.number().int().min(1).max(100_000),
+  PLACE_CONNECTOR_MAXIMUM_BYTES: z.coerce.number().int().min(1_024).max(134_217_728),
+  PLACE_CONNECTOR_MAXIMUM_BATCHES: z.coerce.number().int().min(1).max(1_000),
+  PLACE_CONNECTOR_MAXIMUM_BATCH_BYTES: z.coerce.number().int().min(1_024).max(4_194_304),
+  PLACE_CAPTURE_ROOT: z.string().min(1),
+  PLACE_CAPTURE_KEYRING_FILE: z.string().min(1),
+  PLACE_CAPTURE_MAXIMUM_BYTES: z.coerce.number().int().min(1).max(104_857_600),
+})
+
+async function loadConnectorConfig(environment: NodeJS.ProcessEnv) {
+  const values = connectorEnvironmentSchema.parse(environment)
+  if (
+    values.PLACE_CONNECTOR_MAXIMUM_BATCH_BYTES > values.PLACE_CONNECTOR_MAXIMUM_BYTES ||
+    values.PLACE_CONNECTOR_MAXIMUM_BATCH_BYTES > values.PLACE_CAPTURE_MAXIMUM_BYTES
+  ) throw configurationError()
+  return {
+    publicOrigin: values.PLACE_CONNECTOR_PUBLIC_ORIGIN,
+    grantTtlMilliseconds: values.PLACE_CONNECTOR_GRANT_TTL_SECONDS * 1_000,
+    captureRetentionMilliseconds: values.PLACE_CONNECTOR_CAPTURE_RETENTION_SECONDS * 1_000,
+    limits: {
+      maximumItems: values.PLACE_CONNECTOR_MAXIMUM_ITEMS,
+      maximumBytes: values.PLACE_CONNECTOR_MAXIMUM_BYTES,
+      maximumBatches: values.PLACE_CONNECTOR_MAXIMUM_BATCHES,
+      maximumBatchBytes: values.PLACE_CONNECTOR_MAXIMUM_BATCH_BYTES,
+    },
+    artifacts: await loadCaptureArtifactConfig({
+      root: values.PLACE_CAPTURE_ROOT,
+      keyringFile: values.PLACE_CAPTURE_KEYRING_FILE,
+      maximumBytes: values.PLACE_CAPTURE_MAXIMUM_BYTES,
+    }),
+  }
+}
+
 export async function loadOfficialProviderConfig(environment: NodeJS.ProcessEnv) {
   const naverValues = providerGroup(environment, [
     'PLACE_NAVER_SEARCH_ENDPOINT',
@@ -238,10 +293,13 @@ export async function loadProductionHttpConfig(
     const values = productionEnvironmentSchema.parse(environment)
     const authentication = readAuthRuntimeConfig(environment)
     if (authentication.mode !== 'oidc') throw configurationError()
-    const [databaseUrl, membershipPolicyJson, providers] = await Promise.all([
+    const [databaseUrl, membershipPolicyJson, providers, connector] = await Promise.all([
       readOneLineFile(values.PLACE_DATABASE_URL_FILE),
       readOneLineFile(values.PLACE_MEMBERSHIP_POLICY_FILE),
       loadOfficialProviderConfig(environment),
+      values.PLACE_CONNECTOR_RUNTIME_ENABLED === 'true'
+        ? loadConnectorConfig(environment)
+        : undefined,
     ])
     const policyDocument: unknown = JSON.parse(membershipPolicyJson)
     const policy = membershipPolicySchema.parse(policyDocument)
@@ -261,6 +319,7 @@ export async function loadProductionHttpConfig(
         initialProductTier: policy.initialProductTier,
       },
       ...(providers === undefined ? {} : { providers }),
+      ...(connector === undefined ? {} : { connector }),
     }
   } catch {
     throw configurationError()

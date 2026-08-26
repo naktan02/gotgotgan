@@ -15,6 +15,7 @@ import type {
   ImportAttemptOutcome,
   ImportClaim,
   ImportWorkerStore,
+  PreparedImportItem,
 } from '../../application/ports/import-worker-store.js'
 import type {
   ImportedPlaceFulfillmentClaim,
@@ -25,6 +26,9 @@ import type {
   ProviderConnectionRegistration,
   ProviderConnectionStore,
 } from '../../application/ports/provider-connection-store.js'
+import type {
+  ConnectorImportStore,
+} from '../../application/ports/connector-import-store.js'
 import {
   ImportLeaseLostError,
   ImportReferenceUnavailableError,
@@ -127,6 +131,39 @@ type FulfillmentItemRow = Readonly<{
   observed_at: string | Date
 }>
 
+type ConnectorOperationRow = Readonly<{
+  id: string
+  member_id: string
+  import_batch_id: string
+  provider_key: 'naver' | 'kakao' | 'google'
+  request_fingerprint: string
+  place_origin: string
+  maximum_items: number
+  maximum_bytes: number
+  maximum_batches: number
+  maximum_batch_bytes: number
+  next_sequence: number
+  received_items: number
+  received_bytes: number
+  state: 'receiving' | 'completed' | 'revoked'
+  expires_at: string | Date
+}>
+
+type ConnectorReceiptRow = Readonly<{
+  operation_id: string
+  sequence: number
+  capture_id: string
+  checksum: string
+  item_count: number
+  byte_count: number
+  final: boolean
+  state: 'pending' | 'committed'
+  cumulative_items: number | null
+  cumulative_bytes: number | null
+  retained_until: string | Date
+  import_batch_id: string
+}>
+
 function iso(value: string | Date): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString()
 }
@@ -170,6 +207,21 @@ function item(row: ItemRow): PlaceImportItem {
     status: row.status,
     reviewReasons: row.review_reasons,
     ...(row.canonical_place_id === null ? {} : { canonicalPlaceId: row.canonical_place_id }),
+  }
+}
+
+function connectorReceipt(row: ConnectorReceiptRow) {
+  if (row.cumulative_items === null || row.cumulative_bytes === null) {
+    throw new Error('Connector receipt is not committed')
+  }
+  return {
+    schemaVersion: 'place-connector-capture-receipt.v1' as const,
+    operationId: row.operation_id,
+    acceptedSequence: row.sequence,
+    acceptedChecksum: row.checksum,
+    receivedItems: row.cumulative_items,
+    receivedBytes: row.cumulative_bytes,
+    importBatchId: row.import_batch_id,
   }
 }
 
@@ -261,6 +313,136 @@ function isUniqueViolation(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === '23505'
 }
 
+async function insertPreparedImportItems(
+  client: PoolClient,
+  input: Readonly<{
+    batchId: string
+    captureId: string
+    providerKey: 'naver' | 'kakao' | 'google'
+    items: readonly PreparedImportItem[]
+    recordedAt: string
+  }>,
+): Promise<void> {
+  for (const imported of input.items) {
+    const insertedItem = await client.query<{ id: string }>(
+      `INSERT INTO ingestion.import_items (
+         id, batch_id, capture_id, source_item_key, provider_place_id,
+         source_list_id, source_list_position, source_position, list_name,
+         display_name, address, category_label, location, status, review_reasons,
+         observation_id, candidate_id, decision_id, proposed_place_id, created_at, updated_at
+       ) VALUES (
+         $1::uuid,$2::uuid,$3::uuid,$4,$5,$6,$7,$8,$9,$10,$11,$12,
+         CASE WHEN $13::double precision IS NULL THEN NULL
+           ELSE ST_SetSRID(ST_MakePoint($14, $13), 4326) END,
+         $15,$16::text[],$17::uuid,$18::uuid,$19::uuid,$20::uuid,
+         $21::timestamptz,$21::timestamptz
+        ) ON CONFLICT (batch_id, source_item_key) DO NOTHING
+        RETURNING id`,
+      [imported.itemId, input.batchId, input.captureId,
+        imported.sourceItemKey, imported.providerPlaceId ?? null,
+        imported.sourceListId, imported.sourceListPosition,
+        imported.sourcePosition, imported.listName,
+        imported.name, imported.address, imported.categoryLabel,
+        imported.location?.latitude ?? null, imported.location?.longitude ?? null,
+        imported.fulfillment === undefined ? 'needs-review' : 'enriching',
+        imported.reviewReasons, imported.observationId, imported.candidateId,
+        imported.decisionId, imported.proposedPlaceId, input.recordedAt],
+    )
+    if (insertedItem.rows[0] === undefined || imported.fulfillment === undefined) continue
+    const fulfillment = imported.fulfillment
+    const job = await client.query<{ id: string }>(
+      `INSERT INTO ingestion.import_place_fulfillment_jobs AS job (
+         id, provider_key, provider_place_id, state, available_at,
+         observation_id, candidate_id, decision_id, proposed_place_id,
+         created_at, updated_at
+       ) VALUES (
+         $1::uuid,$2,$3,'queued',$4::timestamptz,
+         $5::uuid,$6::uuid,$7::uuid,$8::uuid,$4::timestamptz,$4::timestamptz
+       )
+       ON CONFLICT (provider_key, provider_place_id) DO UPDATE
+       SET state = CASE
+             WHEN job.state IN ('completed', 'failed') THEN 'queued'
+             ELSE job.state
+           END,
+           available_at = CASE
+             WHEN job.state IN ('completed', 'failed') THEN EXCLUDED.available_at
+             ELSE job.available_at
+           END,
+           attempt_count = CASE
+             WHEN job.state IN ('completed', 'failed') THEN 0
+             ELSE job.attempt_count
+           END,
+           failure_code = CASE
+             WHEN job.state IN ('completed', 'failed') THEN NULL
+             ELSE job.failure_code
+           END,
+           failure_retryable = CASE
+             WHEN job.state IN ('completed', 'failed') THEN NULL
+             ELSE job.failure_retryable
+           END,
+           updated_at = EXCLUDED.updated_at
+       RETURNING job.id`,
+      [fulfillment.jobId, input.providerKey, imported.providerPlaceId,
+        input.recordedAt, fulfillment.observationId, fulfillment.candidateId,
+        fulfillment.decisionId, fulfillment.proposedPlaceId],
+    )
+    await client.query(
+      `INSERT INTO ingestion.import_place_fulfillment_intents (
+         item_id, job_id, state, created_at, updated_at
+       ) VALUES ($1::uuid,$2::uuid,'pending',$3::timestamptz,$3::timestamptz)
+       ON CONFLICT (item_id) DO NOTHING`,
+      [insertedItem.rows[0].id, job.rows[0]!.id, input.recordedAt],
+    )
+  }
+}
+
+async function updateImportBatchAfterCapture(
+  client: PoolClient,
+  batchId: string,
+  final: boolean,
+  updatedAt: string,
+): Promise<'partial' | 'completed' | 'enriching' | 'needs-review'> {
+  const counts = await client.query<{
+    discovered: number
+    ready: number
+    review_required: number
+    enriching: number
+    applied: number
+    skipped: number
+    failed: number
+  }>(
+    `SELECT count(*)::int AS discovered,
+            count(*) FILTER (WHERE status = 'ready')::int AS ready,
+            count(*) FILTER (WHERE status = 'needs-review')::int AS review_required,
+            count(*) FILTER (WHERE status = 'enriching')::int AS enriching,
+            count(*) FILTER (WHERE status = 'applied')::int AS applied,
+            count(*) FILTER (WHERE status = 'skipped')::int AS skipped,
+            count(*) FILTER (WHERE status = 'failed')::int AS failed
+     FROM ingestion.import_items WHERE batch_id = $1::uuid`,
+    [batchId],
+  )
+  const progress = counts.rows[0]!
+  const state = !final
+    ? 'partial' as const
+    : progress.discovered === 0
+      ? 'completed' as const
+      : progress.enriching > 0
+        ? 'enriching' as const
+        : 'needs-review' as const
+  await client.query(
+    `UPDATE ingestion.import_batches
+     SET state = $2, failure_code = NULL, failure_retryable = NULL,
+         discovered_count = $3, ready_count = $4, review_required_count = $5,
+         enriching_count = $6, applied_count = $7, skipped_count = $8, failed_count = $9,
+         updated_at = $10::timestamptz
+     WHERE id = $1::uuid`,
+    [batchId, state, progress.discovered, progress.ready,
+      progress.review_required, progress.enriching, progress.applied, progress.skipped,
+      progress.failed, updatedAt],
+  )
+  return state
+}
+
 export class PostgresPlaceImports implements
   ImportRequestStore,
   ImportWorkerStore,
@@ -268,7 +450,8 @@ export class PostgresPlaceImports implements
   ImportManagementStore,
   ImportReviewStore,
   ImportCaptureRetentionStore,
-  ImportedPlaceFulfillmentStore {
+  ImportedPlaceFulfillmentStore,
+  ConnectorImportStore {
   constructor(private readonly pool: Pool) {}
 
   async registerConnection(command: ProviderConnectionRegistration) {
@@ -364,6 +547,288 @@ export class PostgresPlaceImports implements
       [input.captureId, input.deletedAt],
     )
     return updated.rowCount === 1 ? 'marked' : 'already-deleted'
+  }
+
+  async issueGrant(command: Parameters<ConnectorImportStore['issueGrant']>[0]) {
+    const client = await this.pool.connect()
+    try {
+      await client.query('BEGIN')
+      const prior = await client.query<ConnectorOperationRow>(
+        `SELECT * FROM ingestion.connector_import_operations
+         WHERE member_id = $1::uuid AND idempotency_key = $2::uuid
+         FOR UPDATE`,
+        [command.memberId, command.idempotencyKey],
+      )
+      const existing = prior.rows[0]
+      if (existing !== undefined) {
+        if (existing.request_fingerprint !== command.requestFingerprint) {
+          await client.query('ROLLBACK')
+          return { status: 'conflict' as const }
+        }
+        if (existing.state !== 'receiving') {
+          await client.query('ROLLBACK')
+          return { status: 'closed' as const }
+        }
+        await client.query(
+          `UPDATE ingestion.connector_import_operations
+           SET token_digest = $2, expires_at = $3::timestamptz, updated_at = $4::timestamptz
+           WHERE id = $1::uuid`,
+          [existing.id, command.tokenDigest, command.expiresAt, command.issuedAt],
+        )
+        await client.query('COMMIT')
+        return {
+          status: 'replayed' as const,
+          operationId: existing.id,
+          importBatchId: existing.import_batch_id,
+        }
+      }
+
+      const profileReference = `connector:${command.installationId}`
+      const connection = await client.query<{ id: string }>(
+        `INSERT INTO ingestion.provider_connections AS connection (
+           id, member_id, provider_key, label, status, profile_reference, created_at, updated_at
+         ) VALUES ($1::uuid,$2::uuid,$3,$4,'ready',$5,$6::timestamptz,$6::timestamptz)
+         ON CONFLICT (member_id, provider_key, profile_reference)
+           WHERE profile_reference LIKE 'connector:%'
+         DO UPDATE SET label = EXCLUDED.label, status = 'ready', revoked_at = NULL,
+                       updated_at = EXCLUDED.updated_at
+         RETURNING connection.id`,
+        [command.connectionId, command.memberId, command.providerKey,
+          `${command.providerKey.toUpperCase()} 브라우저 가져오기`, profileReference, command.issuedAt],
+      )
+      const connectionId = connection.rows[0]!.id
+      await client.query(
+        `INSERT INTO ingestion.import_batches (
+           id, member_id, connection_id, provider_key, idempotency_key,
+           request_fingerprint, state, created_at, updated_at
+         ) VALUES ($1::uuid,$2::uuid,$3::uuid,$4,$5::uuid,$6,'running',$7::timestamptz,$7::timestamptz)`,
+        [command.batchId, command.memberId, connectionId, command.providerKey,
+          command.idempotencyKey, command.requestFingerprint, command.issuedAt],
+      )
+      await client.query(
+        `INSERT INTO ingestion.connector_import_operations (
+           id, member_id, connection_id, import_batch_id, installation_id,
+           browser_key, provider_key, operation_kind, idempotency_key,
+           request_fingerprint, token_digest, place_origin,
+           maximum_items, maximum_bytes, maximum_batches, maximum_batch_bytes,
+           state, expires_at, created_at, updated_at
+         ) VALUES (
+           $1::uuid,$2::uuid,$3::uuid,$4::uuid,$5::uuid,
+           $6,$7,'import-saved-library',$8::uuid,$9,$10,$11,
+           $12,$13,$14,$15,'receiving',$16::timestamptz,$17::timestamptz,$17::timestamptz
+         )`,
+        [command.operationId, command.memberId, connectionId, command.batchId,
+          command.installationId, command.browserKey, command.providerKey,
+          command.idempotencyKey, command.requestFingerprint, command.tokenDigest,
+          command.placeOrigin, command.limits.maximumItems, command.limits.maximumBytes,
+          command.limits.maximumBatches, command.limits.maximumBatchBytes,
+          command.expiresAt, command.issuedAt],
+      )
+      await client.query('COMMIT')
+      return {
+        status: 'created' as const,
+        operationId: command.operationId,
+        importBatchId: command.batchId,
+      }
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => undefined)
+      if (isUniqueViolation(error)) return { status: 'conflict' as const }
+      throw error
+    } finally {
+      client.release()
+    }
+  }
+
+  async beginCapture(command: Parameters<ConnectorImportStore['beginCapture']>[0]) {
+    const client = await this.pool.connect()
+    try {
+      await client.query('BEGIN')
+      const selected = await client.query<ConnectorOperationRow>(
+        `SELECT * FROM ingestion.connector_import_operations
+         WHERE id = $1::uuid AND token_digest = $2
+         FOR UPDATE`,
+        [command.operationId, command.tokenDigest],
+      )
+      const operation = selected.rows[0]
+      if (operation === undefined) {
+        await client.query('ROLLBACK')
+        return { status: 'rejected' as const, reason: 'invalid-grant' as const }
+      }
+      if (new Date(operation.expires_at).getTime() <= new Date(command.reservedAt).getTime()) {
+        await client.query('ROLLBACK')
+        return { status: 'rejected' as const, reason: 'grant-expired' as const }
+      }
+      if (operation.place_origin !== command.placeOrigin) {
+        await client.query('ROLLBACK')
+        return { status: 'rejected' as const, reason: 'origin-mismatch' as const }
+      }
+      if (operation.provider_key !== command.providerKey) {
+        await client.query('ROLLBACK')
+        return { status: 'rejected' as const, reason: 'operation-conflict' as const }
+      }
+      const receipt = await client.query<ConnectorReceiptRow>(
+        `SELECT receipt.*, capture.retained_until, operation.import_batch_id
+         FROM ingestion.connector_capture_receipts AS receipt
+         JOIN ingestion.import_capture_artifacts AS capture ON capture.id = receipt.capture_id
+         JOIN ingestion.connector_import_operations AS operation ON operation.id = receipt.operation_id
+         WHERE receipt.operation_id = $1::uuid AND receipt.sequence = $2`,
+        [command.operationId, command.sequence],
+      )
+      const prior = receipt.rows[0]
+      if (command.sequence < operation.next_sequence) {
+        if (prior?.state !== 'committed' || prior.checksum !== command.checksum) {
+          await client.query('ROLLBACK')
+          return { status: 'rejected' as const, reason: 'operation-conflict' as const }
+        }
+        await client.query('COMMIT')
+        return { status: 'replayed' as const, receipt: connectorReceipt(prior) }
+      }
+      if (operation.state !== 'receiving' || command.sequence !== operation.next_sequence) {
+        await client.query('ROLLBACK')
+        return { status: 'rejected' as const, reason: 'operation-conflict' as const }
+      }
+      if (prior !== undefined) {
+        if (
+          prior.state !== 'pending' || prior.checksum !== command.checksum ||
+          prior.item_count !== command.itemCount || prior.byte_count !== command.byteCount ||
+          prior.final !== command.final
+        ) {
+          await client.query('ROLLBACK')
+          return { status: 'rejected' as const, reason: 'operation-conflict' as const }
+        }
+        await client.query('COMMIT')
+        return {
+          status: 'pending' as const,
+          artifactId: prior.capture_id,
+          importBatchId: operation.import_batch_id,
+          retentionUntil: iso(prior.retained_until),
+        }
+      }
+      if (
+        command.byteCount > operation.maximum_batch_bytes ||
+        operation.received_items + command.itemCount > operation.maximum_items ||
+        operation.received_bytes + command.byteCount > operation.maximum_bytes ||
+        command.sequence + 1 > operation.maximum_batches
+      ) {
+        await client.query('ROLLBACK')
+        return { status: 'rejected' as const, reason: 'limit-exceeded' as const }
+      }
+      await client.query(
+        `INSERT INTO ingestion.import_capture_artifacts (
+           id, batch_id, artifact_reference, payload_checksum, parser_version,
+           acquisition_kind, observed_at, retained_until, created_at
+         ) VALUES ($1::uuid,$2::uuid,$3,$4,$5,$6,$7::timestamptz,$8::timestamptz,$9::timestamptz)`,
+        [command.artifactId, operation.import_batch_id, command.artifactReference,
+          command.checksum, command.parserVersion, command.acquisitionKind,
+          command.observedAt, command.retentionUntil, command.reservedAt],
+      )
+      await client.query(
+        `INSERT INTO ingestion.connector_capture_receipts (
+           operation_id, sequence, capture_id, checksum, item_count,
+           byte_count, final, state, created_at
+         ) VALUES ($1::uuid,$2,$3::uuid,$4,$5,$6,$7,'pending',$8::timestamptz)`,
+        [command.operationId, command.sequence, command.artifactId, command.checksum,
+          command.itemCount, command.byteCount, command.final, command.reservedAt],
+      )
+      await client.query('COMMIT')
+      return {
+        status: 'pending' as const,
+        artifactId: command.artifactId,
+        importBatchId: operation.import_batch_id,
+        retentionUntil: command.retentionUntil,
+      }
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => undefined)
+      if (isUniqueViolation(error)) {
+        return { status: 'rejected' as const, reason: 'operation-conflict' as const }
+      }
+      throw error
+    } finally {
+      client.release()
+    }
+  }
+
+  async commitCapture(command: Parameters<ConnectorImportStore['commitCapture']>[0]) {
+    const client = await this.pool.connect()
+    try {
+      await client.query('BEGIN')
+      const selected = await client.query<ConnectorOperationRow>(
+        `SELECT * FROM ingestion.connector_import_operations
+         WHERE id = $1::uuid AND token_digest = $2
+         FOR UPDATE`,
+        [command.operationId, command.tokenDigest],
+      )
+      const operation = selected.rows[0]
+      if (operation === undefined) {
+        await client.query('ROLLBACK')
+        return { status: 'rejected' as const, reason: 'invalid-grant' as const }
+      }
+      const receiptResult = await client.query<ConnectorReceiptRow>(
+        `SELECT receipt.*, capture.retained_until, operation.import_batch_id
+         FROM ingestion.connector_capture_receipts AS receipt
+         JOIN ingestion.import_capture_artifacts AS capture ON capture.id = receipt.capture_id
+         JOIN ingestion.connector_import_operations AS operation ON operation.id = receipt.operation_id
+         WHERE receipt.operation_id = $1::uuid AND receipt.sequence = $2
+         FOR UPDATE OF receipt`,
+        [command.operationId, command.sequence],
+      )
+      const receipt = receiptResult.rows[0]
+      if (receipt?.state === 'committed' && receipt.checksum === command.checksum) {
+        await client.query('COMMIT')
+        return { status: 'replayed' as const, receipt: connectorReceipt(receipt) }
+      }
+      if (
+        operation.state !== 'receiving' || operation.next_sequence !== command.sequence ||
+        receipt === undefined || receipt.state !== 'pending' ||
+        receipt.checksum !== command.checksum || receipt.item_count !== command.items.length
+      ) {
+        await client.query('ROLLBACK')
+        return { status: 'rejected' as const, reason: 'operation-conflict' as const }
+      }
+      await insertPreparedImportItems(client, {
+        batchId: operation.import_batch_id,
+        captureId: receipt.capture_id,
+        providerKey: operation.provider_key,
+        items: command.items,
+        recordedAt: command.committedAt,
+      })
+      const receivedItems = operation.received_items + receipt.item_count
+      const receivedBytes = operation.received_bytes + receipt.byte_count
+      await client.query(
+        `UPDATE ingestion.connector_capture_receipts
+         SET state = 'committed', cumulative_items = $3, cumulative_bytes = $4,
+             committed_at = $5::timestamptz
+         WHERE operation_id = $1::uuid AND sequence = $2`,
+        [command.operationId, command.sequence, receivedItems, receivedBytes, command.committedAt],
+      )
+      await client.query(
+        `UPDATE ingestion.connector_import_operations
+         SET next_sequence = next_sequence + 1, received_items = $2, received_bytes = $3,
+             state = CASE WHEN $4 THEN 'completed' ELSE 'receiving' END,
+             completed_at = CASE WHEN $4 THEN $5::timestamptz ELSE NULL END,
+             updated_at = $5::timestamptz
+         WHERE id = $1::uuid`,
+        [command.operationId, receivedItems, receivedBytes, receipt.final, command.committedAt],
+      )
+      await updateImportBatchAfterCapture(
+        client, operation.import_batch_id, receipt.final, command.committedAt,
+      )
+      await client.query('COMMIT')
+      return {
+        status: 'committed' as const,
+        receipt: connectorReceipt({
+          ...receipt,
+          state: 'committed',
+          cumulative_items: receivedItems,
+          cumulative_bytes: receivedBytes,
+        }),
+      }
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => undefined)
+      throw error
+    } finally {
+      client.release()
+    }
   }
 
   async requestImport(command: ImportRequestCommand) {
@@ -538,115 +1003,15 @@ export class PostgresPlaceImports implements
           input.capture.checksum, input.capture.parserVersion, input.capture.acquisitionKind,
           input.capture.observedAt, input.capture.retentionUntil, input.recordedAt],
       )
-      for (const imported of input.items) {
-        const insertedItem = await client.query<{ id: string }>(
-          `INSERT INTO ingestion.import_items (
-             id, batch_id, capture_id, source_item_key, provider_place_id,
-             source_list_id, source_list_position, source_position, list_name,
-             display_name, address, category_label, location, status, review_reasons,
-             observation_id, candidate_id, decision_id, proposed_place_id, created_at, updated_at
-           ) VALUES (
-             $1::uuid,$2::uuid,$3::uuid,$4,$5,$6,$7,$8,$9,$10,$11,$12,
-             CASE WHEN $13::double precision IS NULL THEN NULL
-               ELSE ST_SetSRID(ST_MakePoint($14, $13), 4326) END,
-             $15,$16::text[],$17::uuid,$18::uuid,$19::uuid,$20::uuid,
-             $21::timestamptz,$21::timestamptz
-            ) ON CONFLICT (batch_id, source_item_key) DO NOTHING
-            RETURNING id`,
-          [imported.itemId, input.claim.batchId, input.capture.artifactId,
-            imported.sourceItemKey, imported.providerPlaceId ?? null,
-            imported.sourceListId, imported.sourceListPosition,
-            imported.sourcePosition, imported.listName,
-            imported.name, imported.address, imported.categoryLabel,
-            imported.location?.latitude ?? null, imported.location?.longitude ?? null,
-            imported.fulfillment === undefined ? 'needs-review' : 'enriching',
-            imported.reviewReasons, imported.observationId, imported.candidateId,
-            imported.decisionId, imported.proposedPlaceId, input.recordedAt],
-        )
-        if (insertedItem.rows[0] !== undefined && imported.fulfillment !== undefined) {
-          const fulfillment = imported.fulfillment
-          const job = await client.query<{ id: string }>(
-            `INSERT INTO ingestion.import_place_fulfillment_jobs AS job (
-               id, provider_key, provider_place_id, state, available_at,
-               observation_id, candidate_id, decision_id, proposed_place_id,
-               created_at, updated_at
-             ) VALUES (
-               $1::uuid,$2,$3,'queued',$4::timestamptz,
-               $5::uuid,$6::uuid,$7::uuid,$8::uuid,$4::timestamptz,$4::timestamptz
-             )
-             ON CONFLICT (provider_key, provider_place_id) DO UPDATE
-             SET state = CASE
-                   WHEN job.state IN ('completed', 'failed') THEN 'queued'
-                   ELSE job.state
-                 END,
-                 available_at = CASE
-                   WHEN job.state IN ('completed', 'failed') THEN EXCLUDED.available_at
-                   ELSE job.available_at
-                 END,
-                 attempt_count = CASE
-                   WHEN job.state IN ('completed', 'failed') THEN 0
-                   ELSE job.attempt_count
-                 END,
-                 failure_code = CASE
-                   WHEN job.state IN ('completed', 'failed') THEN NULL
-                   ELSE job.failure_code
-                 END,
-                 failure_retryable = CASE
-                   WHEN job.state IN ('completed', 'failed') THEN NULL
-                   ELSE job.failure_retryable
-                 END,
-                 updated_at = EXCLUDED.updated_at
-             RETURNING job.id`,
-            [fulfillment.jobId, input.claim.connection.providerKey, imported.providerPlaceId,
-              input.recordedAt, fulfillment.observationId, fulfillment.candidateId,
-              fulfillment.decisionId, fulfillment.proposedPlaceId],
-          )
-          await client.query(
-            `INSERT INTO ingestion.import_place_fulfillment_intents (
-               item_id, job_id, state, created_at, updated_at
-             ) VALUES ($1::uuid,$2::uuid,'pending',$3::timestamptz,$3::timestamptz)
-             ON CONFLICT (item_id) DO NOTHING`,
-            [insertedItem.rows[0].id, job.rows[0]!.id, input.recordedAt],
-          )
-        }
-      }
-      const counts = await client.query<{
-        discovered: number
-        ready: number
-        review_required: number
-        enriching: number
-        applied: number
-        skipped: number
-        failed: number
-      }>(
-        `SELECT count(*)::int AS discovered,
-                count(*) FILTER (WHERE status = 'ready')::int AS ready,
-                count(*) FILTER (WHERE status = 'needs-review')::int AS review_required,
-                count(*) FILTER (WHERE status = 'enriching')::int AS enriching,
-                count(*) FILTER (WHERE status = 'applied')::int AS applied,
-                count(*) FILTER (WHERE status = 'skipped')::int AS skipped,
-                count(*) FILTER (WHERE status = 'failed')::int AS failed
-         FROM ingestion.import_items WHERE batch_id = $1::uuid`,
-        [input.claim.batchId],
-      )
-      const progress = counts.rows[0]!
-      const state: 'partial' | 'completed' | 'enriching' | 'needs-review' = input.nextCursor === null
-        ? (progress.discovered === 0
-            ? 'completed'
-            : progress.enriching > 0
-              ? 'enriching'
-              : 'needs-review')
-        : 'partial'
-      await client.query(
-        `UPDATE ingestion.import_batches
-         SET state = $2, failure_code = NULL, failure_retryable = NULL,
-              discovered_count = $3, ready_count = $4, review_required_count = $5,
-              enriching_count = $6, applied_count = $7, skipped_count = $8, failed_count = $9,
-              updated_at = $10::timestamptz
-         WHERE id = $1::uuid`,
-          [input.claim.batchId, state, progress.discovered, progress.ready,
-           progress.review_required, progress.enriching, progress.applied, progress.skipped,
-           progress.failed, input.recordedAt],
+      await insertPreparedImportItems(client, {
+        batchId: input.claim.batchId,
+        captureId: input.capture.artifactId,
+        providerKey: input.claim.connection.providerKey,
+        items: input.items,
+        recordedAt: input.recordedAt,
+      })
+      const state = await updateImportBatchAfterCapture(
+        client, input.claim.batchId, input.nextCursor === null, input.recordedAt,
       )
       await client.query(
         `UPDATE ingestion.import_jobs

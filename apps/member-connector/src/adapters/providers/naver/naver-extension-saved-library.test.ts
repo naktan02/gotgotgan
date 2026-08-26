@@ -56,4 +56,32 @@ describe('NAVER extension saved-library adapter', () => {
     })
     await expect(session.probe({ signal: AbortSignal.timeout(1_000) })).resolves.toBe('reauth-required')
   })
+
+  it('emits one provider-valid finalizable capture for an empty saved library', async () => {
+    const client = {
+      get: async () => json({ folderList: [], totalCount: 0 }),
+    }
+    const collector = new NaverSavedPlaceCollector({
+      apiBaseUrl: 'https://pages.map.naver.com/save-pages/api/maps-bookmark/v3/',
+      folderPageSize: 20,
+      bookmarkPageSize: 100,
+      maximumLists: 10,
+      maximumBookmarks: 100,
+      maximumResponseBytes: 1_048_576,
+      delayMilliseconds: 0,
+    })
+    const source = new NaverExtensionSavedPlaceSource(collector, client)
+    const captures = []
+    for await (const capture of source.collect({ signal: AbortSignal.timeout(1_000) })) {
+      captures.push({ ...capture, payload: JSON.parse(capture.payload) })
+    }
+
+    expect(captures).toEqual([{
+      itemCount: 0,
+      payload: {
+        schemaVersion: 'place-naver-saved-capture.v1',
+        kind: 'page', lists: [], nextCursor: null,
+      },
+    }])
+  })
 })

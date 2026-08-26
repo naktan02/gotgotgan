@@ -5,11 +5,12 @@ Connector v1은 Place 페이지, 회원 브라우저의 Place Connector 확장, 
 Schema는 `packages/contracts/connector/place-connector.v1.schema.json`으로 생성한다. JSON을 별도
 원본으로 수정하지 않는다.
 
-현재 확장 계약·NAVER Provider Adapter·WebExtensions Adapter·고정 Place origin 업로드 Adapter와
-Chromium/Firefox 산출물 검증은 `source-only`다. Web의 grant/capture BFF route와 가짜 확장을 이용한
-desktop/mobile imports E2E도 구현했다. Backend의 `/v1/connector-grants`와
-`/v1/connector-captures` 수신 경계는 아직 없으므로 실제 캡처 전달은 `not-integrated`다. Whale 실제
-설치와 로그인된 NAVER session smoke는 `integration-gated`다.
+현재 확장 계약·NAVER Provider Adapter·WebExtensions Adapter·고정 Place origin 업로드 Adapter,
+Web BFF, Backend의 `/v1/connector-grants`와 `/v1/connector-captures` 수신 경계는 `source-only`다.
+Backend는 실제 PostGIS에서 grant 재발급, 이전 token 폐기, 순서·상한·checksum 검증, 암호화 원본,
+정규화 ImportItem과 상세화 intent를 하나의 ImportBatch에 연결한다. Chromium/Firefox 산출물과 가짜
+확장을 이용한 desktop/mobile imports E2E도 검증한다. Whale 실제 설치와 로그인된 NAVER session
+smoke만 `integration-gated`로 남아 있다.
 
 ## 메시지 방향
 
@@ -33,7 +34,14 @@ Place Web이 발급하는 grant는 불투명 token이며 정확한 공개 Place 
 Web의 `/api/connector/grants`는 OIDC session이 있는 요청만 고정 Backend 경로로 전달한다.
 `/api/connector/captures`는 Web cookie가 아니라 `PlaceConnector` authorization만 허용한다. 두 route는
 환경에서 주입한 하나의 내부 Backend origin만 사용하며 browser 입력으로 Backend 주소를 선택하지
-않는다. Backend 수신 endpoint가 추가되기 전에는 이 BFF가 fail closed한다.
+않는다. BFF는 요청을 받은 공개 origin을 Backend에도 전달하고, Backend는 배포 설정의 정확한 공개
+origin과 일치할 때만 grant와 capture를 처리한다.
+
+Backend는 grant token 원문을 저장하지 않고 SHA-256 digest만 보관한다. 같은 회원·멱등 키·요청은
+동일 operation과 ImportBatch를 재사용하면서 새 token으로 회전하며, 이전 token은 즉시 무효가 된다.
+캡처는 `pending` receipt와 보존 메타데이터를 먼저 예약하고 AES-256-GCM 원본 저장 뒤 ImportItem,
+Fulfillment intent, 누적 receipt를 한 transaction으로 확정한다. 전송이 끊기면 같은 sequence와
+checksum만 재개할 수 있고, 앞 순서를 건너뛰거나 기존 sequence의 내용을 바꾸면 충돌한다.
 
 각 batch에는 0부터 증가하는 sequence, 마지막 batch 여부, item 수, UTF-8 JSON payload와 SHA-256
 checksum이 있다. 서버 receipt의 operation·sequence·checksum과 누적 item/byte 수가 요청 상태와 모두
@@ -73,4 +81,5 @@ npm run test:e2e -- tests/e2e/imports.spec.ts
 
 결정적 검증은 pagination, source list 순서, bounded batch, checksum/receipt, progress/cancel,
 origin/grant, permission/session, Chromium·Firefox manifest와 가짜 확장 imports workflow를 포함한다.
-실제 Whale 설치, 실제 NAVER session 재사용과 Backend receipt는 별도의 live 증거가 필요하다.
+실제 Whale 설치와 실제 NAVER session 재사용은 별도의 live 증거가 필요하다. Backend receipt와
+PostGIS 영속화는 fixture 기반 통합 테스트까지 완료했다.

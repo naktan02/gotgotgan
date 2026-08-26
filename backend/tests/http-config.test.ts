@@ -58,6 +58,7 @@ async function configurationEnvironment(
     PLACE_DATABASE_IDLE_TIMEOUT_MILLISECONDS: '30000',
     PLACE_DATABASE_CONNECTION_TIMEOUT_MILLISECONDS: '5000',
     PLACE_MEMBERSHIP_POLICY_FILE: membershipPolicyFile,
+    PLACE_CONNECTOR_RUNTIME_ENABLED: 'false',
     PLACE_OIDC_ISSUER: 'https://identity.example',
     PLACE_OIDC_AUDIENCE: 'place-backend',
     PLACE_OIDC_JWKS_URI: 'https://identity.example/oauth/v2/keys',
@@ -201,5 +202,50 @@ describe('HTTP runtime configuration', () => {
       PLACE_GOOGLE_PLACES_API_KEY_FILE: key,
       PLACE_GOOGLE_TIMEOUT_MILLISECONDS: '2500',
     })).rejects.toThrow('Production HTTP configuration is invalid')
+  })
+
+  it('loads connector limits and protected capture storage only when explicitly enabled', async () => {
+    const environment = await configurationEnvironment({ PLACE_CONNECTOR_RUNTIME_ENABLED: 'true' })
+    const directory = dirname(environment.PLACE_DATABASE_URL_FILE!)
+    const keyring = join(directory, 'capture-keyring')
+    const captureRoot = join(directory, 'captures')
+    await writeFile(keyring, `${JSON.stringify({
+      schemaVersion: 'place-capture-keyring.v1',
+      activeKeyId: 'connector-test',
+      keys: [{ id: 'connector-test', material: Buffer.alloc(32, 7).toString('base64url') }],
+    })}\n`, { mode: 0o600 })
+
+    const config = await loadProductionHttpConfig({
+      ...environment,
+      PLACE_CONNECTOR_PUBLIC_ORIGIN: 'https://place.example',
+      PLACE_CONNECTOR_GRANT_TTL_SECONDS: '600',
+      PLACE_CONNECTOR_CAPTURE_RETENTION_SECONDS: '86400',
+      PLACE_CONNECTOR_MAXIMUM_ITEMS: '10000',
+      PLACE_CONNECTOR_MAXIMUM_BYTES: '10485760',
+      PLACE_CONNECTOR_MAXIMUM_BATCHES: '100',
+      PLACE_CONNECTOR_MAXIMUM_BATCH_BYTES: '1048576',
+      PLACE_CAPTURE_ROOT: captureRoot,
+      PLACE_CAPTURE_KEYRING_FILE: keyring,
+      PLACE_CAPTURE_MAXIMUM_BYTES: '1048576',
+    })
+
+    expect(config.connector).toMatchObject({
+      publicOrigin: 'https://place.example',
+      grantTtlMilliseconds: 600_000,
+      captureRetentionMilliseconds: 86_400_000,
+      limits: {
+        maximumItems: 10_000, maximumBytes: 10_485_760,
+        maximumBatches: 100, maximumBatchBytes: 1_048_576,
+      },
+      artifacts: { root: captureRoot, activeKeyId: 'connector-test', maximumBytes: 1_048_576 },
+    })
+    expect(config.connector?.artifacts.keys['connector-test']).toHaveLength(32)
+  })
+
+  it('rejects an enabled connector with a partial or inconsistent configuration', async () => {
+    await expect(loadProductionHttpConfig(await configurationEnvironment({
+      PLACE_CONNECTOR_RUNTIME_ENABLED: 'true',
+      PLACE_CONNECTOR_PUBLIC_ORIGIN: 'https://place.example',
+    }))).rejects.toThrow('Production HTTP configuration is invalid')
   })
 })

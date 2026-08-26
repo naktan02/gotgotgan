@@ -7,8 +7,8 @@ Google은 별도 확장이 아니라 Provider Adapter로 추가한다. 캡처는
 
 현재는 provider-neutral application 경계, WebExtensions browser Adapter, NAVER Provider Adapter,
 고정 공개 Place origin capture Adapter, WXT entrypoint와 Chromium·Firefox build 검증을 source-only로
-구현했다. Web grant/capture BFF route도 있지만 Backend 수신 endpoint는 아직 없다. 실설치 배포와
-로그인된 NAVER session 검증은 `integration-gated`, 실제 ImportBatch 전달은 `not-integrated`다.
+구현했다. Web grant/capture BFF route, Backend receiver와 PostGIS ImportBatch 인계도 NAVER에 대해
+source-only로 연결했다. 실설치 배포와 로그인된 NAVER session 검증은 `integration-gated`다.
 
 전용 Playwright profile을 쓰는 기존 로그인·비식별 네트워크 관찰·NAVER 전체 저장 목록 bounded
 수집기는 진단 CLI로 남아 있다. 실관찰에서 평소 브라우저의 로그인 상태를 재사용하지 못했으므로 주
@@ -161,9 +161,10 @@ CLI는 개인 필드, ID, checksum, 경로를 출력하지 않고 목록·bookma
 ## 현재 진단 상태와 중지
 
 `Ctrl+C` 또는 브라우저 종료가 진단 context 종료를 소유한다. profile과 report 디렉터리는 Git·Docker
-image·Place DB 밖에 둔다. 현재 로그인·관찰·전체 로컬 수집 코드는 `source-only`다. capture upload와
-Web BFF는 source-only지만 Backend grant/capture receiver가 없어 제출 흐름은 `not-integrated`다. 이
-전용 profile CLI의 로그인 성공은 더 이상 제품 완료 조건이 아니다.
+image·Place DB 밖에 둔다. 현재 로그인·관찰·전체 로컬 수집 코드는 `source-only`다. 제품 확장의
+capture upload는 Web BFF, Backend receiver와 PostGIS ImportBatch까지 source-only로 연결되어 있다.
+진단 CLI는 개인정보가 포함된 결과를 서버로 보내지 않고 메모리에서 폐기하는 별도 도구이므로 제출
+기능을 갖지 않는다. 이 전용 profile CLI의 로그인 성공은 더 이상 제품 완료 조건이 아니다.
 실제 계정 검증이나 Provider 응답이 실패하면 live acquisition은 `integration-gated`로 남는다. 관찰한
 계약을 비식별 fixture로 승인하기 전에는 내부 endpoint, selector, 직접 HTTP replay를 제품 코드에
 추가하지 않는다.

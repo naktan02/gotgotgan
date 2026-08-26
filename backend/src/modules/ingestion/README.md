@@ -32,6 +32,12 @@ Ingestion은 연결 메타데이터, ImportBatch/ImportItem, lease·fencing 작�
 receipt를 소유한다. HTTP 요청은 작업만 큐에 넣고 Worker가 별도 프로세스로 실행한다. Provider
 비밀번호·cookie·MFA seed·실제 profile 경로는 저장하지 않고 배포가 해석하는 불투명 참조만 사용한다.
 
+회원 브라우저 Connector는 별도 acquisition job을 만들지 않는다. `createConnectorImportReceiver`가
+grant 발급과 capture 제출 두 동작만 공개하고, 내부 `ConnectorImportStore`, `CaptureArtifactStore`,
+`ConnectorCaptureParser`를 조립한다. DB는 `pending` receipt를 먼저 예약하고 암호화 파일 저장 뒤 같은
+ImportBatch의 Item·Fulfillment intent·누적 receipt를 transaction으로 확정한다. Provider parser는
+composition에서 공개 interface로 주입되므로 Ingestion이 Provider 내부 파일을 역참조하지 않는다.
+
 불완전하거나 충돌한 수집 결과는 preview다. create/link/skip 명시 검토가 immutable observation,
 candidate, reviewer decision을 기록한 후 Places와 Library의 consumer port를 호출한다. 동일 command는
 receipt로 재생되고 다른 command가 같은 item을 처리하려 하면 충돌한다. 안정된 Provider identity가
