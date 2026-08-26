@@ -41,8 +41,38 @@ bounded batch로 실행하며 Canonical/Ingestion evidence를 삭제하지 않�
 drift, latency를 분류한다. 안정된 direct HTTP adapter와 공식/local fallback이 없으면 hot path로
 활성화하지 않는다.
 
-연결 목록 Import에서는 사용자 PC profile과 서버 상세 보강 profile을 별도 운영 대상으로 다룬다.
-사용자 profile은 목록 획득에만 쓰고 인증 material을 서버로 보내지 않는다. 서버 profile은
+연결 목록 Import에서는 회원의 현재 browser session과 서버 상세 보강 profile을 별도 운영 대상으로
+다룬다. 회원 session은 하나의 Place Connector 확장이 사용하며 Provider별 exact-origin permission,
+session probe, 일회성 grant, batch 상한, progress/cancel, tab/listener/resource close를 점검한다. Provider
+cookie·token·profile 경로는 Place로 보내지 않는다. Provider별 확장을 만들지 않고 NAVER·Kakao·Google
+Adapter의 delivery state를 따로 기록한다. 서버 profile은
 Fulfillment miss의 공개 상세 보강만 담당하며 회원 ID나 목록 이름을 받지 않는다. Canonical cache
 hit은 서버 profile도 호출하지 않는다. 실제 NAVER profile Adapter가 추가되기 전까지 이 경로는
 fixture/PostGIS 검증만 있는 source-only 상태다.
+
+확장과 capture 제출이 구현되기 전인 현재, 회원 로컬 NAVER 진단 관찰은
+[`../../apps/member-connector/README.md`](../../apps/member-connector/README.md)의
+두 단계 명령을 따른다. login에서는 캡처가 꺼져 있고, observation은 먼저 화면 origin만 body opt-in해
+provider 하위 origin 후보를 값 없이 찾는다. 후보를 검토한 뒤 필요한 exact origin만 추가한다. profile과
+report는 저장소·DB·Docker volume 밖의 서로 겹치지 않는 private 경로를 사용한다. 보고서 ID와 응답 수
+외에는 CLI 결과에 경로 또는 Provider data를 출력하지 않는다. 현재 보고서를 서버에 제출하거나 live
+Worker를 깨우는 명령은 없으며, 이를 수동 복사로 우회하지 않는다.
+
+진단용 전체 로컬 수집은 같은 문서의 `member-connector:collect:naver` 명령을 사용한다. first-party session
+page와 API base는 관찰 결과를 deployment 환경으로 주입하고, folder/bookmark page size·응답 크기·
+전체 목록/장소 상한·timeout·요청 간격을 모두 명시한다. 실행 전 first-party profile API가 로그인
+상태로 인식하는지 확인한다. 301/302/401/403/405는 장소 schema로 parse하지 않고 재로그인 또는
+Provider drift가 필요한 user-action 상태로 분류한다. 성공해도 현재는 합계만 출력하고 수집 값은
+폐기하므로 ImportBatch가 생성됐다고 해석하지 않는다.
+
+전용 Playwright profile의 로그인 성공은 더 이상 제품 활성화 gate가 아니다. 확장 활성화는 별도
+Connector 계약/위협 모델, fake Provider E2E, Chrome/Edge·Firefox build, NAVER existing-session opt-in
+smoke, 비식별 replay fixture, 공개 BFF upload receipt가 모두 통과해야 한다. Safari는 macOS
+packaging/signing/install/live evidence 전까지 `integration-gated`다. 확장 미지원·미설치 경로는 수동
+JSON/file capture를 사용하며 사용자별 localhost 서버나 native host로 우회하지 않는다.
+
+현재 Connector 계약, fake port 단위 검증, Chromium·Firefox Manifest V3 build와 manifest 검사는
+source-only로 통과한다. Chromium 산출물 하나를 Chrome·Edge·Whale에 사용한다. Whale은 실설치 smoke가
+없으므로 build 호환과 실제 지원을 구분한다. Firefox는 별도 산출물과 website content data declaration을
+검사한다. Provider Adapter와 host permission, 공개 BFF route가 없으므로 이 상태에서 운영 계정이나
+Provider origin을 manifest에 직접 추가하지 않는다.

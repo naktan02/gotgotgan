@@ -5,6 +5,8 @@ status and date, link evidence, name consequences and supersession conditions, a
 
 Stage 7 결정은 `0011-connected-import-pipeline-and-provider-isolation.md`에 기록한다. 연결 계정
 작업, Provider parser 격리, 암호화 캡처, 명시적 검토와 Library 반영 경계를 정의한다.
+회원 PC의 session 경계와 다중 브라우저·다중 Provider 확장 구조는
+`0012-cross-browser-member-connector.md`에 기록한다.
 
 - `0001-typescript-web-server-worker.md`: selected runtime and process shape.
 - `0002-logical-postgis-with-physical-fallback.md`: conditional database topology.
@@ -21,3 +23,7 @@ Stage 7 결정은 `0011-connected-import-pipeline-and-provider-isolation.md`에 
   Local Search Projection을 소유한다.
 - `0010-interactive-discovery-and-canonical-promotion.md`: 입력 중 후보·Discovery impression·명시적
   관측·증거 기반 Canonical 승격의 수명주기를 분리한다.
+- `0011-connected-import-pipeline-and-provider-isolation.md`: 연결 계정 Import 상태기계, Provider parser,
+  암호화 capture, 검토와 Library 이행을 분리한다.
+- `0012-cross-browser-member-connector.md`: 기존 browser session을 사용하는 하나의 다중 Provider
+  Connector와 browser/provider/upload Adapter 경계를 정의한다.

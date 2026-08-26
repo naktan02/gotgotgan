@@ -7,6 +7,7 @@ import {
 } from '../dist/search/index.js'
 
 const targets = [
+  new URL('../connector/place-connector.v1.schema.json', import.meta.url),
   new URL('../http/openapi.v1.json', import.meta.url),
   new URL('../family-navigation/family-navigation.v1.consumer.schema.json', import.meta.url),
   new URL('../fixtures/family-navigation.not-integrated.v1.json', import.meta.url),
@@ -30,6 +31,7 @@ const targets = [
 ]
 
 const [
+  connectorSchema,
   openApi,
   familySchema,
   fixture,
@@ -49,6 +51,10 @@ const [
 )
 
 const failures = []
+if (
+  connectorSchema.$id !== 'urn:place:connector:v1' ||
+  !Array.isArray(connectorSchema.anyOf)
+) failures.push('Place Connector v1 must remain a generated versioned union contract')
 if (openApi.openapi !== '3.1.0') failures.push('HTTP contract must use OpenAPI 3.1.0')
 if (
   placeReferenceSchema.$id !== 'urn:place:place-reference:v1' ||

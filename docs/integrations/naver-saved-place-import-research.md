@@ -7,6 +7,10 @@
 구현 후보를 찾는 보조 근거로만 사용했다. 개인 계정, 쿠키, 비밀번호, 실제 저장 장소, 비공개
 리스트는 조사에 사용하지 않았다.
 
+후속 실관찰에서 새 Playwright profile은 사용자가 평소 쓰는 browser의 로그인 상태를 재사용하지
+못하는 것으로 확인됐다. 따라서 이 문서의 전용-profile 절차는 진단 방법으로만 남고, 제품 경계는
+ADR 0012의 current-session Place Connector 확장으로 변경됐다.
+
 ## 결론
 
 NAVER가 공개한 개발자 API와 지도 고객센터에는 저장 리스트를 CSV, Excel, JSON으로 일괄
@@ -18,15 +22,15 @@ OAuth도 지도 저장 목록 접근 권한을 제공하지 않는다. 따라서
 
 1. 사용자가 직접 만든 일부 공개·전체 공개 리스트의 공유 링크를 입력하는 무상태 가져오기를
    먼저 탐색한다.
-2. 비공개 목록까지 가져와야 할 때는 Place가 소유한 격리 브라우저 프로필에서 사용자가 직접
-   로그인하고, Playwright로 저장 화면을 열면서 first-party 구조화 응답을 관찰한다.
-3. 응답의 인증·페이지네이션·스키마가 fixture로 확인되면 같은 브라우저 세션을 사용하는 제한된
-   HTTP 어댑터로 수집한다.
+2. 비공개 목록은 사용자가 현재 로그인한 browser profile에 설치한 Place Connector 확장에서
+   first-party 구조화 응답을 읽는다. session 만료 때만 Provider 로그인 탭에서 사용자가 재인증한다.
+3. 인증·페이지네이션·스키마가 fixture로 확인되면 확장의 NAVER `SavedPlaceSource` Adapter가 같은
+   browser session 안에서 제한된 HTTP 수집을 수행하고 일회성 Place grant로 bounded batch를 제출한다.
 4. 구조화 응답을 사용할 수 없거나 일부 필드가 빠질 때만 접근성 트리와 DOM 파서를 보조
    어댑터로 사용한다.
-5. Playwright UI 조작은 로그인, 목록 진입, 사용자 개입 후 재개와 최후의 추출 경로를 담당한다.
-   Crawlee는 이 추출 순서를 대신하지 않고, 많은 목록을 처리할 때 queue·retry·concurrency를
-   제공하는 worker 내부 실행 도구로만 사용한다.
+5. Playwright UI 조작은 진단, fixture/replay, 확장 E2E, opt-in live smoke와 최후 fallback을 담당한다.
+   Crawlee는 이 추출 순서를 대신하지 않고 서버 소유 상세 보강의 queue·retry·concurrency를 제공하는
+   worker 내부 실행 도구로만 사용한다.
 
 이 순서는 `providers`의 NAVER 어댑터가 외부 형식을 소유하고, `ingestion`이 ImportBatch,
 ImportItem, Observation, 정규화·중복 검토를 소유하며, worker가 브라우저·queue의 수명주기를
@@ -150,16 +154,15 @@ NAVER 공식 도움말에 따르면 로그인 상태 유지는 쿠키 삭제·�
 [검색 제한](https://help.naver.com/service/5626/contents/992?lang=ko&osType=COMMONOS),
 [로그인 CAPTCHA](https://help.naver.com/service/5640/contents/21449?lang=ko&osType=COMMONOS))
 
-권장 connection 상태는 다음과 같다.
+후속 ADR 0012가 정한 회원 Connector의 권장 상태는 다음과 같다.
 
 ```text
-unconfigured
-  -> awaiting_user_login
-  -> ready
-  -> leased_to_import
-  -> ready
+disconnected
+  -> active
+  -> reauth_required
+  -> active
 
-leased_to_import
+active import
   -> authentication_required
   -> mfa_required
   -> captcha_required
@@ -167,18 +170,19 @@ leased_to_import
   -> account_protected
   -> rate_limited
   -> parser_drift
-  -> revoked
+  -> cancelled
 ```
 
-- 사용자가 격리된 브라우저에서 직접 로그인한다. Place는 NAVER 비밀번호나 MFA 값을 받지 않는다.
-- profile reference는 Place connection이 소유하지만 실제 profile·storage state는 별도 암호화된
-  capture/profile store에 둔다. 브라우저와 HTTP API에 식별자나 경로를 노출하지 않는다.
-- lease에는 connection, ImportBatch, worker, expiry, fencing generation을 묶는다. 한 프로필을
-  동시에 여러 worker가 사용하지 않는다.
-- 사람 개입 상태에서 worker는 닫히고, 사용자가 같은 격리 프로필에서 해결한 후 새 lease로
-  재개한다. CAPTCHA·MFA·보호조치를 자동 우회하지 않는다.
-- 연결 해제는 새 작업을 막고, 활성 lease를 취소하며, profile과 쿠키 삭제를 별도 auditable
-  cleanup으로 수행한다.
+- 사용자는 현재 브라우저의 실제 NAVER 탭에서 직접 로그인한다. Place는 NAVER 비밀번호나 MFA 값을
+  받지 않는다.
+- Place connection은 무작위·회전 가능한 Connector 설치 참조와 안전한 상태만 소유하고 실제
+  profile·storage state를 복사하거나 저장하지 않는다.
+- Import lease/fencing은 서버의 ImportBatch와 upload grant에 적용한다. 브라우저 profile을 서버
+  worker lease 대상으로 만들지 않는다.
+- 사람 개입 상태에서는 확장 수집을 중지하고 사용자가 같은 브라우저에서 해결한 후 새 operation
+  grant로 재개한다. CAPTCHA·MFA·보호조치를 자동 우회하지 않는다.
+- 연결 해제는 새 Place 작업과 grant를 막고 활성 Import를 취소하지만 NAVER profile과 cookie는
+  삭제하지 않는다.
 
 Playwright도 authentication state 파일이 cookie와 header를 포함해 계정 사칭에 사용될 수 있으므로
 저장소에 commit하지 말라고 경고한다. fixture에는 실제 storage state를 넣지 않는다.
@@ -215,7 +219,8 @@ ImportItem의 멱등 key는 가능한 경우 `connection + source collection key
 
 ### 2. 로그인 브라우저의 구조화 응답 관찰
 
-사용자가 직접 로그인한 전용 프로필에서 저장 탭과 리스트 하나를 열고 response의 host, path
+진단 단계에서는 사용자가 직접 로그인한 전용 profile에서, 제품 단계에서는 현재-session 확장의
+NAVER Adapter에서 저장 탭과 리스트 하나를 열고 response의 host, path
 shape, method, status, content type, pagination, schema만 기록한다. request cookie, 인증 header,
 사용자 ID, 실제 URL token은 수집 전에 redaction한다. 하나의 화면 동작과 하나의 response를
 연결해 parser fixture를 만든다.
@@ -236,10 +241,10 @@ endpoint를 일반 HTTP runner의 임의 URL 입력으로 노출하지 않는다
 
 ### 5. Playwright/Crawlee 실행
 
-Playwright는 로그인·MFA 화면 탐지, NAVER UI navigation, network capture, DOM fallback을 담당한다.
-Crawlee는 여러 리스트 페이지를 worker에서 처리할 필요가 실제로 확인된 뒤 RequestQueue와 제한된
-retry만 추가한다. 초기 spike에서 페이지 수가 작고 구조화 pagination이 단순하면 Crawlee 없이
-현재 durable job loop를 쓰는 편이 더 작고 검증하기 쉽다.
+Playwright는 진단, NAVER UI/network 관찰, fixture/replay, 확장 E2E와 통제된 DOM fallback을 담당한다.
+Crawlee는 서버 소유 상세 보강에서 여러 요청을 처리할 필요가 실제로 확인된 뒤 RequestQueue와 제한된
+retry만 추가한다. 회원 browser session의 folder pagination은 확장의 Provider Adapter가 담당하고
+Crawlee SessionPool로 계정을 회전하지 않는다.
 
 ## Fixture capture 지침
 

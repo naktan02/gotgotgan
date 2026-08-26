@@ -16,6 +16,24 @@ Provider Identity별 cache-first Fulfillment Worker와 PostgreSQL queue는 sourc
 `PlaceEnrichmentSource`를 호출한다. 실제 NAVER 서비스 profile Adapter와 사용자 PC Connector가 아직
 없으므로 production acquisition command나 Compose process를 활성화하지 않는다.
 
+회원 PC용 `member-connector`는 배포 Web/Backend/Worker나 Docker 수평 확장 단위가 아니다. 목표 runtime은
+현재 browser profile에 설치되는 하나의 다중 브라우저·다중 Provider 확장이다. 이벤트가 있을 때만
+Provider tab/network/memory resource를 만들고 완료·취소·실패 때 listener, tab, 요청과 메모리를 닫는다.
+Provider별 확장, 사용자별 서버, localhost daemon, native-messaging host를 MVP에 추가하지 않는다.
+Browser 산출물은 별도 release artifact이며 production image나 Compose service가 아니다.
+
+현재 WXT 기반 source는 Chromium Manifest V3와 Firefox Manifest V3 산출물을 결정적으로 만든다.
+Chromium 산출물은 Chrome·Edge·Whale이 공유하며 browser Adapter가 Whale을 Chrome보다 먼저 식별한다.
+이 build 결과는 Docker image에 포함하지 않는다. 실제 브라우저 설치·업데이트·서명·배포 수명주기와
+Provider permission은 아직 연결되지 않았고, Whale은 실설치 smoke 전까지 `integration-gated`다.
+등록된 Provider가 없으므로 확장 background는 수집 tab/network lifecycle을 아직 만들지 않는다.
+
+현재 visible Chrome context를 생성하는 login, redacted observation, bounded local collection은 확장
+이전의 source-only 진단 CLI다. 전체 저장목록 결과는 메모리에서 폐기되고 합계만 출력한다. 전용
+profile의 로그인 성공은 제품 완료 조건이 아니며 Playwright 진단·fixture/replay·E2E·통제된 fallback으로
+유지한다. Extension capture submission과 ImportBatch delivery는 `not-integrated`이고, connector upload
+grant와 network contract가 승인되기 전에는 Docker/Compose Worker가 회원 값을 받는 경로가 없다.
+
 The source-only runtime exposes local health/readiness scaffolds and the Stage 2 shell/access code.
 Gateway, Identity, provider, map, family navigation, and AI delivery states remain `not-integrated`
 or `integration-gated` as routed in the workspace plan. The Place-owned physical PostGIS runtime is

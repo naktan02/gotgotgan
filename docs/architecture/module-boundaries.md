@@ -25,6 +25,24 @@ Stage 7에서 Ingestion은 연결 계정 Import 상태와 작업 실행 port를,
 NAVER source를 `ConnectedPlaceSource`에 주입한다. 검토용 Canonical·Library consumer port도
 entrypoint에서 각 소유 모듈의 공개 interface와 연결한다.
 
+`apps/member-connector`는 Backend 모듈이나 Docker service가 아니라 회원 PC의 별도 composition
+boundary다. 목표 구조에서 application은 Provider-neutral `SavedPlaceSource`, `ProviderSession`,
+`CaptureSubmission` Interface만 알고, `adapters/providers/<provider>`가 endpoint·schema·pagination을,
+`adapters/browser/webextensions`가 tab·permission·message·resource lifecycle을,
+`adapters/place/capture-upload`이 일회성 grant 제출을 구현한다. Extension과 CLI entrypoint는 조립만
+한다. `packages/contracts/connector`가 versioned network/message contract를 소유하되 Connector는
+`backend`나 `apps/web` source를 import하지 않는다. 이 의존 방향은 아키텍처 가드로 검증한다.
+
+현재 `acquisition/adapters/naver`와 `acquisition/adapters/playwright`는 목표 확장 이전의 source-only
+진단 CLI다. NAVER folder/bookmark schema와 전체 pagination, first-party fetch와 전용 context 수명주기를
+각각 깊은 leaf로 감추며 결과는 합계만 노출한다. 전용 profile은 평소 로그인 session을 재사용하지
+못하므로 주 회원 경계가 아니라 Playwright 진단·fixture/replay·E2E·통제된 fallback으로 남긴다. 향후
+확장 제출도 이 Adapter를 Backend에 직접 import하지 않고 별도 versioned connector 계약으로 연결한다.
+
+NAVER·Kakao·Google은 같은 확장의 Provider Adapter이며 Provider별 확장을 만들지 않는다. Chromium,
+Firefox, Safari 차이는 Provider leaf로 역류하지 않는다. Stage 10 외부 저장은 Import용 Source를
+비대하게 만들지 않고 별도 `SavedPlaceTarget` Interface를 사용한다. ADR 0012가 이 경계를 고정한다.
+
 Ingestion은 Provider Identity별 공동 Fulfillment Job과 회원별 Intent도 소유한다. 이 깊은 module
 interface는 cache-first 판정, 상세 보강, evidence 기록, Canonical create/link, Library fan-out을
 한 작업 수명주기로 감춘다. Places와 Library는 기존 공개 port로만 주입되고, Provider 상세 Adapter는

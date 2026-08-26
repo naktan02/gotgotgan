@@ -73,11 +73,20 @@ Stage 7은 연결 목록의 안정된 Provider Place ID를 `enriching` Intent로
 저장하고, 미등록 장소만 주입된 서버 상세 Adapter로 보강한다. 동일 장소를 여러 회원이 요청해도
 상세 호출과 Canonical 생성은 한 번이며 각 Library 저장은 멱등이다. 실제 사용자 PC Connector,
 NAVER 내부 요청, 서버 profile Adapter와 production Worker 활성화는 아직 integration-gated다.
+회원 PC용 `apps/member-connector`는 현재 로그인된 browser profile을 재사용하는 하나의 다중
+브라우저·다중 Provider 확장으로 진행한다. NAVER·Kakao·Google은 Provider Adapter로 격리하고
+일회성 grant로만 캡처를 제출한다. Versioned handshake/grant/batch/receipt 계약, provider-neutral
+수집 application Interface, WebExtensions Adapter, 고정 공개-origin upload Adapter와 Chromium·Firefox
+Manifest V3 build 검증은 source-only로 구현했다. Chrome·Edge·Whale은 Chromium 산출물 하나를
+공유하지만 실제 Whale 설치는 아직 검증하지 않았다. 실제 Provider Adapter·host permission·공개 BFF
+route·ImportBatch 연결도 아직 없다. 기존 전용 Chrome profile 로그인, 비식별 관찰과 NAVER 전체
+pagination 수집은 진단·fixture/replay·E2E·fallback으로만 남긴다.
 
 ## Repository boundaries
 
 ```text
 apps/web/                  Next.js product surface
+apps/member-connector/     cross-browser multi-provider extension source plus diagnostic CLI
 backend/                   TypeScript HTTP/worker/module boundary
 packages/contracts/        owner-controlled machine-readable contracts
 tests/                     repository-wide architecture, contract, integration, and E2E tests
@@ -102,6 +111,7 @@ Narrow commands:
 ```powershell
 npm run check:web
 npm run check:backend
+npm run check:member-connector
 npm run check:contracts
 npm run test:deployment
 npm run test:database

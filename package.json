@@ -5,6 +5,7 @@
   "packageManager": "npm@10.9.8",
   "workspaces": [
     "apps/web",
+    "apps/member-connector",
     "backend",
     "packages/*"
   ],
@@ -13,12 +14,17 @@
     "generate:contracts": "npm run generate --workspace @place/contracts",
     "build:web": "npm run build:contracts && npm run build --workspace @place/web",
     "build:backend": "npm run build:contracts && npm run build --workspace @place/backend",
+    "build:member-connector": "npm run build:contracts && npm run build --workspace @place/member-connector",
     "typecheck:web": "npm run build:contracts && npm run typecheck --workspace @place/web",
     "typecheck:backend": "npm run build:contracts && npm run typecheck --workspace @place/backend",
-    "validate:architecture": "node --test tests/architecture/*.test.mjs && node scripts/guard-frontend-architecture.mjs && node scripts/guard-backend-architecture.mjs",
+    "validate:architecture": "node --test tests/architecture/*.test.mjs && node scripts/guard-frontend-architecture.mjs && node scripts/guard-backend-architecture.mjs && node scripts/guard-member-connector-architecture.mjs",
     "check:docs": "node scripts/check-doc-links.mjs",
     "check:web": "npm run validate:architecture && npm run test --workspace @place/web && npm run typecheck:web && npm run build:web",
     "check:backend": "npm run check --workspace @place/backend",
+    "check:member-connector": "npm run build:contracts && npm run check --workspace @place/member-connector",
+    "member-connector:login:naver": "npm run login:naver --workspace @place/member-connector",
+    "member-connector:observe:naver": "npm run observe:naver --workspace @place/member-connector",
+    "member-connector:collect:naver": "npm run collect:naver --workspace @place/member-connector",
     "check:contracts": "npm run check --workspace @place/contracts",
     "plan:deployment": "node scripts/plan-application-deployment.mjs",
     "test:deployment": "node --test tests/deployment/*.test.mjs",
@@ -30,7 +36,7 @@
     "test:database-recovery": "node --test backend/tests/integration/database-recovery.test.mjs",
     "test:e2e": "node scripts/run-e2e.mjs",
     "test:e2e:update": "node scripts/run-e2e.mjs --update-snapshots=all",
-    "check": "npm run check:docs && npm run check:contracts && npm run test:deployment && npm run check:web && npm run check:backend && npm run test:e2e"
+    "check": "npm run check:docs && npm run check:contracts && npm run test:deployment && npm run check:member-connector && npm run check:web && npm run check:backend && npm run test:e2e"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",

@@ -3,6 +3,10 @@
 - 상태: accepted
 - 날짜: 2026-08-26
 
+회원 session 획득 방식에 관한 결정 9~11은
+[`0012-cross-browser-member-connector.md`](0012-cross-browser-member-connector.md)가 구체화한다.
+전용 Playwright profile은 주 회원 흐름이 아니라 진단·재현·E2E·통제된 fallback이다.
+
 ## 배경
 
 연결 계정의 저장 장소는 공식 API, 계정 내보내기, 브라우저 네트워크 응답, DOM 등 서로 다른
@@ -32,9 +36,17 @@
    Canonical link를 확인하고 miss일 때만 배포 소유의 read-only Provider profile 또는 더 낮은 상태의
    공식·공개 상세 경로를 호출한다. 충분한 증거는 Canonical create와 각 회원 Library 저장으로 이어지고,
    불완전하거나 충돌하는 결과는 자동 생성하지 않고 `needs-review`로 전환한다.
-9. 본인 목록 획득의 목표 경계는 사용자 PC의 client-assisted Connector다. 로그인·MFA·CAPTCHA는
-   실제 Provider 창에서 사용자가 처리하고 인증 요청 body, cookie, token, profile 경로는 Place 서버로
+9. 본인 목록 획득의 목표 경계는 사용자 PC의 client-assisted Connector다. ADR 0012에 따라 현재
+   browser profile에 설치되는 하나의 다중 Provider 확장을 사용한다. 로그인·MFA·CAPTCHA는 실제
+   Provider 창에서 사용자가 처리하고 인증 요청 body, cookie, token, profile 경로는 Place 서버로
    보내지 않는다. 이 Connector와 실제 NAVER 내부 요청은 관찰 전까지 계속 integration-gated다.
+10. 현재 전용-profile 진단 CLI는 로그인과 관찰을 분리한다. 로그인에는 캡처를 연결하지 않는다. 관찰은 Provider
+    하위 origin의 값 없는 endpoint 후보만 발견하고, 명시적으로 허용한 exact origin의 bounded JSON만
+    키·타입 구조로 변환한다. profile·보고서는 저장소 밖에 두며 서버 제출은 별도 계약 전까지 금지한다.
+11. 현재 진단용 로컬 전체 수집기는 first-party 페이지의 인증 context 안에서만 folder/bookmark를 끝까지
+    pagination한다. NAVER current/legacy schema 차이는 Provider leaf가 흡수하고 개인 필드는 CLI에
+    출력하지 않는다. 현재 결과는 메모리에서 폐기한다. 회원 동의와 일회성·짧은 수명의 upload grant를
+    소유하는 versioned network contract 전에는 Web cookie나 장기 token으로 제출을 우회하지 않는다.
 
 ## 결과
 
@@ -45,8 +57,9 @@
   않는다. Provider Identity의 unique job은 여러 회원 요청을 합치고, Library command는 item ID를
   사용해 Worker 재실행에도 중복 저장을 막는다.
 - 사용자 목록 profile과 서버 상세 보강 profile의 소유권·수명주기·장애 상태가 섞이지 않는다.
-- 파서·DB·HTTP·암호화 replay는 `source-only`다. 실제 계정 Playwright 캡처와 profile lifecycle은
-  test account로 검증하기 전까지 `integration-gated`다.
+- 파서·DB·HTTP·암호화 replay와 회원 로컬 profile 로그인·비식별 구조 관찰은 `source-only`다.
+  실제 저장 목록 acquisition, capture 제출, 서버 상세 profile은 관찰 자료로 검증하기 전까지
+  `integration-gated`다.
 
 ## 재검토 조건
 

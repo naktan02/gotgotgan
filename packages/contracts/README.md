@@ -1,7 +1,7 @@
-# Place contracts
+# Place 계약
 
-This package is the machine-readable publication boundary for Place-owned HTTP, event, Tool, and
-stable reference contracts. A folder may remain documentation-only until its first contract exists.
+이 패키지는 Place가 소유하는 HTTP, Connector, event, Tool, stable reference 계약의 기계 판독 배포
+경계다. 첫 계약이 생기기 전까지 폴더는 문서에만 존재할 수 있다.
 
 `family-navigation` is a provisional consumer contract because the workspace composer owner is not
 yet selected. Its fixture proves only that Place can render an explicitly inactive manifest.
@@ -33,10 +33,15 @@ membership을 browser 입력에서 제외하고 두 anonymous 공개 projection�
 
 ## 생성 규칙
 
-`src/`의 Zod schema가 HTTP, Search, Taxonomy, PlaceReference 계약의 단일 원본이다. Backend와
-Web은 `@place/contracts`의 명시적 subpath export를 import한다. `http/openapi.v1.json`과
-`place-reference/place-reference.v1.schema.json`은 다음 명령으로 생성되는 배포 산출물이며
-사람이 같은 enum이나 field 목록을 다시 관리하는 원본이 아니다.
+`src/`의 TypeScript/Zod schema가 HTTP, Connector, Search, Taxonomy, PlaceReference 계약의 단일
+작성 원본이다. Backend, Web, Member Connector는 `@place/contracts`의 명시적 subpath export를
+import한다. Connector는 `@place/contracts/connector`만 사용한다. `http/openapi.v1.json`,
+`connector/place-connector.v1.schema.json`, `place-reference/place-reference.v1.schema.json`은 다음
+명령으로 생성되는 배포 산출물이며 사람이 같은 enum이나 field 목록을 다시 관리하는 원본이 아니다.
+
+Connector 계약은 Place page command, extension event, operation-bound upload grant, bounded capture
+batch와 receipt를 정의한다. cookie, 비밀번호, 임의 upload URL, 내부 Backend 주소는 schema가 허용하지
+않는다. 자세한 의미와 delivery state는 `docs/api/connector-v1.md`에 기록한다.
 
 Import 계약의 `enriching` batch/item 상태와 progress count는 Provider Place Identity별 공동
 Fulfillment가 진행 중임을 나타낸다. 이 projection에는 내부 job ID, 회원 ID, Provider profile·cookie,

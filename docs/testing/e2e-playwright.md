@@ -12,6 +12,12 @@ cancel/resume, duplicate/incomplete review를 desktop/mobile에서 검증한다.
 이는 live Provider 수집 증거가 아니다. 별도 opt-in Playwright acquisition smoke는 일반 E2E와
 분리하고 전용 test account/profile만 사용하며 아직 integration-gated다.
 
+Member Connector의 Chromium·Firefox Manifest V3 build 검사는 Playwright E2E가 아니다. 현재는
+source-only manifest와 provider-neutral application/browser/upload Adapter의 결정적 단위 검증만 있다.
+다음 확장 E2E가 test-owned Place/Provider origin에 실제 산출물을 설치해 command → background →
+capture → 공개 BFF receipt를 검증한다. Chrome·Edge·Whale이 공유하는 Chromium 산출물도 각 브라우저
+실설치 smoke를 따로 기록하며, 특히 Whale은 이 evidence 전까지 `integration-gated`다.
+
 같은 Import E2E는 `enriching` batch/item을 desktop·mobile에서 표시하고, 상세 확인 중에는
 create/link/skip 검토 control이 노출되지 않는지도 검증한다. fixture가 이후 `needs-review`로 전환되면
 기존 동일 command 재시도와 검토 흐름을 계속 실행한다.

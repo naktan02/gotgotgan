@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./connector": {
+      "types": "./dist/connector/index.d.ts",
+      "default": "./dist/connector/index.js"
+    },
     "./http": {
       "types": "./dist/http/index.d.ts",
       "default": "./dist/http/index.js"
@@ -23,6 +27,7 @@
   },
   "files": [
     "dist",
+    "connector/place-connector.v1.schema.json",
     "http/openapi.v1.json",
     "place-reference/place-reference.v1.schema.json"
   ],

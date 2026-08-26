@@ -1,4 +1,6 @@
-import { readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { buildContractArtifacts } from '../dist/generate.js'
 
@@ -11,6 +13,7 @@ for (const [relativePath, generated] of buildContractArtifacts()) {
     const current = await readFile(target, 'utf8').catch(() => undefined)
     if (current !== generated) failures.push(relativePath)
   } else {
+    await mkdir(dirname(fileURLToPath(target)), { recursive: true })
     await writeFile(target, generated, 'utf8')
   }
 }

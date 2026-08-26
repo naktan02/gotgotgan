@@ -1,0 +1,17 @@
+{
+  "extends": "./.wxt/tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "verbatimModuleSyntax": true
+  },
+  "include": [
+    "src/env.d.ts",
+    "src/application/**/*.ts",
+    "src/adapters/browser/webextensions/**/*.ts",
+    "src/adapters/place/capture-upload/**/*.ts",
+    "src/entrypoints/extension/**/*.ts"
+  ],
+  "exclude": ["src/**/*.test.ts", "src/**/tests"]
+}

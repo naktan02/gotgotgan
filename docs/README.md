@@ -24,9 +24,16 @@ client, Gateway route, family composer, or AI connection is active.
 Stage 7은 진행 중이다. 연결 메타데이터, durable Import queue, lease/fencing, NAVER 승인 캡처
 parser, 암호화 artifact replay, preview/review API, Web BFF와 반응형 검토 화면, 만료 artifact
 물리 삭제 작업을 source-only로 구현했다. desktop/mobile Playwright와 실제 PostGIS는 검토 재시도,
-민감정보 비노출, DB 삭제 표식과 암호화 파일 삭제를 검증한다. 실제 NAVER test account의
-Playwright acquisition, 전용 profile lifecycle과 관찰 자료 기반 parser-change fixture는
-integration-gated이며 완료로 표시하지 않는다.
+민감정보 비노출, DB 삭제 표식과 암호화 파일 삭제를 검증한다. 현재 전용 Chrome profile을 사용하는
+로컬 커넥터의 로그인·취소·종료, 값 없는 네트워크 구조 보고서, current·legacy NAVER schema를 격리한
+전체 폴더·bookmark pagination 수집기는 source-only 진단 CLI다. 평소 로그인 session을 재사용하지
+못하므로 주 회원 흐름으로 사용하지 않는다. ADR 0012는 `apps/member-connector`에 현재 browser profile을
+쓰는 하나의 다중 브라우저·다중 Provider 확장을 두고 NAVER·Kakao·Google을 Adapter로 격리하도록
+결정했다. Versioned Connector 계약, provider-neutral application Interface, browser/upload Adapter와
+Chromium·Firefox Manifest V3 build 검증은 source-only다. Chrome·Edge·Whale은 Chromium 산출물을
+공유하지만 Whale 실설치 evidence는 아직 없다. Provider host permission, 실제 Provider Adapter, 공개
+BFF capture route, parser-change fixture와 서버 상세 profile Adapter는 integration-gated이며 완료로
+표시하지 않는다.
 
 Provider Place ID가 안정된 item은 `enriching` intent와 같은 transaction에 기록된다. Provider
 Identity별 공동 Fulfillment Job은 Canonical cache를 먼저 확인하고 hit이면 외부 호출 없이 Library에
