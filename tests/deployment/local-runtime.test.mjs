@@ -59,6 +59,9 @@ test('local runtime preparation is secret-safe, resumable, and origin-bound', as
     assert.match(composeEnvironment, /^PLACE_CONNECTOR_PUBLIC_ORIGIN=http:\/\/localhost:3000$/m)
     assert.match(composeEnvironment, /^PLACE_OIDC_ISSUER=http:\/\/identity\.localhost$/m)
     assert.match(composeEnvironment, /^PLACE_OIDC_CLIENT_ID=place-local-client-id$/m)
+    assert.match(composeEnvironment, /^PLACE_WORKER_DATABASE_MAX_CONNECTIONS=2$/m)
+    assert.match(composeEnvironment, /^PLACE_WORKER_DATABASE_IDLE_TIMEOUT_MILLISECONDS=30000$/m)
+    assert.match(composeEnvironment, /^PLACE_WORKER_DATABASE_CONNECTION_TIMEOUT_MILLISECONDS=5000$/m)
     assert.doesNotMatch(composeEnvironment, /test-only-client-secret/)
     assert.doesNotMatch(composeEnvironment, new RegExp(originalPassword.trim()))
   } finally {

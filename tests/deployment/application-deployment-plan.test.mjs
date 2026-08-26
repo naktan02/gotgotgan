@@ -153,6 +153,10 @@ test('production composition consumes immutable images while local composition o
   assert.match(productionCompose, /PLACE_CAPTURE_KEYRING_FILE: \/run\/secrets\/place_capture_keyring/)
   assert.match(productionCompose, /PLACE_CAPTURE_ROOT: \/var\/lib\/place\/captures/)
   assert.match(productionCompose, /place-captures:\/var\/lib\/place\/captures/)
+  assert.match(
+    productionCompose,
+    /source: place_membership_policy\s+target: \/run\/configs\/place_membership_policy/,
+  )
 
   const applicationRuntime = JSON.parse(runtimeDocument)
   assert.deepEqual(applicationRuntime.artifactInputs, {

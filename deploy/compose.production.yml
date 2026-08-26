@@ -83,7 +83,8 @@ services:
     volumes:
       - place-captures:/var/lib/place/captures
     configs:
-      - place_membership_policy
+      - source: place_membership_policy
+        target: /run/configs/place_membership_policy
     networks:
       - default
       - place-data
