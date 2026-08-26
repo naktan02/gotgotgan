@@ -108,9 +108,12 @@ export async function createOpenidClientProvider(
       }).href
     },
     async exchangeAuthorizationCode(request) {
+      const currentUrl = new URL(request.currentUrl)
+      const callbackResponseUrl = new URL(request.callbackUrl)
+      callbackResponseUrl.search = currentUrl.search
       const tokens = await driver.authorizationCodeGrant(
         configuration,
-        new URL(request.currentUrl),
+        callbackResponseUrl,
         {
           pkceCodeVerifier: request.pkceVerifier,
           expectedState: request.state,

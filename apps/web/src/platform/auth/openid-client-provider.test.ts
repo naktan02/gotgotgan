@@ -56,7 +56,7 @@ describe('openid-client provider adapter', () => {
 
     await expect(provider.exchangeAuthorizationCode({
       callbackUrl: 'https://place.example/api/auth/oidc/callback',
-      currentUrl: 'https://place.example/api/auth/oidc/callback?code=code&state=state-secret',
+      currentUrl: 'http://place-web:3000/api/auth/oidc/callback?code=code&state=state-secret',
       state: 'state-secret',
       nonce: 'nonce-secret',
       pkceVerifier: 'verifier-secret',
