@@ -9,8 +9,12 @@ export type ReviewableImportItem = Readonly<{
   itemId: string
   batchId: string
   memberId: string
+  connectionId: string
   providerKey: 'naver' | 'kakao' | 'google'
   providerPlaceId?: string
+  sourceListId: string
+  sourceListPosition: number
+  sourcePosition: number
   listName: string
   name: string
   address: string | null

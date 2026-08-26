@@ -1,6 +1,6 @@
 import { chromium } from 'playwright'
 
-import type { NaverAuthenticatedJsonClient } from '../naver/naver-saved-place-collector.js'
+import type { NaverAuthenticatedJsonClient } from '../../../adapters/providers/naver/naver-saved-place-collector.js'
 
 type BrowserFetchResult =
   | Readonly<{

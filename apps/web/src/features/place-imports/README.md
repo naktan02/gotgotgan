@@ -1,13 +1,15 @@
-# Place imports feature
+# 장소 가져오기 기능
 
-연결 계정 선택, batch 진행, 취소·재개와 예외 검토를 하나의 사용자 workflow로 제공한다. 화면은
-동일 출처 Web BFF 계약만 사용하고 provider profile, cookie, token, raw capture를 알지 못한다.
-응답을 확인하지 못한 검토 명령은 같은 command ID로 재시도한다.
+이 기능은 두 개의 Provider-neutral 경로를 같은 검토 화면으로 연결한다.
 
-desktop과 mobile은 같은 workflow 상태를 사용하되 좁은 화면에서는 shell sidebar가 hamburger로
-접히고 진행·검토 card가 한 열로 바뀐다. 이 feature는 Backend client, 인증 token, profile lifecycle을
-직접 import하지 않으므로 화면을 대대적으로 바꿔도 서버 경계는 유지된다.
+- 서버 연결 경로: 연결 선택, ImportBatch 시작·재개·취소·재시도, preview/review를 수행한다.
+- 현재 브라우저 경로: Place Connector를 확인하고 Provider 권한을 준비한 뒤 일회성 grant로 수집을
+  시작하며, 진행 상황과 완성된 `importBatchId`를 받아 같은 batch 상세로 전환한다.
 
-`enriching` item은 DB에 없는 Provider 장소의 상세 확인 또는 Canonical cache 판정이 진행 중임을
-표시한다. 화면은 내부 Fulfillment job ID나 서버 Provider profile을 알지 못하며, polling 중 `applied`,
-`needs-review`, `failed`의 권위 있는 Backend 상태만 다시 읽는다.
+화면은 feature-local 상태와 `platform/imports`의 좁은 client interface만 사용한다. Backend 주소,
+OIDC token, browser API, Provider cookie·token·profile, NAVER endpoint와 응답 schema를 import하지
+않는다. 따라서 sidebar·card·mobile 배치 같은 UI는 workflow와 서버 경계를 바꾸지 않고 대대적으로
+교체할 수 있다.
+
+desktop과 mobile은 같은 상태 모델을 사용한다. 결정적 E2E는 가짜 서버 연결 흐름과 가짜 확장
+probe·permission·progress·completion을 검증하며 실제 계정 자료를 저장하지 않는다.

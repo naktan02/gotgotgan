@@ -30,8 +30,12 @@ const claim = {
     itemId: '01992d20-b000-7000-8000-000000000010',
     batchId: '01992d20-b000-7000-8000-000000000011',
     memberId: '01992d20-b000-7000-8000-000000000012',
+    connectionId: '01992d20-b000-7000-8000-000000000017',
     providerKey: 'naver' as const,
     providerPlaceId: 'naver-place-001',
+    sourceListId: 'list-fukuoka',
+    sourceListPosition: 0,
+    sourcePosition: 0,
     listName: '후쿠오카 여행',
     name: '센카이 라멘',
     address: '일본 후쿠오카현 후쿠오카시',
@@ -132,6 +136,14 @@ describe('imported place fulfillment worker interface', () => {
       memberId: firstItem.memberId,
       canonicalPlaceId,
       occurredAt: at,
+      source: {
+        providerKey: 'naver',
+        connectionId: firstItem.connectionId,
+        listId: firstItem.sourceListId,
+        listName: firstItem.listName,
+        listPosition: firstItem.sourceListPosition,
+        position: firstItem.sourcePosition,
+      },
     })
     expect(dependencies.completedItems).toEqual([expect.objectContaining({
       itemId: firstItem.itemId,

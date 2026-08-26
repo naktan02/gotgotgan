@@ -87,6 +87,14 @@ export function createImportedPlaceFulfillmentWorker(dependencies: Readonly<{
         memberId: item.memberId,
         canonicalPlaceId,
         occurredAt,
+        source: {
+          providerKey: item.providerKey,
+          connectionId: item.connectionId,
+          listId: item.sourceListId,
+          listName: item.listName,
+          listPosition: item.sourceListPosition,
+          position: item.sourcePosition,
+        },
       })
       if (saved.status !== 'applied' && saved.status !== 'replayed') {
         throw new ImportReferenceUnavailableError(`Imported place save failed: ${saved.status}`)

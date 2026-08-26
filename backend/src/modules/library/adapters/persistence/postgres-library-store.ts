@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import type { Pool, PoolClient } from 'pg'
 
 import type { LibraryStore } from '../../application/ports/library-store.js'
@@ -36,17 +38,129 @@ export class PostgresLibraryStore implements LibraryStore, ImportedPlaceSaveStor
           ? { status: 'replayed' }
           : { status: 'conflict' }
       }
-      const saved = await client.query(
+      const place = await client.query(
+        `SELECT id FROM places.canonical_places
+         WHERE id = $1::uuid AND status = 'active'`,
+        [attempt.canonicalPlaceId],
+      )
+      if (place.rows[0] === undefined) {
+        await client.query(
+          `INSERT INTO library.command_receipts (
+             command_id, membership_id, command_kind, command_fingerprint, outcome, occurred_at
+           ) VALUES ($1::uuid,$2::uuid,'save-imported-place',$3,'not-found',$4::timestamptz)`,
+          [attempt.commandId, attempt.memberId, attempt.fingerprint, attempt.occurredAt],
+        )
+        await client.query('COMMIT')
+        return { status: 'not-found' }
+      }
+
+      await client.query(
+        `SELECT pg_advisory_xact_lock(hashtextextended(
+           'place.library.import.v1:' || $1 || ':' || $2 || ':' || $3, 0
+         ))`,
+        [attempt.source.providerKey, attempt.source.connectionId, attempt.source.listId],
+      )
+      const mapped = await client.query<{ collection_id: string; owner_membership_id: string }>(
+        `SELECT provenance.collection_id, collection.owner_membership_id
+         FROM library.collection_import_provenance AS provenance
+         JOIN library.collections AS collection ON collection.id = provenance.collection_id
+         WHERE provenance.provider_key = $1
+           AND provenance.source_connection_reference = $2::uuid
+           AND provenance.source_list_id = $3
+         FOR UPDATE OF provenance, collection`,
+        [attempt.source.providerKey, attempt.source.connectionId, attempt.source.listId],
+      )
+      const priorCollection = mapped.rows[0]
+      if (
+        priorCollection !== undefined &&
+        priorCollection.owner_membership_id !== attempt.memberId
+      ) {
+        await client.query(
+          `INSERT INTO library.command_receipts (
+             command_id, membership_id, command_kind, command_fingerprint, outcome, occurred_at
+           ) VALUES ($1::uuid,$2::uuid,'save-imported-place',$3,'forbidden',$4::timestamptz)`,
+          [attempt.commandId, attempt.memberId, attempt.fingerprint, attempt.occurredAt],
+        )
+        await client.query('COMMIT')
+        return { status: 'forbidden' }
+      }
+
+      const collectionId = priorCollection?.collection_id ?? randomUUID()
+      if (priorCollection === undefined) {
+        await client.query(
+          `INSERT INTO library.collections (
+             id, owner_membership_id, name, description, visibility,
+             publication_id, created_at, updated_at
+           ) VALUES ($1::uuid,$2::uuid,$3,NULL,'private',NULL,$4::timestamptz,$4::timestamptz)`,
+          [collectionId, attempt.memberId, attempt.source.collectionName, attempt.occurredAt],
+        )
+        await client.query(
+          `INSERT INTO library.collection_import_provenance (
+             collection_id, owner_membership_id, provider_key,
+             source_connection_reference, source_list_id, source_name_snapshot,
+             source_position, first_imported_at, last_imported_at
+           ) VALUES (
+             $1::uuid,$2::uuid,$3,$4::uuid,$5,$6,$7,$8::timestamptz,$8::timestamptz
+           )`,
+          [collectionId, attempt.memberId, attempt.source.providerKey,
+            attempt.source.connectionId, attempt.source.listId, attempt.source.listName,
+            attempt.source.listPosition, attempt.occurredAt],
+        )
+      } else {
+        await client.query(
+          `UPDATE library.collection_import_provenance
+           SET source_name_snapshot = $2, source_position = $3,
+               last_imported_at = $4::timestamptz
+           WHERE collection_id = $1::uuid`,
+          [collectionId, attempt.source.listName, attempt.source.listPosition, attempt.occurredAt],
+        )
+      }
+
+      await client.query(
         `INSERT INTO library.place_preferences (
            membership_id, canonical_place_id, saved, wanted, personal_rating, created_at, updated_at
-         ) SELECT $1::uuid, place.id, true, false, NULL, $3::timestamptz, $3::timestamptz
-           FROM places.canonical_places AS place
-           WHERE place.id = $2::uuid AND place.status = 'active'
+         ) VALUES ($1::uuid,$2::uuid,true,false,NULL,$3::timestamptz,$3::timestamptz)
          ON CONFLICT (membership_id, canonical_place_id) DO UPDATE
            SET saved = true, updated_at = EXCLUDED.updated_at`,
         [attempt.memberId, attempt.canonicalPlaceId, attempt.occurredAt],
       )
-      const outcome = saved.rowCount === 1 ? 'applied' as const : 'not-found' as const
+      const placed = await client.query(
+        `INSERT INTO library.collection_places (
+           collection_id, canonical_place_id, position, added_at
+         ) SELECT $1::uuid,$2::uuid,$3,$4::timestamptz
+           WHERE NOT EXISTS (
+             SELECT 1 FROM library.collection_places
+             WHERE collection_id = $1::uuid AND canonical_place_id = $2::uuid
+           ) AND NOT EXISTS (
+             SELECT 1 FROM library.collection_places
+             WHERE collection_id = $1::uuid AND position = $3
+           )
+         ON CONFLICT DO NOTHING`,
+        [collectionId, attempt.canonicalPlaceId, attempt.source.position, attempt.occurredAt],
+      )
+      if (placed.rowCount === 0) {
+        await client.query(
+          `INSERT INTO library.collection_places (
+             collection_id, canonical_place_id, position, added_at
+           ) SELECT $1::uuid,$2::uuid,
+                    coalesce(max(existing.position) + 1, 0),$3::timestamptz
+             FROM library.collection_places AS existing
+             WHERE existing.collection_id = $1::uuid
+               AND NOT EXISTS (
+                 SELECT 1 FROM library.collection_places
+                 WHERE collection_id = $1::uuid AND canonical_place_id = $2::uuid
+               )
+           ON CONFLICT DO NOTHING`,
+          [collectionId, attempt.canonicalPlaceId, attempt.occurredAt],
+        )
+      }
+      await client.query(
+        `UPDATE library.collections
+         SET updated_at = greatest(updated_at, $2::timestamptz)
+         WHERE id = $1::uuid`,
+        [collectionId, attempt.occurredAt],
+      )
+      const outcome = 'applied' as const
       await client.query(
         `INSERT INTO library.command_receipts (
            command_id, membership_id, command_kind, command_fingerprint, outcome, occurred_at

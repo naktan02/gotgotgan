@@ -42,7 +42,8 @@ Provider Place ID뿐이며 회원·목록·사용자 profile은 포함하지 않
 확장이다. Provider `SavedPlaceSource`가 endpoint·schema·pagination·auth-expiry를 숨기고 browser
 WebExtensions Adapter가 tab·permission·message 차이를 숨긴다. Provider별 확장은 만들지 않는다.
 Place Web/BFF와의 제출은 `packages/contracts/connector`의 일회성 grant 계약만 사용한다. 이 확장과
-capture 제출은 현재 `not-integrated`다.
+NAVER 목록 수집 Adapter, exact optional permission, Web BFF는 source-only다. Backend grant/capture
+receiver가 아직 없어 실제 capture 제출과 ImportBatch 전달은 `not-integrated`다.
 
 현재 진단용 로컬 커넥터의 첫 관찰 pass는 `naver.com` 하위 응답의 method·origin·query 없는 path template·
 status·content type만 기록한다. JSON body 구조는 설정에서 정확히 opt-in한 origin에만 허용하며 값은
@@ -55,4 +56,5 @@ Acquisition Runtime을 추출하지 않는다.
 각각 끝까지 pagination하고 별칭·memo·분류/지역 코드·시각·availability를 누락하지 않는다.
 first-party 페이지 안에서 요청하므로 browser cookie/header는 밖으로 나오지 않으며 CLI는 합계만
 반환한다. 전용 Playwright profile은 주 회원 session 경계가 아니며 observation·fixture/replay·E2E·
-통제된 fallback으로만 유지한다. capture submission은 별도 capability로 `not-integrated`다.
+통제된 fallback으로만 유지한다. 같은 collector를 확장 NAVER Adapter도 조립하며 source list ID·이름·
+목록 순서·장소 순서를 보존한다. capture submission은 Backend receiver 전까지 `not-integrated`다.

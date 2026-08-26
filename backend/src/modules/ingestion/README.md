@@ -47,3 +47,7 @@ Provider Identity별 Fulfillment Job은 먼저 `CanonicalPlaceMaterializationPor
 hit이면 외부 상세 호출 없이 증거와 정책 link decision을 기록하고 Library에 저장한다. miss이면
 회원 정보가 없는 `PlaceEnrichmentSource`를 호출해 충분한 상세 증거로 Canonical Place를 한 번 만든 뒤
 모든 대기 회원 Library에 fan-out한다. 불확실한 상세는 `needs-review`, 최종 실패는 `failed`로 남는다.
+
+ImportItem은 Provider의 `source_list_id`, 목록 순서와 목록 안 순서를 함께 보존한다. Fulfillment와
+명시적 review 모두 이 메타데이터를 Library 공개 port에 전달한다. Ingestion은 원본 폴더를 Taxonomy로
+해석하거나 Library Collection을 직접 만들지 않는다.

@@ -33,11 +33,11 @@ boundary다. 목표 구조에서 application은 Provider-neutral `SavedPlaceSour
 한다. `packages/contracts/connector`가 versioned network/message contract를 소유하되 Connector는
 `backend`나 `apps/web` source를 import하지 않는다. 이 의존 방향은 아키텍처 가드로 검증한다.
 
-현재 `acquisition/adapters/naver`와 `acquisition/adapters/playwright`는 목표 확장 이전의 source-only
-진단 CLI다. NAVER folder/bookmark schema와 전체 pagination, first-party fetch와 전용 context 수명주기를
-각각 깊은 leaf로 감추며 결과는 합계만 노출한다. 전용 profile은 평소 로그인 session을 재사용하지
-못하므로 주 회원 경계가 아니라 Playwright 진단·fixture/replay·E2E·통제된 fallback으로 남긴다. 향후
-확장 제출도 이 Adapter를 Backend에 직접 import하지 않고 별도 versioned connector 계약으로 연결한다.
+NAVER folder/bookmark schema와 전체 pagination은 `adapters/providers/naver`의 깊은 leaf가 소유하며
+확장과 진단 CLI가 같은 collector를 조립한다. `acquisition/adapters/playwright`는 first-party fetch와
+전용 context 수명주기를 소유하는 진단 Adapter다. 전용 profile은 평소 로그인 session을 재사용하지
+못하므로 주 회원 경계가 아니라 Playwright 진단·fixture/replay·E2E·통제된 fallback으로 남긴다.
+확장 제출은 이 Adapter나 Backend source를 직접 import하지 않고 versioned connector 계약으로 연결한다.
 
 NAVER·Kakao·Google은 같은 확장의 Provider Adapter이며 Provider별 확장을 만들지 않는다. Chromium,
 Firefox, Safari 차이는 Provider leaf로 역류하지 않는다. Stage 10 외부 저장은 Import용 Source를

@@ -10,6 +10,7 @@
     "src/env.d.ts",
     "src/application/**/*.ts",
     "src/adapters/browser/webextensions/**/*.ts",
+    "src/adapters/providers/**/*.ts",
     "src/adapters/place/capture-upload/**/*.ts",
     "src/entrypoints/extension/**/*.ts"
   ],

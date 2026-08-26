@@ -4,6 +4,15 @@ export type ImportedPlaceSaveAttempt = Readonly<{
   canonicalPlaceId: string
   occurredAt: string
   fingerprint: string
+  source: Readonly<{
+    providerKey: 'naver' | 'kakao' | 'google'
+    connectionId: string
+    listId: string
+    listName: string
+    collectionName: string
+    listPosition: number
+    position: number
+  }>
 }>
 
 export interface ImportedPlaceSaveStore {

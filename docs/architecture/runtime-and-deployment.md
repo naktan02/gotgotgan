@@ -13,8 +13,9 @@ private capture volume과 bounded batch를 조립하고 종료 시 Pool을 닫�
 
 Provider Identity별 cache-first Fulfillment Worker와 PostgreSQL queue는 source-only로 추가됐다.
 이 Worker는 Canonical hit이면 Provider를 호출하지 않고 Library 반영만 수행하며, miss일 때만 주입된
-`PlaceEnrichmentSource`를 호출한다. 실제 NAVER 서비스 profile Adapter와 사용자 PC Connector가 아직
-없으므로 production acquisition command나 Compose process를 활성화하지 않는다.
+`PlaceEnrichmentSource`를 호출한다. 서버 상세 보강용 실제 NAVER service-profile Adapter는 아직
+없으므로 production acquisition command나 Compose process를 활성화하지 않는다. 회원 PC Connector의
+NAVER 목록 수집 Adapter는 별도 browser artifact에 있으며 Worker나 Docker에 포함되지 않는다.
 
 회원 PC용 `member-connector`는 배포 Web/Backend/Worker나 Docker 수평 확장 단위가 아니다. 목표 runtime은
 현재 browser profile에 설치되는 하나의 다중 브라우저·다중 Provider 확장이다. 이벤트가 있을 때만
@@ -24,15 +25,17 @@ Browser 산출물은 별도 release artifact이며 production image나 Compose s
 
 현재 WXT 기반 source는 Chromium Manifest V3와 Firefox Manifest V3 산출물을 결정적으로 만든다.
 Chromium 산출물은 Chrome·Edge·Whale이 공유하며 browser Adapter가 Whale을 Chrome보다 먼저 식별한다.
-이 build 결과는 Docker image에 포함하지 않는다. 실제 브라우저 설치·업데이트·서명·배포 수명주기와
-Provider permission은 아직 연결되지 않았고, Whale은 실설치 smoke 전까지 `integration-gated`다.
-등록된 Provider가 없으므로 확장 background는 수집 tab/network lifecycle을 아직 만들지 않는다.
+이 build 결과는 Docker image에 포함하지 않는다. NAVER Adapter와 exact optional permission은
+source-only로 연결됐지만 실제 브라우저 설치·업데이트·서명·배포 수명주기는 아직 없다. Whale은
+실설치와 로그인된 session smoke 전까지 `integration-gated`다. 확장 background는 사용자가 NAVER
+가져오기를 시작한 동안에만 first-party request와 bounded 수집 메모리를 소유한다.
 
 현재 visible Chrome context를 생성하는 login, redacted observation, bounded local collection은 확장
 이전의 source-only 진단 CLI다. 전체 저장목록 결과는 메모리에서 폐기되고 합계만 출력한다. 전용
 profile의 로그인 성공은 제품 완료 조건이 아니며 Playwright 진단·fixture/replay·E2E·통제된 fallback으로
-유지한다. Extension capture submission과 ImportBatch delivery는 `not-integrated`이고, connector upload
-grant와 network contract가 승인되기 전에는 Docker/Compose Worker가 회원 값을 받는 경로가 없다.
+유지한다. Extension capture Adapter와 Web의 grant/capture BFF route는 source-only지만 Backend
+`/v1/connector-grants`와 `/v1/connector-captures` 수신 endpoint가 아직 없으므로 ImportBatch delivery는
+`not-integrated`다. Docker/Compose Worker가 회원 캡처를 받는 활성 경로도 없다.
 
 The source-only runtime exposes local health/readiness scaffolds and the Stage 2 shell/access code.
 Gateway, Identity, provider, map, family navigation, and AI delivery states remain `not-integrated`

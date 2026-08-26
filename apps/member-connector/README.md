@@ -5,11 +5,10 @@
 Google은 별도 확장이 아니라 Provider Adapter로 추가한다. 캡처는 짧은 수명의 일회성 Place grant로만
 제출하며 Provider cookie·token·profile 경로를 서버로 보내지 않는다.
 
-현재는 확장의 provider-neutral application 경계, WebExtensions browser Adapter, 고정 공개 Place
-origin으로 제출하는 capture Adapter, WXT entrypoint와 Chromium·Firefox build 검증을 source-only로
-구현했다. 등록된 실제 Provider Adapter와 host permission은 아직 없으므로 팝업도 브라우저 준비 상태만
-표시한다. 공개 BFF route, 실설치 배포, live Provider 수집과 서버 상세 보강은 여전히
-`not-integrated` 또는 `integration-gated`다.
+현재는 provider-neutral application 경계, WebExtensions browser Adapter, NAVER Provider Adapter,
+고정 공개 Place origin capture Adapter, WXT entrypoint와 Chromium·Firefox build 검증을 source-only로
+구현했다. Web grant/capture BFF route도 있지만 Backend 수신 endpoint는 아직 없다. 실설치 배포와
+로그인된 NAVER session 검증은 `integration-gated`, 실제 ImportBatch 전달은 `not-integrated`다.
 
 전용 Playwright profile을 쓰는 기존 로그인·비식별 네트워크 관찰·NAVER 전체 저장 목록 bounded
 수집기는 진단 CLI로 남아 있다. 실관찰에서 평소 브라우저의 로그인 상태를 재사용하지 못했으므로 주
@@ -31,6 +30,7 @@ src/
       capture-submission.ts
   adapters/
     browser/webextensions/     tab·message·permission·cancel·resource close
+    providers/naver/           session 검사·folder/bookmark schema·전체 pagination
     place/capture-upload/      공개 BFF와 일회성 Connector grant만
   entrypoints/
     extension/                 WXT가 읽는 얇은 composition entrypoint
@@ -53,8 +53,9 @@ WXT `0.21.4`와 Vite `6.4.3`을 고정했다. Chrome·Edge·Whale은 Chromium Ma
 공유하고 Firefox는 별도 Manifest V3 산출물을 만든다. Whale 전용 코드를 복제하지 않으며 browser
 감지는 Whale을 Chrome보다 먼저 판별한다. Safari는 아직 산출물이 없다.
 
-현재 manifest의 기본 권한은 `storage`뿐이고 Provider host permission은 없다. Place content bridge도
-빌드 시 주입한 정확한 공개 origin 하나에서만 동작한다. 실제 배포 산출물은 다음처럼 만든다.
+현재 manifest의 기본 권한은 `storage`이고 Place content bridge와 upload에는 빌드 시 주입한 정확한
+공개 origin 하나만 사용한다. NAVER는 `https://pages.map.naver.com/*`를 optional host permission으로
+두고 사용자가 가져오기를 선택한 즉시 클릭에서만 요청한다. 실제 배포 산출물은 다음처럼 만든다.
 
 ```powershell
 $env:WXT_PLACE_CONNECTOR_PUBLIC_ORIGIN='https://<public-place-origin>'
@@ -70,8 +71,9 @@ npm run build:extension:firefox --workspace @place/member-connector
 npm run check:extension --workspace @place/member-connector
 ```
 
-이 검증은 Chromium/Firefox build와 manifest 상한을 확인한다. 실제 Chrome·Edge·Whale·Firefox 설치,
-Place page handshake, Provider permission, public BFF receipt를 실행하는 E2E는 다음 단계다. 특히
+이 검증은 Chromium/Firefox build, manifest 상한, NAVER exact optional permission을 확인한다. 가짜
+확장 E2E는 Place page handshake·permission·progress·completion을 desktop/mobile에서 검증한다. 실제
+Chrome·Edge·Whale·Firefox 설치와 NAVER session, Backend receipt는 별도 live 검증이 필요하다. 특히
 Whale은 Chromium 산출물 호환 구조만 검증했으며 실설치 smoke 전까지 `integration-gated`다. 상세 계약은
 [`../../docs/api/connector-v1.md`](../../docs/api/connector-v1.md)를 따른다.
 
@@ -80,9 +82,10 @@ Whale은 Chromium 산출물 호환 구조만 검증했으며 실설치 smoke 전
 ```text
 src/
   acquisition/
-    adapters/naver/       현재·legacy folder/bookmark schema, 전체 pagination, field 보존
     adapters/playwright/  first-party 페이지 안의 credential-including JSON fetch와 context 수명주기
-    tests/                전체 목록 순회·상한·schema drift·응답 크기·종료 테스트
+    tests/                응답 크기·종료와 진단 조립 테스트
+  adapters/providers/naver/
+    naver-saved-place-collector.ts  확장·CLI가 공유하는 schema·pagination leaf
   observation/
     application/   응답 값을 버리고 origin·경로 틀·JSON 키/타입만 만드는 use case와 port
     adapters/
@@ -158,8 +161,8 @@ CLI는 개인 필드, ID, checksum, 경로를 출력하지 않고 목록·bookma
 ## 현재 진단 상태와 중지
 
 `Ctrl+C` 또는 브라우저 종료가 진단 context 종료를 소유한다. profile과 report 디렉터리는 Git·Docker
-image·Place DB 밖에 둔다. 현재 로그인·관찰·전체 로컬 수집 코드는 `source-only`다. capture upload
-Adapter는 source-only지만 공개 BFF route와 실제 Provider가 없어 제출 흐름은 `not-integrated`다. 이
+image·Place DB 밖에 둔다. 현재 로그인·관찰·전체 로컬 수집 코드는 `source-only`다. capture upload와
+Web BFF는 source-only지만 Backend grant/capture receiver가 없어 제출 흐름은 `not-integrated`다. 이
 전용 profile CLI의 로그인 성공은 더 이상 제품 완료 조건이 아니다.
 실제 계정 검증이나 Provider 응답이 실패하면 live acquisition은 `integration-gated`로 남는다. 관찰한
 계약을 비식별 fixture로 승인하기 전에는 내부 endpoint, selector, 직접 HTTP replay를 제품 코드에

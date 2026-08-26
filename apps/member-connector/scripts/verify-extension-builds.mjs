@@ -46,6 +46,7 @@ async function manifest(browser) {
 const chromium = await manifest('chrome')
 const firefox = await manifest('firefox')
 const expectedMatch = `${publicOrigin}/*`
+const expectedProviderPermission = 'https://pages.map.naver.com/*'
 const failures = []
 for (const [browser, value] of [['chromium', chromium], ['firefox', firefox]]) {
   if (value.manifest_version !== 3) failures.push(`${browser} must use Manifest V3`)
@@ -55,8 +56,11 @@ for (const [browser, value] of [['chromium', chromium], ['firefox', firefox]]) {
   if (value.content_scripts?.[0]?.matches?.join(',') !== expectedMatch) {
     failures.push(`${browser} must bridge only the configured Place public origin`)
   }
-  if (value.host_permissions !== undefined || value.optional_host_permissions !== undefined) {
-    failures.push(`${browser} cannot claim provider host access before a provider adapter exists`)
+  if (value.host_permissions?.join(',') !== expectedMatch) {
+    failures.push(`${browser} must upload only to the configured Place public origin`)
+  }
+  if (value.optional_host_permissions?.join(',') !== expectedProviderPermission) {
+    failures.push(`${browser} must request only the NAVER saved-place origin on demand`)
   }
   if (value.oauth2 !== undefined || value.key !== undefined) {
     failures.push(`${browser} cannot embed a browser-store identity or OAuth credential`)

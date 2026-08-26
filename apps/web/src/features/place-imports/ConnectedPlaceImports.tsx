@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import {
+  connectorGrantSchema,
+  type ConnectorExtensionEvent,
+} from '@place/contracts/connector'
 import { problemSchema } from '@place/contracts/http'
 import {
   placeImportBatchDetailSchema,
@@ -13,6 +17,8 @@ import {
   type PlaceImportItem,
 } from '@place/contracts/imports'
 
+import { ConnectorPageSession } from '@/platform/imports/connector/connector-page-session'
+
 import styles from './connected-place-imports.module.css'
 
 type ImportAction =
@@ -20,20 +26,26 @@ type ImportAction =
   | Readonly<{ kind: 'link-place'; canonicalPlaceId: string }>
   | Readonly<{ kind: 'skip'; reason?: string }>
 
+type ConnectorReady = Extract<ConnectorExtensionEvent, Readonly<{ kind: 'ready' }>>
+type ConnectorProgress = Extract<ConnectorExtensionEvent, Readonly<{ kind: 'progress' }>>['progress']
+
 const activeStates = new Set(['queued', 'running', 'partial', 'enriching'])
 const uuidPattern = '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
 const reviewReasonLabels: Readonly<Record<string, string>> = {
   'possible-duplicate': '중복 가능성',
   'missing-address': '주소 없음',
   'provider-place-id-unavailable': 'Provider 장소 ID 없음',
+  'provider-place-id-missing': 'Provider 장소 ID 없음',
+  'address-missing': '주소 없음',
+  'location-missing': '좌표 없음',
 }
 const stateMessages: Readonly<Record<PlaceImportBatch['state'], string>> = {
   queued: '가져오기를 기다리고 있습니다.',
-  running: '저장목록을 가져오는 중입니다.',
-  partial: '일부 항목을 가져오는 중입니다.',
-  enriching: '새 장소의 상세정보를 확인하는 중입니다.',
-  'needs-user-action': 'Provider 계정에서 확인이 필요합니다.',
-  'needs-review': '검토할 항목이 있습니다.',
+  running: '저장 목록을 가져오는 중입니다.',
+  partial: '일부 목록을 가져온 뒤 다음 묶음을 기다리고 있습니다.',
+  enriching: '장소의 최신 상세 정보를 확인하고 있습니다.',
+  'needs-user-action': 'Provider 계정에서 추가 확인이 필요합니다.',
+  'needs-review': '직접 확인할 장소가 있습니다.',
   completed: '가져오기가 완료되었습니다.',
   failed: '가져오기를 완료하지 못했습니다.',
   cancelled: '가져오기가 취소되었습니다.',
@@ -104,10 +116,7 @@ function ItemReview({
   return (
     <li className={styles.item}>
       <div className={styles.itemHeading}>
-        <div>
-          <p className={styles.listName}>{item.listName}</p>
-          <h3>{item.name}</h3>
-        </div>
+        <div><p className={styles.listName}>{item.listName}</p><h3>{item.name}</h3></div>
         <span className={styles.itemStatus}>
           {resolved ? '처리됨' : enriching ? '상세 확인 중' : '검토 필요'}
         </span>
@@ -164,6 +173,11 @@ export function ConnectedPlaceImports() {
   const [error, setError] = useState<string>()
   const [reviewingItemId, setReviewingItemId] = useState<string>()
   const [reviewResults, setReviewResults] = useState<Readonly<Record<string, string>>>({})
+  const [connectorChecking, setConnectorChecking] = useState(true)
+  const [connectorReady, setConnectorReady] = useState<ConnectorReady>()
+  const [connectorProgress, setConnectorProgress] = useState<ConnectorProgress>()
+  const connectorSession = useRef<ConnectorPageSession | undefined>(undefined)
+  const activeConnectorOperation = useRef<string | undefined>(undefined)
   const startCommand = useRef<string | undefined>(undefined)
   const reviewCommands = useRef(new Map<string, string>())
 
@@ -172,6 +186,23 @@ export function ConnectedPlaceImports() {
     setDetail(parsed)
     setBatch(parsed.batch)
   }, [])
+
+  const probeConnector = useCallback(async () => {
+    setConnectorChecking(true)
+    const ready = await connectorSession.current?.probe()
+    setConnectorReady(ready)
+    setConnectorChecking(false)
+  }, [])
+
+  useEffect(() => {
+    const session = new ConnectorPageSession(window, window.location.origin)
+    connectorSession.current = session
+    void probeConnector()
+    return () => {
+      session.close()
+      connectorSession.current = undefined
+    }
+  }, [probeConnector])
 
   useEffect(() => {
     let active = true
@@ -194,16 +225,12 @@ export function ConnectedPlaceImports() {
     let timer: number | undefined
     const poll = async () => {
       try {
-        const parsed = placeImportBatchDetailSchema.parse(
-          await requestJson(`/api/imports/${batch.batchId}`),
-        )
+        const parsed = placeImportBatchDetailSchema.parse(await requestJson(`/api/imports/${batch.batchId}`))
         if (!active) return
         setDetail(parsed)
         setBatch(parsed.batch)
       } catch (failure) {
-        if (active) {
-          setError(failure instanceof Error ? failure.message : '진행 상황을 확인하지 못했습니다.')
-        }
+        if (active) setError(failure instanceof Error ? failure.message : '진행 상황을 확인하지 못했습니다.')
       }
       if (active) timer = window.setTimeout(() => void poll(), 1_000)
     }
@@ -214,7 +241,50 @@ export function ConnectedPlaceImports() {
     }
   }, [batch?.batchId, batch?.state])
 
-  async function startImport() {
+  async function startConnectorImport() {
+    const session = connectorSession.current
+    if (session === undefined || connectorReady === undefined) return
+    setBusy(true)
+    setError(undefined)
+    setConnectorProgress(undefined)
+    const idempotencyKey = crypto.randomUUID()
+    try {
+      if (!(await session.prepare('naver'))) {
+        throw new ImportBrowserProblem('NAVER 목록 접근 권한이 허용되지 않았습니다.', false)
+      }
+      const grant = connectorGrantSchema.parse(await requestJson('/api/connector/grants', {
+        method: 'POST',
+        body: JSON.stringify({
+          schemaVersion: 'place-connector-grant-request.v1',
+          installationId: connectorReady.installationId,
+          browserKey: connectorReady.browserKey,
+          providerKey: 'naver',
+          operation: 'import-saved-library',
+          idempotencyKey,
+        }),
+      }))
+      activeConnectorOperation.current = grant.operationId
+      const result = await session.start(grant, (event) => setConnectorProgress(event.progress))
+      activeConnectorOperation.current = undefined
+      if (result === undefined) throw new ImportBrowserProblem('확장 프로그램 응답 시간이 초과되었습니다.', true)
+      if (result.code !== 'completed' || result.importBatchId === undefined) {
+        throw new ImportBrowserProblem(
+          result.code === 'reauth-required'
+            ? 'NAVER에서 로그인한 뒤 다시 시도해 주세요.'
+            : `가져오기를 완료하지 못했습니다. (${result.code})`,
+          result.retryable,
+        )
+      }
+      await loadDetail(result.importBatchId)
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : '브라우저 가져오기를 시작하지 못했습니다.')
+    } finally {
+      activeConnectorOperation.current = undefined
+      setBusy(false)
+    }
+  }
+
+  async function startServerImport() {
     if (selectedConnectionId === undefined) return
     setBusy(true)
     setError(undefined)
@@ -268,7 +338,9 @@ export function ConnectedPlaceImports() {
           schemaVersion: 'place-import-review.v1', commandId, itemId: item.itemId, action,
         }),
       }))
-      setReviewResults((current) => ({ ...current, [item.itemId]: action.kind === 'skip' ? '건너뜀' : '저장 완료' }))
+      setReviewResults((current) => ({
+        ...current, [item.itemId]: action.kind === 'skip' ? '건너뜀' : '저장 완료',
+      }))
       await loadDetail(item.batchId)
       reviewCommands.current.delete(key)
     } catch (failure) {
@@ -278,14 +350,15 @@ export function ConnectedPlaceImports() {
     }
   }
 
+  const connectorSupportsNaver = connectorReady?.supportedProviders.includes('naver') ?? false
   const items = detail?.items ?? []
   return (
     <section className={styles.workspace}>
       <header className={styles.header}>
         <div>
           <p className={styles.eyebrow}>연결 계정 Import</p>
-          <h1>저장목록 가져오기</h1>
-          <p>Provider 원본은 바로 확정하지 않고, 정규화·중복 검토 후 내 장소로 저장합니다.</p>
+          <h1>저장 목록 가져오기</h1>
+          <p>현재 브라우저의 로그인 상태를 사용하고, 원본 폴더는 내 비공개 컬렉션으로 보존합니다.</p>
         </div>
       </header>
 
@@ -293,34 +366,70 @@ export function ConnectedPlaceImports() {
 
       <div className={styles.layout}>
         <aside className={styles.controlPane}>
-          <section aria-labelledby="connection-title" className={styles.controlSection}>
-            <h2 id="connection-title">연결 계정</h2>
-            {connections.length === 0 ? (
-              <p className={styles.muted}>사용 가능한 연결 계정이 없습니다.</p>
-            ) : connections.map((connection) => (
-              <label className={styles.connection} key={connection.connectionId}>
-                <input
-                  checked={selectedConnectionId === connection.connectionId}
-                  disabled={connection.status !== 'ready' || batch !== undefined}
-                  name="provider-connection"
-                  onChange={() => setSelectedConnectionId(connection.connectionId)}
-                  type="radio"
-                />
-                <span><strong>{connection.label}</strong><small>{connection.providerKey.toUpperCase()} · {connection.status === 'ready' ? '준비됨' : '확인 필요'}</small></span>
-              </label>
-            ))}
-            {batch === undefined && (
-              <button className={styles.primaryButton} disabled={busy || selectedConnectionId === undefined} onClick={() => void startImport()} type="button">
-                가져오기 시작
+          <section aria-labelledby="connector-title" className={styles.controlSection}>
+            <div className={styles.sectionHeading}>
+              <h2 id="connector-title">현재 브라우저</h2>
+              <span className={styles.state}>
+                {connectorChecking ? '확인 중' : connectorReady === undefined ? '미설치' : connectorReady.browserKey}
+              </span>
+            </div>
+            {connectorReady === undefined ? (
+              <p className={styles.muted}>
+                Place Connector를 설치한 뒤 다시 확인하세요. 아이디·비밀번호는 Place로 전송하지 않습니다.
+              </p>
+            ) : (
+              <p className={styles.muted}>
+                확장 프로그램 연결됨 · NAVER {connectorSupportsNaver ? '사용 가능' : '미지원'}
+              </p>
+            )}
+            <div className={styles.batchActions}>
+              <button disabled={busy || connectorChecking} onClick={() => void probeConnector()} type="button">
+                확장 다시 확인
               </button>
+              <button
+                className={styles.primaryButton}
+                disabled={busy || !connectorSupportsNaver || batch !== undefined}
+                onClick={() => void startConnectorImport()}
+                type="button"
+              >
+                이 브라우저에서 NAVER 가져오기
+              </button>
+            </div>
+            {connectorProgress !== undefined && (
+              <p className={styles.stateMessage} aria-live="polite">
+                {connectorProgress.phase} · {connectorProgress.submittedItems}/{connectorProgress.discoveredItems}개 전송
+              </p>
             )}
           </section>
+
+          {connections.length > 0 && (
+            <section aria-labelledby="connection-title" className={styles.controlSection}>
+              <h2 id="connection-title">서버 연결 계정</h2>
+              <p className={styles.muted}>운영자가 별도로 활성화한 수집 경로입니다.</p>
+              {connections.map((connection) => (
+                <label className={styles.connection} key={connection.connectionId}>
+                  <input
+                    checked={selectedConnectionId === connection.connectionId}
+                    disabled={connection.status !== 'ready' || batch !== undefined}
+                    name="provider-connection"
+                    onChange={() => setSelectedConnectionId(connection.connectionId)}
+                    type="radio"
+                  />
+                  <span><strong>{connection.label}</strong><small>{connection.providerKey.toUpperCase()} · {connection.status === 'ready' ? '준비됨' : '확인 필요'}</small></span>
+                </label>
+              ))}
+              {batch === undefined && (
+                <button className={styles.primaryButton} disabled={busy || selectedConnectionId === undefined} onClick={() => void startServerImport()} type="button">
+                  서버 수집 시작
+                </button>
+              )}
+            </section>
+          )}
 
           {batch !== undefined && (
             <section aria-labelledby="progress-title" className={styles.controlSection}>
               <div className={styles.sectionHeading}>
-                <h2 id="progress-title">진행 상황</h2>
-                <span className={styles.state}>{batch.state}</span>
+                <h2 id="progress-title">진행 상황</h2><span className={styles.state}>{batch.state}</span>
               </div>
               <p className={styles.stateMessage}>{stateMessages[batch.state]}</p>
               <ImportProgress batch={batch} />
@@ -344,7 +453,7 @@ export function ConnectedPlaceImports() {
           {items.length === 0 ? (
             <div className={styles.empty}>
               <strong>{batch === undefined ? '가져오기를 시작해 주세요.' : '항목을 확인하고 있습니다.'}</strong>
-              <p>중복 가능성과 부족한 정보가 있는 장소는 이곳에서 결정합니다.</p>
+              <p>같은 장소는 한 번만 저장하고, 여러 원본 폴더에 속하면 각 컬렉션 관계를 모두 보존합니다.</p>
             </div>
           ) : (
             <ul aria-label="가져오기 검토 항목" className={styles.items}>

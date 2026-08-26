@@ -107,6 +107,9 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
         },
         items: [{
           sourceItemKey: 'list_fixture:bookmark_fixture',
+          sourceListId: 'list_fixture',
+          sourceListPosition: 0,
+          sourcePosition: 0,
           providerPlaceId: 'place_fixture',
           listName: '후쿠오카 여행',
           name: '센카이 라멘',
@@ -198,11 +201,15 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
         (SELECT count(*)::int FROM ingestion.resolution_decisions) AS decisions,
         (SELECT count(*)::int FROM places.canonical_places) AS canonical_places,
         (SELECT count(*)::int FROM places.provider_place_identities) AS provider_links,
-        (SELECT count(*)::int FROM library.place_preferences WHERE saved) AS saved_places
+        (SELECT count(*)::int FROM library.place_preferences WHERE saved) AS saved_places,
+        (SELECT count(*)::int FROM library.collections) AS collections,
+        (SELECT count(*)::int FROM library.collection_import_provenance) AS import_provenance,
+        (SELECT count(*)::int FROM library.collection_places) AS collection_places
     `)
     assert.deepEqual(evidenceCount.rows[0], {
       attempts: 1, captures: 1, items: 1, observations: 1, candidates: 1,
       decisions: 1, canonical_places: 1, provider_links: 1, saved_places: 1,
+      collections: 1, import_provenance: 1, collection_places: 1,
     })
 
     captureClock = new Date('2026-08-28T11:00:00.000Z')

@@ -54,3 +54,8 @@ Intent, fenced attempt를 추가한다. ImportItem과 Intent는 같은 transacti
 Identity의 여러 회원 요청은 unique job 하나를 공유한다. 취소된 batch의 intent는 claim되지 않고,
 재개하면 다시 pending으로 복원된다. Ingestion persistence가 Places나 Library table을 직접 읽지 않고
 각 소유 module interface를 composition으로 주입받는 원칙은 유지한다.
+
+`000016`은 ImportItem에 Provider Source List ID와 목록·장소 순서를 추가하고, 회원별 Collection과
+원본 목록의 대응을 기록하는 `library.collection_import_provenance`를 만든다. Provider 목록 재수집은
+같은 provenance를 재사용하되 회원이 수정한 Collection 이름을 덮어쓰지 않는다. Library 저장 adapter는
+preference, Collection, membership, provenance와 command receipt를 한 transaction으로 반영한다.

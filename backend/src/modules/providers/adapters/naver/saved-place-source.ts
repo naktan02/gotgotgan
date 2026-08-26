@@ -19,6 +19,7 @@ const challengeSchema = z.object({
 const bookmarkSchema = z.object({
   bookmarkId: z.string().min(1).max(512),
   placeId: z.string().min(1).max(512).optional(),
+  position: z.number().int().nonnegative().optional(),
   name: z.string().min(1).max(300),
   address: z.string().min(1).max(500).optional(),
   category: z.string().min(1).max(300).optional(),
@@ -35,6 +36,7 @@ const pageSchema = z.object({
   lists: z.array(z.object({
     listId: z.string().min(1).max(512),
     name: z.string().min(1).max(200),
+    position: z.number().int().nonnegative().optional(),
     bookmarks: z.array(bookmarkSchema).max(500),
   }).strict()).max(100),
   nextCursor: z.string().min(1).max(2048).nullable().optional(),
@@ -42,6 +44,9 @@ const pageSchema = z.object({
 
 export type NaverSavedPlaceItem = Readonly<{
   sourceItemKey: string
+  sourceListId: string
+  sourceListPosition: number
+  sourcePosition: number
   providerPlaceId?: string
   listName: string
   name: string
@@ -89,8 +94,11 @@ export function parseNaverSavedPlaceCapture(input: Readonly<{
 
   return {
     kind: 'page',
-    items: page.data.lists.flatMap((list) => list.bookmarks.map((bookmark) => ({
+    items: page.data.lists.flatMap((list, sourceListPosition) => list.bookmarks.map((bookmark, sourcePosition) => ({
       sourceItemKey: `${list.listId}:${bookmark.bookmarkId}`,
+      sourceListId: list.listId,
+      sourceListPosition: list.position ?? sourceListPosition,
+      sourcePosition: bookmark.position ?? sourcePosition,
       ...(bookmark.placeId === undefined ? {} : { providerPlaceId: bookmark.placeId }),
       listName: list.name,
       name: bookmark.name,

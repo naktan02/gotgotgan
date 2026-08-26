@@ -50,7 +50,7 @@ Fulfillment miss의 공개 상세 보강만 담당하며 회원 ID나 목록 이
 hit은 서버 profile도 호출하지 않는다. 실제 NAVER profile Adapter가 추가되기 전까지 이 경로는
 fixture/PostGIS 검증만 있는 source-only 상태다.
 
-확장과 capture 제출이 구현되기 전인 현재, 회원 로컬 NAVER 진단 관찰은
+실제 Whale/NAVER 확장 경로를 검증하기 전의 진단·재현용 회원 로컬 NAVER 관찰은
 [`../../apps/member-connector/README.md`](../../apps/member-connector/README.md)의
 두 단계 명령을 따른다. login에서는 캡처가 꺼져 있고, observation은 먼저 화면 origin만 body opt-in해
 provider 하위 origin 후보를 값 없이 찾는다. 후보를 검토한 뒤 필요한 exact origin만 추가한다. profile과
@@ -71,8 +71,8 @@ smoke, 비식별 replay fixture, 공개 BFF upload receipt가 모두 통과해�
 packaging/signing/install/live evidence 전까지 `integration-gated`다. 확장 미지원·미설치 경로는 수동
 JSON/file capture를 사용하며 사용자별 localhost 서버나 native host로 우회하지 않는다.
 
-현재 Connector 계약, fake port 단위 검증, Chromium·Firefox Manifest V3 build와 manifest 검사는
-source-only로 통과한다. Chromium 산출물 하나를 Chrome·Edge·Whale에 사용한다. Whale은 실설치 smoke가
-없으므로 build 호환과 실제 지원을 구분한다. Firefox는 별도 산출물과 website content data declaration을
-검사한다. Provider Adapter와 host permission, 공개 BFF route가 없으므로 이 상태에서 운영 계정이나
-Provider origin을 manifest에 직접 추가하지 않는다.
+현재 Connector 계약, NAVER Provider Adapter, exact optional permission, fake port 단위 검증,
+Chromium·Firefox Manifest V3 build와 manifest 검사는 source-only로 통과한다. Chromium 산출물 하나를
+Chrome·Edge·Whale에 사용한다. Whale은 실설치 smoke가 없으므로 build 호환과 실제 지원을 구분한다.
+Firefox는 별도 산출물과 website content data declaration을 검사한다. Web의 공개 BFF route는 있지만
+Backend grant/capture receiver가 없으므로 실제 ImportBatch 전달은 아직 활성화하지 않는다.

@@ -24,6 +24,7 @@ type Dependencies = Readonly<{
   browserKey: ConnectorBrowserKey
   getInstallationId(): Promise<string>
   operations: ReadonlyMap<ConnectorProviderKey, SavedLibraryOperation>
+  prepareProviders?: ReadonlyMap<ConnectorProviderKey, () => Promise<boolean>>
 }>
 
 type HandleInput = Readonly<{
@@ -52,6 +53,25 @@ export class ConnectorCommandHandler {
         installationId: await this.dependencies.getInstallationId(),
         browserKey: this.dependencies.browserKey,
         supportedProviders: [...this.dependencies.operations.keys()].sort(),
+      }))
+      return
+    }
+
+    if (input.command.kind === 'prepare-import') {
+      const prepare = this.dependencies.prepareProviders?.get(input.command.providerKey)
+      let allowed = false
+      try {
+        allowed = prepare === undefined ? false : await prepare()
+      } catch {
+        allowed = false
+      }
+      await input.emit(connectorExtensionEventSchema.parse({
+        schemaVersion: 'place-connector-event.v1',
+        channel: 'place-connector',
+        requestId: input.command.requestId,
+        kind: 'prepared',
+        providerKey: input.command.providerKey,
+        allowed,
       }))
       return
     }
@@ -99,7 +119,7 @@ export class ConnectorCommandHandler {
     const abort = new AbortController()
     this.active.set(grant.operationId, { abort, requestId: input.command.requestId })
     try {
-      await operation({
+      const result = await operation({
         grant,
         signal: abort.signal,
         onProgress: async (progress) => input.emit(connectorExtensionEventSchema.parse({
@@ -117,6 +137,7 @@ export class ConnectorCommandHandler {
         grant.operationId,
         'completed',
         false,
+        result.importBatchId,
       )
     } catch (error) {
       if (abort.signal.aborted) {
@@ -155,6 +176,7 @@ export class ConnectorCommandHandler {
     operationId: string,
     code: ConnectorResultCode,
     retryable: boolean,
+    importBatchId?: string,
   ): Promise<void> {
     await emit(connectorExtensionEventSchema.parse({
       schemaVersion: 'place-connector-event.v1',
@@ -164,6 +186,7 @@ export class ConnectorCommandHandler {
       operationId,
       code,
       retryable,
+      ...(importBatchId === undefined ? {} : { importBatchId }),
     }))
   }
 }

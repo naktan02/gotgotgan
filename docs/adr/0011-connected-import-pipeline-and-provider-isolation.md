@@ -47,6 +47,12 @@
     pagination한다. NAVER current/legacy schema 차이는 Provider leaf가 흡수하고 개인 필드는 CLI에
     출력하지 않는다. 현재 결과는 메모리에서 폐기한다. 회원 동의와 일회성·짧은 수명의 upload grant를
     소유하는 versioned network contract 전에는 Web cookie나 장기 token으로 제출을 우회하지 않는다.
+12. Provider의 저장 폴더는 공용 Taxonomy가 아니라 회원의 정리 의도다. ImportItem은 안정된 Source List
+    ID와 목록·장소 순서를 보존하고, Library는 회원·Provider 연결·Source List별 private Collection과
+    provenance를 멱등 생성한다. 같은 장소가 여러 목록에 있어도 Canonical Place와 preference는 하나이며
+    Collection membership은 각각 유지한다.
+13. Provider 목록 이름은 Collection의 초기 이름일 뿐이다. 재가져오기는 회원이 수정한 Collection 이름을
+    덮어쓰지 않고 원본 이름 snapshot만 갱신한다.
 
 ## 결과
 
@@ -57,6 +63,7 @@
   않는다. Provider Identity의 unique job은 여러 회원 요청을 합치고, Library command는 item ID를
   사용해 Worker 재실행에도 중복 저장을 막는다.
 - 사용자 목록 profile과 서버 상세 보강 profile의 소유권·수명주기·장애 상태가 섞이지 않는다.
+- 원본 폴더 구조와 순서는 보존되지만 Provider 분류가 Canonical Taxonomy로 승격되지는 않는다.
 - 파서·DB·HTTP·암호화 replay와 회원 로컬 profile 로그인·비식별 구조 관찰은 `source-only`다.
   실제 저장 목록 acquisition, capture 제출, 서버 상세 profile은 관찰 자료로 검증하기 전까지
   `integration-gated`다.

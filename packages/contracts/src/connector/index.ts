@@ -18,6 +18,15 @@ export const connectorBrowserKeySchema = z.enum([
 
 export const connectorOperationSchema = z.enum(['import-saved-library'])
 
+export const connectorGrantRequestSchema = z.object({
+  schemaVersion: z.literal('place-connector-grant-request.v1'),
+  installationId: uuidSchema,
+  browserKey: connectorBrowserKeySchema,
+  providerKey: providerKeySchema,
+  operation: connectorOperationSchema,
+  idempotencyKey: uuidSchema,
+}).strict()
+
 export const connectorPublicOriginSchema = z.url().superRefine((value, context) => {
   const url = new URL(value)
   const loopback = new Set(['localhost', '127.0.0.1', '[::1]']).has(url.hostname)
@@ -71,6 +80,11 @@ export const connectorPageCommandSchema = z.discriminatedUnion('kind', [
   }).strict(),
   connectorMessageBaseSchema.extend({
     schemaVersion: z.literal('place-connector-command.v1'),
+    kind: z.literal('prepare-import'),
+    providerKey: providerKeySchema,
+  }).strict(),
+  connectorMessageBaseSchema.extend({
+    schemaVersion: z.literal('place-connector-command.v1'),
     kind: z.literal('start-import'),
     grant: connectorGrantSchema,
   }).strict(),
@@ -115,6 +129,12 @@ export const connectorExtensionEventSchema = z.discriminatedUnion('kind', [
   }).strict(),
   connectorMessageBaseSchema.extend({
     schemaVersion: z.literal('place-connector-event.v1'),
+    kind: z.literal('prepared'),
+    providerKey: providerKeySchema,
+    allowed: z.boolean(),
+  }).strict(),
+  connectorMessageBaseSchema.extend({
+    schemaVersion: z.literal('place-connector-event.v1'),
     kind: z.literal('progress'),
     operationId: uuidSchema,
     progress: connectorProgressSchema,
@@ -125,6 +145,7 @@ export const connectorExtensionEventSchema = z.discriminatedUnion('kind', [
     operationId: uuidSchema.optional(),
     code: connectorResultCodeSchema,
     retryable: z.boolean(),
+    importBatchId: uuidSchema.optional(),
   }).strict(),
 ])
 
@@ -161,6 +182,7 @@ export const connectorWireDocumentSchema = z.union([
 export type ConnectorBrowserKey = z.infer<typeof connectorBrowserKeySchema>
 export type ConnectorProviderKey = z.infer<typeof providerKeySchema>
 export type ConnectorResultCode = z.infer<typeof connectorResultCodeSchema>
+export type ConnectorGrantRequest = z.infer<typeof connectorGrantRequestSchema>
 export type ConnectorGrant = z.infer<typeof connectorGrantSchema>
 export type ConnectorPageCommand = z.infer<typeof connectorPageCommandSchema>
 export type ConnectorExtensionEvent = z.infer<typeof connectorExtensionEventSchema>

@@ -136,6 +136,14 @@ export async function reviewImportItem(input: Readonly<{
     memberId: input.memberId,
     canonicalPlaceId,
     occurredAt: input.occurredAt,
+    source: {
+      providerKey: item.providerKey,
+      connectionId: item.connectionId,
+      listId: item.sourceListId,
+      listName: item.listName,
+      listPosition: item.sourceListPosition,
+      position: item.sourcePosition,
+    },
   })
   if (library.status !== 'applied' && library.status !== 'replayed') {
     throw new ImportReferenceUnavailableError(`Imported place save failed: ${library.status}`)

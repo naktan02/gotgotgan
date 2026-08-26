@@ -30,9 +30,9 @@ permission은 선택 시점에 exact origin 단위로 요청하고 build allowli
 현재 versioned Connector schema와 source-only Adapter가 이 경계를 강제한다. grant origin과 page
 sender origin이 정확히 일치해야 하고 capture upload는 같은 공개 origin의 고정
 `/api/connector/captures` 경로만 사용한다. redirect와 cookie 전송을 거부하며 receipt의 operation,
-sequence, checksum이 요청과 일치해야 한다. Chromium·Firefox manifest의 기본 권한은 `storage`뿐이고
-Provider host permission은 아직 없다. 실제 NAVER 연결 단계에서도 광범위 domain 권한이 아니라 기능
-선택 시 필요한 exact origin만 요청한다.
+sequence, checksum이 요청과 일치해야 한다. Chromium·Firefox manifest의 기본 권한은 `storage`이고,
+NAVER는 `https://pages.map.naver.com/*`만 optional host permission으로 선언한다. 사용자가 NAVER
+가져오기를 선택한 즉시 클릭에서만 이를 요청하며 Kakao·Google 권한은 아직 선언하지 않는다.
 
 현재 로컬 커넥터는 목표 확장 이전의 진단 도구로 저장소 밖 절대 경로의 전용 Chrome profile만 열고
 로그인과 관찰을 별도 명령으로 분리한다. 로그인 명령에는 response listener가 없다. 관찰 명령은

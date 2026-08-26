@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 
-import { NaverSavedPlaceCollector } from '../../acquisition/adapters/naver/naver-saved-place-collector.js'
+import { NaverSavedPlaceCollector } from '../../adapters/providers/naver/naver-saved-place-collector.js'
 import { PlaywrightAuthenticatedJsonSession } from '../../acquisition/adapters/playwright/playwright-authenticated-json-session.js'
 import { PrivateObservationReportStore } from '../../observation/adapters/filesystem/private-observation-report-store.js'
 import { PlaywrightMemberBrowser } from '../../observation/adapters/playwright/playwright-member-browser.js'

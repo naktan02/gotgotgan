@@ -142,6 +142,44 @@
             },
             "kind": {
               "type": "string",
+              "const": "prepare-import"
+            },
+            "providerKey": {
+              "type": "string",
+              "enum": [
+                "naver",
+                "kakao",
+                "google"
+              ]
+            }
+          },
+          "required": [
+            "channel",
+            "requestId",
+            "schemaVersion",
+            "kind",
+            "providerKey"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "channel": {
+              "type": "string",
+              "const": "place-connector"
+            },
+            "requestId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "schemaVersion": {
+              "type": "string",
+              "const": "place-connector-command.v1"
+            },
+            "kind": {
+              "type": "string",
               "const": "start-import"
             },
             "grant": {
@@ -363,6 +401,48 @@
             },
             "kind": {
               "type": "string",
+              "const": "prepared"
+            },
+            "providerKey": {
+              "type": "string",
+              "enum": [
+                "naver",
+                "kakao",
+                "google"
+              ]
+            },
+            "allowed": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "channel",
+            "requestId",
+            "schemaVersion",
+            "kind",
+            "providerKey",
+            "allowed"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "channel": {
+              "type": "string",
+              "const": "place-connector"
+            },
+            "requestId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "schemaVersion": {
+              "type": "string",
+              "const": "place-connector-event.v1"
+            },
+            "kind": {
+              "type": "string",
               "const": "progress"
             },
             "operationId": {
@@ -464,6 +544,11 @@
             },
             "retryable": {
               "type": "boolean"
+            },
+            "importBatchId": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
             }
           },
           "required": [

@@ -104,8 +104,12 @@ type FulfillmentItemRow = Readonly<{
   item_id: string
   batch_id: string
   member_id: string
+  connection_id: string
   provider_key: 'naver' | 'kakao' | 'google'
   provider_place_id: string
+  source_list_id: string
+  source_list_position: number
+  source_position: number
   list_name: string
   display_name: string
   address: string | null
@@ -174,8 +178,12 @@ function fulfillmentItem(row: FulfillmentItemRow): ReviewableImportItem {
     itemId: row.item_id,
     batchId: row.batch_id,
     memberId: row.member_id,
+    connectionId: row.connection_id,
     providerKey: row.provider_key,
     providerPlaceId: row.provider_place_id,
+    sourceListId: row.source_list_id,
+    sourceListPosition: row.source_list_position,
+    sourcePosition: row.source_position,
     listName: row.list_name,
     name: row.display_name,
     address: row.address,
@@ -533,22 +541,25 @@ export class PostgresPlaceImports implements
       for (const imported of input.items) {
         const insertedItem = await client.query<{ id: string }>(
           `INSERT INTO ingestion.import_items (
-             id, batch_id, capture_id, source_item_key, provider_place_id, list_name,
+             id, batch_id, capture_id, source_item_key, provider_place_id,
+             source_list_id, source_list_position, source_position, list_name,
              display_name, address, category_label, location, status, review_reasons,
              observation_id, candidate_id, decision_id, proposed_place_id, created_at, updated_at
            ) VALUES (
-             $1::uuid,$2::uuid,$3::uuid,$4,$5,$6,$7,$8,$9,
-             CASE WHEN $10::double precision IS NULL THEN NULL
-               ELSE ST_SetSRID(ST_MakePoint($11, $10), 4326) END,
-             $12,$13::text[],$14::uuid,$15::uuid,$16::uuid,$17::uuid,
-             $18::timestamptz,$18::timestamptz
+             $1::uuid,$2::uuid,$3::uuid,$4,$5,$6,$7,$8,$9,$10,$11,$12,
+             CASE WHEN $13::double precision IS NULL THEN NULL
+               ELSE ST_SetSRID(ST_MakePoint($14, $13), 4326) END,
+             $15,$16::text[],$17::uuid,$18::uuid,$19::uuid,$20::uuid,
+             $21::timestamptz,$21::timestamptz
             ) ON CONFLICT (batch_id, source_item_key) DO NOTHING
             RETURNING id`,
           [imported.itemId, input.claim.batchId, input.capture.artifactId,
-            imported.sourceItemKey, imported.providerPlaceId ?? null, imported.listName,
+            imported.sourceItemKey, imported.providerPlaceId ?? null,
+            imported.sourceListId, imported.sourceListPosition,
+            imported.sourcePosition, imported.listName,
             imported.name, imported.address, imported.categoryLabel,
             imported.location?.latitude ?? null, imported.location?.longitude ?? null,
-             imported.fulfillment === undefined ? 'needs-review' : 'enriching',
+            imported.fulfillment === undefined ? 'needs-review' : 'enriching',
             imported.reviewReasons, imported.observationId, imported.candidateId,
             imported.decisionId, imported.proposedPlaceId, input.recordedAt],
         )
@@ -811,8 +822,12 @@ export class PostgresPlaceImports implements
         item_id: string
         batch_id: string
         member_id: string
+        connection_id: string
         provider_key: 'naver' | 'kakao' | 'google'
         provider_place_id: string | null
+        source_list_id: string
+        source_list_position: number
+        source_position: number
         list_name: string
         display_name: string
         address: string | null
@@ -830,8 +845,11 @@ export class PostgresPlaceImports implements
         acquisition_kind: ReviewableImportItem['capture']['acquisitionKind']
         observed_at: string | Date
       }>(
-        `SELECT imported.id AS item_id, imported.batch_id, batch.member_id, batch.provider_key,
-                imported.provider_place_id, imported.list_name, imported.display_name,
+        `SELECT imported.id AS item_id, imported.batch_id, batch.member_id,
+                batch.connection_id, batch.provider_key, imported.provider_place_id,
+                imported.source_list_id, imported.source_list_position,
+                imported.source_position,
+                imported.list_name, imported.display_name,
                 imported.address, imported.category_label, imported.status AS item_status,
                 imported.observation_id, imported.candidate_id, imported.decision_id,
                 imported.proposed_place_id, capture.artifact_reference,
@@ -914,8 +932,12 @@ export class PostgresPlaceImports implements
         itemId: row.item_id,
         batchId: row.batch_id,
         memberId: row.member_id,
+        connectionId: row.connection_id,
         providerKey: row.provider_key,
         ...(row.provider_place_id === null ? {} : { providerPlaceId: row.provider_place_id }),
+        sourceListId: row.source_list_id,
+        sourceListPosition: row.source_list_position,
+        sourcePosition: row.source_position,
         listName: row.list_name,
         name: row.display_name,
         address: row.address,
@@ -1073,7 +1095,9 @@ export class PostgresPlaceImports implements
       )
       const items = await client.query<FulfillmentItemRow>(
         `SELECT imported.id AS item_id, imported.batch_id, batch.member_id,
-                batch.provider_key, imported.provider_place_id, imported.list_name,
+                batch.connection_id, batch.provider_key, imported.provider_place_id,
+                imported.source_list_id, imported.source_list_position,
+                imported.source_position, imported.list_name,
                 imported.display_name, imported.address, imported.category_label,
                 imported.observation_id, imported.candidate_id, imported.decision_id,
                 imported.proposed_place_id, capture.artifact_reference,

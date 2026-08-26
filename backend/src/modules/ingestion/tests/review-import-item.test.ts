@@ -13,8 +13,12 @@ const imported = {
   itemId: '01992d20-a000-7000-8000-000000000001',
   batchId: '01992d20-a000-7000-8000-000000000002',
   memberId: '01992d20-a000-7000-8000-000000000003',
+  connectionId: '01992d20-a000-7000-8000-000000000008',
   providerKey: 'naver' as const,
   providerPlaceId: 'provider-place-fixture',
+  sourceListId: 'list-fukuoka',
+  sourceListPosition: 0,
+  sourcePosition: 0,
   listName: '후쿠오카 여행',
   name: '센카이 라멘',
   address: '일본 후쿠오카현 후쿠오카시',
@@ -84,6 +88,14 @@ describe('import review application', () => {
     expect(dependencies.library.saveImportedPlace).toHaveBeenCalledWith({
       commandId, memberId: imported.memberId,
       canonicalPlaceId: imported.proposedPlaceId, occurredAt: at,
+      source: {
+        providerKey: 'naver',
+        connectionId: imported.connectionId,
+        listId: imported.sourceListId,
+        listName: imported.listName,
+        listPosition: imported.sourceListPosition,
+        position: imported.sourcePosition,
+      },
     })
   })
 

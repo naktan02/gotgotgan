@@ -25,6 +25,9 @@ domain meaning rather than storage or framework structure.
 | Place Redirect | A durable reference from a merged Canonical Place to the surviving Canonical Place. | Deletion or alias text. |
 | Place Lineage | Immutable merge or split history that explains how Canonical Place identity and provider links changed. | Current Place state. |
 | Personal Library | A member's Place-owned organization of saved/wanted state, collections, tags, and personal ratings. | Canonical Place data. |
+| Collection | A member-owned, ordered grouping of Canonical Place references. An imported provider folder may initialize one, but it remains Place-owned and independently renameable. | Taxonomy Node or a provider folder itself. |
+| Source List | A provider-owned folder or saved-list identity observed during import, including its source name and order. | A Place Collection or provider-neutral category. |
+| Collection Import Provenance | The member-scoped mapping from one Provider connection and Source List to the Place Collection created for it. | Shared ownership or permission to overwrite the Collection name. |
 | Place Preferences | The member-owned saved, wanted, and current personal-rating values for one Canonical Place. The values are independent and `visited` is not stored here. | Visit history or provider rating. |
 | Personal Rating | A member's current 0.1-to-5.0 evaluation of a Canonical Place, with private change history. | Provider rating or public aggregate. |
 | Visit | A repeatable occurrence connecting a member to a Canonical Place. | Saved/wanted state. |
