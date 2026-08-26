@@ -56,6 +56,19 @@ A successful workflow run is required before documentation may claim published r
 Application activation additionally requires environment rollback smoke and the remaining
 Identity/Gateway gates.
 
+## 로컬 통합 오버레이
+
+`compose.local.integration.yml`은 운영 오버레이를 수정하지 않고 로컬 통합에만 필요한 경계를
+추가한다. `identity.localhost`의 host-gateway 해석, localhost HTTP OIDC의 명시적 허용,
+PostGIS 준비 순서, 그리고 종료 후 제거되는 `database-prepare` 수명주기 작업이다. Web과 Backend는 기존
+`compose.production.yml`의 실제 OIDC·membership·Import·Connector 조립을 그대로 사용하므로
+로컬 전용 대체 인증이나 우회 API를 만들지 않는다.
+
+전체 순서와 명령은 [`../docs/operations/local-development.md`](../docs/operations/local-development.md)에
+있다. `.runtime/local/database.env`는 데이터베이스 준비 단계에, OIDC client secret 전달 후
+생기는 `.runtime/local/compose.env`는 전체 애플리케이션 기동 단계에만 사용한다. 두 파일은
+비밀 값 대신 보호된 파일 경로를 전달하며 Git에 포함하지 않는다.
+
 The Web OIDC configuration consumes `PLACE_DATABASE_URL_FILE`,
 `PLACE_OIDC_CLIENT_SECRET_FILE`, and `PLACE_OIDC_ENCRYPTION_KEYRING_FILE`. A deployment secret sink
 mounts those files read-only; direct credential environment values are unsupported. Non-secret

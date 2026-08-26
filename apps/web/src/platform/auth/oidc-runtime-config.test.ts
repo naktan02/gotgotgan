@@ -135,4 +135,30 @@ describe('OIDC process runtime configuration', () => {
       'OIDC process runtime configuration is invalid',
     )
   })
+
+  it('allows explicit HTTP only for a local Identity issuer and callback', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'place-oidc-config-'))
+    temporaryDirectories.push(directory)
+    const environment = await validEnvironment(directory, {
+      PLACE_OIDC_ALLOW_INSECURE_LOCAL_HTTP: 'true',
+      PLACE_OIDC_ISSUER: 'http://identity.localhost',
+      PLACE_OIDC_CALLBACK_URL: 'http://localhost:3000/api/auth/oidc/callback',
+    })
+
+    await expect(loadOidcProcessRuntimeConfig(environment)).resolves.toMatchObject({
+      providerConfig: {
+        issuer: 'http://identity.localhost',
+        allowInsecureLocalHttp: true,
+      },
+      bffConfig: {
+        callbackUrl: 'http://localhost:3000/api/auth/oidc/callback',
+        allowInsecureLocalHttp: true,
+      },
+    })
+
+    await expect(loadOidcProcessRuntimeConfig({
+      ...environment,
+      PLACE_OIDC_ISSUER: 'http://identity.internal.example',
+    })).rejects.toThrow('OIDC process runtime configuration is invalid')
+  })
 })

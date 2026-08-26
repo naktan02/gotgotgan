@@ -41,3 +41,16 @@ The Backend production composition now installs the resource-server verifier fro
 audience, JWKS URI, and scopes; it still performs no network discovery at configuration time and
 cannot use test auth. This closes the Place-owned composition gate only. Provisioning the client,
 mounting its generated secret, and verifying the real issuer remain Identity-owned integration work.
+
+## 로컬 HTTP 예외
+
+로컬 Docker 통합은 `deploy/identity/local/oidc-client.json`과
+`PLACE_OIDC_ALLOW_INSECURE_LOCAL_HTTP=true`를 함께 사용할 때만 `http://localhost`,
+`http://*.localhost`, loopback IP의 issuer·JWKS·callback을 허용한다. 플래그 값은 `true` 또는
+`false`만 받을 수 있고, 플래그가 있어도 일반 HTTP 호스트는 거부한다. 운영 manifest는
+`devMode=false`를 유지하며 HTTPS 요구를 완화하지 않는다.
+
+Identity가 제공하는 것은 검증된 `(issuer, subject)`뿐이다. 최초 Place 접속 시에만 Place가
+동의와 함께 membership 행을 만들고, 사용자 등급·상품 티어·관리자 authority role은 계속
+Place가 소유한다. 따라서 새 서비스 사용자나 Place 등급을 추가하기 위해 Identity 스키마나
+공통 로그인 코드를 수정하지 않는다.

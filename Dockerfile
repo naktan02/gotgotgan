@@ -6,6 +6,7 @@ COPY apps/web/package.json ./apps/web/package.json
 COPY apps/member-connector/package.json ./apps/member-connector/package.json
 COPY backend/package.json ./backend/package.json
 COPY packages/contracts/package.json ./packages/contracts/package.json
+COPY .tools ./.tools
 RUN npm ci
 
 FROM dependencies AS contracts-build
@@ -47,6 +48,8 @@ WORKDIR /app
 COPY --from=backend-production-dependencies --chown=node:node /workspace/node_modules ./node_modules
 COPY --from=backend-build --chown=node:node /workspace/backend/dist ./backend/dist
 COPY --from=backend-build --chown=node:node /workspace/backend/package.json ./backend/package.json
+COPY --chown=node:node backend/migrations ./backend/migrations
+COPY --chown=node:node deploy/database-runtime.json ./deploy/database-runtime.json
 COPY --from=backend-build --chown=node:node /workspace/packages/contracts/dist ./packages/contracts/dist
 COPY --from=backend-build --chown=node:node /workspace/packages/contracts/package.json ./packages/contracts/package.json
 USER node

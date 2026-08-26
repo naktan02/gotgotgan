@@ -98,12 +98,22 @@ test('rollback plan binds both the deployed unit and the immutable target unit',
 })
 
 test('production composition consumes immutable images while local composition owns builds', async () => {
-  const [baseCompose, localCompose, productionCompose, runtimeDocument] =
+  const [baseCompose, localCompose, localIntegrationCompose, productionCompose, runtimeDocument,
+    localIdentityManifest, dockerfile] =
     await Promise.all([
       readFile(path.join(repositoryRoot, 'deploy', 'compose.yml'), 'utf8'),
       readFile(path.join(repositoryRoot, 'deploy', 'compose.local.yml'), 'utf8'),
+      readFile(path.join(repositoryRoot, 'deploy', 'compose.local.integration.yml'), 'utf8'),
       readFile(path.join(repositoryRoot, 'deploy', 'compose.production.yml'), 'utf8'),
       readFile(path.join(repositoryRoot, 'deploy', 'application-runtime.json'), 'utf8'),
+      readFile(path.join(
+        repositoryRoot,
+        'deploy',
+        'identity',
+        'local',
+        'oidc-client.json',
+      ), 'utf8'),
+      readFile(path.join(repositoryRoot, 'Dockerfile'), 'utf8'),
     ])
 
   assert.match(
@@ -117,6 +127,18 @@ test('production composition consumes immutable images while local composition o
   assert.doesNotMatch(baseCompose, /^\s+build:/m)
   assert.match(localCompose, /target: web-runtime/)
   assert.match(localCompose, /target: backend-runtime/)
+  assert.match(localIntegrationCompose, /PLACE_OIDC_ALLOW_INSECURE_LOCAL_HTTP: "true"/)
+  assert.match(localIntegrationCompose, /identity\.localhost:host-gateway/)
+  assert.match(localIntegrationCompose, /database-prepare:/)
+  assert.match(localIntegrationCompose, /profiles: \[local-lifecycle\]/)
+  assert.equal(JSON.parse(localIdentityManifest).serviceId, 'place-local')
+  assert.equal(JSON.parse(localIdentityManifest).devMode, true)
+  assert.match(dockerfile, /COPY \.tools \.\/\.tools\s+RUN npm ci/)
+  assert.match(dockerfile, /COPY --chown=node:node backend\/migrations \.\/backend\/migrations/)
+  assert.match(
+    dockerfile,
+    /COPY --chown=node:node deploy\/database-runtime\.json \.\/deploy\/database-runtime\.json/,
+  )
   assert.doesNotMatch(productionCompose, /^\s+build:/m)
   assert.doesNotMatch(productionCompose, /^\s+ports:/m)
   assert.match(baseCompose, /worker-capture-sweep:/)

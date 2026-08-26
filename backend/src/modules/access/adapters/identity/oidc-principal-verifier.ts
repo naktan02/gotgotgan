@@ -14,6 +14,7 @@ export type OidcPrincipalVerifierConfig = Readonly<{
   jwksUri: string
   algorithms: readonly ['RS256']
   requiredScopes: readonly string[]
+  allowInsecureLocalHttp?: boolean
 }>
 
 export class PrincipalVerificationError extends Error {
@@ -23,10 +24,25 @@ export class PrincipalVerificationError extends Error {
   }
 }
 
-function trustedHttpsUrl(value: string, field: string): URL {
+function isLocalHost(hostname: string): boolean {
+  return hostname === 'localhost' || hostname.endsWith('.localhost') ||
+    hostname === '127.0.0.1' || hostname === '[::1]'
+}
+
+function trustedOidcUrl(
+  value: string,
+  field: string,
+  allowInsecureLocalHttp: boolean,
+): URL {
   const url = new URL(value)
-  if (url.protocol !== 'https:' || url.username !== '' || url.password !== '' || url.hash !== '') {
-    throw new Error(`${field} must be a credential-free HTTPS URL without a fragment.`)
+  if (
+    (
+      url.protocol !== 'https:' &&
+      !(allowInsecureLocalHttp && url.protocol === 'http:' && isLocalHost(url.hostname))
+    ) ||
+    url.username !== '' || url.password !== '' || url.hash !== ''
+  ) {
+    throw new Error(`${field} must be HTTPS or explicit local HTTP without credentials or a fragment.`)
   }
   return url
 }
@@ -42,7 +58,7 @@ export function createOidcPrincipalVerifier(
   config: OidcPrincipalVerifierConfig,
   keyResolver: JWTVerifyGetKey,
 ): PrincipalVerifier {
-  trustedHttpsUrl(config.issuer, 'issuer')
+  trustedOidcUrl(config.issuer, 'issuer', config.allowInsecureLocalHttp === true)
   if (config.audience.trim() === '') throw new Error('audience must not be empty.')
   if (config.requiredScopes.length === 0) throw new Error('at least one required scope is needed.')
   if (config.requiredScopes.some((scope) => scope.trim() === '')) {
@@ -79,6 +95,10 @@ export function createOidcPrincipalVerifier(
 export function createRemoteOidcPrincipalVerifier(
   config: OidcPrincipalVerifierConfig,
 ): PrincipalVerifier {
-  const jwksUrl = trustedHttpsUrl(config.jwksUri, 'jwksUri')
+  const jwksUrl = trustedOidcUrl(
+    config.jwksUri,
+    'jwksUri',
+    config.allowInsecureLocalHttp === true,
+  )
   return createOidcPrincipalVerifier(config, createRemoteJWKSet(jwksUrl))
 }

@@ -1,0 +1,52 @@
+services:
+  web:
+    environment:
+      PLACE_OIDC_ALLOW_INSECURE_LOCAL_HTTP: "true"
+    extra_hosts:
+      - "identity.localhost:host-gateway"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  backend:
+    environment:
+      PLACE_OIDC_ALLOW_INSECURE_LOCAL_HTTP: "true"
+    extra_hosts:
+      - "identity.localhost:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  database-prepare:
+    profiles: [local-lifecycle]
+    image: ${PLACE_BACKEND_IMAGE:?PLACE_BACKEND_IMAGE is required}
+    build:
+      context: ..
+      target: backend-runtime
+    command: ["node", "backend/dist/entrypoints/cli/prepare-database.js"]
+    restart: "no"
+    environment:
+      PLACE_POSTGRES_ADMIN_DATABASE_URL_FILE: /run/secrets/place_postgres_admin_database_url
+      PLACE_MIGRATION_DATABASE_URL_FILE: /run/secrets/place_migration_database_url
+      PLACE_MIGRATION_DATABASE_PASSWORD_FILE: /run/secrets/place_migration_database_password
+      PLACE_DATABASE_PASSWORD_FILE: /run/secrets/place_database_password
+    secrets:
+      - place_postgres_admin_database_url
+      - place_migration_database_url
+      - place_migration_database_password
+      - place_database_password
+    networks:
+      - place-data
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+secrets:
+  place_postgres_admin_database_url:
+    file: ${PLACE_POSTGRES_ADMIN_DATABASE_URL_FILE:?PLACE_POSTGRES_ADMIN_DATABASE_URL_FILE is required}
+  place_migration_database_url:
+    file: ${PLACE_MIGRATION_DATABASE_URL_FILE:?PLACE_MIGRATION_DATABASE_URL_FILE is required}
+  place_migration_database_password:
+    file: ${PLACE_MIGRATION_DATABASE_PASSWORD_FILE:?PLACE_MIGRATION_DATABASE_PASSWORD_FILE is required}
+  place_database_password:
+    file: ${PLACE_DATABASE_PASSWORD_FILE:?PLACE_DATABASE_PASSWORD_FILE is required}

@@ -1,0 +1,19 @@
+{
+  "serviceId": "place-local",
+  "displayName": "Place Local",
+  "applicationName": "Place Web Local",
+  "applicationType": "web",
+  "authMethod": "basic",
+  "redirectUris": [
+    "${PLACE_PUBLIC_ORIGIN}/api/auth/oidc/callback"
+  ],
+  "postLogoutRedirectUris": [
+    "${PLACE_PUBLIC_ORIGIN}/"
+  ],
+  "additionalOrigins": [],
+  "devMode": true,
+  "accessTokenType": "jwt",
+  "includeUserInfoInIdToken": false,
+  "assertRolesInAccessToken": false,
+  "assertRolesInIdToken": false
+}

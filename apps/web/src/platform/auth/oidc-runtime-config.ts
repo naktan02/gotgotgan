@@ -10,6 +10,7 @@ export type OidcProviderConfig = Readonly<{
   issuer: string
   clientId: string
   clientSecret: string
+  allowInsecureLocalHttp?: boolean
 }>
 
 export type LoadedOidcProcessRuntimeConfig = Readonly<{
@@ -36,7 +37,19 @@ function positiveInteger(environment: Environment, name: string): number {
   return value
 }
 
-function secureHttpsUrl(value: string): string {
+function booleanFlag(environment: Environment, name: string): boolean {
+  const value = environment[name]
+  if (value === undefined || value === 'false') return false
+  if (value === 'true') return true
+  throw configurationError()
+}
+
+function isLocalHost(hostname: string): boolean {
+  return hostname === 'localhost' || hostname.endsWith('.localhost') ||
+    hostname === '127.0.0.1' || hostname === '[::1]'
+}
+
+function secureOidcUrl(value: string, allowInsecureLocalHttp: boolean): string {
   let url: URL
   try {
     url = new URL(value)
@@ -44,7 +57,10 @@ function secureHttpsUrl(value: string): string {
     throw configurationError()
   }
   if (
-    url.protocol !== 'https:' ||
+    (
+      url.protocol !== 'https:' &&
+      !(allowInsecureLocalHttp && url.protocol === 'http:' && isLocalHost(url.hostname))
+    ) ||
     url.username !== '' ||
     url.password !== '' ||
     url.hash !== ''
@@ -121,6 +137,10 @@ function parseEncryption(value: string): OidcStoreEncryption {
 export async function loadOidcProcessRuntimeConfig(
   environment: Environment,
 ): Promise<LoadedOidcProcessRuntimeConfig> {
+  const allowInsecureLocalHttp = booleanFlag(
+    environment,
+    'PLACE_OIDC_ALLOW_INSECURE_LOCAL_HTTP',
+  )
   const [connectionString, clientSecret, encryptionKeyring] = await Promise.all([
     secret(environment, 'PLACE_DATABASE_URL_FILE'),
     secret(environment, 'PLACE_OIDC_CLIENT_SECRET_FILE'),
@@ -143,9 +163,10 @@ export async function loadOidcProcessRuntimeConfig(
     },
     encryption: parseEncryption(encryptionKeyring),
     providerConfig: {
-      issuer: secureHttpsUrl(required(environment, 'PLACE_OIDC_ISSUER')),
+      issuer: secureOidcUrl(required(environment, 'PLACE_OIDC_ISSUER'), allowInsecureLocalHttp),
       clientId: required(environment, 'PLACE_OIDC_CLIENT_ID'),
       clientSecret,
+      ...(allowInsecureLocalHttp ? { allowInsecureLocalHttp: true } : {}),
     },
     bffConfig: {
       callbackUrl: required(environment, 'PLACE_OIDC_CALLBACK_URL'),
@@ -156,6 +177,7 @@ export async function loadOidcProcessRuntimeConfig(
         'PLACE_OIDC_TRANSACTION_TTL_SECONDS',
       ),
       sessionTtlSeconds: positiveInteger(environment, 'PLACE_OIDC_SESSION_TTL_SECONDS'),
+      ...(allowInsecureLocalHttp ? { allowInsecureLocalHttp: true } : {}),
     },
     cleanupBatchSize,
   }

@@ -54,7 +54,18 @@ export type OidcBffConfig = Readonly<{
   scopes: readonly string[]
   transactionTtlSeconds: number
   sessionTtlSeconds: number
+  allowInsecureLocalHttp?: boolean
 }>
+
+function isLocalHost(hostname: string): boolean {
+  return hostname === 'localhost' || hostname.endsWith('.localhost') ||
+    hostname === '127.0.0.1' || hostname === '[::1]'
+}
+
+function isAllowedUrl(url: URL, allowInsecureLocalHttp: boolean): boolean {
+  return url.protocol === 'https:' ||
+    (allowInsecureLocalHttp && url.protocol === 'http:' && isLocalHost(url.hostname))
+}
 
 function validateConfig(config: OidcBffConfig): void {
   let callback: URL
@@ -65,7 +76,7 @@ function validateConfig(config: OidcBffConfig): void {
   }
   const positiveInteger = (value: number) => Number.isInteger(value) && value > 0
   if (
-    callback.protocol !== 'https:' ||
+    !isAllowedUrl(callback, config.allowInsecureLocalHttp === true) ||
     callback.username !== '' ||
     callback.password !== '' ||
     callback.hash !== '' ||

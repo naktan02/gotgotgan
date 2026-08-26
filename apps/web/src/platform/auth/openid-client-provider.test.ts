@@ -42,6 +42,7 @@ describe('openid-client provider adapter', () => {
         'place-client',
         undefined,
         { secret: 'client-secret' },
+        undefined,
       ],
     ])
 
@@ -115,5 +116,58 @@ describe('openid-client provider adapter', () => {
       nonce: 'nonce',
       pkceVerifier: 'verifier',
     })).rejects.toThrow('OIDC token expiry is missing or invalid')
+  })
+
+  it('enables the driver exception only for an explicit local issuer', async () => {
+    const discoveryOptions: unknown[] = []
+    await createOpenidClientProvider({
+      issuer: 'http://identity.localhost',
+      clientId: 'place-local-client',
+      clientSecret: 'client-secret',
+      allowInsecureLocalHttp: true,
+      now: () => new Date('2026-08-25T12:00:00.000Z'),
+    }, {
+      clientSecretBasic: () => ({}),
+      discovery: async (_issuer, _clientId, _metadata, _authentication, options) => {
+        discoveryOptions.push(options)
+        return {}
+      },
+      buildAuthorizationUrl: () => new URL('http://identity.localhost/oauth/v2/authorize'),
+      authorizationCodeGrant: async () => ({
+        access_token: 'access-token',
+        expiresIn: () => 300,
+      }),
+    })
+
+    expect(discoveryOptions).toHaveLength(1)
+    expect(discoveryOptions[0]).toMatchObject({ execute: [expect.any(Function)] })
+    await createOpenidClientProvider({
+      issuer: 'https://identity.example',
+      clientId: 'place-client',
+      clientSecret: 'client-secret',
+      allowInsecureLocalHttp: true,
+      now: () => new Date(),
+    }, {
+      clientSecretBasic: () => ({}),
+      discovery: async (_issuer, _clientId, _metadata, _authentication, options) => {
+        discoveryOptions.push(options)
+        return {}
+      },
+      buildAuthorizationUrl: () => new URL('https://identity.example'),
+      authorizationCodeGrant: async () => ({ access_token: 'token', expiresIn: () => 300 }),
+    })
+    expect(discoveryOptions[1]).toBeUndefined()
+    await expect(createOpenidClientProvider({
+      issuer: 'http://identity.internal.example',
+      clientId: 'place-client',
+      clientSecret: 'client-secret',
+      allowInsecureLocalHttp: true,
+      now: () => new Date(),
+    }, {
+      clientSecretBasic: () => ({}),
+      discovery: async () => ({}),
+      buildAuthorizationUrl: () => new URL('https://identity.example'),
+      authorizationCodeGrant: async () => ({ access_token: 'token', expiresIn: () => 300 }),
+    })).rejects.toThrow('Invalid OIDC provider configuration')
   })
 })

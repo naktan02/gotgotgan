@@ -3,8 +3,38 @@ import { describe, expect, it } from 'vitest'
 import { createOidcBff, type OidcTransaction } from './oidc-bff'
 
 describe('OIDC browser BFF', () => {
+  it('allows an explicit loopback HTTP callback only in local mode', () => {
+    expect(() => createOidcBff({
+      config: {
+        callbackUrl: 'http://localhost:3000/api/auth/oidc/callback',
+        postLoginPath: '/',
+        scopes: ['openid'],
+        transactionTtlSeconds: 300,
+        sessionTtlSeconds: 3_600,
+        allowInsecureLocalHttp: true,
+      },
+      provider: {
+        buildAuthorizationUrl: async () => 'http://identity.localhost',
+        exchangeAuthorizationCode: async () => { throw new Error('not used') },
+      },
+      transactionStore: {
+        create: async () => undefined,
+        take: async () => undefined,
+      },
+      sessionStore: {
+        create: async () => undefined,
+        find: async () => undefined,
+        delete: async () => undefined,
+      },
+      randomValue: () => 'unused',
+      calculatePkceChallenge: async () => 'unused',
+      now: () => new Date('2026-08-25T12:00:00.000Z'),
+    })).not.toThrow()
+  })
+
   it.each([
     ['an insecure callback', { callbackUrl: 'http://place.example/api/auth/oidc/callback' }],
+    ['local HTTP without local mode', { callbackUrl: 'http://localhost:3000/api/auth/oidc/callback' }],
     ['an external post-login redirect', { postLoginPath: '//attacker.example' }],
     ['missing openid scope', { scopes: ['profile'] }],
     ['a non-positive transaction TTL', { transactionTtlSeconds: 0 }],

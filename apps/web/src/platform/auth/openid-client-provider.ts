@@ -15,6 +15,7 @@ export type OpenidClientDriver = Readonly<{
     clientId: string,
     metadata: undefined,
     authentication: unknown,
+    options?: Readonly<{ execute: readonly unknown[] }>,
   ): Promise<unknown>
   buildAuthorizationUrl(configuration: unknown, parameters: Record<string, string>): URL
   authorizationCodeGrant(
@@ -32,12 +33,13 @@ export type OpenidClientDriver = Readonly<{
 
 const defaultDriver: OpenidClientDriver = {
   clientSecretBasic: (secret) => openid.ClientSecretBasic(secret),
-  discovery: (issuer, clientId, metadata, authentication) =>
+  discovery: (issuer, clientId, metadata, authentication, options) =>
     openid.discovery(
       issuer,
       clientId,
       metadata,
       authentication as openid.ClientAuth,
+      options as openid.DiscoveryRequestOptions | undefined,
     ),
   buildAuthorizationUrl: (configuration, parameters) =>
     openid.buildAuthorizationUrl(configuration as openid.Configuration, parameters),
@@ -50,18 +52,29 @@ const defaultDriver: OpenidClientDriver = {
     ),
 }
 
+function isLocalHost(hostname: string): boolean {
+  return hostname === 'localhost' || hostname.endsWith('.localhost') ||
+    hostname === '127.0.0.1' || hostname === '[::1]'
+}
+
 export async function createOpenidClientProvider(
   config: Readonly<{
     issuer: string
     clientId: string
     clientSecret: string
+    allowInsecureLocalHttp?: boolean
     now: () => Date
   }>,
   driver: OpenidClientDriver = defaultDriver,
 ): Promise<OidcProvider> {
   const issuer = new URL(config.issuer)
+  const useInsecureLocalHttp = config.allowInsecureLocalHttp === true &&
+    issuer.protocol === 'http:' && isLocalHost(issuer.hostname)
   if (
-    issuer.protocol !== 'https:' ||
+    (
+      issuer.protocol !== 'https:' &&
+      !useInsecureLocalHttp
+    ) ||
     issuer.username !== '' ||
     issuer.password !== '' ||
     issuer.hash !== '' ||
@@ -77,6 +90,9 @@ export async function createOpenidClientProvider(
     config.clientId,
     undefined,
     authentication,
+    useInsecureLocalHttp
+      ? { execute: [openid.allowInsecureRequests] }
+      : undefined,
   )
 
   return {

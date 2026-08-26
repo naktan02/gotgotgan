@@ -5,6 +5,7 @@ import type { OidcPrincipalVerifierConfig } from './oidc-principal-verifier.js'
 const commonSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']),
   PLACE_AUTH_MODE: z.enum(['oidc', 'test']),
+  PLACE_OIDC_ALLOW_INSECURE_LOCAL_HTTP: z.enum(['true', 'false']).optional(),
 })
 
 export type AuthRuntimeConfig =
@@ -37,6 +38,9 @@ export function readAuthRuntimeConfig(environment: NodeJS.ProcessEnv): AuthRunti
       jwksUri: oidc.PLACE_OIDC_JWKS_URI,
       algorithms: ['RS256'],
       requiredScopes: oidc.PLACE_OIDC_REQUIRED_SCOPES.split(' ').filter(Boolean),
+      ...(common.PLACE_OIDC_ALLOW_INSECURE_LOCAL_HTTP === 'true'
+        ? { allowInsecureLocalHttp: true }
+        : {}),
     },
   }
 }

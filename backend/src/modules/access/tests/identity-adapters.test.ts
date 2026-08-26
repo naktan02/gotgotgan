@@ -66,7 +66,26 @@ describe('OIDC principal verification', () => {
     const { keyResolver } = await signedToken()
     expect(() =>
       createOidcPrincipalVerifier({ ...config(), issuer: 'http://identity.example' }, keyResolver),
-    ).toThrow(/HTTPS URL/)
+    ).toThrow(/HTTPS or explicit local HTTP/)
+  })
+
+  it('allows explicit local HTTP without allowing arbitrary insecure issuers', async () => {
+    const { keyResolver } = await signedToken()
+    expect(() => createOidcPrincipalVerifier({
+      ...config(),
+      issuer: 'http://identity.localhost',
+    }, keyResolver)).toThrow(/HTTPS or explicit local HTTP/)
+    expect(() => createOidcPrincipalVerifier({
+      ...config(),
+      issuer: 'http://identity.localhost',
+      jwksUri: 'http://identity.localhost/oauth/v2/keys',
+      allowInsecureLocalHttp: true,
+    }, keyResolver)).not.toThrow()
+    expect(() => createOidcPrincipalVerifier({
+      ...config(),
+      issuer: 'http://identity.internal.example',
+      allowInsecureLocalHttp: true,
+    }, keyResolver)).toThrow(/HTTPS or explicit local HTTP/)
   })
 })
 
