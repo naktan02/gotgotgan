@@ -10,7 +10,6 @@ export {
   type WritingVisibility,
 } from './domain/model.js'
 export { applyWritingCommand } from './application/apply-writing-command.js'
-export { readPublishedWriting } from './application/read-published-writing.js'
 export type { WritingStore } from './application/ports/writing-store.js'
 export { PostgresWritingStore } from './adapters/persistence/postgres-writing-store.js'
 export {

@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import {
   applyCanonicalResolution,
-  resolveCanonicalPlace,
-  resolveProviderPlaceIdentity,
   type CanonicalPlaceRecord,
   type CanonicalResolutionAttempt,
   type CanonicalResolutionStore,
@@ -121,11 +119,11 @@ describe('canonical Place resolution', () => {
       kind: 'merge-places', sourcePlaceId: 'place-a', targetPlaceId: 'place-b',
     }, 'merge-a-b')).resolves.toEqual({ status: 'applied' })
 
-    await expect(resolveCanonicalPlace({ placeId: 'place-a', store })).resolves.toEqual({
+    await expect(store.resolve('place-a')).resolves.toEqual({
       status: 'active', placeId: 'place-b', redirectedFrom: ['place-a'],
     })
     await attempt({ kind: 'retire-place', placeId: 'place-b' }, 'retire-b')
-    await expect(resolveCanonicalPlace({ placeId: 'place-a', store })).resolves.toEqual({
+    await expect(store.resolve('place-a')).resolves.toEqual({
       status: 'retired', placeId: 'place-b', redirectedFrom: ['place-a'],
     })
   })
@@ -139,10 +137,10 @@ describe('canonical Place resolution', () => {
       newPlaceId: 'place-b',
       providerIdentity: identity,
     }, 'split-a-b')).resolves.toEqual({ status: 'applied' })
-    await expect(resolveCanonicalPlace({ placeId: 'place-a', store })).resolves.toEqual({
+    await expect(store.resolve('place-a')).resolves.toEqual({
       status: 'active', placeId: 'place-a', redirectedFrom: [],
     })
-    await expect(resolveProviderPlaceIdentity({ providerIdentity: identity, store })).resolves.toEqual({
+    await expect(store.resolveProviderIdentity(identity)).resolves.toEqual({
       status: 'linked', placeId: 'place-b',
     })
   })

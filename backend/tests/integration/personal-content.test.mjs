@@ -132,7 +132,7 @@ test('personal content remains owned, repeatable, versioned, and privacy project
       ['01992d10-0000-7000-8000-000000000020', '2026-07-01T12:00:00.000Z'],
       ['01992d10-0000-7000-8000-000000000021', '2026-08-01T12:00:00.000Z'],
     ]) await visits.recordVisit({ id, memberId, placeId, visitedAt, recordedAt: at, store: visitStore })
-    assert.deepEqual(await visits.summarizeVisits(memberId, placeId, visitStore), {
+    assert.deepEqual(await visitStore.summarize(memberId, placeId), {
       visited: true, count: 2,
       firstVisitedAt: '2026-07-01T12:00:00.000Z', lastVisitedAt: '2026-08-01T12:00:00.000Z',
     })

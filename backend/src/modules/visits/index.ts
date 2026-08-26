@@ -5,7 +5,6 @@ export {
   type VisitSummary,
 } from './domain/model.js'
 export { recordVisit } from './application/record-visit.js'
-export { summarizeVisits } from './application/summarize-visits.js'
 export type { VisitStore } from './application/ports/visit-store.js'
 export { PostgresVisitStore } from './adapters/persistence/postgres-visit-store.js'
 export {

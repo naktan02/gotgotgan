@@ -1,6 +1,13 @@
 import type { ImportFailureCode } from '../../domain/imports.js'
 import type { ReviewableImportItem } from './import-review-store.js'
-import type { EnrichedPlaceDetail } from './place-enrichment-source.js'
+
+export type EnrichedPlaceDetail = Readonly<{
+  name: string
+  address: string | null
+  categoryLabel: string | null
+  location: Readonly<{ latitude: number; longitude: number }> | null
+  reviewReasons: readonly string[]
+}>
 
 export type FulfillableImportItem = Omit<ReviewableImportItem, 'providerPlaceId'> & Readonly<{
   providerPlaceId: string

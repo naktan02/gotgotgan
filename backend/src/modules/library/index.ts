@@ -16,7 +16,6 @@ export type {
   ImportedPlaceSaveAttempt,
   ImportedPlaceSaveStore,
 } from './application/ports/imported-place-save-store.js'
-export { readPublishedCollection } from './application/read-published-collection.js'
 export type { LibraryStore } from './application/ports/library-store.js'
 export { PostgresLibraryStore } from './adapters/persistence/postgres-library-store.js'
 export {

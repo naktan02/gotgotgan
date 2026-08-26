@@ -166,7 +166,7 @@ test('source evidence and canonical merge/split history remain immutable and tra
       kind: 'merge-places', sourceCanonicalPlaceId: placeA, targetCanonicalPlaceId: placeB,
     })
     await apply('01992a32-2dbb-730e-aad6-5a5af6fbb837', { kind: 'merge-places', sourcePlaceId: placeA, targetPlaceId: placeB })
-    assert.deepEqual(await places.resolveCanonicalPlace({ placeId: placeA, store: placeStore }), {
+    assert.deepEqual(await placeStore.resolve(placeA), {
       status: 'active', placeId: placeB, redirectedFrom: [placeA],
     })
     await recordDecision('01992a33-21dd-720a-b030-1438fb3ecfeb', {
@@ -176,14 +176,14 @@ test('source evidence and canonical merge/split history remain immutable and tra
     await apply('01992a33-21dd-720a-b030-1438fb3ecfeb', {
       kind: 'split-provider-identity', sourcePlaceId: placeB, newPlaceId: placeC, providerIdentity: naverIdentity,
     })
-    assert.deepEqual(await places.resolveProviderPlaceIdentity({ providerIdentity: naverIdentity, store: placeStore }), {
+    assert.deepEqual(await placeStore.resolveProviderIdentity(naverIdentity), {
       status: 'linked', placeId: placeC,
     })
     await recordDecision('01992a34-2a59-7d86-916c-fd85d146105a', {
       kind: 'retire-place', canonicalPlaceId: placeC,
     })
     await apply('01992a34-2a59-7d86-916c-fd85d146105a', { kind: 'retire-place', placeId: placeC })
-    assert.deepEqual(await places.resolveCanonicalPlace({ placeId: placeC, store: placeStore }), {
+    assert.deepEqual(await placeStore.resolve(placeC), {
       status: 'retired', placeId: placeC, redirectedFrom: [],
     })
     assert.deepEqual(await apply('01992a34-2a59-7d86-916c-fd85d146105a', { kind: 'retire-place', placeId: placeC }), { status: 'replayed' })
@@ -228,10 +228,10 @@ test('source evidence and canonical merge/split history remain immutable and tra
     await assert.rejects(apply('01992a39-2384-7a19-87d7-e388ab85853f', {
       kind: 'create-place', placeId: untraceablePlace, providerIdentity: untraceableIdentity,
     }), places.InvalidCanonicalResolutionError)
-    assert.deepEqual(await places.resolveCanonicalPlace({ placeId: untraceablePlace, store: placeStore }), {
+    assert.deepEqual(await placeStore.resolve(untraceablePlace), {
       status: 'not-found',
     })
-    assert.deepEqual(await places.resolveProviderPlaceIdentity({ providerIdentity: untraceableIdentity, store: placeStore }), {
+    assert.deepEqual(await placeStore.resolveProviderIdentity(untraceableIdentity), {
       status: 'not-found',
     })
 

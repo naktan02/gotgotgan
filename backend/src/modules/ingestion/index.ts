@@ -75,16 +75,12 @@ export type {
   ImportedPlaceLibraryPort,
 } from './application/ports/imported-place-library.js'
 export type {
+  EnrichedPlaceDetail,
   FulfillableImportItem,
   ImportedPlaceFulfillmentClaim,
   ImportedPlaceFulfillmentOutcome,
   ImportedPlaceFulfillmentStore,
 } from './application/ports/imported-place-fulfillment-store.js'
-export type {
-  EnrichedPlaceDetail,
-  PlaceEnrichmentResult,
-  PlaceEnrichmentSource,
-} from './application/ports/place-enrichment-source.js'
 export type {
   ImportReviewAction,
   ImportReviewResult,
