@@ -115,7 +115,12 @@ export {
   type ProviderConnectionProjection,
 } from './domain/imports.js'
 export { PostgresIngestionStore } from './adapters/persistence/postgres-ingestion-store.js'
-export { PostgresPlaceImports } from './adapters/persistence/postgres-place-imports.js'
+export { PostgresConnectorImports } from './adapters/persistence/postgres-connector-imports.js'
+export { PostgresImportQueue } from './adapters/persistence/postgres-import-queue.js'
+export { PostgresImportReview } from './adapters/persistence/postgres-import-review.js'
+export {
+  PostgresImportedPlaceFulfillment,
+} from './adapters/persistence/postgres-imported-place-fulfillment.js'
 export { EncryptedFileCaptureArtifactStore } from './adapters/capture/encrypted-file-capture-artifact-store.js'
 export {
   registerImportHttpRoutes,

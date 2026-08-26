@@ -4,8 +4,8 @@ import { Pool } from 'pg'
 
 import {
   createImportedPlaceFulfillmentWorker,
+  PostgresImportedPlaceFulfillment,
   PostgresIngestionStore,
-  PostgresPlaceImports,
   type CanonicalPlaceMaterializationPort,
   type ImportedPlaceFulfillmentStore,
   type ImportedPlaceLibraryPort,
@@ -49,7 +49,7 @@ async function createProductionResources(
     const canonicalStore = new PostgresCanonicalResolutionStore(pool)
     const libraryStore = new PostgresLibraryStore(pool)
     return {
-      store: new PostgresPlaceImports(pool),
+      store: new PostgresImportedPlaceFulfillment(pool),
       ingestionStore: new PostgresIngestionStore(pool),
       canonical: {
         resolveProviderIdentity: (identity) => canonicalStore.resolveProviderIdentity(identity),

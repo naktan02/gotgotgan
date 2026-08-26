@@ -2,7 +2,7 @@ import { Pool } from 'pg'
 
 import {
   EncryptedFileCaptureArtifactStore,
-  PostgresPlaceImports,
+  PostgresConnectorImports,
   sweepExpiredImportCaptures,
   type CaptureArtifactReplayStore,
   type ImportCaptureRetentionStore,
@@ -36,7 +36,7 @@ async function createProductionResources(
   try {
     await pool.query('SELECT 1')
     return {
-      retention: new PostgresPlaceImports(pool),
+      retention: new PostgresConnectorImports(pool),
       artifacts: new EncryptedFileCaptureArtifactStore({ ...config.artifacts, now }),
       close: () => pool.end(),
     }

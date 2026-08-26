@@ -18,8 +18,10 @@ import {
   materializeSuggestedPlace,
   createConnectorImportReceiver,
   EncryptedFileCaptureArtifactStore,
+  PostgresConnectorImports,
+  PostgresImportQueue,
+  PostgresImportReview,
   PostgresIngestionStore,
-  PostgresPlaceImports,
   recordSuggestionObservation,
   type CanonicalPlaceMaterializationPort,
   type ConnectorCaptureParser,
@@ -124,7 +126,9 @@ export async function createProductionHttpRuntime(
     const localSearch = new PostgresLocalSearch(pool)
     const placeSuggestions = new PostgresPlaceSuggestions(pool)
     const ingestionStore = new PostgresIngestionStore(pool)
-    const placeImports = new PostgresPlaceImports(pool)
+    const connectorImports = new PostgresConnectorImports(pool)
+    const importQueue = new PostgresImportQueue(pool)
+    const importReview = new PostgresImportReview(pool)
     const canonicalStore = new PostgresCanonicalResolutionStore(pool)
     const canonicalMaterialization: CanonicalPlaceMaterializationPort = {
       resolveProviderIdentity: (identity) => canonicalStore.resolveProviderIdentity(identity),
@@ -195,7 +199,7 @@ export async function createProductionHttpRuntime(
     const connector = config.connector === undefined
       ? undefined
       : createConnectorImportReceiver({
-          store: placeImports,
+          store: connectorImports,
           artifacts: new EncryptedFileCaptureArtifactStore({
             ...config.connector.artifacts,
             now,
@@ -241,14 +245,14 @@ export async function createProductionHttpRuntime(
       }),
       imports: {
         authorizer: productAuthorizer,
-        requestStore: placeImports,
-        managementStore: placeImports,
-        connectionStore: placeImports,
+        requestStore: importQueue,
+        managementStore: importReview,
+        connectionStore: connectorImports,
         nextBatchId: randomUUID,
         nextJobId: randomUUID,
         now,
         review: {
-          store: placeImports,
+          store: importReview,
           ingestionStore,
           canonical: canonicalMaterialization,
           library: {

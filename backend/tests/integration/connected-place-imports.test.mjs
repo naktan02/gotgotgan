@@ -32,7 +32,10 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
   const captureRoot = await mkdtemp(join(tmpdir(), 'place-capture-integration-'))
   try {
     const ingestion = await import('../../dist/modules/ingestion/index.js')
-    const store = new ingestion.PostgresPlaceImports(database.pool)
+    const connectorImports = new ingestion.PostgresConnectorImports(database.pool)
+    const importQueue = new ingestion.PostgresImportQueue(database.pool)
+    const importReview = new ingestion.PostgresImportReview(database.pool)
+    const fulfillment = new ingestion.PostgresImportedPlaceFulfillment(database.pool)
     const at = '2026-08-26T11:00:00.000Z'
     await database.pool.query(
       `INSERT INTO access.memberships (
@@ -40,7 +43,7 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
        ) VALUES ($1::uuid,'urn:place:test','connected-import-member','active','member','newcomer','free',$2,$2)`,
       [ids.member, at],
     )
-    assert.equal(await store.registerConnection({
+    assert.equal(await connectorImports.registerConnection({
       connectionId: ids.connection,
       memberId: ids.member,
       providerKey: 'naver',
@@ -48,7 +51,7 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
       profileReference: 'profile:fixture-member-naver',
       registeredAt: at,
     }), 'registered')
-    assert.equal(await store.registerConnection({
+    assert.equal(await connectorImports.registerConnection({
       connectionId: ids.connection,
       memberId: ids.member,
       providerKey: 'naver',
@@ -56,7 +59,7 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
       profileReference: 'profile:fixture-member-naver',
       registeredAt: at,
     }), 'replayed')
-    const publicConnections = await store.listConnections(ids.member)
+    const publicConnections = await connectorImports.listConnections(ids.member)
     assert.deepEqual(publicConnections, [{
       connectionId: ids.connection,
       providerKey: 'naver',
@@ -70,7 +73,7 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
       memberId: ids.member,
       connectionId: ids.connection,
       idempotencyKey: ids.idempotency,
-      store,
+      store: importQueue,
       nextBatchId: () => ids.batch,
       nextJobId: () => ids.job,
       now: () => new Date(at),
@@ -80,7 +83,7 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
       memberId: ids.member,
       connectionId: ids.connection,
       idempotencyKey: ids.idempotency,
-      store,
+      store: importQueue,
       nextBatchId: () => ids.batch,
       nextJobId: () => ids.job,
       now: () => new Date(at),
@@ -134,7 +137,7 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
     ]
     const worker = ingestion.createImportWorker({
       workerId: 'integration-worker',
-      store,
+      store: importQueue,
       captureStore,
       sources: [source],
       nextId: () => generated.shift(),
@@ -149,7 +152,7 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
     })
     assert.deepEqual(await worker.runOne(), { status: 'idle' })
 
-    const detail = await store.getImport(ids.member, ids.batch)
+    const detail = await importReview.getImport(ids.member, ids.batch)
     assert.equal(detail.batch.state, 'enriching')
     assert.equal(detail.batch.progress.discovered, 1)
     assert.equal(detail.items[0].name, '센카이 라멘')
@@ -164,7 +167,7 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
     const libraryStore = new library.PostgresLibraryStore(database.pool)
     const materialization = ingestion.createImportedPlaceFulfillmentWorker({
       workerId: 'materialization-worker',
-      store,
+      store: fulfillment,
       ingestionStore: new ingestion.PostgresIngestionStore(database.pool),
       canonical: {
         resolveProviderIdentity: (identity) => canonicalStore.resolveProviderIdentity(identity),
@@ -180,7 +183,7 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
       status: 'completed', jobId: ids.fulfillmentJob,
       canonicalPlaceId: ids.materializedPlace, fulfilled: 1,
     })
-    const completed = await store.getImport(ids.member, ids.batch)
+    const completed = await importReview.getImport(ids.member, ids.batch)
     assert.equal(completed.batch.state, 'completed')
     assert.equal(completed.items[0].status, 'applied')
 
@@ -210,14 +213,14 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
     assert.deepEqual(await ingestion.sweepExpiredImportCaptures({
       expiredAt: captureClock.toISOString(),
       limit: 10,
-      retention: store,
+      retention: connectorImports,
       artifacts: captureStore,
     }), { examined: 1, deleted: 1, missing: 0, failed: 0 })
     await assert.rejects(access(join(captureRoot, `${ids.artifact}.capture`)), { code: 'ENOENT' })
     assert.deepEqual(await ingestion.sweepExpiredImportCaptures({
       expiredAt: '2026-08-29T11:00:00.000Z',
       limit: 10,
-      retention: store,
+      retention: connectorImports,
       artifacts: captureStore,
     }), { examined: 0, deleted: 0, missing: 0, failed: 0 })
   } finally {
@@ -232,7 +235,8 @@ test('browser connector grants and captures resume safely into one durable impor
   try {
     const ingestion = await import('../../dist/modules/ingestion/index.js')
     const providers = await import('../../dist/modules/providers/index.js')
-    const store = new ingestion.PostgresPlaceImports(database.pool)
+    const connectorImports = new ingestion.PostgresConnectorImports(database.pool)
+    const importReview = new ingestion.PostgresImportReview(database.pool)
     const memberId = '01992d32-0000-7000-8000-000000000001'
     const installationId = '01992d32-0000-7000-8000-000000000002'
     const idempotencyKey = '01992d32-0000-7000-8000-000000000003'
@@ -266,7 +270,7 @@ test('browser connector grants and captures resume safely into one durable impor
       now: () => at,
     })
     const receiver = ingestion.createConnectorImportReceiver({
-      store,
+      store: connectorImports,
       artifacts,
       parsers: [{
         providerKey: 'naver',
@@ -350,7 +354,7 @@ test('browser connector grants and captures resume safely into one durable impor
     assert.equal(accepted.receipt.importBatchId, importBatchId)
     assert.equal(accepted.receipt.receivedItems, 1)
     assert.equal(accepted.receipt.receivedBytes, Buffer.byteLength(payload))
-    assert.equal((await store.getImport(memberId, importBatchId)).batch.state, 'partial')
+    assert.equal((await importReview.getImport(memberId, importBatchId)).batch.state, 'partial')
     assert.deepEqual(await receiver.submitCapture({
       token: 'second-connector-token-that-remains-active',
       publicOrigin: 'https://place.example',
@@ -381,7 +385,7 @@ test('browser connector grants and captures resume safely into one durable impor
       batch: capture,
     })).status, 'replayed')
 
-    const detail = await store.getImport(memberId, importBatchId)
+    const detail = await importReview.getImport(memberId, importBatchId)
     assert.equal(detail.batch.state, 'enriching')
     assert.equal(detail.items.length, 1)
     assert.deepEqual(detail.items[0], {
