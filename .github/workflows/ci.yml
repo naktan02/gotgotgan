@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   application:
     runs-on: ubuntu-24.04
@@ -39,14 +43,17 @@ jobs:
           overwrite: false
           retention-days: 14
       - name: Verify PostgreSQL/PostGIS migrations
+        if: github.event_name != 'pull_request'
         env:
           PLACE_DATABASE_TEST_HOST: 127.0.0.1
         run: npm run test:database
       - name: Rehearse backup, isolated restore, and credential rotation
+        if: github.event_name != 'pull_request'
         env:
           PLACE_DATABASE_TEST_HOST: 127.0.0.1
         run: npm run test:database-recovery
       - name: Build both release targets from the same source
+        if: github.event_name != 'pull_request'
         run: |
           docker build --target web-runtime --tag place-web-ci .
           docker build --target backend-runtime --tag place-backend-ci .
