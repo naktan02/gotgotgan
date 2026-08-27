@@ -16,7 +16,11 @@ describe('import backend client', () => {
 
     await client.connections('server-access-token')
     await client.start('server-access-token', { schemaVersion: 'place-import-request.v1' })
-    await client.detail('server-access-token', '01992d20-0000-7000-8000-000000000001')
+    await client.detail(
+      'server-access-token',
+      '01992d20-0000-7000-8000-000000000001',
+      { cursor: 'opaque cursor/+', limit: 25 },
+    )
     await client.cancel('server-access-token', '01992d20-0000-7000-8000-000000000001', {})
     await client.resume('server-access-token', '01992d20-0000-7000-8000-000000000001', {})
     await client.review('server-access-token', { schemaVersion: 'place-import-review.v1' })
@@ -24,7 +28,7 @@ describe('import backend client', () => {
     expect(calls.map((call) => call.url)).toEqual([
       'https://place-backend.example/v1/provider-connections',
       'https://place-backend.example/v1/imports',
-      'https://place-backend.example/v1/imports/01992d20-0000-7000-8000-000000000001',
+      'https://place-backend.example/v1/imports/01992d20-0000-7000-8000-000000000001?limit=25&cursor=opaque+cursor%2F%2B',
       'https://place-backend.example/v1/imports/01992d20-0000-7000-8000-000000000001/cancel',
       'https://place-backend.example/v1/imports/01992d20-0000-7000-8000-000000000001/resume',
       'https://place-backend.example/v1/import-reviews',

@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises'
+
 import { describe, expect, it, vi } from 'vitest'
 
 import { NaverSavedPlaceCollector } from '../../adapters/providers/naver/naver-saved-place-collector.js'
@@ -11,6 +13,51 @@ function json(body: unknown) {
 }
 
 describe('NAVER member saved-place collector', () => {
+  it.each(['current', 'legacy'] as const)(
+    'replays the reviewed sanitized %s parser fixture',
+    async (variant) => {
+      const fixture = JSON.parse(await readFile(
+        new URL(`./fixtures/naver-saved-place-${variant}.json`, import.meta.url),
+        'utf8',
+      )) as Readonly<{ folderPage: unknown; bookmarkPage: unknown }>
+      const collector = new NaverSavedPlaceCollector({
+        apiBaseUrl: 'https://pages.map.naver.com/save-pages/api/maps-bookmark/v3/',
+        folderPageSize: 20,
+        bookmarkPageSize: 100,
+        maximumLists: 10,
+        maximumBookmarks: 100,
+        maximumResponseBytes: 1_048_576,
+        delayMilliseconds: 0,
+      })
+
+      const result = await collector.collectAll({
+        client: {
+          get: async ({ url }) => json(
+            url.pathname.endsWith('/folders') ? fixture.folderPage : fixture.bookmarkPage,
+          ),
+        },
+        signal: AbortSignal.timeout(1_000),
+      })
+
+      expect(result).toEqual({
+        lists: [{
+          listId: 'list-fixture-1',
+          name: '검증 목록',
+          bookmarks: [{
+            bookmarkId: 'bookmark-fixture-1',
+            providerPlaceId: 'place-fixture-1',
+            name: '검증 장소',
+            longitude: 126.978,
+            latitude: 37.5665,
+            address: '대한민국 서울특별시',
+            categoryLabel: '공공기관',
+          }],
+        }],
+        summary: { listCount: 1, bookmarkCount: 1, requestCount: 2 },
+      })
+    },
+  )
+
   it('paginates every folder and bookmark page without dropping personal source fields', async () => {
     const get = vi.fn(async ({ url }: { url: URL }) => {
       const start = Number(url.searchParams.get('start'))

@@ -5,7 +5,7 @@ import { Pool } from 'pg'
 import {
   createOidcBff,
   type OidcBffConfig,
-  type OidcProvider,
+  type ReadyOidcProvider,
 } from './oidc-bff.ts'
 import {
   PostgresOidcStore,
@@ -24,7 +24,7 @@ export type OidcProcessRuntimeConfig = Readonly<{
   encryption: OidcStoreEncryption
   bffConfig: OidcBffConfig
   cleanupBatchSize: number
-  provider: OidcProvider
+  provider: ReadyOidcProvider
   randomValue?: () => string
   calculatePkceChallenge?: (verifier: string) => Promise<string>
   now?: () => Date
@@ -88,7 +88,10 @@ export async function createOidcProcessRuntime(config: OidcProcessRuntimeConfig)
     const store = new PostgresOidcStore(pool, config.encryption)
     return {
       ready: async (): Promise<void> => {
-        await pool.query('SELECT 1')
+        await Promise.all([
+          pool.query('SELECT 1'),
+          config.provider.ready(),
+        ])
       },
       bff: createOidcBff({
         config: config.bffConfig,

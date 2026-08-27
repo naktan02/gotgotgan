@@ -1,0 +1,351 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+
+import { startPreparedPlaceDatabase } from './support/prepared-place-database.mjs'
+
+const memberA = '01992d20-3000-7000-8000-000000000101'
+const memberB = '01992d20-3000-7000-8000-000000000102'
+const places = [
+  '01992d20-3000-7000-8000-000000000201',
+  '01992d20-3000-7000-8000-000000000202',
+  '01992d20-3000-7000-8000-000000000203',
+  '01992d20-3000-7000-8000-000000000204',
+]
+const collectionA = '01992d20-3000-7000-8000-000000000301'
+const collectionA2 = '01992d20-3000-7000-8000-000000000302'
+const collectionB = '01992d20-3000-7000-8000-000000000303'
+const at = '2026-08-28T00:00:00.000Z'
+
+test('bounded Library queries paginate, hydrate public Place facts, and isolate members', { timeout: 120_000 }, async () => {
+  const database = await startPreparedPlaceDatabase('place-library-queries')
+  try {
+    const library = await import('../../dist/modules/library/index.js')
+    const search = await import('../../dist/modules/search/index.js')
+    const libraryStore = new library.PostgresLibraryStore(database.pool)
+    const localSearch = new search.PostgresLocalSearch(database.pool)
+    const queries = new library.PostgresLibraryQueries(database.pool, async (placeIds) => (
+      await localSearch.getPlaceDocuments(placeIds)
+    ).map((document) => ({
+      placeId: document.placeId,
+      name: document.name,
+      areaLabel: document.areaLabel,
+      location: { latitude: document.latitude, longitude: document.longitude },
+      primaryTaxonomy: document.primaryTaxonomy,
+      taxonomyKeys: document.taxonomyKeys,
+      evidence: { status: document.evidenceStatus, projectedAt: document.projectedAt },
+    })))
+
+    await database.pool.query(
+      `INSERT INTO access.memberships
+        (id, issuer, subject, status, authority_role, product_tier, user_grade, created_at, updated_at)
+       VALUES
+        ($1,'https://identity.example.test','library-a','active','member','standard','unclassified',$3,$3),
+        ($2,'https://identity.example.test','library-b','active','member','standard','unclassified',$3,$3)`,
+      [memberA, memberB, at],
+    )
+    await database.pool.query(
+      'INSERT INTO places.canonical_places (id) SELECT unnest($1::uuid[])',
+      [places],
+    )
+    for (const [index, placeId] of places.slice(0, 2).entries()) {
+      await search.projectLocalPlace({
+        placeId,
+        sourceVersion: 1,
+        name: `성수 장소 ${index + 1}`,
+        areaLabel: '성수',
+        latitude: 37.5445,
+        longitude: 127.056 + index * 0.001,
+        primaryTaxonomy: { key: 'food.restaurant', label: '음식점' },
+        taxonomyKeys: ['food.restaurant'],
+        evidenceStatus: 'verified',
+        projectedAt: at,
+      }, localSearch)
+    }
+
+    const preference = (commandId, memberId, placeId, saved, wanted, personalRating, occurredAt) => (
+      library.applyLibraryCommand({
+        commandId, memberId, occurredAt,
+        command: { kind: 'set-place-preferences', placeId, saved, wanted, personalRating },
+        store: libraryStore,
+      })
+    )
+    await preference('01992d20-3000-7000-8000-000000000401', memberA, places[0], true, false, 4.4, '2026-08-28T03:00:00.000Z')
+    await preference('01992d20-3000-7000-8000-000000000402', memberA, places[1], true, true, null, '2026-08-28T02:00:00.000Z')
+    await preference('01992d20-3000-7000-8000-000000000403', memberA, places[2], false, true, 3.5, '2026-08-28T01:00:00.000Z')
+    await preference('01992d20-3000-7000-8000-000000000404', memberB, places[3], true, true, 5, '2026-08-28T04:00:00.000Z')
+
+    const savedFirst = await queries.listPlaces({
+      memberId: memberA, state: 'saved', tagIds: [], tagMatch: 'all', limit: 1,
+    })
+    assert.deepEqual(savedFirst.items.map((item) => item.placeId), [places[0]])
+    assert.equal(savedFirst.items[0].place.name, '성수 장소 1')
+    assert.ok(savedFirst.nextCursor)
+    const savedSecond = await queries.listPlaces({
+      memberId: memberA, state: 'saved', tagIds: [], tagMatch: 'all',
+      limit: 1, cursor: savedFirst.nextCursor,
+    })
+    assert.deepEqual(savedSecond.items.map((item) => item.placeId), [places[1]])
+    assert.equal(savedSecond.nextCursor, undefined)
+    await assert.rejects(
+      queries.listPlaces({
+        memberId: memberA, state: 'wanted', tagIds: [], tagMatch: 'all',
+        limit: 20, cursor: savedFirst.nextCursor,
+      }),
+      library.InvalidLibraryCursorError,
+    )
+    const rated = await queries.listPlaces({
+      memberId: memberA, state: 'rated', tagIds: [], tagMatch: 'all', limit: 20,
+    })
+    assert.deepEqual(rated.items.map((item) => item.placeId), [places[0], places[2]])
+    assert.equal(rated.items[1].place, null)
+    assert.doesNotMatch(JSON.stringify(rated), new RegExp(memberB))
+    assert.doesNotMatch(JSON.stringify(rated), new RegExp(places[3]))
+    await assert.rejects(
+      queries.listPlaces({
+        memberId: memberA, state: 'saved', tagIds: [], tagMatch: 'all', limit: 51,
+      }),
+      library.InvalidLibraryQueryError,
+    )
+
+    const command = (commandId, memberId, value, occurredAt = at) => library.applyLibraryCommand({
+      commandId, memberId, command: value, occurredAt, store: libraryStore,
+    })
+    await command('01992d20-3000-7000-8000-000000000501', memberA, {
+      kind: 'create-collection', collectionId: collectionA,
+      name: '성수', visibility: 'private',
+    }, '2026-08-28T05:00:00.000Z')
+    await command('01992d20-3000-7000-8000-000000000502', memberA, {
+      kind: 'create-collection', collectionId: collectionA2,
+      name: '을지로', visibility: 'private',
+    }, '2026-08-28T04:00:00.000Z')
+    await command('01992d20-3000-7000-8000-000000000503', memberB, {
+      kind: 'create-collection', collectionId: collectionB,
+      name: '비공개', visibility: 'private',
+    })
+    for (const [index, placeId] of places.slice(0, 3).entries()) {
+      await command(`01992d20-3000-7000-8000-${String(510 + index).padStart(12, '0')}`, memberA, {
+        kind: 'add-collection-place', collectionId: collectionA, placeId, position: index,
+      })
+    }
+
+    const collectionsFirst = await queries.listCollections({ memberId: memberA, limit: 1 })
+    assert.deepEqual(collectionsFirst.items.map((item) => item.collectionId), [collectionA])
+    assert.equal(collectionsFirst.items[0].placeCount, 3)
+    const collectionsSecond = await queries.listCollections({
+      memberId: memberA, limit: 1, cursor: collectionsFirst.nextCursor,
+    })
+    assert.deepEqual(collectionsSecond.items.map((item) => item.collectionId), [collectionA2])
+    assert.equal(await queries.getCollection({
+      memberId: memberA, collectionId: collectionB, limit: 20,
+    }), undefined)
+
+    const detailFirst = await queries.getCollection({
+      memberId: memberA, collectionId: collectionA, limit: 2,
+    })
+    assert.deepEqual(detailFirst.places.map((item) => item.position), [0, 1])
+    assert.ok(detailFirst.nextCursor)
+    const detailSecond = await queries.getCollection({
+      memberId: memberA, collectionId: collectionA, limit: 2, cursor: detailFirst.nextCursor,
+    })
+    assert.deepEqual(detailSecond.places.map((item) => item.position), [2])
+    assert.equal(detailSecond.places[0].place, null)
+    await assert.rejects(
+      queries.getCollection({
+        memberId: memberA, collectionId: collectionA2,
+        limit: 20, cursor: detailFirst.nextCursor,
+      }),
+      library.InvalidLibraryCursorError,
+    )
+    await command('01992d20-3000-7000-8000-000000000520', memberA, {
+      kind: 'move-collection-place', collectionId: collectionA,
+      placeId: places[2], position: 0,
+    }, '2026-08-28T06:00:00.000Z')
+    await command('01992d20-3000-7000-8000-000000000521', memberA, {
+      kind: 'remove-collection-place', collectionId: collectionA, placeId: places[0],
+    }, '2026-08-28T06:01:00.000Z')
+    await command('01992d20-3000-7000-8000-000000000522', memberA, {
+      kind: 'rename-collection', collectionId: collectionA, name: '성수 라멘',
+    }, '2026-08-28T06:02:00.000Z')
+    const organizedCollection = await queries.getCollection({
+      memberId: memberA, collectionId: collectionA, limit: 20,
+    })
+    assert.equal(organizedCollection.collection.name, '성수 라멘')
+    assert.deepEqual(
+      organizedCollection.places.map((item) => [item.placeId, item.position]),
+      [[places[2], 0], [places[1], 2]],
+    )
+    await command('01992d20-3000-7000-8000-000000000523', memberA, {
+      kind: 'delete-collection', collectionId: collectionA2,
+    })
+    assert.equal(await queries.getCollection({
+      memberId: memberA, collectionId: collectionA2, limit: 20,
+    }), undefined)
+
+    const importedSource = {
+      providerKey: 'naver',
+      connectionId: '01992d20-3000-7000-8000-000000000524',
+      listId: 'ramen-list',
+      itemId: 'ramen-place',
+      providerPlaceId: 'naver-ramen-place',
+      listName: '가져온 라멘',
+      listPosition: 0,
+      position: 0,
+    }
+    await library.saveImportedPlace({
+      commandId: '01992d20-3000-7000-8000-000000000525',
+      memberId: memberA,
+      canonicalPlaceId: places[3],
+      occurredAt: '2026-08-28T06:03:00.000Z',
+      source: importedSource,
+      store: libraryStore,
+    })
+    const importedCollection = await database.pool.query(
+      `SELECT collection_id FROM library.collection_import_provenance
+       WHERE owner_membership_id = $1::uuid AND source_list_id = $2`,
+      [memberA, importedSource.listId],
+    )
+    const importedCollectionId = importedCollection.rows[0].collection_id
+    await command('01992d20-3000-7000-8000-000000000526', memberA, {
+      kind: 'remove-collection-place',
+      collectionId: importedCollectionId,
+      placeId: places[3],
+    })
+    assert.equal((await database.pool.query(
+      `SELECT count(*)::int AS count FROM library.collection_place_import_provenance
+       WHERE collection_id = $1::uuid`,
+      [importedCollectionId],
+    )).rows[0].count, 0)
+    await library.saveImportedPlace({
+      commandId: '01992d20-3000-7000-8000-000000000527',
+      memberId: memberA,
+      canonicalPlaceId: places[3],
+      occurredAt: '2026-08-28T06:04:00.000Z',
+      source: importedSource,
+      store: libraryStore,
+    })
+    await command('01992d20-3000-7000-8000-000000000528', memberA, {
+      kind: 'delete-collection', collectionId: importedCollectionId,
+    })
+    assert.equal((await database.pool.query(
+      `SELECT count(*)::int AS count FROM library.collection_import_provenance
+       WHERE collection_id = $1::uuid`,
+      [importedCollectionId],
+    )).rows[0].count, 0)
+
+    const tagOne = '01992d20-3000-7000-8000-000000000601'
+    const tagTwo = '01992d20-3000-7000-8000-000000000602'
+    await command('01992d20-3000-7000-8000-000000000603', memberA, {
+      kind: 'create-tag', tagId: tagOne, name: '혼밥',
+    })
+    await command('01992d20-3000-7000-8000-000000000604', memberA, {
+      kind: 'create-tag', tagId: tagTwo, name: '데이트',
+    })
+    for (const [index, placeId] of places.slice(0, 2).entries()) {
+      await command(`01992d20-3000-7000-8000-${String(610 + index).padStart(12, '0')}`, memberA, {
+        kind: 'tag-place', tagId: tagOne, placeId,
+      })
+    }
+    for (const [index, placeId] of places.slice(1, 3).entries()) {
+      await command(`01992d20-3000-7000-8000-${String(612 + index).padStart(12, '0')}`, memberA, {
+        kind: 'tag-place', tagId: tagTwo, placeId,
+      })
+    }
+    const tags = await queries.listTags({ memberId: memberA, limit: 20 })
+    assert.deepEqual(tags.items.map((item) => [item.name, item.placeCount]), [
+      ['데이트', 2], ['혼밥', 2],
+    ])
+
+    const allTags = await queries.listPlaces({
+      memberId: memberA,
+      state: 'saved',
+      tagIds: [tagTwo, tagOne],
+      tagMatch: 'all',
+      limit: 20,
+    })
+    assert.deepEqual(allTags.filter, {
+      state: 'saved', tagIds: [tagOne, tagTwo], tagMatch: 'all',
+    })
+    assert.deepEqual(allTags.items.map((item) => item.placeId), [places[1]])
+    const anyTagsFirst = await queries.listPlaces({
+      memberId: memberA,
+      state: 'saved',
+      tagIds: [tagOne, tagTwo],
+      tagMatch: 'any',
+      limit: 1,
+    })
+    assert.deepEqual(anyTagsFirst.items.map((item) => item.placeId), [places[0]])
+    assert.ok(anyTagsFirst.nextCursor)
+    const anyTagsSecond = await queries.listPlaces({
+      memberId: memberA,
+      state: 'saved',
+      tagIds: [tagOne, tagTwo],
+      tagMatch: 'any',
+      limit: 1,
+      cursor: anyTagsFirst.nextCursor,
+    })
+    assert.deepEqual(anyTagsSecond.items.map((item) => item.placeId), [places[1]])
+    await assert.rejects(
+      queries.listPlaces({
+        memberId: memberA,
+        state: 'saved',
+        tagIds: [tagOne, tagTwo],
+        tagMatch: 'all',
+        limit: 1,
+        cursor: anyTagsFirst.nextCursor,
+      }),
+      library.InvalidLibraryCursorError,
+    )
+    await command('01992d20-3000-7000-8000-000000000620', memberA, {
+      kind: 'rename-tag', tagId: tagTwo, name: '쇼유라멘',
+    })
+    await command('01992d20-3000-7000-8000-000000000621', memberA, {
+      kind: 'untag-place', tagId: tagTwo, placeId: places[1],
+    })
+    await command('01992d20-3000-7000-8000-000000000622', memberA, {
+      kind: 'delete-tag', tagId: tagOne,
+    })
+    const editedTags = await queries.listTags({ memberId: memberA, limit: 20 })
+    assert.deepEqual(editedTags.items.map((item) => [item.name, item.placeCount]), [
+      ['쇼유라멘', 1],
+    ])
+
+    await database.pool.query(`
+      WITH generated AS (
+        SELECT
+          (substr(md5(sequence::text), 1, 8) || '-' || substr(md5(sequence::text), 9, 4) || '-4' ||
+           substr(md5(sequence::text), 14, 3) || '-8' || substr(md5(sequence::text), 18, 3) || '-' ||
+           substr(md5(sequence::text), 21, 12))::uuid AS id,
+          sequence
+        FROM generate_series(1000, 5999) AS sequence
+      ), inserted AS (
+        INSERT INTO places.canonical_places (id)
+        SELECT id FROM generated ON CONFLICT (id) DO NOTHING RETURNING id
+      )
+      INSERT INTO library.place_preferences (
+        membership_id, canonical_place_id, saved, wanted, personal_rating, created_at, updated_at
+      )
+      SELECT $1::uuid, id, true, false, NULL, '2026-01-01T00:00:00Z',
+             '2026-01-01T00:00:00Z'::timestamptz + (sequence || ' seconds')::interval
+      FROM generated
+      ON CONFLICT (membership_id, canonical_place_id) DO NOTHING
+    `, [memberA])
+    await database.pool.query('ANALYZE library.place_preferences')
+    await database.pool.query('SET enable_seqscan = off')
+    const plan = await database.pool.query(`
+      EXPLAIN (FORMAT JSON)
+      SELECT canonical_place_id FROM library.place_preferences
+      WHERE membership_id = $1::uuid AND saved
+      ORDER BY updated_at DESC, canonical_place_id ASC LIMIT 20
+    `, [memberA])
+    assert.match(JSON.stringify(plan.rows[0]), /library_place_preferences_saved_updated/)
+    const tagPlan = await database.pool.query(`
+      EXPLAIN (FORMAT JSON)
+      SELECT canonical_place_id FROM library.place_tags
+      WHERE membership_id = $1::uuid AND tag_id = $2::uuid
+      ORDER BY canonical_place_id LIMIT 20
+    `, [memberA, tagTwo])
+    assert.match(JSON.stringify(tagPlan.rows[0]), /library_place_tags_member_tag_place/)
+  } finally {
+    await database.close()
+  }
+})

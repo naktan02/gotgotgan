@@ -1,11 +1,11 @@
 import type { FastifyInstance } from 'fastify'
 import {
   placeImportCancelRequestSchema,
+  placeImportBatchIdentifierParamsSchema,
   placeImportRequestSchema,
   placeImportReviewRequestSchema,
   placeImportResumeRequestSchema,
 } from '@place/contracts/imports'
-import { uuidSchema } from '@place/contracts/http'
 
 import {
   requireProductMember,
@@ -16,6 +16,7 @@ import { requestPlaceImport } from '../../application/request-place-import.js'
 import { reviewImportItem } from '../../application/review-import-item.js'
 import type { CanonicalPlaceMaterializationPort } from '../../application/ports/canonical-place-materialization.js'
 import type { ImportManagementStore } from '../../application/ports/import-management-store.js'
+import type { ImportQueries } from '../../application/import-queries.js'
 import type { ImportRequestStore } from '../../application/ports/import-request-store.js'
 import type { ImportReviewStore } from '../../application/ports/import-review-store.js'
 import type { ImportedPlaceLibraryPort } from '../../application/ports/imported-place-library.js'
@@ -25,14 +26,15 @@ import {
   ImportRequestConflictError,
   ImportReferenceUnavailableError,
   ProviderConnectionUnavailableError,
-  type PlaceImportBatch,
-  type PlaceImportItem,
 } from '../../domain/imports.js'
+import { importBatchProjection } from './import-http-projections.js'
+import { registerImportQueryHttpRoutes } from './register-import-query-http.js'
 
 export type ImportHttpDependencies = Readonly<{
   authorizer: ProductAuthorizer
   requestStore: ImportRequestStore
   managementStore: ImportManagementStore
+  queries: ImportQueries
   connectionStore: ProviderConnectionStore
   nextBatchId: () => string
   nextJobId: () => string
@@ -45,24 +47,19 @@ export type ImportHttpDependencies = Readonly<{
   }>
 }>
 
-function batchProjection(batch: PlaceImportBatch) {
-  return { schemaVersion: 'place-import-batch.v1' as const, ...batch }
-}
-
-function itemProjection(item: PlaceImportItem) {
-  return { schemaVersion: 'place-import-item.v1' as const, ...item }
-}
-
 function batchId(requestParams: unknown): string | undefined {
-  const value = (requestParams as { batchId?: unknown }).batchId
-  const parsed = uuidSchema.safeParse(value)
-  return parsed.success ? parsed.data : undefined
+  const parsed = placeImportBatchIdentifierParamsSchema.safeParse(requestParams)
+  return parsed.success ? parsed.data.batchId : undefined
 }
 
 export function registerImportHttpRoutes(
   application: FastifyInstance,
   dependencies: ImportHttpDependencies,
 ): void {
+  registerImportQueryHttpRoutes(application, {
+    authorizer: dependencies.authorizer,
+    queries: dependencies.queries,
+  })
   application.get('/v1/provider-connections', async (request, reply) => {
     const memberId = await requireProductMember(
       request, reply, dependencies.authorizer, 'imports.read',
@@ -102,7 +99,7 @@ export function registerImportHttpRoutes(
       return reply
         .header('cache-control', 'no-store')
         .status(result.status === 'created' ? 202 : 200)
-        .send(batchProjection(result.batch))
+        .send(importBatchProjection(result.batch))
     } catch (error) {
       if (error instanceof ProviderConnectionUnavailableError) {
         return sendProductProblem(
@@ -118,30 +115,6 @@ export function registerImportHttpRoutes(
       }
       throw error
     }
-  })
-
-  application.get('/v1/imports/:batchId', async (request, reply) => {
-    const memberId = await requireProductMember(
-      request, reply, dependencies.authorizer, 'imports.read',
-    )
-    if (memberId === undefined) return
-    const id = batchId(request.params)
-    if (id === undefined) {
-      return sendProductProblem(
-        request, reply, 400, 'PLACE_IMPORT_QUERY_INVALID', 'Import query is invalid',
-      )
-    }
-    const detail = await dependencies.managementStore.getImport(memberId, id)
-    if (detail === undefined) {
-      return sendProductProblem(
-        request, reply, 404, 'PLACE_IMPORT_NOT_FOUND', 'Import was not found',
-      )
-    }
-    return reply.header('cache-control', 'no-store').status(200).send({
-      schemaVersion: 'place-import-batch-detail.v1',
-      batch: batchProjection(detail.batch),
-      items: detail.items.map(itemProjection),
-    })
   })
 
   application.post('/v1/imports/:batchId/cancel', async (request, reply) => {
@@ -161,7 +134,7 @@ export function registerImportHttpRoutes(
     )
     return result === undefined
       ? sendProductProblem(request, reply, 404, 'PLACE_IMPORT_NOT_FOUND', 'Import was not found')
-      : reply.header('cache-control', 'no-store').status(200).send(batchProjection(result))
+      : reply.header('cache-control', 'no-store').status(200).send(importBatchProjection(result))
   })
 
   application.post('/v1/imports/:batchId/resume', async (request, reply) => {
@@ -181,7 +154,7 @@ export function registerImportHttpRoutes(
     )
     return result === undefined
       ? sendProductProblem(request, reply, 404, 'PLACE_IMPORT_NOT_FOUND', 'Import was not found')
-      : reply.header('cache-control', 'no-store').status(200).send(batchProjection(result))
+      : reply.header('cache-control', 'no-store').status(200).send(importBatchProjection(result))
   })
 
   const review = dependencies.review

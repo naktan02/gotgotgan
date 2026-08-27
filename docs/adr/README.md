@@ -3,8 +3,8 @@
 ADRs record durable repository-local decisions. Copy `template.md`, assign the next number, state the
 status and date, link evidence, name consequences and supersession conditions, and update routed docs.
 
-현재 최신 Import 결정은 [`0014-imported-snapshot-first-personal-save.md`](0014-imported-snapshot-first-personal-save.md)이며,
-가져온 스냅샷의 개인 Library 저장과 후속 상세 보강을 분리한다.
+현재 최신 결정은 [`0016-conservative-shadow-cluster-proposals.md`](0016-conservative-shadow-cluster-proposals.md)이며,
+cross-provider 군집이 불완전한 전이 연결로 합쳐지지 않도록 모든 구성원 쌍의 근거를 요구한다.
 
 Stage 7 결정은 `0011-connected-import-pipeline-and-provider-isolation.md`에 기록한다. 연결 계정
 작업, Provider parser 격리, 암호화 캡처, 명시적 검토와 Library 반영 경계를 정의한다.
@@ -34,3 +34,7 @@ Stage 7 결정은 `0011-connected-import-pipeline-and-provider-isolation.md`에 
   Owner로 투영하는 경계를 정의한다.
 - `0014-imported-snapshot-first-personal-save.md`: 안정된 Provider Place Identity의 Source Snapshot을
   즉시 개인 Library에 저장하고 Provider 상세 상태와 후속 Job을 분리한다.
+- `0015-review-first-cross-provider-place-resolution.md`: Resolution 소유 증거 representation과 불변
+  Match Assessment를 도입하고 측정 전 자동 link/merge를 금지한다.
+- `0016-conservative-shadow-cluster-proposals.md`: immutable normalized shadow proposal을 저장하고
+  connected-component 전이 병합 대신 모든 구성원 쌍의 `likely-same` 근거를 요구한다.

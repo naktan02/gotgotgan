@@ -147,14 +147,37 @@ describe('browser import HTTP', () => {
     expect(resolveImportBackend).not.toHaveBeenCalled()
   })
 
+  it('rejects unbounded or unknown detail query fields before resolving a session', async () => {
+    const resolveAuthRuntime = vi.fn(sessionRuntime)
+    const resolveImportBackend = vi.fn()
+    const http = createBrowserImportHttp({
+      resolveAuthRuntime,
+      resolveImportBackend,
+      createCorrelationRef: () => 'correlation-ref',
+    })
+
+    for (const query of ['limit=201', 'memberId=private', 'limit=10&limit=20']) {
+      const response = await http.detail(
+        new Request(`https://place.example/api/imports/${batchId}?${query}`),
+        batchId,
+      )
+      expect(response.status).toBe(400)
+    }
+    expect(resolveAuthRuntime).not.toHaveBeenCalled()
+    expect(resolveImportBackend).not.toHaveBeenCalled()
+  })
+
   it('projects explicit source identity and detail status without internal source keys', async () => {
+    const observedQueries: unknown[] = []
     const http = createBrowserImportHttp({
       resolveAuthRuntime: sessionRuntime,
       resolveImportBackend: () => ({
         ready: async () => new Response(), connections: async () => new Response(),
         start: async () => new Response(), cancel: async () => new Response(),
         resume: async () => new Response(), review: async () => new Response(),
-        detail: async () => Response.json({
+        detail: async (_token, _batchId, query) => {
+          observedQueries.push(query)
+          return Response.json({
           schemaVersion: 'place-import-batch-detail.v1',
           batch: {
             schemaVersion: 'place-import-batch.v1', batchId, connectionId,
@@ -170,13 +193,14 @@ describe('browser import HTTP', () => {
             location: null, status: 'applied', reviewReasons: [], detailStatus: 'pending',
             sourceItemKey: 'must-not-cross', captureReference: 'must-not-cross',
           }],
-        }),
+          nextCursor: 'next-page',
+        }) },
       }),
       createCorrelationRef: () => 'unused',
     })
 
     const response = await http.detail(
-      new Request(`https://place.example/api/imports/${batchId}`),
+      new Request(`https://place.example/api/imports/${batchId}?cursor=current-page&limit=25`),
       batchId,
     )
     const body = await response.text()
@@ -186,6 +210,8 @@ describe('browser import HTTP', () => {
       providerKey: 'naver', providerPlaceId: 'place-1',
       sourceListId: 'list-1', sourceItemId: 'bookmark-1', detailStatus: 'pending',
     })
+    expect(JSON.parse(body).nextCursor).toBe('next-page')
+    expect(observedQueries).toEqual([{ cursor: 'current-page', limit: 25 }])
     expect(body).not.toMatch(/sourceItemKey|captureReference|must-not-cross/)
   })
 

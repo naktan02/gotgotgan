@@ -1,6 +1,10 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import {
+  authorityRoleChangeResultSchema,
   authorityRoleChangeRequestSchema,
+  currentMembershipConsentsSchema,
+  currentMembershipSchema,
+  membershipOnboardingResultSchema,
   membershipOnboardingRequestSchema,
   uuidSchema,
 } from '@place/contracts/http'
@@ -243,12 +247,13 @@ export function registerAccessHttpRoutes(
     })
     if (!decision.allowed) return accessDenied(request, reply)
     if (subject.kind !== 'member') return authenticationRequired(request, reply)
-    return reply.status(200).send({
+    return reply.status(200).send(currentMembershipSchema.parse({
+      schemaVersion: 'place-current-membership.v1',
       membershipId: subject.membership.id,
       authorityRole: subject.membership.authorityRole,
       userGrade: subject.membership.userGrade,
       productTier: subject.membership.productTier,
-    })
+    }))
   })
 
   const onboarding = dependencies.onboarding
@@ -271,7 +276,10 @@ export function registerAccessHttpRoutes(
         .header('cache-control', 'no-store')
         .header('x-content-type-options', 'nosniff')
         .status(200)
-        .send({ consents: consents.data.acceptedConsents })
+        .send(currentMembershipConsentsSchema.parse({
+          schemaVersion: 'place-membership-consents.v1',
+          consents: consents.data.acceptedConsents,
+        }))
     })
 
     application.post(
@@ -317,13 +325,14 @@ export function registerAccessHttpRoutes(
           .header('cache-control', 'no-store')
           .header('x-content-type-options', 'nosniff')
           .status(result.status === 'created' ? 201 : 200)
-          .send({
+          .send(membershipOnboardingResultSchema.parse({
+            schemaVersion: 'place-membership-onboarding-result.v1',
             status: result.status,
             membershipId: result.membership.id,
             authorityRole: result.membership.authorityRole,
             userGrade: result.membership.userGrade,
             productTier: result.membership.productTier,
-          })
+          }))
       },
     )
   }
@@ -452,20 +461,22 @@ export function registerAccessHttpRoutes(
           .header('cache-control', 'no-store')
           .header('x-content-type-options', 'nosniff')
           .status(200)
-          .send(
+          .send(authorityRoleChangeResultSchema.parse(
             result.status === 'changed'
               ? {
+                  schemaVersion: 'place-authority-role-change-result.v1',
                   status: result.status,
                   membershipId: result.targetMembershipId,
                   previousRole: result.previousRole,
                   authorityRole: result.nextRole,
                 }
               : {
+                  schemaVersion: 'place-authority-role-change-result.v1',
                   status: result.status,
                   membershipId: result.targetMembershipId,
                   authorityRole: body.data.nextRole,
                 },
-          )
+          ))
       },
     )
   }

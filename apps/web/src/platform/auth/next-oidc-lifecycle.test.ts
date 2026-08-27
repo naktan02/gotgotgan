@@ -106,6 +106,7 @@ describe('Next OIDC process lifecycle', () => {
     let scheduledMilliseconds: number | undefined
     let scheduledTask: (() => void) | undefined
     const provider = {
+      ready: async () => undefined,
       buildAuthorizationUrl: async () => 'https://identity.example/authorize',
       exchangeAuthorizationCode: async () => ({
         accessToken: 'server-side-token',
@@ -185,6 +186,7 @@ describe('Next OIDC process lifecycle', () => {
     let closeCalls = 0
     const lifecycle = createNextOidcLifecycle({
       createProvider: async () => ({
+        ready: async () => undefined,
         buildAuthorizationUrl: async () => 'https://identity.example/authorize',
         exchangeAuthorizationCode: async () => ({
           accessToken: 'server-side-token',

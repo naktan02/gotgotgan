@@ -14,7 +14,9 @@ describe('browser process readiness', () => {
     const response = await readiness.check()
 
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ service: 'place-web', state: 'ok' })
+    expect(await response.json()).toEqual({
+      schemaVersion: 'place-process-status.v1', service: 'place-web', state: 'ok',
+    })
   })
 
   it('checks every explicitly activated dependency and fails closed safely', async () => {
@@ -61,6 +63,7 @@ describe('browser process readiness', () => {
     expect(response.status).toBe(503)
     expect(response.headers.get('cache-control')).toBe('no-store')
     expect(JSON.parse(body)).toEqual({
+      schemaVersion: 'place-process-status.v1',
       service: 'place-web',
       state: 'unavailable',
     })

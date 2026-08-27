@@ -59,8 +59,20 @@ export type LibraryCommand =
       placeId: string
       position: number
     }>
+  | Readonly<{ kind: 'rename-collection'; collectionId: string; name: string }>
+  | Readonly<{ kind: 'delete-collection'; collectionId: string }>
+  | Readonly<{ kind: 'remove-collection-place'; collectionId: string; placeId: string }>
+  | Readonly<{
+      kind: 'move-collection-place'
+      collectionId: string
+      placeId: string
+      position: number
+    }>
   | Readonly<{ kind: 'create-tag'; tagId: string; name: string }>
   | Readonly<{ kind: 'tag-place'; tagId: string; placeId: string }>
+  | Readonly<{ kind: 'rename-tag'; tagId: string; name: string }>
+  | Readonly<{ kind: 'delete-tag'; tagId: string }>
+  | Readonly<{ kind: 'untag-place'; tagId: string; placeId: string }>
   | Readonly<{
       kind: 'copy-published-collection'
       sourcePublicationId: string
@@ -116,13 +128,17 @@ export function assertLibraryCommand(command: LibraryCommand): void {
     requirePublication(command.visibility, command.publicationId)
     return
   }
-  if (command.kind === 'add-collection-place') {
-    if (!Number.isInteger(command.position) || command.position < 0) {
-      throw new InvalidLibraryCommandError('position must be a non-negative integer')
+  if (command.kind === 'add-collection-place' || command.kind === 'move-collection-place') {
+    if (!Number.isInteger(command.position) || command.position < 0 || command.position > 1_000_000) {
+      throw new InvalidLibraryCommandError('position must be an integer between 0 and 1000000')
     }
     return
   }
-  if (command.kind === 'create-tag') {
+  if (command.kind === 'rename-collection') {
+    requireText(command.name, 'name', 120)
+    return
+  }
+  if (command.kind === 'create-tag' || command.kind === 'rename-tag') {
     requireText(command.name, 'name', 64)
     return
   }

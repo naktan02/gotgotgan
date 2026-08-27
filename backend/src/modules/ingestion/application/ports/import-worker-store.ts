@@ -25,6 +25,11 @@ export type PreparedImportItem = ConnectedPlaceItem & Readonly<{
     decisionId: string
     proposedPlaceId: string
   }>
+  detail?: Readonly<{
+    jobId: string
+    observationId: string
+    candidateId: string
+  }>
 }>
 
 export type ImportAttemptOutcome =

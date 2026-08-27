@@ -52,9 +52,19 @@ entrypoint가 수명주기를 조립한다.
 Provider Identity별 Fulfillment Job은 먼저 `CanonicalPlaceMaterializationPort`로 기존 link를 확인한다.
 hit이면 외부 상세 호출 없이 증거와 정책 link decision을 기록하고 Library에 저장한다. miss에서도
 현재 snapshot 증거로 Canonical Place를 만들고 모든 대기 회원 Library에 fan-out한다. Provider 상세
-수집은 아직 구현되지 않았으므로 별도 source interface가 존재한다고 표현하지 않는다. 실제 상세
-Adapter와 Job이 도입될 때 관측된 계약에 맞는 seam을 추가한다.
+수집은 별도 `ProviderPlaceDetailSource`와 `ProviderPlaceDetailJobStore` Interface를 사용한다. Worker는
+지원 Adapter가 있는 Provider만 claim하고, 성공 시 immutable `provider-detail` Source Observation과
+Place Candidate를 기록한 뒤 detail 상태만 `available`로 바꾼다. 이 단계는 Canonical Place를 수정하거나
+동일 장소 판정을 내리지 않는다. 실제 NAVER Adapter는 관측된 계약이 없으므로 endpoint를 추측하지
+않고 비활성 상태로 남긴다.
 
 ImportItem은 Provider의 `source_list_id`, 목록 순서와 목록 안 순서를 함께 보존한다. Fulfillment와
 명시적 review 모두 이 메타데이터를 Library 공개 port에 전달한다. Ingestion은 원본 폴더를 Taxonomy로
 해석하거나 Library Collection을 직접 만들지 않는다.
+
+회원용 Import read는 `ImportQueries` Interface 하나로 이력과 배치 상세만 공개한다. PostgreSQL
+Adapter는 이력을 생성 시각 keyset으로, Item을 원본 목록·항목 순서 keyset으로 제한하며 cursor는
+필터 또는 batch ID에 묶는다. 취소·재개는 `ImportManagementStore`, 명시적 판정은
+`ImportReviewStore`가 각각 소유하므로 조회, lifecycle 변경, review transaction이 한 파일에 모이지
+않는다. 이 경계는 Provider Adapter, AI 판정, Product Tier 분기를 추가하지 않고도 HTTP composition에서
+인증·향후 entitlement 정책을 앞단에 붙일 수 있게 유지한다.

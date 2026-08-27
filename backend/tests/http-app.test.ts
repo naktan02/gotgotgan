@@ -17,7 +17,9 @@ describe('HTTP lifecycle scaffold', () => {
     const response = await application.inject({ method: 'GET', url: route })
 
     expect(response.statusCode).toBe(200)
-    expect(response.json()).toEqual({ service: 'place', state: 'ok' })
+    expect(response.json()).toEqual({
+      schemaVersion: 'place-process-status.v1', service: 'place', state: 'ok',
+    })
   })
 
   it('keeps liveness healthy while readiness fails closed with its dependency', async () => {
@@ -34,7 +36,11 @@ describe('HTTP lifecycle scaffold', () => {
     expect(health.statusCode).toBe(200)
     expect(readiness.statusCode).toBe(503)
     expect(readiness.headers['cache-control']).toBe('no-store')
-    expect(readiness.json()).toEqual({ service: 'place', state: 'unavailable' })
+    expect(readiness.json()).toEqual({
+      schemaVersion: 'place-process-status.v1',
+      service: 'place',
+      state: 'unavailable',
+    })
     expect(readiness.body).not.toContain('database-password')
     expect(readiness.body).not.toContain('internal.database.example')
   })

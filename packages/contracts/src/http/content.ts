@@ -27,7 +27,31 @@ export const addCollectionPlaceCommandSchema = z.object({
   kind: z.literal('add-collection-place'),
   collectionId: uuidSchema,
   placeId: uuidSchema,
-  position: z.number().int().nonnegative(),
+  position: z.number().int().min(0).max(1_000_000),
+}).strict()
+
+export const renameCollectionCommandSchema = z.object({
+  kind: z.literal('rename-collection'),
+  collectionId: uuidSchema,
+  name: z.string().min(1).max(120),
+}).strict()
+
+export const deleteCollectionCommandSchema = z.object({
+  kind: z.literal('delete-collection'),
+  collectionId: uuidSchema,
+}).strict()
+
+export const removeCollectionPlaceCommandSchema = z.object({
+  kind: z.literal('remove-collection-place'),
+  collectionId: uuidSchema,
+  placeId: uuidSchema,
+}).strict()
+
+export const moveCollectionPlaceCommandSchema = z.object({
+  kind: z.literal('move-collection-place'),
+  collectionId: uuidSchema,
+  placeId: uuidSchema,
+  position: z.number().int().min(0).max(1_000_000),
 }).strict()
 
 export const createTagCommandSchema = z.object({
@@ -38,6 +62,23 @@ export const createTagCommandSchema = z.object({
 
 export const tagPlaceCommandSchema = z.object({
   kind: z.literal('tag-place'),
+  tagId: uuidSchema,
+  placeId: uuidSchema,
+}).strict()
+
+export const renameTagCommandSchema = z.object({
+  kind: z.literal('rename-tag'),
+  tagId: uuidSchema,
+  name: z.string().min(1).max(64),
+}).strict()
+
+export const deleteTagCommandSchema = z.object({
+  kind: z.literal('delete-tag'),
+  tagId: uuidSchema,
+}).strict()
+
+export const untagPlaceCommandSchema = z.object({
+  kind: z.literal('untag-place'),
   tagId: uuidSchema,
   placeId: uuidSchema,
 }).strict()
@@ -53,8 +94,15 @@ export const libraryCommandSchema = z.discriminatedUnion('kind', [
   setPlacePreferencesCommandSchema,
   createCollectionCommandSchema,
   addCollectionPlaceCommandSchema,
+  renameCollectionCommandSchema,
+  deleteCollectionCommandSchema,
+  removeCollectionPlaceCommandSchema,
+  moveCollectionPlaceCommandSchema,
   createTagCommandSchema,
   tagPlaceCommandSchema,
+  renameTagCommandSchema,
+  deleteTagCommandSchema,
+  untagPlaceCommandSchema,
   copyPublishedCollectionCommandSchema,
 ])
 
@@ -130,6 +178,7 @@ export const publicationIdentifierParamsSchema = z.object({
 export const placeIdentifierParamsSchema = z.object({ placeId: uuidSchema }).strict()
 
 export const publishedCollectionSchema = z.object({
+  schemaVersion: z.literal('place-published-collection.v1'),
   publicationId: uuidSchema,
   visibility: sharedVisibilitySchema,
   name: z.string().min(1).max(120),
@@ -143,6 +192,7 @@ export const publishedCollectionSchema = z.object({
 
 export const publishedWritingSchema = z.discriminatedUnion('kind', [
   z.object({
+    schemaVersion: z.literal('place-published-writing.v1'),
     kind: z.literal('note'),
     publicationId: uuidSchema,
     visibility: sharedVisibilitySchema,
@@ -151,6 +201,7 @@ export const publishedWritingSchema = z.discriminatedUnion('kind', [
     updatedAt: z.iso.datetime(),
   }).strict(),
   z.object({
+    schemaVersion: z.literal('place-published-writing.v1'),
     kind: z.literal('entry'),
     publicationId: uuidSchema,
     visibility: sharedVisibilitySchema,

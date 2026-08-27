@@ -3,7 +3,6 @@ import type { Pool, PoolClient } from 'pg'
 import type { WritingStore } from '../../application/ports/writing-store.js'
 import type {
   PublishedWriting,
-  MemberWriting,
   WritingAttempt,
   WritingCommandOutcome,
 } from '../../domain/model.js'
@@ -145,34 +144,4 @@ export class PostgresWritingStore implements WritingStore {
       : { kind: 'note', ...common, placeIds: common.placeIds as [string] }
   }
 
-  async listMemberWriting(memberId: string): Promise<readonly MemberWriting[]> {
-    const result = await this.pool.query<{
-      id: string
-      kind: 'note' | 'entry'
-      title: string | null
-      body: string
-      visibility: 'private' | 'unlisted' | 'public'
-      publication_id: string | null
-      version: string
-      updated_at: Date
-      place_ids: string[]
-    }>(
-      `SELECT d.id, d.kind, d.title, d.body, d.visibility, d.publication_id, d.version, d.updated_at,
-              array_agg(l.canonical_place_id ORDER BY l.position) AS place_ids
-       FROM writing.documents d JOIN writing.document_place_links l ON l.document_id = d.id
-       WHERE d.owner_membership_id = $1 GROUP BY d.id ORDER BY d.updated_at DESC, d.id`,
-      [memberId],
-    )
-    return result.rows.map((row) => ({
-      documentId: row.id,
-      kind: row.kind,
-      title: row.title,
-      body: row.body,
-      visibility: row.visibility,
-      publicationId: row.publication_id,
-      version: Number(row.version),
-      placeIds: row.place_ids,
-      updatedAt: row.updated_at.toISOString(),
-    }))
-  }
 }

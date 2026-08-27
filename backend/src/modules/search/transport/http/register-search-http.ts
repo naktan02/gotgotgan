@@ -5,7 +5,11 @@ import {
 import type { FastifyInstance } from 'fastify'
 
 import { InvalidSearchCursorError, type PlaceSearchPage, type PlaceSearchQuery } from '../../domain/model.js'
-import { sendProductProblem, type ProductAuthorizer } from '../../../../platform/http/product-authorization.js'
+import {
+  resolveOptionalProductMember,
+  sendProductProblem,
+  type ProductAuthorizer,
+} from '../../../../platform/http/product-authorization.js'
 import {
   registerSuggestionHttpRoutes,
   type SuggestionHttpDependencies,
@@ -35,23 +39,14 @@ export function registerSearchHttpRoutes(
       return sendProductProblem(request, reply, 400, 'PLACE_SEARCH_REQUEST_INVALID', 'Search request is invalid')
     }
 
-    let viewerMemberId: string | undefined
-    if (request.headers.authorization !== undefined) {
-      if (dependencies.authorizer === undefined) {
-        return sendProductProblem(request, reply, 503, 'PLACE_SEARCH_AUTHORIZATION_UNAVAILABLE', 'Search authorization is unavailable', true)
-      }
-      const authorization = await dependencies.authorizer(request.headers.authorization, 'search.read')
-      if (authorization.status !== 'authorized') {
-        return sendProductProblem(
-          request,
-          reply,
-          authorization.status === 'authentication-required' ? 401 : 403,
-          authorization.status === 'authentication-required' ? 'PLACE_AUTHENTICATION_REQUIRED' : 'PLACE_ACCESS_DENIED',
-          authorization.status === 'authentication-required' ? 'Authentication required' : 'Access denied',
-        )
-      }
-      viewerMemberId = authorization.memberId
-    }
+    const viewer = await resolveOptionalProductMember(
+      request,
+      reply,
+      dependencies.authorizer,
+      'search.read',
+    )
+    if (viewer.kind === 'replied') return
+    const viewerMemberId = viewer.kind === 'member' ? viewer.memberId : undefined
 
     const query: PlaceSearchQuery = {
       query: parsed.data.query,

@@ -1,0 +1,79 @@
+import { describe, expect, it } from 'vitest'
+
+import {
+  currentMembershipConsentsSchema,
+  currentMembershipSchema,
+  membershipOnboardingResultSchema,
+  processStatusSchema,
+  publishedCollectionSchema,
+  publishedWritingSchema,
+} from '../src/http/index.js'
+import {
+  libraryCommandResultSchema,
+  libraryPlacePreferencesResponseSchema,
+} from '../src/library/index.js'
+import {
+  visitRecordResultSchema,
+  visitSummaryResponseSchema,
+} from '../src/visits/index.js'
+import { writingCommandResultSchema } from '../src/writing/index.js'
+
+const membershipId = '01992d20-0000-7000-8000-000000000001'
+const placeId = '01992d20-0000-7000-8000-000000000002'
+const publicationId = '01992d20-0000-7000-8000-000000000003'
+const documentId = '01992d20-0000-7000-8000-000000000004'
+
+describe('versioned product HTTP results', () => {
+  it('keeps process and membership projections explicitly versioned', () => {
+    expect(processStatusSchema.parse({
+      schemaVersion: 'place-process-status.v1', service: 'place', state: 'ok',
+    })).toMatchObject({ state: 'ok' })
+    expect(currentMembershipSchema.parse({
+      schemaVersion: 'place-current-membership.v1', membershipId,
+      authorityRole: 'member', userGrade: 'newcomer', productTier: 'free',
+    })).toMatchObject({ membershipId })
+    expect(currentMembershipConsentsSchema.parse({
+      schemaVersion: 'place-membership-consents.v1',
+      consents: [{ document: 'terms', version: '2026-08-28' }],
+    }).consents).toHaveLength(1)
+    expect(membershipOnboardingResultSchema.parse({
+      schemaVersion: 'place-membership-onboarding-result.v1', status: 'created',
+      membershipId, authorityRole: 'member', userGrade: 'newcomer', productTier: 'free',
+    }).status).toBe('created')
+  })
+
+  it('publishes strict owner-scoped command and preference results', () => {
+    expect(libraryCommandResultSchema.parse({
+      schemaVersion: 'library-command-result.v1', status: 'replayed',
+    }).status).toBe('replayed')
+    expect(libraryPlacePreferencesResponseSchema.safeParse({
+      schemaVersion: 'library-place-preferences.v1', placeId,
+      saved: true, wanted: false, personalRating: 4.5,
+      updatedAt: '2026-08-28T00:00:00.000Z',
+      memberId: '01992d20-0000-7000-8000-000000000001',
+    }).success).toBe(false)
+    expect(visitRecordResultSchema.parse({
+      schemaVersion: 'visit-record-result.v1', status: 'recorded',
+    }).status).toBe('recorded')
+    expect(visitSummaryResponseSchema.parse({
+      schemaVersion: 'visit-summary.v1', placeId, visited: false, count: 0,
+    }).visited).toBe(false)
+    expect(writingCommandResultSchema.parse({
+      schemaVersion: 'writing-command-result.v1', status: 'applied', documentId, version: 1,
+    }).status).toBe('applied')
+  })
+
+  it('versions both public content projections without exposing owner evidence', () => {
+    expect(publishedCollectionSchema.parse({
+      schemaVersion: 'place-published-collection.v1', publicationId,
+      visibility: 'public', name: '서울', description: null, places: [],
+      updatedAt: '2026-08-28T00:00:00.000Z',
+    }).schemaVersion).toBe('place-published-collection.v1')
+    expect(publishedWritingSchema.safeParse({
+      schemaVersion: 'place-published-writing.v1', kind: 'note', publicationId,
+      visibility: 'public', body: '좋아요', placeIds: [placeId],
+      updatedAt: '2026-08-28T00:00:00.000Z',
+      memberId: '01992d20-0000-7000-8000-000000000001',
+    }).success).toBe(false)
+  })
+})

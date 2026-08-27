@@ -20,6 +20,7 @@ test('imported snapshots coalesce for immediate save while details remain pendin
     const connectorImports = new ingestion.PostgresConnectorImports(database.pool)
     const importQueue = new ingestion.PostgresImportQueue(database.pool)
     const importReview = new ingestion.PostgresImportReview(database.pool)
+    const importQueries = new ingestion.PostgresImportQueries(database.pool)
     const fulfillmentStore = new ingestion.PostgresImportedPlaceFulfillment(database.pool)
     const ingestionStore = new ingestion.PostgresIngestionStore(database.pool)
     const canonicalStore = new places.PostgresCanonicalResolutionStore(database.pool)
@@ -124,7 +125,7 @@ test('imported snapshots coalesce for immediate save while details remain pendin
         nextJobId: () => jobId,
         now: () => new Date(at),
       })
-      const generated = Array.from({ length: 32 }, (_, index) => id(sequence + 10 + index))
+      const generated = Array.from({ length: 40 }, (_, index) => id(sequence + 10 + index))
       const acquisition = ingestion.createImportWorker({
         workerId: `acquisition-${sequence}`,
         store: importQueue,
@@ -140,7 +141,7 @@ test('imported snapshots coalesce for immediate save while details remain pendin
       assert.deepEqual(await acquisition.runOne(), {
         status: 'processed', batchId, batchState: 'enriching', itemCount: 3,
       })
-      const detail = await importReview.getImport(memberId, batchId)
+      const detail = await importQueries.getBatch({ memberId, batchId, limit: 200 })
       assert.equal(detail.batch.state, 'enriching')
       assert.equal(detail.batch.progress.enriching, 3)
       assert.equal(detail.items[0].status, 'enriching')
@@ -152,9 +153,10 @@ test('imported snapshots coalesce for immediate save while details remain pendin
     const queued = await database.pool.query(`
       SELECT
         (SELECT count(*)::int FROM ingestion.import_place_fulfillment_jobs) AS jobs,
-        (SELECT count(*)::int FROM ingestion.import_place_fulfillment_intents) AS intents
+        (SELECT count(*)::int FROM ingestion.import_place_fulfillment_intents) AS intents,
+        (SELECT count(*)::int FROM ingestion.provider_place_detail_jobs) AS detail_jobs
     `)
-    assert.deepEqual(queued.rows[0], { jobs: 1, intents: 6 })
+    assert.deepEqual(queued.rows[0], { jobs: 1, intents: 6, detail_jobs: 1 })
 
     const fulfillment = ingestion.createImportedPlaceFulfillmentWorker({
       workerId: 'materialization-worker',
@@ -168,14 +170,14 @@ test('imported snapshots coalesce for immediate save while details remain pendin
     const fulfilled = await fulfillment.runOne()
     assert.equal(fulfilled.status, 'completed')
     assert.equal(fulfilled.fulfilled, 6)
-    assert.equal((await importReview.getImport(first.memberId, first.batchId)).batch.state, 'completed')
-    assert.equal((await importReview.getImport(second.memberId, second.batchId)).batch.state, 'completed')
+    assert.equal((await importQueries.getBatch({ memberId: first.memberId, batchId: first.batchId, limit: 200 })).batch.state, 'completed')
+    assert.equal((await importQueries.getBatch({ memberId: second.memberId, batchId: second.batchId, limit: 200 })).batch.state, 'completed')
 
     const third = await registerMemberAndImport(300)
     const cached = await fulfillment.runOne()
     assert.equal(cached.status, 'completed')
     assert.equal(cached.fulfilled, 3)
-    assert.equal((await importReview.getImport(third.memberId, third.batchId)).batch.state, 'completed')
+    assert.equal((await importQueries.getBatch({ memberId: third.memberId, batchId: third.batchId, limit: 200 })).batch.state, 'completed')
 
     const results = await database.pool.query(`
       SELECT

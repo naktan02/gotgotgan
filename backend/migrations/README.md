@@ -74,3 +74,37 @@ Collection Place Import Provenance를 추가한다. `000020`은 provenance의 ke
 identity로 교체해 같은 membership의 복수 원본을 보존한다. 또한 `provider-detail` Source Observation,
 그 관찰의 정규화 Candidate, 동일 Provider Place Identity를 하나의 참조로 묶어 `available` 상세 상태가
 임의의 관찰을 가리킬 수 없게 한다.
+
+`000021`은 개인 저장 Materialization과 별개인 Provider Place Detail Job/Attempt를 추가한다. Job은
+Provider Place Identity 하나만 받아 lease generation, bounded retry, terminal failure를 기록한다.
+성공은 같은 identity의 `provider-detail` Observation과 Candidate가 모두 저장된 뒤에만 상세 상태를
+`available`로 바꾸고, 최종 실패는 개인 Library를 되돌리지 않은 채 `unavailable`로 표시한다.
+
+`000022`는 Resolution 소유의 현재 Place Evidence Representation과 변경 불가능한 Match Assessment를
+추가한다. 현재 representation만 새 관찰로 교체할 수 있고 원문 다국어 이름은 JSON으로 보존한다.
+비교용 이름·주소에는 `pg_trgm` GIN, 위치에는 geography GiST, 전화·website host에는 부분 index를 둔다.
+runtime role은 representation의 제한된 upsert와 assessment insert/select만 가능하며 assessment를
+update/delete하거나 Canonical Place를 변경할 권한은 얻지 않는다.
+
+`000023`은 immutable versioned Place Cluster Proposal header, one-to-many member, many-to-many
+supporting Match Assessment를 각각 정규화한다. 복합 foreign key는 assessment의 양 끝이 실제 proposal
+member이고 원본 immutable assessment가 존재함을 강제한다. Provider별 열과 Canonical Place 참조는
+없으며 runtime role은 세 table을 insert/select만 할 수 있다.
+
+`000024`는 회원 Library의 bounded keyset 조회를 위한 saved/wanted/rated partial index를 추가한다.
+Collection owner 정렬 index에는 안정된 ID tie-breaker를 포함한다. 새 table이나 권한은 만들지 않고
+기존 정규화된 preference·Collection·Tag 구조를 그대로 조회한다.
+
+`000025`는 Visit history와 Writing list의 안정된 keyset 순서에 ID tie-breaker를 추가한다. Visit
+index는 member·Place 범위 뒤에 `(visited_at DESC, id)`를, Writing index는 owner 범위 뒤에
+`(updated_at DESC, id)`를 둔다. table, grant, occurrence, revision 내용은 바꾸지 않는다.
+
+`000026`은 회원별 ImportBatch 이력의 상태 filter와 생성 시각 keyset을 위한
+`(member_id, state, created_at DESC, id)` index, ImportItem 원본 순서 상세를 위한
+`(batch_id, source_list_position, source_position, id)` index를 추가한다. 기존 Import lifecycle,
+capture, provenance, review schema나 runtime 권한은 바꾸지 않는다.
+
+`000027`은 회원 Tag 조합 조회용 `(membership_id, tag_id, canonical_place_id)` index와 transaction
+내 Collection 순서 이동용 deferrable unique constraint를 추가한다. runtime DELETE 권한은 owner-scoped
+Collection/Tag command가 자기 row와 Library-owned copy/import provenance를 함께 정리하는 table에만
+추가한다.

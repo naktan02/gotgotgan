@@ -56,27 +56,4 @@ export class PostgresVisitStore implements VisitStore {
     }
   }
 
-  async list(memberId: string, placeId: string): Promise<readonly VisitRecord[]> {
-    const result = await this.pool.query<{
-      id: string
-      visited_at: Date
-      recorded_at: Date
-      evidence: Readonly<Record<string, unknown>> | null
-      fingerprint: string
-    }>(
-      `SELECT id, visited_at, recorded_at, evidence, fingerprint
-       FROM visits.visit_occurrences WHERE membership_id = $1 AND canonical_place_id = $2
-       ORDER BY visited_at DESC, id`,
-      [memberId, placeId],
-    )
-    return result.rows.map((row) => ({
-      id: row.id,
-      memberId,
-      placeId,
-      visitedAt: row.visited_at.toISOString(),
-      recordedAt: row.recorded_at.toISOString(),
-      ...(row.evidence === null ? {} : { evidence: row.evidence }),
-      fingerprint: row.fingerprint,
-    }))
-  }
 }

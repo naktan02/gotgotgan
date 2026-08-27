@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
-import type { Pool, PoolClient } from 'pg'
+import type { Pool } from 'pg'
 
 import type { LibraryStore } from '../../application/ports/library-store.js'
 import type {
@@ -14,6 +14,7 @@ import type {
   PlacePreferences,
   PublishedCollection,
 } from '../../domain/model.js'
+import { applyPostgresLibraryCommand } from './postgres-library-command-writes.js'
 
 type Receipt = Readonly<{ command_fingerprint: string; outcome: 'applied' | 'not-found' | 'forbidden' }>
 
@@ -135,7 +136,7 @@ export class PostgresLibraryStore implements LibraryStore, ImportedPlaceSaveStor
              SELECT 1 FROM library.collection_places
              WHERE collection_id = $1::uuid AND position = $3
            )
-         ON CONFLICT DO NOTHING`,
+         ON CONFLICT (collection_id, canonical_place_id) DO NOTHING`,
         [collectionId, attempt.canonicalPlaceId, attempt.source.position, attempt.occurredAt],
       )
       if (placed.rowCount === 0) {
@@ -150,7 +151,7 @@ export class PostgresLibraryStore implements LibraryStore, ImportedPlaceSaveStor
                  SELECT 1 FROM library.collection_places
                  WHERE collection_id = $1::uuid AND canonical_place_id = $2::uuid
                )
-           ON CONFLICT DO NOTHING`,
+           ON CONFLICT (collection_id, canonical_place_id) DO NOTHING`,
           [collectionId, attempt.canonicalPlaceId, attempt.occurredAt],
         )
       }
@@ -212,7 +213,7 @@ export class PostgresLibraryStore implements LibraryStore, ImportedPlaceSaveStor
           : { status: 'conflict' }
       }
 
-      const outcome = await this.applyCommand(client, attempt)
+      const outcome = await applyPostgresLibraryCommand(client, attempt)
       await client.query(
         `INSERT INTO library.command_receipts
           (command_id, membership_id, command_kind, command_fingerprint, outcome, occurred_at)
@@ -227,101 +228,6 @@ export class PostgresLibraryStore implements LibraryStore, ImportedPlaceSaveStor
     } finally {
       client.release()
     }
-  }
-
-  private async applyCommand(
-    client: PoolClient,
-    attempt: LibraryAttempt,
-  ): Promise<'applied' | 'not-found' | 'forbidden'> {
-    const command = attempt.command
-    if (command.kind === 'set-place-preferences') {
-      const prior = await client.query<{ personal_rating: string | null }>(
-        `SELECT personal_rating FROM library.place_preferences
-         WHERE membership_id = $1 AND canonical_place_id = $2 FOR UPDATE`,
-        [attempt.memberId, command.placeId],
-      )
-      await client.query(
-        `INSERT INTO library.place_preferences
-          (membership_id, canonical_place_id, saved, wanted, personal_rating, created_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$6)
-         ON CONFLICT (membership_id, canonical_place_id) DO UPDATE
-         SET saved = EXCLUDED.saved, wanted = EXCLUDED.wanted,
-             personal_rating = EXCLUDED.personal_rating, updated_at = EXCLUDED.updated_at`,
-        [attempt.memberId, command.placeId, command.saved, command.wanted, command.personalRating, attempt.occurredAt],
-      )
-      const previous = prior.rows[0]?.personal_rating === undefined || prior.rows[0]?.personal_rating === null
-        ? null : Number(prior.rows[0].personal_rating)
-      if (previous !== command.personalRating) {
-        await client.query(
-          `INSERT INTO library.personal_rating_events
-            (command_id, membership_id, canonical_place_id, previous_rating, next_rating, occurred_at)
-           VALUES ($1,$2,$3,$4,$5,$6)`,
-          [attempt.commandId, attempt.memberId, command.placeId, previous, command.personalRating, attempt.occurredAt],
-        )
-      }
-      return 'applied'
-    }
-    if (command.kind === 'create-collection') {
-      const result = await client.query(
-        `INSERT INTO library.collections
-          (id, owner_membership_id, name, description, visibility, publication_id, created_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$7) ON CONFLICT (id) DO NOTHING`,
-        [command.collectionId, attempt.memberId, command.name, command.description ?? null,
-          command.visibility, command.publicationId ?? null, attempt.occurredAt],
-      )
-      return result.rowCount === 1 ? 'applied' : 'forbidden'
-    }
-    if (command.kind === 'add-collection-place') {
-      const result = await client.query(
-        `INSERT INTO library.collection_places (collection_id, canonical_place_id, position, added_at)
-         SELECT id, $3, $4, $5 FROM library.collections
-         WHERE id = $1 AND owner_membership_id = $2
-         ON CONFLICT (collection_id, canonical_place_id) DO UPDATE SET position = EXCLUDED.position`,
-        [command.collectionId, attempt.memberId, command.placeId, command.position, attempt.occurredAt],
-      )
-      return result.rowCount === 1 ? 'applied' : 'not-found'
-    }
-    if (command.kind === 'create-tag') {
-      const result = await client.query(
-        `INSERT INTO library.tags (id, owner_membership_id, name, normalized_name, created_at)
-         VALUES ($1,$2,$3,lower(trim($3)),$4) ON CONFLICT DO NOTHING`,
-        [command.tagId, attempt.memberId, command.name, attempt.occurredAt],
-      )
-      return result.rowCount === 1 ? 'applied' : 'forbidden'
-    }
-    if (command.kind === 'tag-place') {
-      const result = await client.query(
-        `INSERT INTO library.place_tags (membership_id, canonical_place_id, tag_id, tagged_at)
-         SELECT $1, $2, id, $4 FROM library.tags WHERE id = $3 AND owner_membership_id = $1
-         ON CONFLICT DO NOTHING`,
-        [attempt.memberId, command.placeId, command.tagId, attempt.occurredAt],
-      )
-      return result.rowCount === 1 ? 'applied' : 'not-found'
-    }
-
-    const source = await client.query<{ id: string }>(
-      `SELECT id FROM library.collections
-       WHERE publication_id = $1 AND visibility IN ('unlisted', 'public')`,
-      [command.sourcePublicationId],
-    )
-    if (source.rows[0] === undefined) return 'not-found'
-    await client.query(
-      `INSERT INTO library.collections
-        (id, owner_membership_id, name, visibility, created_at, updated_at)
-       VALUES ($1,$2,$3,'private',$4,$4)`,
-      [command.targetCollectionId, attempt.memberId, command.targetName, attempt.occurredAt],
-    )
-    await client.query(
-      `INSERT INTO library.collection_places (collection_id, canonical_place_id, position, added_at)
-       SELECT $1, canonical_place_id, position, $3 FROM library.collection_places WHERE collection_id = $2`,
-      [command.targetCollectionId, source.rows[0].id, attempt.occurredAt],
-    )
-    await client.query(
-      `INSERT INTO library.collection_copy_provenance
-        (target_collection_id, source_publication_id, copied_at) VALUES ($1,$2,$3)`,
-      [command.targetCollectionId, command.sourcePublicationId, attempt.occurredAt],
-    )
-    return 'applied'
   }
 
   async getPlacePreferences(memberId: string, placeId: string): Promise<PlacePreferences | undefined> {

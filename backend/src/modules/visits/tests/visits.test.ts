@@ -27,9 +27,6 @@ class MemoryVisitStore implements VisitStore {
       : { visited: true as const, count: timestamps.length, firstVisitedAt: timestamps[0]!, lastVisitedAt: timestamps.at(-1)! }
   }
 
-  async list(memberId: string, placeId: string) {
-    return [...this.visits.values()].filter((visit) => visit.memberId === memberId && visit.placeId === placeId)
-  }
 }
 
 describe('repeatable visits', () => {

@@ -25,12 +25,40 @@ profile/secret/cookie가 보이지 않고 동일 review 재실행이 replay되�
 실제 AES-256-GCM 파일 adapter로 artifact를 저장하고 보존기한 뒤 sweep하여 파일 삭제와 DB
 `deleted_at` 표식, 반복 실행의 빈 결과까지 확인한다.
 
+Stage 7.5 Import query suite는 회원별 batch 이력과 source-order item 상세를 실제 runtime role로
+읽는다. 상태·batch에 묶인 cursor의 재사용 거부, 잘못된 회원의 not-found, 공개 projection의 내부
+idempotency/profile 비노출, 분리된 cancel/resume Adapter의 회귀를 검증한다. 각 5,000행에서 Migration
+`000026`의 상태별 batch index와 item 원본 순서 index가 실제 query plan에 선택되는지도 확인한다.
+좁은 반복 명령은 `npm run test:import-queries`다.
+
+Library query suite는 saved/wanted/rated pagination뿐 아니라 최대 20개 Tag ID의 `all`/`any` 조합,
+Tag 순서 정규화, filter가 다른 cursor 재사용 거부를 실제 runtime role로 검증한다. 같은 suite에서
+Collection rename/reorder/remove/delete, Tag rename/untag/delete와 Import provenance가 있는
+Collection membership의 제거·재수집·삭제를 실행한다. Migration `000027`의 Tag-first index가 실제
+query plan에 선택되는지도 확인한다. 좁은 반복 명령은 `npm run test:library-queries`다.
+
 추가 Materialization PostGIS 수직 검증은 두 회원이 동일 NAVER Place ID를 가져왔을 때 공동 job 1개와
 회원별 intent를 만들고 외부 상세 호출 없이 Source Snapshot evidence로 한 Canonical Place와 Provider
 link를 생성하는지 확인한다. 각 회원 Library에는 즉시 멱등 저장하고 Provider 상세 상태는 `pending`으로
 남긴다. 같은 장소를 두 원본 폴더에서 가져와도 Canonical Place와 preference는 회원별 하나이고,
 Collection·list provenance·membership·item-level Source List/Item/Provider Place provenance는 원본별로
 유지되는지 검증한다. 이 테스트는 module 공개 interface와 실제 least-privilege runtime role만 사용한다.
+
+Provider detail 전용 PostGIS suite는 별도 Job을 claim하고 정규화된 상세 Observation/Candidate를
+append-only로 기록한 뒤 상태를 `available`로 전환한다. attempt·lease가 완료되고 Canonical Place 수는
+그대로 0인지 함께 검증해 상세 수집이 동일 장소 판정이나 Canonical mutation을 우회하지 못하게 한다.
+
+Cross-provider Resolution suite는 NAVER 한글 이름과 Google 영문 이름을 raw language tag와 함께
+보존하고, 근접 위치와 국가번호가 다른 같은 전화번호로 `likely-same` review hint를 기록한다. 같은
+영문 이름이지만 멀리 떨어진 Kakao 관찰은 `likely-different`로 남긴다. 재실행은 같은 immutable
+assessment를 replay하며 새 행을 만들지 않고, runtime role의 assessment update는 거부된다. 전체 흐름
+뒤에도 Canonical Place 수가 0인지 확인해 Match Assessment가 link/merge 권한이 아님을 증명한다.
+
+Shadow cluster suite는 A-B와 B-C가 `likely-same`이어도 A-C가 `likely-different`이면 A-B-C를 합치지
+않는다. proposal header 2행, normalized member 3행, accepted supporting edge 1행을 확인하고 같은 graph의
+재실행이 새 ID를 버리고 기존 proposal을 replay하는지 검증한다. Provider 고정 column이 0개이고,
+non-member assessment foreign key 위반과 runtime update/delete가 거부되며 Canonical Place가 0개인지도
+함께 확인한다.
 
 Stage 2 tests the HTTP access seam through an injected verifier, membership directory, and audit
 sink. The web tests the OIDC BFF and `openid-client` adapter with deterministic doubles, including
@@ -75,6 +103,23 @@ filter, 불투명 cursor pagination, 익명 결과의 개인 상태 비노출과
 부하 5,000행을 만든 뒤 `pg_trgm` GIN, geometry GiST, taxonomy array GIN이 실제 query plan에서
 선택되는지도 확인한다. 테스트는 Search가 소유한 schema만 조회하며 다른 owner schema의 join을
 검색 구현으로 허용하지 않는다.
+
+Canonical Place detail suite는 Places redirect/lifecycle 해석, Search 공개 문서, Library preference,
+Visits summary를 각 공개 Interface로 조립한다. 익명 응답의 개인 상태 비노출, 정상 optional bearer의
+개인 상태 결합, 잘못된 bearer의 `401`, retired의 `410`, projection lag의 retryable `503`을 실제
+least-privilege PostGIS 위에서 검증한다. 어느 persistence Adapter도 다른 owner schema를 join하지
+않는다.
+
+Bounded Library query suite는 saved/wanted/rated filter별 keyset pagination, filter 간 cursor 재사용
+거부, Collection 목록과 membership pagination, 다른 회원 Collection의 비공개 `not-found`, Tag별
+Place count, 공개 Place summary batch hydration과 projection 누락 보존을 검증한다. 대표 preference
+5,000행에서 saved partial index가 실제 query plan에 선택되는지도 확인한다.
+
+Visit/Writing query suite는 Place에 묶인 Visit cursor와 Writing kind에 묶인 cursor의 다른 용도 재사용을
+거부하고, 회원별 행 격리와 1~50 limit guard를 검증한다. Visit 목록에 member/fingerprint/evidence가
+없고 Writing 목록은 280자 preview만 가지며 단건 detail에서만 전체 본문을 돌려주는지도 확인한다.
+각 5,000행 대표 부하에서는 member·Place·time·ID Visit index와 owner·updated-at·ID Writing index가
+실제 query plan에 선택된다.
 
 interactive suggestion suite는 빈 Canonical DB에서 fixture provider 후보를 Discovery와 impression에만
 저장하는지 확인한다. 같은 session의 반복 입력은 로컬 Discovery에서 같은 suggestion/evidence ID를

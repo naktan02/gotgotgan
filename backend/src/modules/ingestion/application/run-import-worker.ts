@@ -6,6 +6,7 @@ import type {
   PreparedImportItem,
 } from './ports/import-worker-store.js'
 import { ImportLeaseLostError } from '../domain/imports.js'
+import { prepareImportedPlaceItem } from './prepare-imported-place-item.js'
 
 export function createImportWorker(dependencies: Readonly<{
   workerId: string
@@ -144,28 +145,8 @@ export function createImportWorker(dependencies: Readonly<{
       if (artifact.checksum !== result.capture.checksum) {
         return finishFailure(claim, 'capture-invalid', false, finishedAt)
       }
-      const items: PreparedImportItem[] = result.items.map((item) => {
-        const prepared = {
-          ...item,
-          itemId: dependencies.nextId(),
-          observationId: dependencies.nextId(),
-          candidateId: dependencies.nextId(),
-          decisionId: dependencies.nextId(),
-          proposedPlaceId: dependencies.nextId(),
-        }
-        return item.providerPlaceId === undefined
-          ? prepared
-          : {
-              ...prepared,
-              fulfillment: {
-                jobId: dependencies.nextId(),
-                observationId: dependencies.nextId(),
-                candidateId: dependencies.nextId(),
-                decisionId: dependencies.nextId(),
-                proposedPlaceId: dependencies.nextId(),
-              },
-            }
-      })
+      const items: PreparedImportItem[] = result.items.map((item) =>
+        prepareImportedPlaceItem(item, dependencies.nextId))
       let page
       try {
         page = await dependencies.store.recordPage({

@@ -527,14 +527,18 @@ test('database preparation confines runtime authority and persists Place access 
       url: '/readyz',
     })
     assert.equal(readyResponse.statusCode, 200)
-    assert.deepEqual(readyResponse.json(), { service: 'place', state: 'ok' })
+    assert.deepEqual(readyResponse.json(), {
+      schemaVersion: 'place-process-status.v1', service: 'place', state: 'ok',
+    })
 
     const consentsResponse = await httpRuntime.application.inject({
       method: 'GET',
       url: '/v1/membership-consents/current',
     })
     assert.equal(consentsResponse.statusCode, 200)
-    assert.deepEqual(consentsResponse.json(), { consents: productionConsents })
+    assert.deepEqual(consentsResponse.json(), {
+      schemaVersion: 'place-membership-consents.v1', consents: productionConsents,
+    })
 
     const onboardingResponse = await httpRuntime.application.inject({
       method: 'POST',
@@ -544,6 +548,7 @@ test('database preparation confines runtime authority and persists Place access 
     })
     assert.equal(onboardingResponse.statusCode, 201)
     assert.deepEqual(onboardingResponse.json(), {
+      schemaVersion: 'place-membership-onboarding-result.v1',
       status: 'created',
       membershipId: '01991e65-19ca-738a-8652-6e4bb4a63a79',
       authorityRole: 'member',

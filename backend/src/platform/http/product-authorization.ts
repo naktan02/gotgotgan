@@ -4,15 +4,27 @@ export type ProductAuthorization =
   | Readonly<{ status: 'authorized'; memberId: string }>
   | Readonly<{ status: 'authentication-required' | 'access-denied' }>
 
+export type ProductPermission =
+  | 'library.read'
+  | 'library.write'
+  | 'search.read'
+  | 'imports.read'
+  | 'imports.write'
+
 export type ProductAuthorizer = (
   authorization: string | undefined,
-  permission: 'library.read' | 'library.write' | 'search.read' | 'imports.read' | 'imports.write',
+  permission: ProductPermission,
 ) => Promise<ProductAuthorization>
+
+export type OptionalProductMember =
+  | Readonly<{ kind: 'anonymous' }>
+  | Readonly<{ kind: 'member'; memberId: string }>
+  | Readonly<{ kind: 'replied' }>
 
 export function sendProductProblem(
   request: FastifyRequest,
   reply: FastifyReply,
-  status: 400 | 401 | 403 | 404 | 409 | 503,
+  status: 400 | 401 | 403 | 404 | 409 | 410 | 503,
   code: string,
   title: string,
   retryable = false,
@@ -40,7 +52,13 @@ export async function requireProductMember(
   authorizer: ProductAuthorizer,
   permission: 'library.read' | 'library.write' | 'imports.read' | 'imports.write',
 ): Promise<string | undefined> {
-  const result = await authorizer(request.headers.authorization, permission)
+  let result: ProductAuthorization
+  try {
+    result = await authorizer(request.headers.authorization, permission)
+  } catch {
+    sendAuthorizationUnavailable(request, reply)
+    return undefined
+  }
   if (result.status === 'authorized') return result.memberId
   sendProductProblem(
     request,
@@ -50,4 +68,53 @@ export async function requireProductMember(
     result.status === 'authentication-required' ? 'Authentication required' : 'Access denied',
   )
   return undefined
+}
+
+export async function resolveOptionalProductMember(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  authorizer: ProductAuthorizer | undefined,
+  permission: ProductPermission,
+): Promise<OptionalProductMember> {
+  if (request.headers.authorization === undefined) return { kind: 'anonymous' }
+  if (authorizer === undefined) {
+    sendAuthorizationUnavailable(request, reply)
+    return { kind: 'replied' }
+  }
+
+  let result: ProductAuthorization
+  try {
+    result = await authorizer(request.headers.authorization, permission)
+  } catch {
+    sendAuthorizationUnavailable(request, reply)
+    return { kind: 'replied' }
+  }
+  if (result.status === 'authorized') {
+    return { kind: 'member', memberId: result.memberId }
+  }
+
+  sendProductProblem(
+    request,
+    reply,
+    result.status === 'authentication-required' ? 401 : 403,
+    result.status === 'authentication-required'
+      ? 'PLACE_AUTHENTICATION_REQUIRED'
+      : 'PLACE_ACCESS_DENIED',
+    result.status === 'authentication-required' ? 'Authentication required' : 'Access denied',
+  )
+  return { kind: 'replied' }
+}
+
+function sendAuthorizationUnavailable(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): FastifyReply {
+  return sendProductProblem(
+    request,
+    reply,
+    503,
+    'PLACE_AUTHORIZATION_UNAVAILABLE',
+    'Authorization is temporarily unavailable',
+    true,
+  )
 }

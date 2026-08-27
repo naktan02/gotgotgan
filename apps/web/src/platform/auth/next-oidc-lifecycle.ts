@@ -1,5 +1,5 @@
 import { loadOidcProcessRuntimeConfig } from './oidc-runtime-config'
-import type { OidcProvider } from './oidc-bff'
+import type { ReadyOidcProvider } from './oidc-bff'
 import {
   createOidcProcessRuntime,
   type OidcProcessRuntimeConfig,
@@ -29,7 +29,7 @@ type LifecycleDependencies = Readonly<{
     clientId: string
     clientSecret: string
     now: () => Date
-  }>) => Promise<OidcProvider>
+  }>) => Promise<ReadyOidcProvider>
   createRuntime: (config: OidcProcessRuntimeConfig) => Promise<NextOidcRuntime>
   scheduleInterval?: (task: () => void, milliseconds: number) => IntervalHandle
   cancelInterval?: (handle: IntervalHandle) => void

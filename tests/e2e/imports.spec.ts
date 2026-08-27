@@ -230,3 +230,24 @@ test('detects a fake Whale connector and starts the browser-session import flow'
   await expect(page.getByText('후쿠오카 여행')).toBeVisible()
   await expect(page.getByText('가보고 싶은 곳')).toBeVisible()
 })
+
+test('offers the OIDC start and POST logout boundaries without exposing an English API error', async ({ page }) => {
+  await page.route('**/api/imports/connections', (route) => json(route, {
+    type: 'urn:place:error:authentication-required',
+    title: 'Authentication required',
+    status: 401,
+    code: 'PLACE_AUTHENTICATION_REQUIRED',
+    retryable: false,
+    correlationRef: 'anonymous-imports',
+  }, 401))
+  await page.goto('/imports')
+
+  const login = page.getByRole('link', { name: '통합 계정으로 로그인' })
+  await expect(login).toHaveAttribute('href', '/api/auth/oidc/start')
+  await expect(page.getByRole('alert')).not.toContainText('Authentication required')
+
+  await installImportFixture(page, false)
+  await page.reload()
+  await expect(page.getByRole('button', { name: '로그아웃' })).toBeVisible()
+  await expect(page.locator('form[action="/api/auth/logout"]')).toHaveAttribute('method', 'post')
+})

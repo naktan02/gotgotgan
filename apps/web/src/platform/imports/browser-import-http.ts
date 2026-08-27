@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { problemSchema } from '@place/contracts/http'
 import {
   placeImportBatchDetailSchema,
+  placeImportBatchDetailQuerySchema,
   placeImportBatchSchema,
   placeImportCancelRequestSchema,
   placeImportRequestSchema,
@@ -10,6 +11,7 @@ import {
   placeImportReviewRequestSchema,
   placeImportReviewResultSchema,
   providerConnectionListSchema,
+  type PlaceImportBatchDetailQuery,
 } from '@place/contracts/imports'
 
 import type { createOidcBff } from '../auth/oidc-bff'
@@ -108,7 +110,17 @@ function detailProjection(value: unknown): unknown {
     schemaVersion: value.schemaVersion,
     batch: batchProjection(value.batch),
     items: value.items.map(itemProjection),
+    ...(value.nextCursor === undefined ? {} : { nextCursor: value.nextCursor }),
   }).data
+}
+
+function detailQuery(request: Request): PlaceImportBatchDetailQuery | undefined {
+  const values: Record<string, string> = {}
+  for (const [key, value] of new URL(request.url).searchParams) {
+    if (key in values) return undefined
+    values[key] = value
+  }
+  return placeImportBatchDetailQuerySchema.safeParse(values).data
 }
 
 function reviewProjection(value: unknown): unknown {
@@ -212,7 +224,13 @@ export function createBrowserImportHttp(dependencies: Dependencies) {
     },
     detail(request: Request, batchId: string): Promise<Response> {
       if (!batchIdPattern.test(batchId)) return Promise.resolve(invalid())
-      return invoke(request, ({ backend, accessToken }) => backend.detail(accessToken, batchId), detailProjection)
+      const query = detailQuery(request)
+      if (query === undefined) return Promise.resolve(invalid())
+      return invoke(
+        request,
+        ({ backend, accessToken }) => backend.detail(accessToken, batchId, query),
+        detailProjection,
+      )
     },
     async cancel(request: Request, batchId: string): Promise<Response> {
       if (!batchIdPattern.test(batchId)) return invalid()

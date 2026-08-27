@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance } from 'fastify'
+import { processStatusSchema, type ProcessStatus } from '@place/contracts/http'
 
 import {
   registerAccessHttpRoutes,
@@ -12,15 +13,11 @@ import {
   type ImportHttpDependencies,
 } from '../../modules/ingestion/index.js'
 import { registerProviderHttpRoutes, type ProviderHttpDependencies } from '../../modules/providers/index.js'
+import { registerPlaceHttpRoutes, type PlaceHttpDependencies } from '../../modules/places/index.js'
 import { registerSearchHttpRoutes, type SearchHttpDependencies } from '../../modules/search/index.js'
 import { registerTaxonomyHttpRoutes, type TaxonomyHttpDependencies } from '../../modules/taxonomy/index.js'
 import { registerVisitsHttpRoutes, type VisitsHttpDependencies } from '../../modules/visits/index.js'
 import { registerWritingHttpRoutes, type WritingHttpDependencies } from '../../modules/writing/index.js'
-
-type HealthPayload = Readonly<{
-  service: 'place'
-  state: 'ok' | 'unavailable'
-}>
 
 export type HttpApplicationOptions = Readonly<{
   access?: AccessHttpDependencies
@@ -28,6 +25,7 @@ export type HttpApplicationOptions = Readonly<{
   library?: LibraryHttpDependencies
   imports?: ImportHttpDependencies
   providers?: ProviderHttpDependencies
+  places?: PlaceHttpDependencies
   search?: SearchHttpDependencies
   taxonomy?: TaxonomyHttpDependencies
   visits?: VisitsHttpDependencies
@@ -38,9 +36,8 @@ export type HttpApplicationOptions = Readonly<{
 export function buildHttpApplication(options: HttpApplicationOptions = {}): FastifyInstance {
   const application = Fastify({ logger: false })
 
-  application.get('/healthz', async (): Promise<HealthPayload> => ({
-    service: 'place',
-    state: 'ok',
+  application.get('/healthz', async (): Promise<ProcessStatus> => processStatusSchema.parse({
+    schemaVersion: 'place-process-status.v1', service: 'place', state: 'ok',
   }))
 
   application.get('/readyz', async (_request, reply) => {
@@ -48,10 +45,14 @@ export function buildHttpApplication(options: HttpApplicationOptions = {}): Fast
       if (options.readiness !== undefined && !(await options.readiness())) {
         throw new Error('not ready')
       }
-      const payload: HealthPayload = { service: 'place', state: 'ok' }
+      const payload = processStatusSchema.parse({
+        schemaVersion: 'place-process-status.v1', service: 'place', state: 'ok',
+      })
       return reply.status(200).send(payload)
     } catch {
-      const payload: HealthPayload = { service: 'place', state: 'unavailable' }
+      const payload = processStatusSchema.parse({
+        schemaVersion: 'place-process-status.v1', service: 'place', state: 'unavailable',
+      })
       return reply.header('cache-control', 'no-store').status(503).send(payload)
     }
   })
@@ -61,6 +62,7 @@ export function buildHttpApplication(options: HttpApplicationOptions = {}): Fast
   if (options.library !== undefined) registerLibraryHttpRoutes(application, options.library)
   if (options.imports !== undefined) registerImportHttpRoutes(application, options.imports)
   if (options.providers !== undefined) registerProviderHttpRoutes(application, options.providers)
+  if (options.places !== undefined) registerPlaceHttpRoutes(application, options.places)
   if (options.search !== undefined) registerSearchHttpRoutes(application, options.search)
   if (options.taxonomy !== undefined) registerTaxonomyHttpRoutes(application, options.taxonomy)
   if (options.visits !== undefined) registerVisitsHttpRoutes(application, options.visits)

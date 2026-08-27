@@ -11,6 +11,7 @@ const environment = { PLACE_BACKEND_ORIGIN: 'http://place-backend.example' }
 describe('publication backend client', () => {
   it('uses fixed public paths and validates the collection projection', async () => {
     const request = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
+      schemaVersion: 'place-published-collection.v1',
       publicationId: '01992d20-0000-7000-8000-000000000001',
       visibility: 'unlisted',
       name: 'Shared',

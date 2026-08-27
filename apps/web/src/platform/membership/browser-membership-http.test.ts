@@ -26,6 +26,7 @@ describe('browser membership HTTP', () => {
         ready: async () => new Response(),
         currentConsents: async () =>
           Response.json({
+            schemaVersion: 'place-membership-consents.v1',
             consents: [
               { document: 'terms-of-service', version: '2026-08-26' },
             ],
@@ -40,6 +41,7 @@ describe('browser membership HTTP', () => {
 
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({
+      schemaVersion: 'place-membership-consents.v1',
       consents: [{ document: 'terms-of-service', version: '2026-08-26' }],
     })
   })
@@ -98,8 +100,9 @@ describe('browser membership HTTP', () => {
           observedTokens.push(token)
           return Response.json(
             {
+              schemaVersion: 'place-membership-onboarding-result.v1',
               status: 'created',
-              membershipId: 'membership-1',
+              membershipId: '01992d20-0000-7000-8000-000000000001',
               authorityRole: 'member',
               userGrade: 'newcomer',
               productTier: 'free',
@@ -129,8 +132,9 @@ describe('browser membership HTTP', () => {
     expect(response.status).toBe(201)
     expect(observedTokens).toEqual(['server-side-access-token'])
     expect(JSON.parse(body)).toEqual({
+      schemaVersion: 'place-membership-onboarding-result.v1',
       status: 'created',
-      membershipId: 'membership-1',
+      membershipId: '01992d20-0000-7000-8000-000000000001',
       authorityRole: 'member',
       userGrade: 'newcomer',
       productTier: 'free',

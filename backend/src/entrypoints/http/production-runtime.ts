@@ -13,12 +13,18 @@ import {
   type OidcPrincipalVerifierConfig,
   type PrincipalVerifier,
 } from '../../modules/access/index.js'
-import { PostgresLibraryStore, saveImportedPlace } from '../../modules/library/index.js'
+import {
+  PostgresLibraryQueries,
+  PostgresLibraryStore,
+  saveImportedPlace,
+} from '../../modules/library/index.js'
 import {
   materializeSuggestedPlace,
   createConnectorImportReceiver,
   EncryptedFileCaptureArtifactStore,
   PostgresConnectorImports,
+  PostgresImportManagement,
+  PostgresImportQueries,
   PostgresImportQueue,
   PostgresImportReview,
   PostgresIngestionStore,
@@ -28,6 +34,7 @@ import {
 } from '../../modules/ingestion/index.js'
 import {
   applyCanonicalResolution,
+  createPlaceDetailReader,
   PostgresCanonicalResolutionStore,
 } from '../../modules/places/index.js'
 import {
@@ -52,8 +59,8 @@ import {
   projectLocalPlace,
 } from '../../modules/search/index.js'
 import { PostgresTaxonomyStore } from '../../modules/taxonomy/index.js'
-import { PostgresVisitStore } from '../../modules/visits/index.js'
-import { PostgresWritingStore } from '../../modules/writing/index.js'
+import { PostgresVisitQueries, PostgresVisitStore } from '../../modules/visits/index.js'
+import { PostgresWritingQueries, PostgresWritingStore } from '../../modules/writing/index.js'
 import type { ProductAuthorizer } from '../../platform/http/product-authorization.js'
 import { buildHttpApplication } from './app.js'
 import type { ProductionHttpConfig } from './config.js'
@@ -122,14 +129,61 @@ export async function createProductionHttpRuntime(
     }
     const libraryStore = new PostgresLibraryStore(pool)
     const visitStore = new PostgresVisitStore(pool)
+    const visitQueries = new PostgresVisitQueries(pool)
     const writingStore = new PostgresWritingStore(pool)
+    const writingQueries = new PostgresWritingQueries(pool)
     const localSearch = new PostgresLocalSearch(pool)
+    const libraryQueries = new PostgresLibraryQueries(pool, async (placeIds) => (
+      await localSearch.getPlaceDocuments(placeIds)
+    ).map((document) => ({
+      placeId: document.placeId,
+      name: document.name,
+      areaLabel: document.areaLabel,
+      location: { latitude: document.latitude, longitude: document.longitude },
+      primaryTaxonomy: document.primaryTaxonomy,
+      taxonomyKeys: document.taxonomyKeys,
+      evidence: {
+        status: document.evidenceStatus,
+        projectedAt: document.projectedAt,
+      },
+    })))
     const placeSuggestions = new PostgresPlaceSuggestions(pool)
     const ingestionStore = new PostgresIngestionStore(pool)
     const connectorImports = new PostgresConnectorImports(pool)
     const importQueue = new PostgresImportQueue(pool)
+    const importManagement = new PostgresImportManagement(pool)
+    const importQueries = new PostgresImportQueries(pool)
     const importReview = new PostgresImportReview(pool)
     const canonicalStore = new PostgresCanonicalResolutionStore(pool)
+    const readPlaceDetail = createPlaceDetailReader({
+      canonical: canonicalStore,
+      readDocument: async (placeId) => {
+        const document = await localSearch.getPlaceDocument(placeId)
+        return document === undefined ? undefined : {
+          placeId: document.placeId,
+          name: document.name,
+          areaLabel: document.areaLabel,
+          location: {
+            latitude: document.latitude,
+            longitude: document.longitude,
+          },
+          primaryTaxonomy: document.primaryTaxonomy,
+          taxonomyKeys: document.taxonomyKeys,
+          evidenceStatus: document.evidenceStatus,
+          projectedAt: document.projectedAt,
+        }
+      },
+      readPersonal: async (memberId, placeId) => {
+        const [preferences, visits] = await Promise.all([
+          libraryStore.getPlacePreferences(memberId, placeId),
+          visitStore.summarize(memberId, placeId),
+        ])
+        return {
+          ...(preferences === undefined ? {} : { preferences }),
+          visits,
+        }
+      },
+    })
     const canonicalMaterialization: CanonicalPlaceMaterializationPort = {
       resolveProviderIdentity: (identity) => canonicalStore.resolveProviderIdentity(identity),
       apply: (attempt) => applyCanonicalResolution({ ...attempt, store: canonicalStore }),
@@ -234,7 +288,12 @@ export async function createProductionHttpRuntime(
         }),
         now,
       },
-      library: { authorizer: productAuthorizer, store: libraryStore, now },
+      library: {
+        authorizer: productAuthorizer,
+        store: libraryStore,
+        queries: libraryQueries,
+        now,
+      },
       ...(connector === undefined ? {} : {
         connector: {
           authorizer: productAuthorizer,
@@ -246,7 +305,8 @@ export async function createProductionHttpRuntime(
       imports: {
         authorizer: productAuthorizer,
         requestStore: importQueue,
-        managementStore: importReview,
+        managementStore: importManagement,
+        queries: importQueries,
         connectionStore: connectorImports,
         nextBatchId: randomUUID,
         nextJobId: randomUUID,
@@ -266,6 +326,10 @@ export async function createProductionHttpRuntime(
           supportedProviders: providerDetailReaders.map((reader) => reader.providerKey),
         },
       }),
+      places: {
+        authorizer: productAuthorizer,
+        read: readPlaceDetail,
+      },
       search: {
         authorizer: productAuthorizer,
         search: createPlaceSearch({ sources: [localSearch, ...providerSearchSources] }),
@@ -276,8 +340,18 @@ export async function createProductionHttpRuntime(
         },
       },
       taxonomy: { store: taxonomyStore },
-      visits: { authorizer: productAuthorizer, store: visitStore, now },
-      writing: { authorizer: productAuthorizer, store: writingStore, now },
+      visits: {
+        authorizer: productAuthorizer,
+        store: visitStore,
+        queries: visitQueries,
+        now,
+      },
+      writing: {
+        authorizer: productAuthorizer,
+        store: writingStore,
+        queries: writingQueries,
+        now,
+      },
       readiness: async () => {
         await pool.query('SELECT 1')
         return true

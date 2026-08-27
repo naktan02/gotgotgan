@@ -1,0 +1,25 @@
+{
+  "folderPage": {
+    "folders": [
+      {
+        "shareId": "list-fixture-1",
+        "name": "검증 목록"
+      }
+    ],
+    "count": 1
+  },
+  "bookmarkPage": {
+    "bookmarks": [
+      {
+        "bookmarkId": "bookmark-fixture-1",
+        "sid": "place-fixture-1",
+        "name": "검증 장소",
+        "px": 126.978,
+        "py": 37.5665,
+        "address": "대한민국 서울특별시",
+        "mcidName": "공공기관"
+      }
+    ],
+    "count": 1
+  }
+}

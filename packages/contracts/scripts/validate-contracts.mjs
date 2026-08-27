@@ -116,6 +116,7 @@ for (const path of ['/v1/library/commands', '/v1/visits', '/v1/writing/commands'
 }
 for (const [path, method] of [
   ['/v1/provider-connections', 'get'],
+  ['/v1/imports', 'get'],
   ['/v1/imports', 'post'],
   ['/v1/imports/{batchId}', 'get'],
   ['/v1/imports/{batchId}/cancel', 'post'],
@@ -125,6 +126,27 @@ for (const [path, method] of [
   if (openApi.paths[path]?.[method]?.security?.[0]?.placeBearer?.length !== 0) {
     failures.push(`${method.toUpperCase()} ${path} must derive membership from bearer evidence`)
   }
+}
+for (const [path, method] of [
+  ['/api/imports/connections', 'get'],
+  ['/api/imports', 'post'],
+  ['/api/imports/{batchId}', 'get'],
+  ['/api/imports/{batchId}/cancel', 'post'],
+  ['/api/imports/{batchId}/resume', 'post'],
+  ['/api/import-reviews', 'post'],
+]) {
+  if (openApi.paths[path]?.[method]?.security?.[0]?.placeBrowserSession?.length !== 0) {
+    failures.push(`${method.toUpperCase()} ${path} must remain behind the Web browser session`)
+  }
+}
+for (const [path, schema] of [
+  ['/v1/imports', 'PlaceImportBatchList'],
+  ['/v1/imports/{batchId}', 'PlaceImportBatchDetail'],
+]) {
+  if (
+    openApi.paths[path]?.get?.responses?.['200']?.content?.['application/json']?.schema?.$ref !==
+    `#/components/schemas/${schema}`
+  ) failures.push(`${path} must publish its authored Import query response schema`)
 }
 for (const schemaName of ['PlaceImportRequest', 'PlaceImportReviewRequest']) {
   const schema = openApi.components.schemas[schemaName]
@@ -143,10 +165,28 @@ if (
   connectionProjection?.properties?.secretReference !== undefined ||
   connectionProjection?.properties?.cookie !== undefined
 ) failures.push('Provider connection projections cannot expose provider session material')
-for (const path of ['/v1/library', '/v1/writing', '/v1/places/{placeId}/visits']) {
+for (const path of [
+  '/v1/library/places',
+  '/v1/writing',
+  '/v1/writing/{documentId}',
+  '/v1/places/{placeId}/visits',
+]) {
   if (openApi.paths[path]?.get?.security?.[0]?.placeBearer?.length !== 0) {
     failures.push(`${path} must keep owner content behind Place bearer evidence`)
   }
+}
+if (openApi.paths['/v1/library'] !== undefined) {
+  failures.push('The obsolete unbounded GET /v1/library route cannot return to the public contract')
+}
+for (const [path, schema] of [
+  ['/v1/places/{placeId}/visits', 'VisitHistoryResponse'],
+  ['/v1/writing', 'WritingListResponse'],
+  ['/v1/writing/{documentId}', 'WritingDetailResponse'],
+]) {
+  if (
+    openApi.paths[path]?.get?.responses?.['200']?.content?.['application/json']?.schema?.$ref !==
+    `#/components/schemas/${schema}`
+  ) failures.push(`${path} must publish its authored bounded response schema`)
 }
 for (const path of [
   '/v1/public/collections/{publicationId}',
@@ -315,6 +355,8 @@ if (
 if (
   openApi.paths['/v1/search/places']?.post?.operationId !== 'searchPlaces' ||
   openApi.paths['/api/search/places']?.post?.operationId !== 'searchPlacesForBrowser' ||
+  openApi.paths['/api/search/taxonomy']?.get?.operationId !==
+    'listPlaceTaxonomyNodesForBrowser' ||
   openApi.paths['/v1/taxonomy/nodes']?.get?.operationId !== 'listPlaceTaxonomyNodes' ||
   !placeSearchRequestSchema.safeParse({ schemaVersion: 'place-search.v1', query: '' }).success ||
   !placeSearchResponseSchema.safeParse({
@@ -323,6 +365,18 @@ if (
     sources: [{ sourceKey: 'local', status: 'complete', resultCount: 0 }],
   }).success
 ) failures.push('Place search v1 must publish strict Backend, browser, and taxonomy operations')
+
+for (const [path, item] of Object.entries(openApi.paths)) {
+  for (const [method, operation] of Object.entries(item)) {
+    if (!['get', 'post', 'put', 'patch', 'delete'].includes(method)) continue
+    for (const [status, response] of Object.entries(operation.responses ?? {})) {
+      if (!/^2\d\d$/.test(status) || status === '204') continue
+      if (response?.content?.['application/json']?.schema === undefined) {
+        failures.push(`${method.toUpperCase()} ${path} ${status} must publish an application/json schema`)
+      }
+    }
+  }
+}
 if (
   applicationRuntime.schemaVersion !== 'place-application-runtime.v1' ||
   applicationRuntime.deliveryState !== 'source-only' ||

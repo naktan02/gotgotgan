@@ -81,6 +81,10 @@ Chrome·Edge·Whale·Firefox 설치와 NAVER session, Backend receipt는 별도 
 Whale은 Chromium 산출물 호환 구조만 검증했으며 실설치 smoke 전까지 `integration-gated`다. 상세 계약은
 [`../../docs/api/connector-v1.md`](../../docs/api/connector-v1.md)를 따른다.
 
+NAVER collector의 current `folderList/shareID/bookmarkList`와 legacy
+`folders/shareId/bookmarks` 변화는 개인값을 제거한 독립 JSON fixture로 같은 결과를 재생한다. 이
+fixture는 이미 허용한 parser 변화의 회귀 증거이며 새로운 live endpoint나 schema 관찰을 뜻하지 않는다.
+
 ## 현재 진단 CLI 폴더 의미
 
 ```text

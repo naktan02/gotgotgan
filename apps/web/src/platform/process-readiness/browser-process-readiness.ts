@@ -1,3 +1,5 @@
+import { processStatusSchema } from '@place/contracts/http'
+
 import { readNextOidcRuntime } from '../auth/next-oidc-lifecycle'
 import { readNextMembershipRuntime } from '../membership/next-membership-lifecycle'
 import { readNextImportRuntime } from '../imports/next-import-lifecycle'
@@ -24,7 +26,11 @@ function activated(environment: Environment, name: string): boolean {
 
 function response(state: 'ok' | 'unavailable'): Response {
   return Response.json(
-    { service: 'place-web', state },
+    processStatusSchema.parse({
+      schemaVersion: 'place-process-status.v1',
+      service: 'place-web',
+      state,
+    }),
     {
       status: state === 'ok' ? 200 : 503,
       headers: {

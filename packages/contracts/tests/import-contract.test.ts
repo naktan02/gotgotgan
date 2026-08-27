@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  placeImportBatchDetailQuerySchema,
+  placeImportBatchListQuerySchema,
+  placeImportBatchListSchema,
   placeImportBatchSchema,
   placeImportRequestSchema,
   placeImportReviewRequestSchema,
@@ -13,6 +16,18 @@ const commandId = '01992d20-7000-7000-8000-000000000003'
 const itemId = '01992d20-7000-7000-8000-000000000004'
 
 describe('connected-place import contracts', () => {
+  it('bounds member history and preserves the existing 200-item detail page size', () => {
+    expect(placeImportBatchListQuerySchema.parse({})).toEqual({ state: 'all', limit: 20 })
+    expect(placeImportBatchListQuerySchema.safeParse({ limit: 51 }).success).toBe(false)
+    expect(placeImportBatchDetailQuerySchema.parse({})).toEqual({ limit: 200 })
+    expect(placeImportBatchDetailQuerySchema.safeParse({ limit: 201 }).success).toBe(false)
+
+    expect(placeImportBatchListSchema.parse({
+      schemaVersion: 'place-import-batch-list.v1',
+      filter: { state: 'all' },
+      items: [],
+    }).items).toEqual([])
+  })
   it('accepts only an opaque connection and idempotency identity from the browser', () => {
     expect(placeImportRequestSchema.parse({
       schemaVersion: 'place-import-request.v1',

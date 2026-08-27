@@ -39,6 +39,7 @@ export {
   projectMemberSearchSignal,
 } from './application/project-local-search.js'
 export type { LocalSearchProjectionStore } from './application/ports/local-search-projection-store.js'
+export type { LocalPlaceDocumentReader } from './application/ports/local-place-document-reader.js'
 export type {
   PlaceSearchSource,
   SearchSourcePage,

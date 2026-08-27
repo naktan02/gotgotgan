@@ -12,6 +12,11 @@ operations from bearer-authenticated backend operations. Publication describes o
 request/response semantics; it does not declare an active Identity client, production database
 composition, or Gateway route.
 
+Stage 7.5 completion adds versioned process, membership, command-result, preference, Visit summary,
+and public-content response schemas. Generated OpenAPI includes every implemented Backend and Web
+BFF route. The repository route-inventory guard fails when source and the generated operation list
+diverge, and contract validation rejects a JSON 2xx response without an authored schema.
+
 `deploy/application-runtime.json` is the machine-readable source-only process/exposure declaration.
 It fixes Web as the future public process, keeps Backend and Worker internal, and forbids browser-to-
 Backend and cross-project database connections without making a deployment active.
@@ -33,7 +38,7 @@ membership을 browser 입력에서 제외하고 두 anonymous 공개 projection�
 
 ## 생성 규칙
 
-`src/`의 TypeScript/Zod schema가 HTTP, Connector, Search, Taxonomy, PlaceReference 계약의 단일
+`src/`의 TypeScript/Zod schema가 HTTP, Connector, Places, Search, Taxonomy, PlaceReference 계약의 단일
 작성 원본이다. Backend, Web, Member Connector는 `@place/contracts`의 명시적 subpath export를
 import한다. Connector는 `@place/contracts/connector`만 사용한다. `http/openapi.v1.json`,
 `connector/place-connector.v1.schema.json`, `place-reference/place-reference.v1.schema.json`은 다음
@@ -42,6 +47,22 @@ import한다. Connector는 `@place/contracts/connector`만 사용한다. `http/o
 subpath는 이를 재사용하거나 기존 위치에서 재-export하며 Contracts architecture guard가
 Imports/Connector에서 Search·HTTP로 향하는 역방향 의존성을 거부한다.
 
+`@place/contracts/places`는 `place-detail.v1`을 소유한다. 공개 Canonical Place 사실과 선택적인
+회원 개인 상태를 분리하며, 아직 수집 근거가 없는 Provider 상세 필드는 허용하지 않는다.
+
+`@place/contracts/library`는 `library-command-result.v1`, `library-place-preferences.v1`과 bounded `library-place-list.v2`, `library-collection-list.v1`,
+`library-collection-detail.v1`, `library-tag-list.v1` projection을 소유한다. 모든 page limit은
+1~50이고 cursor는 불투명하다. 개인 목록은 회원 ID를 browser 입력으로 받지 않으며, 장소 표시
+정보는 `@place/contracts/places`의 공개 summary만 재사용한다. Place 목록은 반복 `tagIds` 최대
+20개와 `all`/`any` match mode를 받고 응답과 cursor에 정규화된 filter를 보존한다. Library command
+union은 Collection rename/delete와 Place move/remove, Tag rename/delete/untag까지 같은 command ID
+replay 규칙을 사용한다.
+
+`@place/contracts/visits`는 `visit-record-result.v1`, `visit-summary.v1`과 회원·fingerprint·임의 evidence를 노출하지 않는 bounded
+`visit-history.v1`을 소유한다. `@place/contracts/writing`은 `writing-command-result.v1`과 본문을 최대 280자 preview로 제한한
+`writing-list.v1`과 소유자 단건 전체 본문용 `writing-detail.v1`을 분리한다. 두 목록 모두 page
+limit 1~50과 용도에 묶인 불투명 cursor를 사용한다.
+
 Connector 계약은 Place page command, extension event, operation-bound upload grant, bounded capture
 batch와 receipt를 정의한다. cookie, 비밀번호, 임의 upload URL, 내부 Backend 주소는 schema가 허용하지
 않는다. 자세한 의미와 delivery state는 `docs/api/connector-v1.md`에 기록한다.
@@ -49,7 +70,9 @@ batch와 receipt를 정의한다. cookie, 비밀번호, 임의 upload URL, 내�
 Import 계약의 `enriching` batch/item 상태와 progress count는 Provider Place Identity별 공동
 Fulfillment가 진행 중임을 나타낸다. 이 projection에는 내부 job ID, 회원 ID, Provider profile·cookie,
 서버 endpoint가 포함되지 않는다. Canonical cache hit, miss 상세 보강, 검토 전환은 같은 공개 상태
-계약을 사용한다.
+계약을 사용한다. `place-import-batch-list.v1`은 exact state 또는 all filter와 최대 50개 이력을,
+`place-import-batch-detail.v1`은 원본 목록·항목 순서의 최대 200개 Item page를 정의한다. 두 cursor는
+각각 filter와 batch에 묶인 불투명 값이다.
 
 ```powershell
 npm run generate:contracts

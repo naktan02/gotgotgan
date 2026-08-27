@@ -8,7 +8,7 @@
 저장한다. 상세는 `(provider_key, provider_place_id)`별 독립 상태와 후속 Job으로 보강하며, 실패하거나
 아직 지원되지 않아도 이미 저장된 개인 Library를 되돌리지 않는다.
 
-상세 상태는 `pending`과 `available`을 사용한다. `available`은 같은 Provider Place Identity의
+상세 상태는 `pending`, `available`, `unavailable`을 사용한다. `available`은 같은 Provider Place Identity의
 `provider-detail` Source Observation과 그 관찰에서 정규화된 Place Candidate를 함께 등록한 경우만
 참조한다. 후속 Job은 `pending`이거나 참조 관찰이 유효하지 않을 때만 실행한다. Source List·Source
 Item·Provider Place ID 출처는 각각 보존하며, 같은 Collection membership으로 합쳐진 여러 Source

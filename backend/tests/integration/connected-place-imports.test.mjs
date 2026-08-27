@@ -25,6 +25,9 @@ const ids = {
   fulfillmentCandidate: '01992d20-8000-7000-8000-000000000015',
   fulfillmentDecision: '01992d20-8000-7000-8000-000000000016',
   materializedPlace: '01992d20-8000-7000-8000-000000000017',
+  detailJob: '01992d20-8000-7000-8000-000000000018',
+  detailObservation: '01992d20-8000-7000-8000-000000000019',
+  detailCandidate: '01992d20-8000-7000-8000-000000000020',
 }
 
 test('connected import is durable, replay-safe, fenced, and publicly sanitized', { timeout: 120_000 }, async () => {
@@ -35,6 +38,7 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
     const connectorImports = new ingestion.PostgresConnectorImports(database.pool)
     const importQueue = new ingestion.PostgresImportQueue(database.pool)
     const importReview = new ingestion.PostgresImportReview(database.pool)
+    const importQueries = new ingestion.PostgresImportQueries(database.pool)
     const fulfillment = new ingestion.PostgresImportedPlaceFulfillment(database.pool)
     const at = '2026-08-26T11:00:00.000Z'
     await database.pool.query(
@@ -134,6 +138,7 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
       ids.artifact, ids.item, ids.observation, ids.candidate, ids.decision, ids.proposedPlace,
       ids.fulfillmentJob, ids.fulfillmentObservation, ids.fulfillmentCandidate,
       ids.fulfillmentDecision, ids.materializedPlace,
+      ids.detailJob, ids.detailObservation, ids.detailCandidate,
     ]
     const worker = ingestion.createImportWorker({
       workerId: 'integration-worker',
@@ -152,7 +157,7 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
     })
     assert.deepEqual(await worker.runOne(), { status: 'idle' })
 
-    const detail = await importReview.getImport(ids.member, ids.batch)
+    const detail = await importQueries.getBatch({ memberId: ids.member, batchId: ids.batch, limit: 200 })
     assert.equal(detail.batch.state, 'enriching')
     assert.equal(detail.batch.progress.discovered, 1)
     assert.equal(detail.items[0].name, '센카이 라멘')
@@ -183,7 +188,7 @@ test('connected import is durable, replay-safe, fenced, and publicly sanitized',
       status: 'completed', jobId: ids.fulfillmentJob,
       canonicalPlaceId: ids.materializedPlace, fulfilled: 1,
     })
-    const completed = await importReview.getImport(ids.member, ids.batch)
+    const completed = await importQueries.getBatch({ memberId: ids.member, batchId: ids.batch, limit: 200 })
     assert.equal(completed.batch.state, 'completed')
     assert.equal(completed.items[0].status, 'applied')
 
@@ -237,6 +242,7 @@ test('browser connector grants and captures resume safely into one durable impor
     const providers = await import('../../dist/modules/providers/index.js')
     const connectorImports = new ingestion.PostgresConnectorImports(database.pool)
     const importReview = new ingestion.PostgresImportReview(database.pool)
+    const importQueries = new ingestion.PostgresImportQueries(database.pool)
     const memberId = '01992d32-0000-7000-8000-000000000001'
     const installationId = '01992d32-0000-7000-8000-000000000002'
     const idempotencyKey = '01992d32-0000-7000-8000-000000000003'
@@ -354,7 +360,7 @@ test('browser connector grants and captures resume safely into one durable impor
     assert.equal(accepted.receipt.importBatchId, importBatchId)
     assert.equal(accepted.receipt.receivedItems, 1)
     assert.equal(accepted.receipt.receivedBytes, Buffer.byteLength(payload))
-    assert.equal((await importReview.getImport(memberId, importBatchId)).batch.state, 'partial')
+    assert.equal((await importQueries.getBatch({ memberId, batchId: importBatchId, limit: 200 })).batch.state, 'partial')
     assert.deepEqual(await receiver.submitCapture({
       token: 'second-connector-token-that-remains-active',
       publicOrigin: 'https://place.example',
@@ -385,7 +391,7 @@ test('browser connector grants and captures resume safely into one durable impor
       batch: capture,
     })).status, 'replayed')
 
-    const detail = await importReview.getImport(memberId, importBatchId)
+    const detail = await importQueries.getBatch({ memberId, batchId: importBatchId, limit: 200 })
     assert.equal(detail.batch.state, 'enriching')
     assert.equal(detail.items.length, 1)
     assert.deepEqual(detail.items[0], {

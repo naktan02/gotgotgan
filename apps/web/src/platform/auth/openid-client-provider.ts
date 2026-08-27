@@ -1,6 +1,6 @@
 import * as openid from 'openid-client'
 
-import type { OidcProvider } from './oidc-bff'
+import type { ReadyOidcProvider } from './oidc-bff'
 
 type DriverTokenResponse = Readonly<{
   access_token: string
@@ -66,7 +66,7 @@ export async function createOpenidClientProvider(
     now: () => Date
   }>,
   driver: OpenidClientDriver = defaultDriver,
-): Promise<OidcProvider> {
+): Promise<ReadyOidcProvider> {
   const issuer = new URL(config.issuer)
   const useInsecureLocalHttp = config.allowInsecureLocalHttp === true &&
     issuer.protocol === 'http:' && isLocalHost(issuer.hostname)
@@ -85,18 +85,29 @@ export async function createOpenidClientProvider(
   }
 
   const authentication = driver.clientSecretBasic(config.clientSecret)
-  const configuration = await driver.discovery(
-    issuer,
-    config.clientId,
-    undefined,
-    authentication,
-    useInsecureLocalHttp
-      ? { execute: [openid.allowInsecureRequests] }
-      : undefined,
-  )
+  let configurationPromise: Promise<unknown> | undefined
+  const discover = (): Promise<unknown> => {
+    configurationPromise ??= driver.discovery(
+      issuer,
+      config.clientId,
+      undefined,
+      authentication,
+      useInsecureLocalHttp
+        ? { execute: [openid.allowInsecureRequests] }
+        : undefined,
+    ).catch((error: unknown) => {
+      configurationPromise = undefined
+      throw error
+    })
+    return configurationPromise
+  }
 
   return {
+    async ready() {
+      await discover()
+    },
     async buildAuthorizationUrl(request) {
+      const configuration = await discover()
       return driver.buildAuthorizationUrl(configuration, {
         redirect_uri: request.callbackUrl,
         scope: request.scopes.join(' '),
@@ -108,6 +119,7 @@ export async function createOpenidClientProvider(
       }).href
     },
     async exchangeAuthorizationCode(request) {
+      const configuration = await discover()
       const currentUrl = new URL(request.currentUrl)
       const callbackResponseUrl = new URL(request.callbackUrl)
       callbackResponseUrl.search = currentUrl.search

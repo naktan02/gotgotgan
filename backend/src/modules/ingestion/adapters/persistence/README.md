@@ -5,7 +5,9 @@ Ingestion의 application port는 그대로 유지하고 PostgreSQL 구현은 데
 
 - `PostgresConnectorImports`: Provider 연결, Connector grant/capture, capture 만료
 - `PostgresImportQueue`: import 요청, acquisition queue와 lease
-- `PostgresImportReview`: import 조회·취소·재개와 review receipt
+- `PostgresImportQueries`: 회원 Import 이력과 source-order Item 상세의 bounded read
+- `PostgresImportManagement`: Import 취소·재개 transaction
+- `PostgresImportReview`: review receipt와 명시적 create/link/skip transaction
 - `PostgresImportedPlaceFulfillment`: Provider Place 단위 fulfillment queue와 lease
 - `postgres-import-common.ts`: 여러 Adapter가 함께 사용하는 row mapping, batch 진행률 계산,
   replay-safe item 삽입

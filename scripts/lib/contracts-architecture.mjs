@@ -10,6 +10,10 @@ const allowedDependencies = new Map([
   ['imports', new Set(['primitives', 'providers'])],
   ['connector', new Set(['primitives', 'providers'])],
   ['place-reference', new Set(['primitives'])],
+  ['places', new Set(['primitives'])],
+  ['library', new Set(['primitives', 'places'])],
+  ['visits', new Set(['primitives'])],
+  ['writing', new Set(['primitives'])],
 ])
 
 async function sourceFiles(directory) {

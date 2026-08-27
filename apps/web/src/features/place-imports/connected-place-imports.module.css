@@ -4,6 +4,13 @@
 .header p:not(.eyebrow) { max-width: 720px; margin: 8px 0 0; color: var(--muted); line-height: 1.55; }
 .eyebrow { margin: 0 0 5px; color: var(--accent); font-size: 12px; font-weight: 700; }
 .error { padding: 11px 24px; border-bottom: 1px solid #ecd0d0; background: #fff2f2; color: var(--danger); font-size: 13px; }
+.sessionBoundary { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 18px 20px 0; padding: 18px 20px; border: 1px solid var(--accent); border-radius: var(--radius-surface); background: var(--surface); }
+.sessionBoundary h2 { margin: 0; font-size: 18px; }
+.sessionBoundary p:not(.eyebrow) { margin: 7px 0 0; color: var(--muted); font-size: 13px; }
+.primaryLink { flex: 0 0 auto; border-radius: var(--radius-control); background: var(--accent); color: white; padding: 10px 14px; font-weight: 700; text-decoration: none; }
+.primaryLink:focus-visible, .logout button:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+.logout { display: flex; justify-content: flex-end; padding: 12px 20px 0; }
+.logout button { min-height: 34px; border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); padding: 0 12px; font-weight: 650; }
 .onboarding { margin: 18px 20px 0; padding: 20px; border: 1px solid var(--accent); border-radius: var(--radius-surface); background: var(--surface); }
 .onboarding h2 { margin: 0; font-size: 18px; }
 .onboarding > p:not(.eyebrow) { margin: 8px 0 0; color: var(--muted); line-height: 1.55; }
@@ -77,4 +84,6 @@
   .reviewActions { grid-template-columns: 1fr 1fr; }
   .reviewActions button { min-height: 40px; }
   .progress { grid-template-columns: repeat(3, 1fr); }
+  .sessionBoundary { display: grid; margin: 12px 12px 0; padding: 16px; }
+  .primaryLink { text-align: center; }
 }

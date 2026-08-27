@@ -30,6 +30,10 @@ test('accepts contract owners depending on primitive and provider leaves', async
     'search/index.ts': "import '../primitives.js'; import '../providers/index.js'",
     'imports/index.ts': "import '../primitives.js'; import '../providers/index.js'",
     'connector/index.ts': "import '../primitives.js'; import '../providers/index.js'",
+    'places/index.ts': "import '../primitives.js'",
+    'library/index.ts': "import '../primitives.js'; import '../places/index.js'",
+    'visits/index.ts': "import '../primitives.js'",
+    'writing/index.ts': "import '../primitives.js'",
     'http/content.ts': "import '../primitives.js'",
   })
   assert.deepEqual(await inspectContractsArchitecture(root), [])

@@ -4,6 +4,7 @@ import Fastify from 'fastify'
 import {
   registerImportHttpRoutes,
   type ImportManagementStore,
+  type ImportQueries,
   type ImportRequestStore,
   type ProviderConnectionStore,
 } from '../index.js'
@@ -28,9 +29,18 @@ function fixture() {
     requestImport: vi.fn(async () => ({ status: 'created' as const, batch })),
   }
   const managementStore: ImportManagementStore = {
-    getImport: vi.fn(async () => ({ batch, items: [] })),
     cancelImport: vi.fn(async () => ({ ...batch, state: 'cancelled' as const })),
     resumeImport: vi.fn(async () => batch),
+  }
+  const queries: ImportQueries = {
+    listBatches: vi.fn<ImportQueries['listBatches']>(async (input) => ({
+      schemaVersion: 'place-import-batch-list.v1',
+      filter: { state: input.state },
+      items: [batch],
+    })),
+    getBatch: vi.fn<ImportQueries['getBatch']>(async () => ({
+      schemaVersion: 'place-import-batch-detail.v1', batch, items: [],
+    })),
   }
   const connectionStore: ProviderConnectionStore = {
     registerConnection: vi.fn(async () => 'registered' as const),
@@ -45,6 +55,7 @@ function fixture() {
       : { status: 'authentication-required' },
     requestStore,
     managementStore,
+    queries,
     connectionStore,
     nextBatchId: () => batchId,
     nextJobId: () => '01992d20-9000-7000-8000-000000000005',
@@ -73,7 +84,7 @@ function fixture() {
       library: { saveImportedPlace: async () => ({ status: 'applied' as const }) },
     },
   })
-  return { app, requestStore, managementStore, connectionStore }
+  return { app, requestStore, managementStore, queries, connectionStore }
 }
 
 describe('connected import HTTP boundary', () => {

@@ -15,8 +15,7 @@ import type {
   ConnectorImportLimits,
   ConnectorImportStore,
 } from './ports/connector-import-store.js'
-import type { ConnectedPlaceItem } from './ports/connected-place-source.js'
-import type { PreparedImportItem } from './ports/import-worker-store.js'
+import { prepareImportedPlaceItem } from './prepare-imported-place-item.js'
 
 export type ConnectorReceiverRejection =
   | ConnectorCaptureRejection
@@ -32,29 +31,6 @@ type ReceiverConfig = Readonly<{
 
 function digest(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex')
-}
-
-function preparedItem(item: ConnectedPlaceItem, nextId: () => string): PreparedImportItem {
-  const prepared = {
-    ...item,
-    itemId: nextId(),
-    observationId: nextId(),
-    candidateId: nextId(),
-    decisionId: nextId(),
-    proposedPlaceId: nextId(),
-  }
-  return item.providerPlaceId === undefined
-    ? prepared
-    : {
-        ...prepared,
-        fulfillment: {
-          jobId: nextId(),
-          observationId: nextId(),
-          candidateId: nextId(),
-          decisionId: nextId(),
-          proposedPlaceId: nextId(),
-        },
-      }
 }
 
 export function createConnectorImportReceiver(dependencies: Readonly<{
@@ -195,7 +171,7 @@ export function createConnectorImportReceiver(dependencies: Readonly<{
         tokenDigest: digest(input.token),
         sequence: input.batch.sequence,
         checksum: input.batch.checksum,
-        items: parsed.items.map((item) => preparedItem(item, dependencies.nextId)),
+        items: parsed.items.map((item) => prepareImportedPlaceItem(item, dependencies.nextId)),
         committedAt: dependencies.now().toISOString(),
       })
       if (committed.status === 'rejected') return committed

@@ -15,10 +15,15 @@ its public interface for management workflows but must not recreate role, tier, 
 last-owner rules. Business modules never import another module's internal files; composition injects
 public interfaces at entrypoints.
 
-`ingestion` owns immutable observations, candidates, and evidence-backed decisions. `places` owns
-canonical identity changes and reference resolution. Their handoff is deliberately two-step and
-idempotent: composition translates a recorded decision into a canonical command. This avoids direct
-module imports and permits retry/review without treating provider evidence as an overwrite command.
+`ingestion` owns immutable observations, candidates, and accepted evidence-backed decisions.
+`resolution` owns replaceable current Place Evidence Representations, bounded cross-provider candidate
+blocking, immutable versioned Match Assessments, and normalized immutable shadow Place Cluster
+Proposals. Its deep Interface hides complete-pair merge checks and persistence; dynamic Provider cells
+are a read projection rather than stored columns. It receives evidence through its public interface,
+does not query Ingestion tables, and exposes no canonical mutation port. `places` owns canonical identity
+changes and reference resolution. Their handoff remains deliberately two-step and idempotent:
+composition may translate only an accepted Ingestion decision into a canonical command. This avoids
+direct module imports and permits comparison/review retry without treating an assessment as truth.
 
 Stage 7에서 Ingestion은 연결 계정 Import 상태와 작업 실행 port를, Providers는 NAVER 캡처 해석을
 소유한다. 두 모듈은 서로의 내부 파일을 import하지 않는다. composition root가 구조적으로 호환되는
@@ -50,14 +55,37 @@ Firefox, Safari 차이는 Provider leaf로 역류하지 않는다. Stage 10 외�
 
 Ingestion은 Provider Identity별 공동 Materialization Job과 회원별 Intent도 소유한다. 이 깊은 module
 interface는 Source Snapshot evidence 기록, Canonical lookup/create/link, Library fan-out을 한 작업
-수명주기로 감춘다. Places와 Library는 기존 공개 port로만 주입된다. Provider 상세 상태와 후속 Job은
-개인 저장과 분리하며 회원 ID·ImportBatch·사용자 profile을 Provider 상세 Adapter에 전달하지 않는다.
-새 Provider는 공통 materialization interface를 바꾸지 않고 자신의 수집·상세 Adapter leaf만 추가한다.
+수명주기로 감춘다. Places와 Library는 기존 공개 port로만 주입된다. 별도 Provider Place Detail Job
+interface는 claim/lease/retry와 Observation·Candidate 기록을 감추고 Canonical mutation은 제공하지 않는다.
+개인 저장과 분리해 회원 ID·ImportBatch·사용자 profile을 Provider 상세 Adapter에 전달하지 않는다. 새
+Provider는 공통 materialization/detail interface를 바꾸지 않고 자신의 수집·상세 Adapter leaf만 추가한다.
 
 Library, Visits, Writing은 서로 다른 owner다. Library는 visited 상태를 저장하지 않고,
 Visits는 Rating이나 Writing을 저장하지 않으며, Writing은 Canonical Place ID만 연결한다.
 각 transport는 platform 수준 product-authorization 결과에 의존한다. entrypoint는 제품
 모듈이 Access source를 import하지 않도록 검증된 Access membership과 permission을 변환한다.
+
+Stage 7.5 read surface도 이 경계를 유지한다. Visits와 Writing은 command Store의 raw/unbounded list를
+확장하지 않고 각각 작은 query Interface와 자기 schema만 읽는 PostgreSQL Adapter를 둔다. Ingestion도
+`ImportQueries`, `ImportManagementStore`, `ImportReviewStore`를 분리해 bounded read, cancel/resume,
+명시적 review transaction을 서로 다른 Adapter가 소유한다. Visit history는 occurrence 내부
+fingerprint/evidence를 공개하지 않으며, Writing list는 bounded preview와 detail을 분리하고 Import
+cursor는 상태 filter 또는 batch ID에 묶인다. 인증·향후 tier 판단은 계속 transport 앞의 Product
+Authorizer seam에 있고 query Adapter에는 검증된 member ID만 전달된다.
+
+Library 조직 기능에서 Collection은 ordered membership, Tag는 member-scoped many-to-many label을
+소유한다. `LibraryQueries`는 정렬된 Tag ID와 all/any mode를 받는 깊은 read Interface이고, HTTP는
+이 계약을 해석만 한다. PostgreSQL의 일반 command write는 preference, ordered Collection, Tag leaf로
+나뉘고 imported-place materialization과 query Adapter에서도 분리되어 rename/reorder/remove/delete가 Import나 표시용 Place hydration
+책임을 끌어오지 않는다. 자동 분류는 미래 producer일 뿐 Tag truth나 command Interface의 owner가
+아니다.
+
+필수 회원 route와 optional-member Place/Search route는 platform HTTP의 공통 authorization
+Interface를 사용한다. 이 Interface는 `anonymous`, authorized `member`, 이미 안전한 응답을 보낸
+`replied` 상태만 transport에 돌려주며, feature module에는 token·role·tier 문자열을 전달하지 않는다.
+Product Authorizer 장애도 한 versioned Problem으로 fail closed한다. 실제 Backend transport와 Next
+route 파일에서 수집한 method/path 집합은 생성 OpenAPI와 architecture test에서 양방향 비교하므로,
+문서에만 남은 route나 문서 없는 route를 허용하지 않는다.
 
 Taxonomy는 Node version을, Search는 Local Search Projection과 source 조정을 각각 소유한다.
 Search adapter는 Places/Taxonomy/Library/Visits schema를 직접 조회하지 않는다. 각 owner가

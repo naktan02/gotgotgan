@@ -21,10 +21,15 @@ domain meaning rather than storage or framework structure.
 | Source Observation | Time-bound evidence acquired from a provider and retained with provenance. | A command to overwrite a Canonical Place. |
 | Provider Place Identity | A stable provider key and provider-owned external place identifier that may link to one Canonical Place at a time. | Canonical Place identity or a provider account. |
 | Place Candidate | A normalized interpretation derived from one Source Observation and awaiting a resolution outcome. | Canonical Place or verified Place knowledge. |
+| Place Evidence Representation | The Resolution-owned, replaceable comparison projection for the latest Source Observation of one Provider Place Identity. It preserves raw multilingual values beside deterministic comparison fields. | Source Observation history, provider alias, Place Candidate, or Canonical Place truth. |
+| Match Assessment | An immutable, versioned pairwise comparison of two Source Observations, including features, reasons, confidence, and a review hint. | Resolution Decision, provider link, or authority to mutate a Canonical Place. |
+| Place Cluster Proposal | A versioned, non-canonical grouping of Provider Place Identities that Resolution proposes may represent one real-world place. | Canonical Place, transitive merge, or accepted Resolution Decision. |
+| Cluster Verification | An append-only structured verdict and cited public evidence for one Place Cluster Proposal version, produced by a deterministic policy, external verifier, or reviewer. | Canonical mutation authority or proof that every cluster member is identical. |
 | Resolution Decision | Immutable evidence of how a Place Candidate or canonical conflict was classified under a named policy or reviewer. | The canonical mutation itself. |
 | Imported Place Fulfillment Intent | 회원이 연결 목록에서 선택한 Provider 장소를 자신의 Library에 저장하려는 멱등 의도. | Provider 로그인 세션이나 Canonical Place 자체. |
 | Place Fulfillment Job | 동일한 Provider Place Identity의 여러 Fulfillment Intent를 합쳐 가져온 Source Snapshot을 Canonical Place와 회원 Library에 멱등 반영하는 작업. | Provider 상세 조회 작업이나 회원별 ImportBatch. |
-| Provider Place Detail State | Provider Place Identity별 상세 관찰 준비 상태. `available`은 정규화된 상세 Source Observation을 반드시 가리키며, 개인 저장 성공 여부와 독립적이다. | ImportItem 상태나 Canonical Place 존재 여부. |
+| Provider Place Detail State | Provider Place Identity별 상세 관찰 상태. `pending`, `available`, `unavailable` 중 하나이며 `available`은 정규화된 상세 Source Observation을 반드시 가리킨다. 개인 저장 성공 여부와 독립적이다. | ImportItem 상태나 Canonical Place 존재 여부. |
+| Provider Place Detail Job | 회원·ImportBatch·브라우저 profile 없이 Provider Place Identity 하나의 상세 증거를 수집·정규화하는 lease/retry 작업. | Place Fulfillment Job이나 Canonical 동일 장소 판정. |
 | Place Redirect | A durable reference from a merged Canonical Place to the surviving Canonical Place. | Deletion or alias text. |
 | Place Lineage | Immutable merge or split history that explains how Canonical Place identity and provider links changed. | Current Place state. |
 | Personal Library | A member's Place-owned organization of saved/wanted state, collections, tags, and personal ratings. | Canonical Place data. |

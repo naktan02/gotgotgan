@@ -66,3 +66,41 @@ Migration `000020`은 Collection membership이 아니라 Provider·Connection·L
 장소 provenance의 key로 사용해 같은 membership에 합쳐진 여러 Source Item을 모두 보존한다. 상세
 `available` 참조는 같은 Provider Place Identity의 `provider-detail` Source Observation과 그 관찰에서
 정규화된 Place Candidate를 묶은 `provider_place_detail_observations`만 가리킬 수 있다.
+
+Migration `000021`은 `provider_place_detail_jobs`와 fenced attempt 이력을 추가한다. 상세 상태는
+`unavailable`을 명시할 수 있고, Job의 lease/retry/failure는 상태 projection과 별도 table에 남는다.
+성공 transaction은 이미 기록된 immutable detail Observation/Candidate의 identity를 검증한 뒤
+`available` 참조를 설정하며 Canonical Place나 회원 Library를 직접 변경하지 않는다.
+
+Migration `000022`는 Resolution 소유 `place_evidence_index`와 append-only
+`match_assessments`를 추가한다. 전자는 Provider Place Identity별 최신 관찰의 raw/derived 비교
+representation이며 더 새 관찰에 한해서만 교체된다. 후자는 정렬된 관찰 pair와 policy version,
+feature, reason, confidence, fingerprint를 보존한다. `pg_trgm` name/address GIN, geography GiST,
+phone/website partial index가 bounded candidate blocking을 지원한다. runtime role은 assessment를
+insert/select만 할 수 있고 update/delete 권한이나 Places schema 권한은 추가되지 않는다.
+
+Migration `000023`은 `resolution.place_cluster_proposals`, `place_cluster_members`,
+`place_cluster_assessments`를 분리한다. proposal은 policy/input fingerprint가 같은 실행을 replay하고,
+member는 Provider Place Identity와 immutable Source Observation을 행으로 저장하며, assessment link는
+양 끝 observation이 같은 proposal의 member인지 복합 foreign key로 검증한다. 세 table에는
+NAVER/Google/Kakao/Tabelog 고정 column이나 Canonical Place mutation reference가 없다.
+
+Migration `000024`는 Library Place 목록의 세 실제 filter에 맞춘 partial keyset index를 만든다.
+각 index는 `(membership_id, updated_at DESC, canonical_place_id)` 순서이고 saved, wanted,
+Personal Rating 존재 조건을 서로 분리한다. Collection owner index에도 `id` tie-breaker를 포함해
+동일 시각 갱신에서도 cursor 순서를 안정화한다. schema/권한/데이터 shape 변경은 없다.
+
+Migration `000025`는 Visit history의 `(membership_id, canonical_place_id, visited_at DESC, id)`와
+Writing list의 `(owner_membership_id, updated_at DESC, id)` index로 기존 정렬 index를 교체한다.
+opaque keyset cursor의 동률 순서를 실제 index 순서와 일치시키며 새 table이나 권한을 추가하지 않는다.
+
+Migration `000026`은 ImportBatch의 상태별 회원 이력과 ImportItem의 Provider 원본 순서에 맞춘
+두 composite index를 추가한다. 각각 `(member_id, state, created_at DESC, id)`와
+`(batch_id, source_list_position, source_position, id)` 순서이며, 새 table·권한·Provider별 열 없이
+bounded keyset query만 지원한다.
+
+Migration `000027`은 Tag-first 회원 Place 조회를 위해
+`(membership_id, tag_id, canonical_place_id)` index를 추가한다. Collection position uniqueness를
+deferrable constraint로 바꿔 한 transaction 안의 충돌 없는 순서 이동을 허용하고, runtime에는
+owner 조건을 거친 Collection/Tag 삭제와 Library-owned Import/copy provenance 정리에 필요한 DELETE만
+추가한다. Collection과 Tag의 정규화된 table 관계나 Provider별 column은 추가하지 않는다.

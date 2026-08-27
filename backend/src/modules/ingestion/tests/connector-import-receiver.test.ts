@@ -91,7 +91,7 @@ describe('connector import receiver', () => {
     }
     const generated = [
       ids.artifact,
-      ...Array.from({ length: 10 }, (_, index) =>
+      ...Array.from({ length: 13 }, (_, index) =>
         `01992d30-0000-7000-8000-${String(index + 20).padStart(12, '0')}`),
     ]
     const receiver = createConnectorImportReceiver({
@@ -109,6 +109,7 @@ describe('connector import receiver', () => {
           expect(command.items[0]).toMatchObject({
             sourceListId: 'list-1', providerPlaceId: 'provider-place-1',
             fulfillment: expect.any(Object),
+            detail: expect.any(Object),
           })
           return { status: 'committed' as const, receipt }
         }),

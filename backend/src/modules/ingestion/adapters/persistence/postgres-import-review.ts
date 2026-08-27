@@ -1,6 +1,5 @@
 import type { Pool } from 'pg'
 
-import type { ImportManagementStore } from '../../application/ports/import-management-store.js'
 import type {
   ImportReviewResult,
   ImportReviewStore,
@@ -8,146 +7,16 @@ import type {
 } from '../../application/ports/import-review-store.js'
 import {
   ImportReferenceUnavailableError,
-  type PlaceImportBatchDetail,
   type PlaceImportItem,
 } from '../../domain/imports.js'
 import {
-  type BatchRow,
-  type ItemRow,
-  batch,
   iso,
   isUniqueViolation,
-  item,
   refreshBatchProgress,
-  selectBatch,
 } from './postgres-import-common.js'
 
-export class PostgresImportReview implements ImportManagementStore, ImportReviewStore {
+export class PostgresImportReview implements ImportReviewStore {
   constructor(private readonly pool: Pool) {}
-
-  async getImport(memberId: string, batchId: string): Promise<PlaceImportBatchDetail | undefined> {
-    const selectedBatch = await selectBatch(this.pool, batchId, memberId)
-    if (selectedBatch === undefined) return undefined
-    const items = await this.pool.query<ItemRow>(
-      `SELECT imported.id, imported.batch_id, batch.provider_key, imported.provider_place_id,
-              imported.source_list_id, imported.source_item_id,
-              imported.list_name, imported.display_name, imported.address,
-              imported.category_label, imported.status, imported.review_reasons,
-              imported.canonical_place_id,
-              CASE
-                WHEN imported.provider_place_id IS NULL THEN 'unavailable'
-                ELSE coalesce(detail.status, 'pending')
-              END AS detail_status,
-              CASE WHEN imported.location IS NULL THEN NULL ELSE ST_Y(imported.location) END AS latitude,
-              CASE WHEN imported.location IS NULL THEN NULL ELSE ST_X(imported.location) END AS longitude
-       FROM ingestion.import_items AS imported
-       JOIN ingestion.import_batches AS batch ON batch.id = imported.batch_id
-       LEFT JOIN ingestion.provider_place_detail_statuses AS detail
-         ON detail.provider_key = batch.provider_key
-        AND detail.provider_place_id = imported.provider_place_id
-       WHERE imported.batch_id = $1::uuid
-       ORDER BY imported.id
-       LIMIT 200`,
-      [batchId],
-    )
-    return { batch: selectedBatch, items: items.rows.map(item) }
-  }
-
-  async cancelImport(memberId: string, batchId: string, cancelledAt: string) {
-    const client = await this.pool.connect()
-    try {
-      await client.query('BEGIN')
-      const changed = await client.query(
-        `UPDATE ingestion.import_batches
-         SET cancellation_requested_at = COALESCE(cancellation_requested_at, $3::timestamptz),
-             state = 'cancelled', updated_at = $3::timestamptz
-         WHERE id = $1::uuid AND member_id = $2::uuid
-           AND state NOT IN ('completed', 'cancelled')
-         RETURNING id`,
-        [batchId, memberId, cancelledAt],
-      )
-      if (changed.rows[0] === undefined) {
-        const existing = await selectBatch(client, batchId, memberId)
-        await client.query('COMMIT')
-        return existing
-      }
-      await client.query(
-        `UPDATE ingestion.import_jobs
-         SET state = 'cancelled', lease_owner = NULL, lease_expires_at = NULL,
-             updated_at = $2::timestamptz
-         WHERE batch_id = $1::uuid AND state <> 'leased'`,
-        [batchId, cancelledAt],
-      )
-      await client.query(
-        `UPDATE ingestion.import_place_fulfillment_intents AS intent
-         SET state = 'cancelled', updated_at = $2::timestamptz
-         FROM ingestion.import_items AS imported
-         WHERE intent.item_id = imported.id AND imported.batch_id = $1::uuid
-           AND intent.state = 'pending'`,
-        [batchId, cancelledAt],
-      )
-      const result = await selectBatch(client, batchId, memberId)
-      await client.query('COMMIT')
-      return result
-    } catch (error) {
-      await client.query('ROLLBACK').catch(() => undefined)
-      throw error
-    } finally {
-      client.release()
-    }
-  }
-
-  async resumeImport(memberId: string, batchId: string, resumedAt: string) {
-    const client = await this.pool.connect()
-    try {
-      await client.query('BEGIN')
-      const changed = await client.query(
-        `UPDATE ingestion.import_batches AS batch
-         SET state = 'queued', failure_code = NULL, failure_retryable = NULL,
-             cancellation_requested_at = NULL, updated_at = $3::timestamptz
-         FROM ingestion.provider_connections AS connection
-         WHERE batch.id = $1::uuid AND batch.member_id = $2::uuid
-           AND batch.connection_id = connection.id AND connection.status = 'ready'
-           AND batch.state IN ('needs-user-action', 'failed', 'cancelled', 'partial')
-         RETURNING batch.id`,
-        [batchId, memberId, resumedAt],
-      )
-      if (changed.rows[0] !== undefined) {
-        await client.query(
-          `UPDATE ingestion.import_jobs
-           SET state = 'queued', available_at = $2::timestamptz,
-               lease_owner = NULL, lease_expires_at = NULL, updated_at = $2::timestamptz
-           WHERE batch_id = $1::uuid AND state <> 'leased'`,
-          [batchId, resumedAt],
-        )
-        await client.query(
-          `WITH restored AS (
-             UPDATE ingestion.import_place_fulfillment_intents AS intent
-             SET state = 'pending', updated_at = $2::timestamptz
-             FROM ingestion.import_items AS imported
-             WHERE intent.item_id = imported.id AND imported.batch_id = $1::uuid
-               AND intent.state = 'cancelled'
-             RETURNING intent.job_id
-           )
-           UPDATE ingestion.import_place_fulfillment_jobs AS job
-           SET state = CASE WHEN job.state = 'leased' THEN job.state ELSE 'queued' END,
-               available_at = $2::timestamptz,
-               failure_code = NULL, failure_retryable = NULL,
-               updated_at = $2::timestamptz
-           WHERE job.id IN (SELECT job_id FROM restored)`,
-          [batchId, resumedAt],
-        )
-      }
-      const result = await selectBatch(client, batchId, memberId)
-      await client.query('COMMIT')
-      return result
-    } catch (error) {
-      await client.query('ROLLBACK').catch(() => undefined)
-      throw error
-    } finally {
-      client.release()
-    }
-  }
 
   async beginReview(input: Parameters<ImportReviewStore['beginReview']>[0]) {
     const client = await this.pool.connect()

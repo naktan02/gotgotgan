@@ -105,7 +105,9 @@ test('personal content remains owned, repeatable, versioned, and privacy project
     await runtimeClient.connect()
     const libraryStore = new library.PostgresLibraryStore(pool)
     const visitStore = new visits.PostgresVisitStore(pool)
+    const visitQueries = new visits.PostgresVisitQueries(pool)
     const writingStore = new writing.PostgresWritingStore(pool)
+    const writingQueries = new writing.PostgresWritingQueries(pool)
     const memberId = '01992d10-0000-7000-8000-000000000001'
     const placeId = '01992d10-0000-7000-8000-000000000002'
     const placeTwo = '01992d10-0000-7000-8000-000000000003'
@@ -136,7 +138,7 @@ test('personal content remains owned, repeatable, versioned, and privacy project
       visited: true, count: 2,
       firstVisitedAt: '2026-07-01T12:00:00.000Z', lastVisitedAt: '2026-08-01T12:00:00.000Z',
     })
-    assert.equal((await visitStore.list(memberId, placeId)).length, 2)
+    assert.equal((await visitQueries.listPlaceVisits({ memberId, placeId, limit: 20 })).items.length, 2)
 
     const publicCollectionId = '01992d10-0000-7000-8000-000000000030'
     const publicCollectionPublication = '01992d10-0000-7000-8000-000000000031'
@@ -171,10 +173,10 @@ test('personal content remains owned, repeatable, versioned, and privacy project
     const publicWriting = await writingStore.getPublished(writingPublication)
     assert.deepEqual(Object.keys(publicWriting).sort(), ['body', 'kind', 'placeIds', 'publicationId', 'title', 'updatedAt', 'visibility'])
     assert.equal((await runtimeClient.query('SELECT count(*)::int AS count FROM writing.document_revisions WHERE document_id = $1', [entryId])).rows[0].count, 2)
-    assert.deepEqual((await writingStore.listMemberWriting(memberId))[0], {
+    assert.deepEqual((await writingQueries.get({ memberId, documentId: entryId })).document, {
       documentId: entryId, kind: 'entry', title: 'Two places revised', body: 'Long entry revised',
       visibility: 'public', publicationId: writingPublication, version: 2,
-      placeIds: [placeTwo, placeId], updatedAt: at,
+      placeIds: [placeTwo, placeId], createdAt: at, updatedAt: at,
     })
 
     await assert.rejects(runtimeClient.query(`UPDATE visits.visit_occurrences SET visited_at = CURRENT_TIMESTAMP`), (error) => error?.code === '42501')

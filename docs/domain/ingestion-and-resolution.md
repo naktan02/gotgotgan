@@ -4,8 +4,10 @@ An import run moves through durable discovery, capture, normalization, matching,
 apply, and completion states. Raw evidence is immutable for its retention window and references a
 parser version and checksum. Reprocessing creates a new normalized result without rewriting history.
 
-Automatic merge requires an explicit confidence policy; ambiguous matches enter review. Provider
-adapters gather evidence, while ingestion owns provider-neutral workflow and resolution orchestration.
+Automatic merge requires an explicit confidence policy backed by measured evaluation data; ambiguous
+matches enter review. Provider adapters gather evidence, Ingestion owns provider-neutral acquisition,
+workflow, observations, candidates, and accepted Resolution Decisions, while Resolution owns
+cross-provider comparison representations and Match Assessments. Places alone owns canonical identity.
 
 The first Stage 3 seam records three immutable artifacts:
 
@@ -33,7 +35,41 @@ Source Snapshot을 근거로 한 번 create/link한다. 이후 요청 회원의 
 호출 없이 멱등 저장한다.
 
 같은 `(provider key, provider place ID)`의 여러 intent는 job 하나를 공유한다. Provider 상세 상태는
-`pending` 또는 정규화된 Source Observation을 참조하는 `available`이며 개인 저장 상태와 독립적이다.
-후속 상세 Job은 `pending`이거나 참조 관찰이 유효하지 않을 때만 대상이 된다. Provider Identity가
-없거나 snapshot을 안전하게 연결할 수 없을 때만 item을 `needs-review`로 전환한다. 최종 실패는 intent를 보존한 상태로
-명시적인 실패가 되며, retryable 실패는 lease와 fencing을 유지한 채 다시 예약한다.
+`pending`, 정규화된 Source Observation을 참조하는 `available`, 또는 재시도하지 않는 `unavailable`이며
+개인 저장 상태와 독립적이다. 별도 Provider Place Detail Job은 `pending` identity만 lease/fencing으로
+claim하고, 회원 ID·ImportBatch·브라우저 profile 없이 Provider-neutral Detail Source를 호출한다. 성공 시
+immutable Observation과 Candidate를 먼저 기록하고 그 뒤에만 `available`로 전환한다. retryable 실패는
+다시 예약하고, 지원하지 않음·찾을 수 없음·영구적인 schema 불일치는 `unavailable`로 남긴다. 어떤 결과도
+Canonical Place를 직접 변경하지 않는다. Provider Identity가 없거나 snapshot을 안전하게 연결할 수 없을
+때만 개인 item을 `needs-review`로 전환한다.
+
+## Stage 8A cross-provider identity assessment
+
+Resolution indexes the latest Source Observation for each Provider Place Identity as a replaceable
+Place Evidence Representation. The representation keeps every raw multilingual name and language tag
+beside deterministic comparison forms. It is an index over evidence, not a new observation, alias, or
+canonical record. An older observation cannot replace a newer representation; an exact replay returns
+the previous result and conflicting identity reuse fails.
+
+Candidate blocking is bounded and combines PostGIS distance, `pg_trgm` name/address similarity, exact
+phone comparison keys, and website hosts. Comparison preserves independent distance, name, address,
+phone, website, category, explicit branch/floor, and observation-time features. Disjoint writing
+scripts produce unknown name similarity rather than false difference. Same-building but different
+explicit floor or branch and far-apart concurrent observations are strong negative evidence.
+
+Every comparison appends a policy-versioned Match Assessment with feature values, reasons, confidence,
+and one of `likely-same`, `needs-review`, or `likely-different`. These values route future clustering,
+verification, and evaluation only. They are not Resolution Decisions and cannot link, merge, split,
+retire, or otherwise mutate Canonical Places.
+
+Stage 8B adds immutable versioned Place Cluster Proposals, normalized member rows, and explicit links
+to supporting Match Assessments. The Excel-like Provider matrix is a dynamic read projection, not a
+table with fixed Provider columns. Variable Provider payloads stay in Source Observations and
+policy-versioned feature snapshots stay in Match Assessments; stable identities and relationships are
+normalized without guessing unobserved detail fields.
+
+Real accuracy evaluation waits for at least two actual connected-account Provider observation streams.
+A future web-research verifier operates once per changed cluster proposal, stores append-only structured
+Cluster Verifications and cited public sources, and receives no member or browser-session data. Human
+work is limited to conflicts and risk-stratified audits. Automatic link/merge remains disabled until
+measured cluster precision, false-merge cost, and recovery gates are explicitly accepted.

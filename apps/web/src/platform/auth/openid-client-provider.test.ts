@@ -3,6 +3,48 @@ import { describe, expect, it } from 'vitest'
 import { createOpenidClientProvider } from './openid-client-provider'
 
 describe('openid-client provider adapter', () => {
+  it('retries discovery after a transient provider failure', async () => {
+    let discoveryAttempts = 0
+    const configuration = { id: 'recovered-configuration' }
+    const provider = await createOpenidClientProvider({
+      issuer: 'https://identity.example',
+      clientId: 'place-client',
+      clientSecret: 'client-secret',
+      now: () => new Date('2026-08-25T12:00:00.000Z'),
+    }, {
+      clientSecretBasic: () => ({}),
+      discovery: async () => {
+        discoveryAttempts += 1
+        if (discoveryAttempts === 1) throw new Error('provider unavailable')
+        return configuration
+      },
+      buildAuthorizationUrl: (receivedConfiguration) => {
+        expect(receivedConfiguration).toBe(configuration)
+        return new URL('https://identity.example/oauth/v2/authorize')
+      },
+      authorizationCodeGrant: async () => ({
+        access_token: 'access-token',
+        expiresIn: () => 300,
+      }),
+    })
+
+    const request = {
+      callbackUrl: 'https://place.example/api/auth/oidc/callback',
+      scopes: ['openid'],
+      state: 'state-secret',
+      nonce: 'nonce-secret',
+      pkceChallenge: 'challenge',
+    }
+
+    await expect(provider.buildAuthorizationUrl(request)).rejects.toThrow(
+      'provider unavailable',
+    )
+    await expect(provider.buildAuthorizationUrl(request)).resolves.toBe(
+      'https://identity.example/oauth/v2/authorize',
+    )
+    expect(discoveryAttempts).toBe(2)
+  })
+
   it('discovers the configured issuer and sends Authorization Code + PKCE parameters', async () => {
     const calls: Array<readonly [string, ...unknown[]]> = []
     const configuration = { id: 'discovered-configuration' }
@@ -33,6 +75,10 @@ describe('openid-client provider adapter', () => {
         }
       },
     })
+
+    expect(calls).toEqual([['clientSecretBasic', 'client-secret']])
+
+    await provider.ready()
 
     expect(calls).toEqual([
       ['clientSecretBasic', 'client-secret'],
@@ -120,7 +166,7 @@ describe('openid-client provider adapter', () => {
 
   it('enables the driver exception only for an explicit local issuer', async () => {
     const discoveryOptions: unknown[] = []
-    await createOpenidClientProvider({
+    const localProvider = await createOpenidClientProvider({
       issuer: 'http://identity.localhost',
       clientId: 'place-local-client',
       clientSecret: 'client-secret',
@@ -138,10 +184,11 @@ describe('openid-client provider adapter', () => {
         expiresIn: () => 300,
       }),
     })
+    await localProvider.ready()
 
     expect(discoveryOptions).toHaveLength(1)
     expect(discoveryOptions[0]).toMatchObject({ execute: [expect.any(Function)] })
-    await createOpenidClientProvider({
+    const secureProvider = await createOpenidClientProvider({
       issuer: 'https://identity.example',
       clientId: 'place-client',
       clientSecret: 'client-secret',
@@ -156,6 +203,7 @@ describe('openid-client provider adapter', () => {
       buildAuthorizationUrl: () => new URL('https://identity.example'),
       authorizationCodeGrant: async () => ({ access_token: 'token', expiresIn: () => 300 }),
     })
+    await secureProvider.ready()
     expect(discoveryOptions[1]).toBeUndefined()
     await expect(createOpenidClientProvider({
       issuer: 'http://identity.internal.example',

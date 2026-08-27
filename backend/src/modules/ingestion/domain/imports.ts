@@ -70,11 +70,6 @@ export type PlaceImportItem = Readonly<{
   detailStatus: 'pending' | 'available' | 'unavailable'
 }>
 
-export type PlaceImportBatchDetail = Readonly<{
-  batch: PlaceImportBatch
-  items: readonly PlaceImportItem[]
-}>
-
 export class ProviderConnectionUnavailableError extends Error {
   override readonly name = 'ProviderConnectionUnavailableError'
 }

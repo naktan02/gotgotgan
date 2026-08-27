@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import type { LibraryStore, PublishedCollection } from '../../modules/library/index.js'
-import type { VisitRecord, VisitStore } from '../../modules/visits/index.js'
-import type { PublishedWriting, WritingStore } from '../../modules/writing/index.js'
+import type { VisitQueries, VisitRecord, VisitStore } from '../../modules/visits/index.js'
+import type {
+  PublishedWriting,
+  WritingQueries,
+  WritingStore,
+} from '../../modules/writing/index.js'
 import { buildHttpApplication } from './app.js'
 
 const memberId = '01992d04-0000-7000-8000-000000000001'
@@ -30,7 +34,13 @@ function fixtureApplication() {
   const visits: VisitStore = {
     append: async (_record: VisitRecord) => 'recorded',
     summarize: async () => ({ visited: true, count: 2, firstVisitedAt: '2026-07-01T12:00:00.000Z', lastVisitedAt: '2026-08-01T12:00:00.000Z' }),
-    list: async () => [],
+  }
+  const visitQueries: VisitQueries = {
+    listPlaceVisits: async (input) => ({
+      schemaVersion: 'visit-history.v1',
+      placeId: input.placeId,
+      items: [],
+    }),
   }
   const writing: WritingStore = {
     apply: async (attempt) => ({ status: 'applied', documentId: attempt.command.documentId, version: 1 }),
@@ -42,12 +52,19 @@ function fixtureApplication() {
       placeIds: [placeId],
       updatedAt: now().toISOString(),
     } : undefined,
-    listMemberWriting: async () => [],
+  }
+  const writingQueries: WritingQueries = {
+    list: async (input) => ({
+      schemaVersion: 'writing-list.v1',
+      filter: { kind: input.kind },
+      items: [],
+    }),
+    get: async () => undefined,
   }
   return buildHttpApplication({
     library: { authorizer, store: library, now },
-    visits: { authorizer, store: visits, now },
-    writing: { authorizer, store: writing, now },
+    visits: { authorizer, store: visits, queries: visitQueries, now },
+    writing: { authorizer, store: writing, queries: writingQueries, now },
   })
 }
 
@@ -58,13 +75,20 @@ describe('Stage 4 product HTTP boundary', () => {
     expect(denied.statusCode).toBe(401)
     const allowed = await application.inject({ method: 'GET', url: `/v1/library/places/${placeId}`, headers: { authorization: 'Bearer good' } })
     expect(allowed.statusCode).toBe(200)
-    expect(allowed.json()).toMatchObject({ memberId, personalRating: 4.4 })
+    expect(allowed.json()).toMatchObject({
+      schemaVersion: 'library-place-preferences.v1', personalRating: 4.4,
+    })
+    expect(allowed.json()).not.toHaveProperty('memberId')
     await application.close()
   })
 
   it('keeps owner library, writing, and visit occurrence reads authenticated', async () => {
     const application = fixtureApplication()
-    for (const url of ['/v1/library', '/v1/writing', `/v1/places/${placeId}/visits`]) {
+    for (const url of [
+      `/v1/library/places/${placeId}`,
+      '/v1/writing',
+      `/v1/places/${placeId}/visits`,
+    ]) {
       expect((await application.inject({ method: 'GET', url })).statusCode).toBe(401)
       expect((await application.inject({ method: 'GET', url, headers: { authorization: 'Bearer good' } })).statusCode).toBe(200)
     }
@@ -94,6 +118,7 @@ describe('Stage 4 product HTTP boundary', () => {
     const collection = await application.inject({ method: 'GET', url: `/v1/public/collections/${publicationId}` })
     expect(collection.statusCode).toBe(200)
     expect(collection.json()).toEqual({
+      schemaVersion: 'place-published-collection.v1',
       publicationId,
       visibility: 'unlisted',
       name: 'Shared places',
@@ -105,6 +130,7 @@ describe('Stage 4 product HTTP boundary', () => {
     expect(absent.statusCode).toBe(404)
     expect(absent.json()).not.toHaveProperty('memberId')
     const writing = await application.inject({ method: 'GET', url: `/v1/public/writing/${publicationId}` })
+    expect(writing.json()).toMatchObject({ schemaVersion: 'place-published-writing.v1' })
     expect(writing.json()).not.toHaveProperty('memberId')
     await application.close()
   })
@@ -119,7 +145,9 @@ describe('Stage 4 product HTTP boundary', () => {
     })
     expect(recorded.statusCode).toBe(201)
     const summary = await application.inject({ method: 'GET', url: `/v1/places/${placeId}/visit-summary`, headers: { authorization: 'Bearer good' } })
-    expect(summary.json()).toMatchObject({ visited: true, count: 2 })
+    expect(summary.json()).toMatchObject({
+      schemaVersion: 'visit-summary.v1', placeId, visited: true, count: 2,
+    })
     await application.close()
   })
 })

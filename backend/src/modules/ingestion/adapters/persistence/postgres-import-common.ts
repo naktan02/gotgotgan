@@ -250,6 +250,35 @@ export async function insertPreparedImportItems(
     )
   }
 
+  const detailRows = inserted.flatMap((imported) => (
+    imported.providerPlaceId === undefined || imported.detail === undefined
+      ? []
+      : [{
+          provider_place_id: imported.providerPlaceId,
+          job_id: imported.detail.jobId,
+          observation_id: imported.detail.observationId,
+          candidate_id: imported.detail.candidateId,
+        }]
+  ))
+  if (detailRows.length > 0) {
+    await client.query(
+      `WITH prepared AS (
+         SELECT * FROM jsonb_to_recordset($3::jsonb) AS detail_input(
+           provider_place_id text, job_id uuid, observation_id uuid, candidate_id uuid
+         )
+       )
+       INSERT INTO ingestion.provider_place_detail_jobs (
+         id, provider_key, provider_place_id, state, available_at,
+         observation_id, candidate_id, created_at, updated_at
+       )
+       SELECT job_id,$1,provider_place_id,'queued',$2::timestamptz,
+              observation_id,candidate_id,$2::timestamptz,$2::timestamptz
+       FROM prepared
+       ON CONFLICT (provider_key, provider_place_id) DO NOTHING`,
+      [input.providerKey, input.recordedAt, JSON.stringify(detailRows)],
+    )
+  }
+
   const fulfillmentByPlace = new Map<string, NonNullable<PreparedImportItem['fulfillment']>>()
   for (const imported of inserted) {
     if (imported.fulfillment !== undefined) {

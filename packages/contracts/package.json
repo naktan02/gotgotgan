@@ -16,13 +16,29 @@
       "types": "./dist/imports/index.d.ts",
       "default": "./dist/imports/index.js"
     },
+    "./library": {
+      "types": "./dist/library/index.d.ts",
+      "default": "./dist/library/index.js"
+    },
     "./place-reference": {
       "types": "./dist/place-reference/index.d.ts",
       "default": "./dist/place-reference/index.js"
     },
+    "./places": {
+      "types": "./dist/places/index.d.ts",
+      "default": "./dist/places/index.js"
+    },
     "./search": {
       "types": "./dist/search/index.d.ts",
       "default": "./dist/search/index.js"
+    },
+    "./visits": {
+      "types": "./dist/visits/index.d.ts",
+      "default": "./dist/visits/index.js"
+    },
+    "./writing": {
+      "types": "./dist/writing/index.d.ts",
+      "default": "./dist/writing/index.js"
     }
   },
   "files": [

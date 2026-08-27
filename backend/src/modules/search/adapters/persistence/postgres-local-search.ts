@@ -1,6 +1,7 @@
 import type { Pool } from 'pg'
 
 import type { LocalSearchProjectionStore } from '../../application/ports/local-search-projection-store.js'
+import type { LocalPlaceDocumentReader } from '../../application/ports/local-place-document-reader.js'
 import type {
   PlaceSearchSource,
   SearchSourcePage,
@@ -31,6 +32,20 @@ type SearchRow = Readonly<{
   personal_rating: string | null
   projected_at: string
   score: number
+}>
+
+type PlaceDocumentRow = Readonly<{
+  place_id: string
+  source_version: number
+  display_name: string
+  area_label: string | null
+  latitude: number
+  longitude: number
+  primary_taxonomy_key: string | null
+  primary_taxonomy_label: string | null
+  taxonomy_keys: string[]
+  evidence_status: PlaceSearchResult['evidenceStatus']
+  projected_at: Date | string
 }>
 
 function decodeLocalCursor(value: string | undefined): LocalCursor | undefined {
@@ -82,7 +97,10 @@ function rowToResult(row: SearchRow, viewerMemberId: string | undefined): PlaceS
   }
 }
 
-export class PostgresLocalSearch implements PlaceSearchSource, LocalSearchProjectionStore {
+export class PostgresLocalSearch implements
+  PlaceSearchSource,
+  LocalSearchProjectionStore,
+  LocalPlaceDocumentReader {
   readonly sourceKey = 'local'
 
   constructor(private readonly pool: Pool) {}
@@ -149,6 +167,47 @@ export class PostgresLocalSearch implements PlaceSearchSource, LocalSearchProjec
         signal.wanted, signal.visited, signal.personalRating, signal.projectedAt,
       ],
     )
+  }
+
+  async getPlaceDocument(placeId: string): Promise<LocalPlaceSearchDocument | undefined> {
+    return (await this.getPlaceDocuments([placeId]))[0]
+  }
+
+  async getPlaceDocuments(placeIds: readonly string[]): Promise<readonly LocalPlaceSearchDocument[]> {
+    if (placeIds.length === 0) return []
+    const result = await this.pool.query<PlaceDocumentRow>(
+      `
+        SELECT
+          place_id,
+          source_version,
+          display_name,
+          area_label,
+          ST_Y(location) AS latitude,
+          ST_X(location) AS longitude,
+          primary_taxonomy_key,
+          primary_taxonomy_label,
+          taxonomy_keys,
+          evidence_status,
+          projected_at
+        FROM search.place_documents
+        WHERE place_id = ANY($1::uuid[])
+      `,
+      [placeIds],
+    )
+    return result.rows.map((row) => ({
+      placeId: row.place_id,
+      sourceVersion: row.source_version,
+      name: row.display_name,
+      areaLabel: row.area_label,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      primaryTaxonomy: row.primary_taxonomy_key === null || row.primary_taxonomy_label === null
+        ? null
+        : { key: row.primary_taxonomy_key, label: row.primary_taxonomy_label },
+      taxonomyKeys: row.taxonomy_keys,
+      evidenceStatus: row.evidence_status,
+      projectedAt: new Date(row.projected_at).toISOString(),
+    }))
   }
 
   async search(query: Omit<PlaceSearchQuery, 'cursor'> & Readonly<{ cursor?: string }>): Promise<SearchSourcePage> {

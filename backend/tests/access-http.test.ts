@@ -112,7 +112,7 @@ describe('GET /v1/me', () => {
         },
         membershipDirectory: {
           findByPrincipal: async (principal) => ({
-            id: 'membership-1',
+            id: '11111111-1111-4111-8111-111111111111',
             principal,
             status: 'suspended',
             authorityRole: 'owner',
@@ -158,7 +158,7 @@ describe('GET /v1/me', () => {
         },
         membershipDirectory: {
           findByPrincipal: async (principal) => ({
-            id: 'membership-1',
+            id: '11111111-1111-4111-8111-111111111111',
             principal,
             status: 'active',
             authorityRole: 'reviewer',
@@ -181,7 +181,8 @@ describe('GET /v1/me', () => {
 
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({
-      membershipId: 'membership-1',
+      schemaVersion: 'place-current-membership.v1',
+      membershipId: '11111111-1111-4111-8111-111111111111',
       authorityRole: 'reviewer',
       userGrade: 'trusted-contributor',
       productTier: 'standard',
@@ -198,7 +199,7 @@ describe('GET /v1/me', () => {
         principalVerifier: { verify: async () => principal },
         membershipDirectory: {
           findByPrincipal: async () => ({
-            id: 'membership-1',
+            id: '11111111-1111-4111-8111-111111111111',
             principal,
             status: 'active',
             authorityRole: projected ? 'owner' : 'member',
@@ -269,7 +270,8 @@ function buildOnboardingApplication(input: Readonly<{
           initialProductTier: 'free',
         },
         store: input.store,
-        nextMembershipId: input.nextMembershipId ?? (() => 'membership-1'),
+        nextMembershipId: input.nextMembershipId ??
+          (() => '11111111-1111-4111-8111-111111111111'),
       },
       now: () => new Date('2026-08-26T00:00:00.000Z'),
     },
@@ -339,8 +341,9 @@ describe('POST /v1/memberships/onboarding', () => {
     expect(response.statusCode).toBe(201)
     expect(response.headers['cache-control']).toBe('no-store')
     expect(response.json()).toEqual({
+      schemaVersion: 'place-membership-onboarding-result.v1',
       status: 'created',
-      membershipId: 'membership-1',
+      membershipId: '11111111-1111-4111-8111-111111111111',
       authorityRole: 'member',
       userGrade: 'newcomer',
       productTier: 'free',
@@ -383,7 +386,7 @@ describe('POST /v1/memberships/onboarding', () => {
               }
             },
           },
-          nextMembershipId: () => 'membership-1',
+          nextMembershipId: () => '11111111-1111-4111-8111-111111111111',
         },
         now: () => new Date('2026-08-26T00:00:00.000Z'),
       },
@@ -508,13 +511,13 @@ describe('POST /v1/memberships/onboarding', () => {
 
   it('returns the existing membership without replacing any membership axis', async () => {
     const application = buildOnboardingApplication({
-      nextMembershipId: () => 'membership-unused',
+      nextMembershipId: () => '44444444-4444-4444-8444-444444444444',
       store: {
         attemptAndAuditOnboarding: async (attempt) => ({
           status: 'existing',
           membership: {
             ...attempt.membership,
-            id: 'membership-existing',
+            id: '33333333-3333-4333-8333-333333333333',
             status: 'suspended',
             authorityRole: 'owner',
             userGrade: 'founding-member',
@@ -537,8 +540,9 @@ describe('POST /v1/memberships/onboarding', () => {
 
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({
+      schemaVersion: 'place-membership-onboarding-result.v1',
       status: 'existing',
-      membershipId: 'membership-existing',
+      membershipId: '33333333-3333-4333-8333-333333333333',
       authorityRole: 'owner',
       userGrade: 'founding-member',
       productTier: 'sponsor',
@@ -601,6 +605,7 @@ describe('membership consent and authority management HTTP', () => {
     expect(response.statusCode).toBe(200)
     expect(response.headers['cache-control']).toBe('no-store')
     expect(response.json()).toEqual({
+      schemaVersion: 'place-membership-consents.v1',
       consents: [
         { document: 'terms-of-service', version: '2026-08-26' },
         { document: 'privacy-policy', version: '2026-08-26' },
@@ -657,6 +662,7 @@ describe('membership consent and authority management HTTP', () => {
 
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({
+      schemaVersion: 'place-authority-role-change-result.v1',
       status: 'changed',
       membershipId: targetId,
       previousRole: 'reviewer',

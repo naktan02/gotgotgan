@@ -23,6 +23,8 @@ import {
 
 import { ConnectorPageSession } from '@/platform/imports/connector/connector-page-session'
 
+export type ImportBrowserSessionState = 'checking' | 'anonymous' | 'authenticated'
+
 export type ImportAction =
   | Readonly<{ kind: 'create-place' }>
   | Readonly<{ kind: 'link-place'; canonicalPlaceId: string }>
@@ -84,6 +86,8 @@ export function useConnectedPlaceImportsWorkflow() {
   >()
   const [acceptedConsentKeys, setAcceptedConsentKeys] = useState<ReadonlySet<string>>(new Set())
   const [onboardingBusy, setOnboardingBusy] = useState(false)
+  const [browserSessionState, setBrowserSessionState] =
+    useState<ImportBrowserSessionState>('checking')
   const connectorSession = useRef<ConnectorPageSession | undefined>(undefined)
   const startCommand = useRef<string | undefined>(undefined)
   const reviewCommands = useRef(new Map<string, string>())
@@ -99,8 +103,19 @@ export function useConnectedPlaceImportsWorkflow() {
         projection.items.find((item) => item.status === 'ready')?.connectionId,
       )
       setOnboardingRequired(false)
+      setBrowserSessionState('authenticated')
     } catch (failure) {
+      if (
+        failure instanceof ImportBrowserProblem &&
+        failure.code === 'PLACE_AUTHENTICATION_REQUIRED'
+      ) {
+        setBrowserSessionState('anonymous')
+        setOnboardingRequired(false)
+        setError(undefined)
+        return
+      }
       if (failure instanceof ImportBrowserProblem && failure.code === 'PLACE_ACCESS_DENIED') {
+        setBrowserSessionState('authenticated')
         setOnboardingRequired(true)
         setError(undefined)
         try {
@@ -340,6 +355,7 @@ export function useConnectedPlaceImportsWorkflow() {
     onboardingConsents,
     acceptedConsentKeys,
     onboardingBusy,
+    browserSessionState,
     items,
     batchActive,
     selectConnection: setSelectedConnectionId,

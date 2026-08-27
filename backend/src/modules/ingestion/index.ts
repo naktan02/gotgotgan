@@ -22,8 +22,16 @@ export {
 } from './application/record-suggestion-observation.js'
 export { materializeSuggestedPlace } from './application/materialize-suggested-place.js'
 export { requestPlaceImport } from './application/request-place-import.js'
+export type { ImportQueries } from './application/import-queries.js'
 export { reviewImportItem } from './application/review-import-item.js'
 export { createImportWorker } from './application/run-import-worker.js'
+export {
+  InvalidImportCursorError,
+  InvalidImportQueryError,
+  type ImportBatchDetailPage,
+  type ImportBatchListPage,
+  type ImportBatchStateFilter,
+} from './domain/import-queries.js'
 export {
   createConnectorImportReceiver,
   type ConnectorImportReceiver,
@@ -32,6 +40,9 @@ export {
 export {
   createImportedPlaceFulfillmentWorker,
 } from './application/run-imported-place-fulfillment-worker.js'
+export {
+  createProviderPlaceDetailWorker,
+} from './application/run-provider-place-detail-worker.js'
 export { sweepExpiredImportCaptures } from './application/sweep-expired-import-captures.js'
 export type {
   ConnectorCaptureParseResult,
@@ -82,6 +93,14 @@ export type {
   ImportedPlaceFulfillmentStore,
 } from './application/ports/imported-place-fulfillment-store.js'
 export type {
+  ProviderDetailFailureCode,
+  ProviderPlaceDetailClaim,
+  ProviderPlaceDetailJobStore,
+  ProviderPlaceDetailResult,
+  ProviderPlaceDetailSnapshot,
+  ProviderPlaceDetailSource,
+} from './application/ports/provider-place-detail.js'
+export type {
   ImportReviewAction,
   ImportReviewResult,
   ImportReviewStore,
@@ -106,17 +125,21 @@ export {
   type ImportFailureCode,
   type ImportProgress,
   type PlaceImportBatch,
-  type PlaceImportBatchDetail,
   type PlaceImportItem,
   type ProviderConnectionProjection,
 } from './domain/imports.js'
 export { PostgresIngestionStore } from './adapters/persistence/postgres-ingestion-store.js'
 export { PostgresConnectorImports } from './adapters/persistence/postgres-connector-imports.js'
 export { PostgresImportQueue } from './adapters/persistence/postgres-import-queue.js'
+export { PostgresImportQueries } from './adapters/persistence/postgres-import-queries.js'
+export { PostgresImportManagement } from './adapters/persistence/postgres-import-management.js'
 export { PostgresImportReview } from './adapters/persistence/postgres-import-review.js'
 export {
   PostgresImportedPlaceFulfillment,
 } from './adapters/persistence/postgres-imported-place-fulfillment.js'
+export {
+  PostgresProviderPlaceDetails,
+} from './adapters/persistence/postgres-provider-place-details.js'
 export { EncryptedFileCaptureArtifactStore } from './adapters/capture/encrypted-file-capture-artifact-store.js'
 export {
   registerImportHttpRoutes,

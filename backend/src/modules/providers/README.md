@@ -16,8 +16,9 @@ Stage 6.5는 provider-neutral suggestion port도 추가한다. Google은 문서�
 capability에 명시하고 서로의 응답 형태를 흉내 내지 않는다.
 
 Stage 6에는 NAVER/Kakao/Google 공식 검색과 Google 지연 상세·사진이 있다. Stage 7은 별도 NAVER
-저장목록 합성 capture parser와 실패 분류까지만 추가했다. 실제 Playwright/Crawlee 수집과 outbound
-저장은 아직 integration-gated다. 두 개 이상의 browser adapter가 실제로 같은 lifecycle을 공유하기
+저장목록 합성 capture parser와 실패 분류를 추가했다. Provider-neutral 상세 Job seam은 Ingestion에
+있지만, 관찰되지 않은 NAVER 상세 endpoint나 schema는 이 모듈에 추측해 추가하지 않는다. 실제
+Playwright/Crawlee 수집과 outbound 저장은 아직 integration-gated다. 두 개 이상의 browser adapter가 실제로 같은 lifecycle을 공유하기
 전에는 `platform/browser_runtime`을 만들지 않는다.
 
 외부 결과의 `resultId`는 화면 선택용 불투명 식별자다. provider가 문서화한 안정 ID만

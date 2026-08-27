@@ -31,6 +31,10 @@ export type OidcProvider = Readonly<{
   }>): Promise<OidcTokenSet>
 }>
 
+export type ReadyOidcProvider = OidcProvider & Readonly<{
+  ready(): Promise<void>
+}>
+
 export type OidcTransactionStore = Readonly<{
   create(transaction: OidcTransaction): Promise<void>
   take(id: string): Promise<OidcTransaction | undefined>

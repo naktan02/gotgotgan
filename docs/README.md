@@ -17,7 +17,7 @@ Read only the routes required by the task, after repository `AGENTS.md` and `REA
 - Local execution, worker lifecycle, deployment, backup, or incidents: `operations/README.md`.
 - A durable decision or supersession: `adr/README.md`.
 
-Delivery state is **source-only; Stage 6.5 complete, with Stages 2 and 7 in progress**. A Place-owned physical PostGIS runtime is
+Delivery state is **source-only; Stages 6.5, 7.5, and 7.6 complete, with Stages 2, 7, and 8 in progress**. A Place-owned physical PostGIS runtime is
 implemented and tested in disposable environments but not deployed or active. No provider account, browser profile, map credential, Identity
 client, Gateway route, family composer, or AI connection is active.
 
@@ -34,14 +34,27 @@ Chromium·Firefox Manifest V3 build 검증은 source-only다. Chrome·Edge·Whal
 공유하지만 Whale 실설치 evidence는 아직 없다. Provider host permission, 실제 Provider Adapter, 공개
 BFF capture route와 Backend receiver는 NAVER에 대해 source-only로 연결됐다. grant rotation,
 origin·sequence·checksum·상한 검증, 암호화 원본과 PostGIS ImportBatch 영속화도 통합 검증한다.
-Kakao·Google Provider Adapter, 실제 Whale/NAVER session smoke, parser-change live fixture와 서버 상세
-profile Adapter는 integration-gated이며 완료로 표시하지 않는다.
+Kakao·Google Provider Adapter, 실제 Whale/NAVER session smoke와 서버 상세 profile Adapter는
+integration-gated이며 완료로 표시하지 않는다. current·legacy parser 변화는 값이 제거된 독립 fixture로
+재생하지만, 이를 새로운 live Provider 계약 관찰로 과장하지 않는다.
 
 Provider Place ID가 안정된 item은 Source List·Item ID와 함께 `enriching` intent로 기록된다. Provider
 Identity별 공동 materialization job은 기존 Canonical link를 재사용하고, 없으면 가져온 snapshot을
 근거로 create/link한 뒤 회원의 private Collection에 즉시 멱등 저장한다. Provider 상세 상태와 후속
-보강 Job은 이 저장 수명주기와 분리된다. 실제 NAVER 상세 경로 관찰과 상세 Job은 여전히
-integration-gated다.
+보강 Job은 이 저장 수명주기와 분리된다. Migration `000021`과 Provider-neutral Worker/PostgreSQL
+Adapter는 lease·retry·immutable detail Observation/Candidate와 `pending`/`available`/`unavailable`
+전이를 구현했다. 실제 NAVER 상세 경로 관찰과 read-only Adapter 활성화는 선택적 deferred work이며
+관찰 자료가 제공되기 전에는 비활성으로 남지만 Stage 7 완료를 막지 않는다.
+
+Stage 8A는 `resolution` 모듈과 Migration `000022`에서 다국어 원문을 보존하는 Provider Identity별
+comparison representation, bounded PostGIS/`pg_trgm`/전화/website 후보 검색, versioned immutable
+Match Assessment를 구현한다. 서로 다른 script의 이름은 false mismatch로 만들지 않고, branch/floor와
+시간·거리 같은 독립 feature를 함께 기록한다. 분류는 review hint이며 Canonical mutation port가 없다.
+단위·disposable PostGIS 테스트는 replay와 runtime assessment 변경 거부까지 검증한다. Migration
+`000023`은 AI 없이 versioned Place Cluster Proposal, normalized member/assessment 관계와 모든
+구성원 쌍의 긍정 근거를 요구하는 shadow proposer를 추가한다. 실제 평가는 두 번째 connected-account
+Provider가 들어온 뒤 시작하고, web-research AI와
+accepted Resolution Decision 연결은 cluster dossier와 실제 데이터 형태가 안정된 후로 미룬다.
 
 Stage 3's source foundation includes immutable ingestion evidence/candidates/decisions and
 fingerprint-idempotent canonical create/link/merge/split/retire behavior with redirect and lineage

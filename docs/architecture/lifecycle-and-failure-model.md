@@ -18,6 +18,10 @@ Library 반영 뒤 프로세스가 중단돼도 evidence ID, canonical decision 
 `queued`로 돌리므로 요청이 유실되지 않는다. 취소된 batch의 intent는 claim 대상에서 제외하며 재개 시
 명시적으로 pending으로 복원한다.
 
+Provider Detail Job은 Fulfillment와 다른 lease generation/attempt를 사용한다. 지원 Adapter가 있는
+Provider만 claim하고, 성공한 Observation/Candidate 기록은 안정 ID로 replay된다. terminal failure는
+detail 상태만 `unavailable`로 바꾸며 이미 완료된 Canonical/Library 저장을 되돌리지 않는다.
+
 Backend `source-only` mode owns Fastify only. Backend `production` mode validates all configuration,
 constructs the verifier, connects one bounded Pool, and performs an initial query before becoming
 ready. Startup failure closes the Pool. Runtime readiness repeats a minimal query and sanitizes

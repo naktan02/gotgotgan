@@ -14,6 +14,7 @@ import type {
   ConnectedPlaceImportsWorkflow,
   ImportAction,
 } from './connected-place-imports-workflow'
+import { ImportBrowserSession } from './ImportBrowserSession'
 
 const uuidPattern = '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
 const reviewReasonLabels: Readonly<Record<string, string>> = {
@@ -154,6 +155,7 @@ export function ConnectedPlaceImportsView({
     onboardingConsents,
     acceptedConsentKeys,
     onboardingBusy,
+    browserSessionState,
     items,
     batchActive,
     selectConnection,
@@ -177,6 +179,8 @@ export function ConnectedPlaceImportsView({
       </header>
 
       {error !== undefined && <div className={styles.error} role="alert">{error}</div>}
+
+      <ImportBrowserSession state={browserSessionState} />
 
       {onboardingRequired && (
         <section aria-labelledby="place-onboarding-title" className={styles.onboarding}>

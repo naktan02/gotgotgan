@@ -72,6 +72,34 @@ export const placeImportBatchSchema = z.object({
   updatedAt: z.iso.datetime({ offset: true }),
 }).strict()
 
+const cursorSchema = z.string().min(1).max(2_048)
+export const importBatchStateFilterSchema = z.union([
+  z.literal('all'),
+  importBatchStateSchema,
+])
+
+export const placeImportBatchListQuerySchema = z.object({
+  state: importBatchStateFilterSchema.default('all'),
+  cursor: cursorSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+}).strict()
+
+export const placeImportBatchIdentifierParamsSchema = z.object({
+  batchId: uuidSchema,
+}).strict()
+
+export const placeImportBatchDetailQuerySchema = z.object({
+  cursor: cursorSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(200),
+}).strict()
+
+export const placeImportBatchListSchema = z.object({
+  schemaVersion: z.literal('place-import-batch-list.v1'),
+  filter: z.object({ state: importBatchStateFilterSchema }).strict(),
+  items: z.array(placeImportBatchSchema).max(50),
+  nextCursor: cursorSchema.optional(),
+}).strict()
+
 export const placeImportItemSchema = z.object({
   schemaVersion: z.literal('place-import-item.v1'),
   itemId: uuidSchema,
@@ -98,6 +126,7 @@ export const placeImportBatchDetailSchema = z.object({
   schemaVersion: z.literal('place-import-batch-detail.v1'),
   batch: placeImportBatchSchema,
   items: z.array(placeImportItemSchema).max(200),
+  nextCursor: cursorSchema.optional(),
 }).strict()
 
 export const placeImportCancelRequestSchema = z.object({
@@ -130,10 +159,13 @@ export const placeImportReviewResultSchema = z.object({
 }).strict()
 
 export type ImportBatchState = z.infer<typeof importBatchStateSchema>
+export type ImportBatchStateFilter = z.infer<typeof importBatchStateFilterSchema>
 export type ImportFailureCode = z.infer<typeof importFailureCodeSchema>
 export type ProviderConnectionProjection = z.infer<typeof providerConnectionProjectionSchema>
 export type PlaceImportRequest = z.infer<typeof placeImportRequestSchema>
 export type PlaceImportBatch = z.infer<typeof placeImportBatchSchema>
+export type PlaceImportBatchList = z.infer<typeof placeImportBatchListSchema>
+export type PlaceImportBatchDetailQuery = z.infer<typeof placeImportBatchDetailQuerySchema>
 export type PlaceImportItem = z.infer<typeof placeImportItemSchema>
 export type PlaceImportBatchDetail = z.infer<typeof placeImportBatchDetailSchema>
 export type PlaceImportReviewRequest = z.infer<typeof placeImportReviewRequestSchema>

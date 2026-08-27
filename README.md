@@ -6,7 +6,7 @@ Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed doc
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **source-only; Stage 6.5 complete, with Stages 2 and 7 in progress**. Independent web/backend composition
+Current delivery state: **source-only; Stages 6.5, 7.5, and 7.6 complete, Stages 2 and 7 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
@@ -70,8 +70,10 @@ Web은 교체 요청 취소, 키보드·모바일 선택, 동명 지점 구분, 
 
 Stage 7은 연결 목록의 안정된 Provider Place ID와 Source List·Item ID를 보존하고, 가져온 snapshot을
 Provider Identity별 공동 작업에서 Canonical Place와 회원의 private Collection에 즉시 멱등 반영한다.
-상세 보강은 개인 저장과 독립된 `pending`/`available` 상태로 관리하며 `available`은 정규화된 관찰을
-반드시 참조한다. 실제 NAVER 상세 경로 관찰과 상세 Job은 아직 integration-gated다. 가져온 장소는
+상세 보강은 개인 저장과 독립된 `pending`/`available`/`unavailable` 상태로 관리하며 `available`은 정규화된 관찰을
+반드시 참조한다. Migration `000021`과 별도 Provider Detail Job은 claim/lease/retry, immutable
+Observation/Candidate, 최종 상태 전이를 소유하며 실제 PostGIS에서 검증됐다. 실제 NAVER 상세 경로
+관찰과 read-only Adapter 활성화는 아직 integration-gated다. 가져온 장소는
 상세 대기 중에도 NAVER·Google Maps·카카오맵에서 열 수 있다.
 회원 PC용 `apps/member-connector`는 현재 로그인된 browser profile을 재사용하는 하나의 다중
 브라우저·다중 Provider 확장으로 진행한다. NAVER·Kakao·Google은 Provider Adapter로 격리하고
@@ -83,6 +85,52 @@ route와 Backend grant/capture receiver·ImportBatch 연결은 NAVER에 대해 s
 token digest, origin·sequence·상한·checksum, 암호화 원본, 정규화 Item과 Fulfillment intent를 실제
 PostGIS로 검증했다. 실제 Whale 설치와 로그인된 NAVER session smoke는 아직 남아 있다. 기존 전용
 Chrome profile 로그인, 비식별 관찰과 NAVER 전체 pagination 수집은 진단·fixture/replay·E2E·fallback으로만 남긴다.
+
+Stage 8A는 Backend 내부 `resolution` 모듈과 Migration `000022`를 추가한다. Provider Place Identity별
+최신 관찰을 다국어 원문 보존 comparison representation으로 투영하고, PostGIS 거리·`pg_trgm`
+이름/주소·전화·website host로 후보를 제한한다. script가 다른 이름은 불일치가 아니라 미확정으로
+두며 거리, 전화, branch/floor, 관찰 시점 등을 독립 feature로 평가한다. 결과는 변경 불가능한
+policy-versioned Match Assessment와 review hint일 뿐 Canonical Place를 생성·연결·병합하지 않는다.
+단위 테스트와 disposable PostGIS 수직 테스트는 다국어 비교, 먼 동명 장소, replay, least-privilege
+거부를 검증한다. Stage 8B는 Migration `000023`으로 Place Cluster Proposal·member·assessment 관계를
+정규화하고, 모든 구성원 쌍이 `likely-same`일 때만 합치는 AI 없는 shadow cluster proposer를 추가한다.
+결과의 Provider cell은 동적 read projection이며 고정 Provider column이나 Canonical mutation이 없다.
+실제 cross-provider 정확도와 AI 검증은 두 번째 연결 계정 Provider의 실제 관찰 흐름이 생긴 뒤에만
+진행한다.
+
+Stage 7.5의 첫 수직 조각은 `GET /v1/places/{placeId}`를 제공한다. 익명 요청에는 Canonical Place의
+이름·지역·좌표·Taxonomy·evidence freshness만 반환하고, 검증된 optional bearer 요청에는 Library의
+저장/가고 싶음/개인 평점과 Visits의 반복 방문 요약을 추가한다. redirect는 active Canonical Place로
+해석하고 retired는 `410`, 아직 공개 검색 문서가 투영되지 않은 Place는 retryable `503`이다. 이
+조립은 module Interface에서만 이뤄지고 Product Tier나 token은 feature module로 전달되지 않는다.
+두 번째 조각은 `GET /v1/library/places`, `/collections`, `/collections/{collectionId}`, `/tags`로
+회원 Library를 bounded cursor page로 제공한다. saved/wanted/rated 상태는 권위 있는 Library row에서
+읽고 목록 카드용 공개 Place summary는 배치 주입한다. Library Adapter는 Search schema를 join하지
+않으며 projection이 늦은 저장 기록도 `place: null`로 보존한다.
+세 번째 조각은 `GET /v1/places/{placeId}/visits`, `GET /v1/writing`,
+`GET /v1/writing/{documentId}`를 bounded owner projection으로 교체한다. Visit history는 내부
+fingerprint/evidence를 숨기고, Writing list는 kind별 최대 50개와 280자 preview만 반환하며 전체 본문은
+소유자 단건 detail에서만 읽는다. 각 query Adapter는 자기 schema만 읽고 기존 immutable Visit,
+optimistic Writing revision, private/public visibility 규칙은 command/publication 경계에 남긴다.
+네 번째 조각은 `GET /v1/imports`와 paginated `GET /v1/imports/{batchId}`다. 이력은 상태별 최대
+50개, 상세는 Provider 원본 목록·항목 순서대로 최대 200개를 반환하며 cursor를 filter/batch에 묶는다.
+조회, cancel/resume, review transaction은 각각 `PostgresImportQueries`,
+`PostgresImportManagement`, `PostgresImportReview`로 분리했다. Migration `000026`과 disposable
+PostGIS 검증이 회원 격리, cursor 오용 거부, 내부 참조 비노출, 대량 행 index 선택을 확인한다.
+마지막 7.5 조각은 Backend와 Web의 실제 route를 생성 OpenAPI와 자동 대조한다. 모든 JSON 성공
+응답은 owner가 작성한 versioned schema를 사용하고, 모든 공개 오류는 공통 Problem 계약을 사용한다.
+장소·검색의 optional-member 해석과 필수 회원 인증은 공통 Product Authorizer 경계로 모였으며,
+중단·등급 거부·인증 서비스 장애를 feature module 수정 없이 판정할 수 있다. 사용되지 않던 unbounded
+`GET /v1/library` HTTP route는 제거됐고 내부 Library Interface만 유지한다. Import Web BFF는 batch
+detail cursor/limit와 `nextCursor`를 보존한다. Google/Kakao 연결 수집, Provider 상세, AI 검증은 이
+완료 조건에 포함되지 않는다.
+
+Stage 7.6은 Personal Library의 수동 조직 기능을 완성한다. `library-place-list.v2`는 saved/wanted/rated
+목록에 최대 20개의 Tag ID를 `all`/`any`로 결합하며 cursor를 전체 filter에 묶는다. Collection은
+순서가 있는 목록으로 이름 변경·Place 추가/이동/제거·삭제를, Tag는 다대다 분류로 이름 변경·부착/
+해제·삭제를 같은 멱등 command 경계에서 제공한다. Migration `000027`은 Tag-first index, transaction
+내 순서 재배치, owner-scoped 삭제와 Import provenance 정리를 지원한다. 이 기능은 Google/Kakao,
+Provider 상세, AI 자동 분류나 프론트 화면 없이 독립적으로 동작한다.
 
 ## Repository boundaries
 
@@ -120,14 +168,23 @@ npm run test:database
 npm run test:canonical-resolution
 npm run test:personal-content
 npm run test:local-search
+npm run test:place-detail
+npm run test:library-queries
+npm run test:visit-writing-queries
+npm run test:import-queries
 npm run test:place-suggestions
+npm run test:provider-place-details
+npm run test:place-identity-resolution
+npm run test:place-cluster-proposals
 npm run test:database-recovery
 npm run test:e2e
 ```
 
 `test:database` requires Docker plus an injected `PLACE_DATABASE_TEST_HOST` and runs the broad
-runtime suite and focused canonical-resolution, personal-content, and local-search suites serially in disposable, randomly credentialed
-PostGIS containers. `test:canonical-resolution` is the narrow iteration command. The database tests
+runtime suite and focused canonical-resolution, personal-content, local-search, place-detail, library-query,
+Visit/Writing-query, Import-query, provider-detail, and
+cross-provider identity-resolution suites serially in disposable, randomly credentialed PostGIS
+containers. `test:canonical-resolution` and `test:place-identity-resolution` are narrow iteration commands. The database tests
 remain separate from the default source check while Docker-enabled CI owns them.
 `test:database-recovery` uses the same injected host and two
 disposable runtimes; it leaves no dump, credential file, volume, or container behind.

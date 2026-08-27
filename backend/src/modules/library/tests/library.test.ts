@@ -90,6 +90,27 @@ describe('personal library', () => {
         placeId: '01992d00-0000-7000-8000-000000000012',
       },
       {
+        kind: 'rename-collection',
+        collectionId: '01992d00-0000-7000-8000-000000000010',
+        name: '성수 라멘',
+      },
+      {
+        kind: 'move-collection-place',
+        collectionId: '01992d00-0000-7000-8000-000000000010',
+        placeId: '01992d00-0000-7000-8000-000000000012',
+        position: 2,
+      },
+      {
+        kind: 'rename-tag',
+        tagId: '01992d00-0000-7000-8000-000000000013',
+        name: '쇼유라멘',
+      },
+      {
+        kind: 'untag-place',
+        tagId: '01992d00-0000-7000-8000-000000000013',
+        placeId: '01992d00-0000-7000-8000-000000000012',
+      },
+      {
         kind: 'copy-published-collection',
         sourcePublicationId: '01992d00-0000-7000-8000-000000000020',
         targetCollectionId: '01992d00-0000-7000-8000-000000000021',

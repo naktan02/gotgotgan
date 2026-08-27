@@ -1,3 +1,5 @@
+import type { PlaceImportBatchDetailQuery } from '@place/contracts/imports'
+
 export type ImportBackendClientConfig = Readonly<{
   origin: string
   timeoutMilliseconds: number
@@ -53,7 +55,15 @@ export function createImportBackendClient(config: ImportBackendClientConfig) {
     ready: () => send('/readyz'),
     connections: (accessToken: string) => send('/v1/provider-connections', accessToken),
     start: (accessToken: string, body: unknown) => send('/v1/imports', accessToken, 'POST', body),
-    detail: (accessToken: string, batchId: string) => send(batchPath(batchId), accessToken),
+    detail: (
+      accessToken: string,
+      batchId: string,
+      query: PlaceImportBatchDetailQuery,
+    ) => {
+      const parameters = new URLSearchParams({ limit: String(query.limit) })
+      if (query.cursor !== undefined) parameters.set('cursor', query.cursor)
+      return send(`${batchPath(batchId)}?${parameters}`, accessToken)
+    },
     cancel: (accessToken: string, batchId: string, body: unknown) =>
       send(batchPath(batchId, '/cancel'), accessToken, 'POST', body),
     resume: (accessToken: string, batchId: string, body: unknown) =>

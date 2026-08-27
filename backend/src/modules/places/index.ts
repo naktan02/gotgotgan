@@ -17,3 +17,18 @@ export {
 } from './application/resolve-place-reference.js'
 export type { CanonicalResolutionStore } from './application/ports/canonical-resolution-store.js'
 export { PostgresCanonicalResolutionStore } from './adapters/persistence/postgres-canonical-resolution-store.js'
+export {
+  createPlaceDetailReader,
+  type PlaceDetailReader,
+} from './application/read-place-detail.js'
+export type {
+  PlaceDetail,
+  PlaceDetailDocument,
+  PlaceDetailPersonalSource,
+  PlaceDetailReadResult,
+  PlaceDetailVisitSummary,
+} from './domain/place-detail.js'
+export {
+  registerPlaceHttpRoutes,
+  type PlaceHttpDependencies,
+} from './transport/http/register-place-http.js'

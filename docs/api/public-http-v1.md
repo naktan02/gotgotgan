@@ -5,13 +5,18 @@ member, role, tier, site, or project values are never final authorization eviden
 return only public projections.
 
 Product endpoints are added by their owning module transport and published in OpenAPI. The root HTTP
-entrypoint registers them and owns lifecycle only.
+entrypoint registers them and owns lifecycle only. Architecture validation inventories every Backend
+and Web route and rejects either an undocumented source route or a stale OpenAPI operation. Every
+JSON success projection is versioned; every public 4xx/5xx response uses the generated Problem
+contract except readiness's bounded process-status response.
 
 연결 계정 Import는 bearer 인증과 Place 내부 `imports.read`/`imports.write` 권한을 요구한다.
-`GET /v1/provider-connections`는 안전한 메타데이터만 반환한다. `POST /v1/imports`는 connection
-UUID와 idempotency UUID만 받아 batch를 큐에 넣는다. `GET /v1/imports/{batchId}`는 preview와
-진행률을 반환하고 cancel/resume은 별도 POST다. `POST /v1/import-reviews`는 command UUID, item
-UUID, create/link/skip 중 하나만 받는다. member, role, cookie, profile, 캡처 본문은 받지 않는다.
+`GET /v1/provider-connections`는 안전한 메타데이터만 반환한다. `GET /v1/imports`는 optional exact
+state filter와 최대 50개의 불투명 keyset page로 현재 회원의 batch 이력을 반환한다. `POST /v1/imports`는
+connection UUID와 idempotency UUID만 받아 batch를 큐에 넣는다. `GET /v1/imports/{batchId}`는 원본
+목록·항목 순서대로 최대 200개의 preview와 진행률을 반환하며 다음 page cursor를 제공한다.
+cancel/resume은 별도 POST다. `POST /v1/import-reviews`는 command UUID, item UUID,
+create/link/skip 중 하나만 받는다. member, role, cookie, profile, 캡처 본문은 받지 않는다.
 브라우저는 이 Backend 주소를 직접 호출하지 않는다. Web의 동일 출처 `/api/imports...`,
 `/api/import-reviews`, `/api/imports/connections` BFF가 서버 세션의 access token을 내부에서만
 전달하고 request·response를 생성 계약으로 다시 검증한다. 런타임이 비활성이거나 Backend 응답이
@@ -61,10 +66,20 @@ endpoint, API key, field mask는 server-side composition이 결정한다. respon
 `POST /v1/library/commands`, `POST /v1/visits`, `POST /v1/writing/commands`는 strict bearer
 인증을 요구하는 Backend operation이다. member, role, grade, tier 입력을 거부하고 Access
 composition에서 member를 파생한다. Library와 Writing command ID는 멱등이고 Writing 수정에는
-expected version도 필요하다. `GET /v1/library/places/{placeId}`와
+expected version도 필요하다. Library command는 Collection 생성·이름 변경·삭제, Place
+추가·이동·제거, Tag 생성·이름 변경·부착·해제·삭제를 지원한다. `GET /v1/library/places/{placeId}`와
 `GET /v1/places/{placeId}/visit-summary`는 회원 private projection을 반환한다.
-`GET /v1/library`, `GET /v1/writing`, `GET /v1/places/{placeId}/visits`는 인증된 owner view이며
-동등한 anonymous route는 없다.
+`GET /v1/library/places`, `/collections`, `/collections/{collectionId}`, `/tags`,
+`GET /v1/writing`, `/v1/writing/{documentId}`, `GET /v1/places/{placeId}/visits`,
+`GET /v1/imports`, `/v1/imports/{batchId}`는 bounded 인증 owner view이며 동등한 anonymous route는
+없다. 사용되지 않던 unbounded `GET /v1/library` HTTP aggregate는 제거됐다. 각 bounded route와
+내부 Library Interface가 기능별 책임을 나눠 가진다.
+
+`GET /v1/library/places`는 saved/wanted/rated state와 함께 반복 `tagIds` 최대 20개를 받는다.
+`tagMatch=all`은 모든 Tag가 붙은 Place만, `tagMatch=any`는 하나 이상 붙은 Place를 반환한다.
+Tag 이름이 바뀌어도 조회 identity와 기존 cursor 의미가 흔들리지 않도록 UUID만 filter에 사용한다.
+응답 `library-place-list.v2`는 정렬된 Tag ID와 match mode를 되돌려주며 cursor도 그 전체 filter에
+묶인다. 이는 회원 수동 분류 API이고 자동·AI 분류나 Provider 수집을 요구하지 않는다.
 
 `GET /v1/public/collections/{publicationId}`와 `GET /v1/public/writing/{publicationId}`는
 Stage 4에서 유일한 anonymous Backend projection이다. Web은 고정된 내부 Backend origin을 통해
@@ -76,7 +91,7 @@ membership, Rating, Visit, Tag, provenance, revision history가 포함되지 않
 process. `GET /readyz` reports 503 with a bounded `unavailable` projection when an explicitly required
 dependency cannot serve traffic. Backend production readiness checks its Pool; Web production
 readiness checks its OIDC Pool and internal Backend. Neither response exposes a dependency address,
-credential, or exception.
+credential, or exception. Both responses use `place-process-status.v1`.
 
 The Web process owns reviewed browser-auth handlers at `GET /api/auth/oidc/start`,
 `GET /api/auth/oidc/callback`, and `POST /api/auth/logout`. They delegate to the confidential BFF,

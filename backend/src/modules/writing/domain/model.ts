@@ -63,18 +63,6 @@ export type PublishedWriting =
       updatedAt: string
     }>
 
-export type MemberWriting = Readonly<{
-  documentId: string
-  kind: 'note' | 'entry'
-  title: string | null
-  body: string
-  visibility: WritingVisibility
-  publicationId: string | null
-  version: number
-  placeIds: readonly string[]
-  updatedAt: string
-}>
-
 export class InvalidWritingCommandError extends Error {
   override readonly name = 'InvalidWritingCommandError'
 }

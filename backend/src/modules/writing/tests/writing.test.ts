@@ -24,9 +24,6 @@ class MemoryWritingStore implements WritingStore {
     return this.published?.publicationId === publicationId ? this.published : undefined
   }
 
-  async listMemberWriting() {
-    return []
-  }
 }
 
 const context = {

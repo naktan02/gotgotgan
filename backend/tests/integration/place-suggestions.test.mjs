@@ -22,6 +22,8 @@ const ids = [
 test('provider suggestions accumulate as expiring discovery without creating canonical places', { timeout: 120_000 }, async () => {
   const database = await startPreparedPlaceDatabase('place-suggestions')
   try {
+    const startedAt = new Date()
+    const atMinute = (minutes) => new Date(startedAt.getTime() + minutes * 60_000).toISOString()
     const searchModule = await import('../../dist/modules/search/index.js')
     const ingestionModule = await import('../../dist/modules/ingestion/index.js')
     const placesModule = await import('../../dist/modules/places/index.js')
@@ -44,7 +46,7 @@ test('provider suggestions accumulate as expiring discovery without creating can
           areaLabel: '일본 후쿠오카시 하카타구',
           location: { latitude: 33.5902, longitude: 130.4207 },
           categoryLabel: '라멘 전문점',
-          observedAt: '2026-08-26T10:00:00.000Z',
+          observedAt: atMinute(0),
         }],
       }),
     }
@@ -52,7 +54,7 @@ test('provider suggestions accumulate as expiring discovery without creating can
       sources: [store, provider],
       store,
       nextId: () => ids.shift(),
-      now: () => new Date('2026-08-26T10:00:00.000Z'),
+      now: () => new Date(atMinute(0)),
     })
 
     const first = await suggest({ query: '센카이', areaText: '후쿠오카', limit: 8 })
@@ -74,7 +76,7 @@ test('provider suggestions accumulate as expiring discovery without creating can
       sources: [store],
       store,
       nextId: () => ids.shift(),
-      now: () => new Date('2026-08-26T10:01:00.000Z'),
+      now: () => new Date(atMinute(1)),
     })({ query: '센카이 후쿠오카', limit: 8, sessionId: first.sessionId })
     assert.equal(repeated.items.length, 1)
     assert.equal(repeated.items[0].name, '센카이 라멘 후쿠오카 본점')
@@ -82,7 +84,7 @@ test('provider suggestions accumulate as expiring discovery without creating can
 
     const ingestionStore = new ingestionModule.PostgresIngestionStore(database.pool)
     const canonicalStore = new placesModule.PostgresCanonicalResolutionStore(database.pool)
-    let currentTime = '2026-08-26T10:02:00.000Z'
+    let currentTime = atMinute(2)
     const select = searchModule.createPlaceSuggestionSelection({
       store,
       now: () => new Date(currentTime),
@@ -91,7 +93,7 @@ test('provider suggestions accumulate as expiring discovery without creating can
       ).status,
     })
     assert.equal((await select(first.items[0].suggestionId)).status, 'recorded')
-    currentTime = '2026-08-26T10:03:00.000Z'
+    currentTime = atMinute(3)
     assert.equal((await select(first.items[0].suggestionId)).status, 'replayed')
     const discovery = await database.pool.query(
       'SELECT impression_count, selection_count FROM search.discovery_candidates',
@@ -126,7 +128,7 @@ test('provider suggestions accumulate as expiring discovery without creating can
       observations: 1, candidates: 1, decisions: 1, canonical_places: 1, provider_links: 1,
     })
 
-    const cleaned = await store.cleanupExpired('2026-08-26T11:00:00.000Z', 100)
+    const cleaned = await store.cleanupExpired(atMinute(60), 100)
     assert.ok(cleaned.sessions >= 1)
     assert.ok(cleaned.discoveries >= 1)
   } finally {

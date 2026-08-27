@@ -13,7 +13,14 @@
         "summary": "getPlaceHealth",
         "responses": {
           "200": {
-            "description": "Process is alive"
+            "description": "Process is alive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessStatus"
+                }
+              }
+            }
           }
         }
       }
@@ -24,10 +31,24 @@
         "summary": "getPlaceReadiness",
         "responses": {
           "200": {
-            "description": "Process can accept traffic"
+            "description": "Process can accept traffic",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessStatus"
+                }
+              }
+            }
           },
           "503": {
-            "description": "One or more required process dependencies are unavailable"
+            "description": "One or more required process dependencies are unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessStatus"
+                }
+              }
+            }
           }
         }
       }
@@ -130,7 +151,7 @@
             "$ref": "#/components/responses/ProductConflict"
           },
           "503": {
-            "description": "The fixed internal Place Backend is unavailable"
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
           }
         }
       }
@@ -188,7 +209,7 @@
             "$ref": "#/components/responses/ProductConflict"
           },
           "503": {
-            "description": "The fixed internal Place Backend is unavailable"
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
           }
         }
       }
@@ -262,6 +283,334 @@
           },
           "503": {
             "$ref": "#/components/responses/BrowserMembershipUnavailable"
+          }
+        }
+      }
+    },
+    "/api/imports/connections": {
+      "get": {
+        "operationId": "listPlaceProviderConnectionsForBrowser",
+        "summary": "listPlaceProviderConnectionsForBrowser",
+        "security": [
+          {
+            "placeBrowserSession": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return sanitized provider connection metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderConnectionList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "503": {
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
+          }
+        }
+      }
+    },
+    "/api/imports": {
+      "post": {
+        "operationId": "requestPlaceImportForBrowser",
+        "summary": "requestPlaceImportForBrowser",
+        "security": [
+          {
+            "placeBrowserSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceImportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return an idempotently replayed import batch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceImportBatch"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Queue a connected-account import",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceImportBatch"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "409": {
+            "$ref": "#/components/responses/ProductConflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
+          }
+        }
+      }
+    },
+    "/api/imports/{batchId}": {
+      "parameters": [
+        {
+          "name": "batchId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getPlaceImportForBrowser",
+        "summary": "getPlaceImportForBrowser",
+        "security": [
+          {
+            "placeBrowserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return a bounded import preview and progress",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceImportBatchDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
+          }
+        }
+      }
+    },
+    "/api/imports/{batchId}/cancel": {
+      "parameters": [
+        {
+          "name": "batchId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "cancelPlaceImportForBrowser",
+        "summary": "cancelPlaceImportForBrowser",
+        "security": [
+          {
+            "placeBrowserSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceImportCancelRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return the cancelled import batch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceImportBatch"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
+          }
+        }
+      }
+    },
+    "/api/imports/{batchId}/resume": {
+      "parameters": [
+        {
+          "name": "batchId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "resumePlaceImportForBrowser",
+        "summary": "resumePlaceImportForBrowser",
+        "security": [
+          {
+            "placeBrowserSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceImportResumeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return the resumed import batch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceImportBatch"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
+          }
+        }
+      }
+    },
+    "/api/import-reviews": {
+      "post": {
+        "operationId": "reviewPlaceImportItemForBrowser",
+        "summary": "reviewPlaceImportItemForBrowser",
+        "security": [
+          {
+            "placeBrowserSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceImportReviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return an idempotent import review receipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceImportReviewResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/ProductConflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
           }
         }
       }
@@ -465,7 +814,7 @@
             "$ref": "#/components/responses/ProductNotFound"
           },
           "503": {
-            "description": "The fixed internal Place Backend is unavailable"
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
           }
         }
       }
@@ -501,29 +850,7 @@
             "$ref": "#/components/responses/ProductNotFound"
           },
           "503": {
-            "description": "The fixed internal Place Backend is unavailable"
-          }
-        }
-      }
-    },
-    "/v1/library": {
-      "get": {
-        "operationId": "getCurrentMemberPlaceLibrary",
-        "summary": "getCurrentMemberPlaceLibrary",
-        "security": [
-          {
-            "placeBearer": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Return the requested Place projection"
-          },
-          "401": {
-            "$ref": "#/components/responses/AuthenticationRequired"
-          },
-          "403": {
-            "$ref": "#/components/responses/AccessDenied"
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
           }
         }
       }
@@ -549,10 +876,24 @@
         },
         "responses": {
           "200": {
-            "description": "An identical command was already applied"
+            "description": "Return an idempotently replayed command result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryCommandResult"
+                }
+              }
+            }
           },
           "201": {
-            "description": "The command was applied"
+            "description": "Return an applied command result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryCommandResult"
+                }
+              }
+            }
           },
           "400": {
             "$ref": "#/components/responses/ProductRequestInvalid"
@@ -562,6 +903,9 @@
           },
           "403": {
             "$ref": "#/components/responses/AccessDenied"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
           },
           "409": {
             "$ref": "#/components/responses/ProductConflict"
@@ -729,6 +1073,83 @@
       }
     },
     "/v1/imports": {
+      "get": {
+        "operationId": "listCurrentMemberPlaceImports",
+        "summary": "listCurrentMemberPlaceImports",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "queued",
+                "running",
+                "partial",
+                "enriching",
+                "needs-user-action",
+                "needs-review",
+                "completed",
+                "failed",
+                "cancelled"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return a bounded current-member ImportBatch history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceImportBatchList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "503": {
+            "$ref": "#/components/responses/ImportQueryUnavailable"
+          }
+        }
+      },
       "post": {
         "operationId": "requestPlaceImport",
         "summary": "requestPlaceImport",
@@ -803,6 +1224,29 @@
             "placeBearer": []
           }
         ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 200
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Return an import preview and progress",
@@ -825,6 +1269,9 @@
           },
           "404": {
             "$ref": "#/components/responses/ProductNotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/ImportQueryUnavailable"
           }
         }
       }
@@ -1011,7 +1458,17 @@
         ],
         "responses": {
           "200": {
-            "description": "Return the requested Place projection"
+            "description": "Return current-member Place preferences",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryPlacePreferences"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
           },
           "401": {
             "$ref": "#/components/responses/AuthenticationRequired"
@@ -1021,6 +1478,295 @@
           },
           "404": {
             "$ref": "#/components/responses/ProductNotFound"
+          }
+        }
+      }
+    },
+    "/v1/library/places": {
+      "get": {
+        "operationId": "listLibraryPlaces",
+        "summary": "listLibraryPlaces",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "saved",
+                "wanted",
+                "rated"
+              ],
+              "default": "saved"
+            }
+          },
+          {
+            "name": "tagIds",
+            "in": "query",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "maxItems": 20,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tagMatch",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "any"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return one bounded page of authoritative member Place preferences",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryPlaceListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "503": {
+            "$ref": "#/components/responses/LibraryQueryUnavailable"
+          }
+        }
+      }
+    },
+    "/v1/library/collections": {
+      "get": {
+        "operationId": "listLibraryCollections",
+        "summary": "listLibraryCollections",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return one bounded page of member Collection summaries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryCollectionListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "503": {
+            "$ref": "#/components/responses/LibraryQueryUnavailable"
+          }
+        }
+      }
+    },
+    "/v1/library/collections/{collectionId}": {
+      "parameters": [
+        {
+          "name": "collectionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getLibraryCollection",
+        "summary": "getLibraryCollection",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return Collection metadata and one bounded Place page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryCollectionDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/LibraryQueryUnavailable"
+          }
+        }
+      }
+    },
+    "/v1/library/tags": {
+      "get": {
+        "operationId": "listLibraryTags",
+        "summary": "listLibraryTags",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return one bounded page of member Tag summaries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryTagListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "503": {
+            "$ref": "#/components/responses/LibraryQueryUnavailable"
           }
         }
       }
@@ -1078,11 +1824,15 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "An identical command was already applied"
-          },
           "201": {
-            "description": "Record an immutable visit occurrence"
+            "description": "Record an immutable visit occurrence",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitRecordResult"
+                }
+              }
+            }
           },
           "400": {
             "$ref": "#/components/responses/ProductRequestInvalid"
@@ -1095,6 +1845,56 @@
           },
           "409": {
             "$ref": "#/components/responses/ProductConflict"
+          }
+        }
+      }
+    },
+    "/v1/places/{placeId}": {
+      "parameters": [
+        {
+          "name": "placeId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getPlaceDetail",
+        "summary": "getPlaceDetail",
+        "security": [
+          {
+            "placeBearer": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "description": "Return canonical public facts with an optional personal overlay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "410": {
+            "$ref": "#/components/responses/PlaceRetired"
+          },
+          "503": {
+            "$ref": "#/components/responses/PlaceDetailUnavailable"
           }
         }
       }
@@ -1121,7 +1921,17 @@
         ],
         "responses": {
           "200": {
-            "description": "Return the requested Place projection"
+            "description": "Return the current-member Visit summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitSummaryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
           },
           "401": {
             "$ref": "#/components/responses/AuthenticationRequired"
@@ -1152,15 +1962,51 @@
             "placeBearer": []
           }
         ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Return the requested Place projection"
+            "description": "Return a bounded current-member Visit history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitHistoryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
           },
           "401": {
             "$ref": "#/components/responses/AuthenticationRequired"
           },
           "403": {
             "$ref": "#/components/responses/AccessDenied"
+          },
+          "503": {
+            "$ref": "#/components/responses/VisitQueryUnavailable"
           }
         }
       }
@@ -1174,15 +2020,114 @@
             "placeBearer": []
           }
         ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "note",
+                "entry"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Return the requested Place projection"
+            "description": "Return bounded current-member Writing summaries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WritingListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
           },
           "401": {
             "$ref": "#/components/responses/AuthenticationRequired"
           },
           "403": {
             "$ref": "#/components/responses/AccessDenied"
+          },
+          "503": {
+            "$ref": "#/components/responses/WritingQueryUnavailable"
+          }
+        }
+      }
+    },
+    "/v1/writing/{documentId}": {
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getCurrentMemberPlaceWriting",
+        "summary": "getCurrentMemberPlaceWriting",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return current-member Writing detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WritingDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/WritingQueryUnavailable"
           }
         }
       }
@@ -1208,10 +2153,24 @@
         },
         "responses": {
           "200": {
-            "description": "An identical command was already applied"
+            "description": "Return an idempotently replayed command result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WritingCommandResult"
+                }
+              }
+            }
           },
           "201": {
-            "description": "The command was applied"
+            "description": "Return an applied command result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WritingCommandResult"
+                }
+              }
+            }
           },
           "400": {
             "$ref": "#/components/responses/ProductRequestInvalid"
@@ -1221,6 +2180,9 @@
           },
           "403": {
             "$ref": "#/components/responses/AccessDenied"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
           },
           "409": {
             "$ref": "#/components/responses/ProductConflict"
@@ -1291,7 +2253,7 @@
             "$ref": "#/components/responses/ProductRequestInvalid"
           },
           "503": {
-            "description": "The fixed internal Place Backend is unavailable"
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
           }
         }
       }
@@ -1326,7 +2288,7 @@
             "$ref": "#/components/responses/ProductRequestInvalid"
           },
           "503": {
-            "description": "The fixed internal Place Backend or suggestion sources are unavailable"
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
           }
         }
       }
@@ -1364,7 +2326,7 @@
             "$ref": "#/components/responses/ProductNotFound"
           },
           "503": {
-            "description": "The fixed internal Place Backend is unavailable"
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
           }
         }
       }
@@ -1399,7 +2361,29 @@
             "$ref": "#/components/responses/ProductRequestInvalid"
           },
           "503": {
-            "description": "The fixed internal Place Backend or provider is unavailable"
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
+          }
+        }
+      }
+    },
+    "/api/search/taxonomy": {
+      "get": {
+        "operationId": "listPlaceTaxonomyNodesForBrowser",
+        "summary": "listPlaceTaxonomyNodesForBrowser",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Return the current provider-neutral taxonomy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaxonomyProjection"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
           }
         }
       }
@@ -1445,7 +2429,7 @@
             "$ref": "#/components/responses/AccessDenied"
           },
           "503": {
-            "description": "All configured search sources are unavailable"
+            "$ref": "#/components/responses/ProductUnavailable"
           }
         }
       }
@@ -1480,7 +2464,7 @@
             "$ref": "#/components/responses/ProductRequestInvalid"
           },
           "503": {
-            "description": "Suggestion storage or all execution is unavailable"
+            "$ref": "#/components/responses/ProductUnavailable"
           }
         }
       }
@@ -1518,7 +2502,7 @@
             "$ref": "#/components/responses/ProductNotFound"
           },
           "503": {
-            "description": "Suggestion selection is unavailable"
+            "$ref": "#/components/responses/ProductUnavailable"
           }
         }
       }
@@ -1566,7 +2550,7 @@
             "$ref": "#/components/responses/ProductNotFound"
           },
           "503": {
-            "description": "Suggestion materialization is unavailable"
+            "$ref": "#/components/responses/ProductUnavailable"
           }
         }
       }
@@ -1601,7 +2585,7 @@
             "$ref": "#/components/responses/ProductRequestInvalid"
           },
           "503": {
-            "description": "The configured provider detail capability is unavailable"
+            "$ref": "#/components/responses/ProductUnavailable"
           }
         }
       }
@@ -1623,7 +2607,7 @@
             }
           },
           "503": {
-            "description": "The taxonomy projection is unavailable"
+            "$ref": "#/components/responses/ProductUnavailable"
           }
         }
       }
@@ -1647,6 +2631,35 @@
       }
     },
     "schemas": {
+      "ProcessStatus": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "place-process-status.v1"
+          },
+          "service": {
+            "type": "string",
+            "enum": [
+              "place",
+              "place-web"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "unavailable"
+            ]
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "service",
+          "state"
+        ],
+        "additionalProperties": false
+      },
       "ConnectorPublicOrigin": {
         "type": "string",
         "format": "uri"
@@ -2018,7 +3031,107 @@
                   "position": {
                     "type": "integer",
                     "minimum": 0,
-                    "maximum": 9007199254740991
+                    "maximum": 1000000
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collectionId",
+                  "placeId",
+                  "position"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "rename-collection"
+                  },
+                  "collectionId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collectionId",
+                  "name"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "delete-collection"
+                  },
+                  "collectionId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collectionId"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "remove-collection-place"
+                  },
+                  "collectionId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "placeId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collectionId",
+                  "placeId"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "move-collection-place"
+                  },
+                  "collectionId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "placeId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "position": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000
                   }
                 },
                 "required": [
@@ -2084,6 +3197,75 @@
                 "properties": {
                   "kind": {
                     "type": "string",
+                    "const": "rename-tag"
+                  },
+                  "tagId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "kind",
+                  "tagId",
+                  "name"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "delete-tag"
+                  },
+                  "tagId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "tagId"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "untag-place"
+                  },
+                  "tagId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "placeId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "tagId",
+                  "placeId"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
                     "const": "copy-published-collection"
                   },
                   "sourcePublicationId": {
@@ -2116,6 +3298,74 @@
         "required": [
           "commandId",
           "command"
+        ],
+        "additionalProperties": false
+      },
+      "LibraryCommandResult": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "library-command-result.v1"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "applied",
+              "replayed"
+            ]
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "LibraryPlacePreferences": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "library-place-preferences.v1"
+          },
+          "placeId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "saved": {
+            "type": "boolean"
+          },
+          "wanted": {
+            "type": "boolean"
+          },
+          "personalRating": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.1,
+                "maximum": 5,
+                "multipleOf": 0.1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "placeId",
+          "saved",
+          "wanted",
+          "personalRating",
+          "updatedAt"
         ],
         "additionalProperties": false
       },
@@ -2354,6 +3604,200 @@
           "progress",
           "createdAt",
           "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "PlaceImportBatchList": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "place-import-batch-list.v1"
+          },
+          "filter": {
+            "type": "object",
+            "properties": {
+              "state": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "all"
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "queued",
+                      "running",
+                      "partial",
+                      "enriching",
+                      "needs-user-action",
+                      "needs-review",
+                      "completed",
+                      "failed",
+                      "cancelled"
+                    ]
+                  }
+                ]
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "additionalProperties": false
+          },
+          "items": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "schemaVersion": {
+                  "type": "string",
+                  "const": "place-import-batch.v1"
+                },
+                "batchId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "connectionId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "providerKey": {
+                  "type": "string",
+                  "enum": [
+                    "naver",
+                    "kakao",
+                    "google"
+                  ]
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "queued",
+                    "running",
+                    "partial",
+                    "enriching",
+                    "needs-user-action",
+                    "needs-review",
+                    "completed",
+                    "failed",
+                    "cancelled"
+                  ]
+                },
+                "progress": {
+                  "type": "object",
+                  "properties": {
+                    "discovered": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "ready": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "reviewRequired": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "enriching": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "applied": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "skipped": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "failed": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "discovered",
+                    "ready",
+                    "reviewRequired",
+                    "enriching",
+                    "applied",
+                    "skipped",
+                    "failed"
+                  ],
+                  "additionalProperties": false
+                },
+                "failure": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "enum": [
+                        "provider-auth-expired",
+                        "provider-mfa-required",
+                        "provider-captcha-required",
+                        "provider-consent-required",
+                        "provider-rate-limited",
+                        "provider-parser-drift",
+                        "provider-unavailable",
+                        "capture-invalid",
+                        "internal-failure"
+                      ]
+                    },
+                    "retryable": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "retryable"
+                  ],
+                  "additionalProperties": false
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                }
+              },
+              "required": [
+                "schemaVersion",
+                "batchId",
+                "connectionId",
+                "providerKey",
+                "state",
+                "progress",
+                "createdAt",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "filter",
+          "items"
         ],
         "additionalProperties": false
       },
@@ -2659,6 +4103,11 @@
               ],
               "additionalProperties": false
             }
+          },
+          "nextCursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
           }
         },
         "required": [
@@ -2917,7 +4366,107 @@
           "position": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 9007199254740991
+            "maximum": 1000000
+          }
+        },
+        "required": [
+          "kind",
+          "collectionId",
+          "placeId",
+          "position"
+        ],
+        "additionalProperties": false
+      },
+      "RenameCollectionCommand": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "rename-collection"
+          },
+          "collectionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "kind",
+          "collectionId",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "DeleteCollectionCommand": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "delete-collection"
+          },
+          "collectionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "kind",
+          "collectionId"
+        ],
+        "additionalProperties": false
+      },
+      "RemoveCollectionPlaceCommand": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "remove-collection-place"
+          },
+          "collectionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "placeId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "kind",
+          "collectionId",
+          "placeId"
+        ],
+        "additionalProperties": false
+      },
+      "MoveCollectionPlaceCommand": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "move-collection-place"
+          },
+          "collectionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "placeId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
           }
         },
         "required": [
@@ -2959,6 +4508,75 @@
           "kind": {
             "type": "string",
             "const": "tag-place"
+          },
+          "tagId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "placeId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "kind",
+          "tagId",
+          "placeId"
+        ],
+        "additionalProperties": false
+      },
+      "RenameTagCommand": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "rename-tag"
+          },
+          "tagId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "kind",
+          "tagId",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "DeleteTagCommand": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "delete-tag"
+          },
+          "tagId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "kind",
+          "tagId"
+        ],
+        "additionalProperties": false
+      },
+      "UntagPlaceCommand": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "untag-place"
           },
           "tagId": {
             "type": "string",
@@ -3041,6 +4659,99 @@
           "visitedAt"
         ],
         "additionalProperties": false
+      },
+      "VisitRecordResult": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "visit-record-result.v1"
+          },
+          "status": {
+            "type": "string",
+            "const": "recorded"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "VisitSummaryResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "const": "visit-summary.v1"
+              },
+              "placeId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "visited": {
+                "type": "boolean",
+                "const": false
+              },
+              "count": {
+                "type": "number",
+                "const": 0
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "placeId",
+              "visited",
+              "count"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "const": "visit-summary.v1"
+              },
+              "placeId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "visited": {
+                "type": "boolean",
+                "const": true
+              },
+              "count": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "firstVisitedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              "lastVisitedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "placeId",
+              "visited",
+              "count",
+              "firstVisitedAt",
+              "lastVisitedAt"
+            ],
+            "additionalProperties": false
+          }
+        ]
       },
       "WritingCommandRequest": {
         "type": "object",
@@ -3275,6 +4986,58 @@
         ],
         "additionalProperties": false
       },
+      "WritingCommandResult": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "const": "writing-command-result.v1"
+              },
+              "status": {
+                "type": "string",
+                "const": "applied"
+              },
+              "documentId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "version": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "status",
+              "documentId",
+              "version"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "const": "writing-command-result.v1"
+              },
+              "status": {
+                "type": "string",
+                "const": "replayed"
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "status"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
       "CreateNoteCommand": {
         "type": "object",
         "properties": {
@@ -3492,6 +5255,10 @@
       "CurrentMembership": {
         "type": "object",
         "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "place-current-membership.v1"
+          },
           "membershipId": {
             "type": "string",
             "format": "uuid",
@@ -3516,6 +5283,7 @@
           }
         },
         "required": [
+          "schemaVersion",
           "membershipId",
           "authorityRole",
           "userGrade",
@@ -3580,6 +5348,10 @@
       "CurrentMembershipConsents": {
         "type": "object",
         "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "place-membership-consents.v1"
+          },
           "consents": {
             "minItems": 1,
             "maxItems": 32,
@@ -3607,6 +5379,7 @@
           }
         },
         "required": [
+          "schemaVersion",
           "consents"
         ],
         "additionalProperties": false
@@ -3614,6 +5387,10 @@
       "MembershipOnboardingResult": {
         "type": "object",
         "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "place-membership-onboarding-result.v1"
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -3645,6 +5422,7 @@
           }
         },
         "required": [
+          "schemaVersion",
           "status",
           "membershipId",
           "authorityRole",
@@ -3673,6 +5451,10 @@
       "AuthorityRoleChangeResult": {
         "type": "object",
         "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "place-authority-role-change-result.v1"
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -3705,6 +5487,7 @@
           }
         },
         "required": [
+          "schemaVersion",
           "status",
           "membershipId",
           "authorityRole"
@@ -3714,6 +5497,10 @@
       "PublishedCollection": {
         "type": "object",
         "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "place-published-collection.v1"
+          },
           "publicationId": {
             "type": "string",
             "format": "uuid",
@@ -3772,6 +5559,7 @@
           }
         },
         "required": [
+          "schemaVersion",
           "publicationId",
           "visibility",
           "name",
@@ -3786,6 +5574,10 @@
           {
             "type": "object",
             "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "const": "place-published-writing.v1"
+              },
               "kind": {
                 "type": "string",
                 "const": "note"
@@ -3824,6 +5616,7 @@
               }
             },
             "required": [
+              "schemaVersion",
               "kind",
               "publicationId",
               "visibility",
@@ -3836,6 +5629,10 @@
           {
             "type": "object",
             "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "const": "place-published-writing.v1"
+              },
               "kind": {
                 "type": "string",
                 "const": "entry"
@@ -3879,6 +5676,7 @@
               }
             },
             "required": [
+              "schemaVersion",
               "kind",
               "publicationId",
               "visibility",
@@ -3890,6 +5688,1298 @@
             "additionalProperties": false
           }
         ]
+      },
+      "LibraryPlaceListResponse": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "library-place-list.v2"
+          },
+          "filter": {
+            "type": "object",
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": [
+                  "saved",
+                  "wanted",
+                  "rated"
+                ]
+              },
+              "tagIds": {
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                }
+              },
+              "tagMatch": {
+                "type": "string",
+                "enum": [
+                  "all",
+                  "any"
+                ]
+              }
+            },
+            "required": [
+              "state",
+              "tagIds",
+              "tagMatch"
+            ],
+            "additionalProperties": false
+          },
+          "items": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "placeId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "saved": {
+                  "type": "boolean"
+                },
+                "wanted": {
+                  "type": "boolean"
+                },
+                "personalRating": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "minimum": 0.1,
+                      "maximum": 5,
+                      "multipleOf": 0.1
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                "place": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "placeId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 300
+                        },
+                        "areaLabel": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 300
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "location": {
+                          "type": "object",
+                          "properties": {
+                            "latitude": {
+                              "type": "number",
+                              "minimum": -90,
+                              "maximum": 90
+                            },
+                            "longitude": {
+                              "type": "number",
+                              "minimum": -180,
+                              "maximum": 180
+                            }
+                          },
+                          "required": [
+                            "latitude",
+                            "longitude"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "primaryTaxonomy": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 128
+                                },
+                                "label": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 160
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "label"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "taxonomyKeys": {
+                          "maxItems": 32,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          }
+                        },
+                        "evidence": {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "verified",
+                                "unverified",
+                                "conflicted",
+                                "stale"
+                              ]
+                            },
+                            "projectedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                            }
+                          },
+                          "required": [
+                            "status",
+                            "projectedAt"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "placeId",
+                        "name",
+                        "areaLabel",
+                        "location",
+                        "primaryTaxonomy",
+                        "taxonomyKeys",
+                        "evidence"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "placeId",
+                "saved",
+                "wanted",
+                "personalRating",
+                "updatedAt",
+                "place"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "filter",
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "LibraryCollectionListResponse": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "library-collection-list.v1"
+          },
+          "items": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "collectionId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "description": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "visibility": {
+                  "type": "string",
+                  "enum": [
+                    "private",
+                    "unlisted",
+                    "public"
+                  ]
+                },
+                "publicationId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "placeCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                }
+              },
+              "required": [
+                "collectionId",
+                "name",
+                "description",
+                "visibility",
+                "publicationId",
+                "placeCount",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "LibraryCollectionDetailResponse": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "library-collection-detail.v1"
+          },
+          "collection": {
+            "type": "object",
+            "properties": {
+              "collectionId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "visibility": {
+                "type": "string",
+                "enum": [
+                  "private",
+                  "unlisted",
+                  "public"
+                ]
+              },
+              "publicationId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "placeCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              }
+            },
+            "required": [
+              "collectionId",
+              "name",
+              "description",
+              "visibility",
+              "publicationId",
+              "placeCount",
+              "updatedAt"
+            ],
+            "additionalProperties": false
+          },
+          "places": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "placeId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "position": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "addedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                "place": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "placeId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 300
+                        },
+                        "areaLabel": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 300
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "location": {
+                          "type": "object",
+                          "properties": {
+                            "latitude": {
+                              "type": "number",
+                              "minimum": -90,
+                              "maximum": 90
+                            },
+                            "longitude": {
+                              "type": "number",
+                              "minimum": -180,
+                              "maximum": 180
+                            }
+                          },
+                          "required": [
+                            "latitude",
+                            "longitude"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "primaryTaxonomy": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 128
+                                },
+                                "label": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 160
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "label"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "taxonomyKeys": {
+                          "maxItems": 32,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128
+                          }
+                        },
+                        "evidence": {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "verified",
+                                "unverified",
+                                "conflicted",
+                                "stale"
+                              ]
+                            },
+                            "projectedAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                            }
+                          },
+                          "required": [
+                            "status",
+                            "projectedAt"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "placeId",
+                        "name",
+                        "areaLabel",
+                        "location",
+                        "primaryTaxonomy",
+                        "taxonomyKeys",
+                        "evidence"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "placeId",
+                "position",
+                "addedAt",
+                "place"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "collection",
+          "places"
+        ],
+        "additionalProperties": false
+      },
+      "LibraryTagListResponse": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "library-tag-list.v1"
+          },
+          "items": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "tagId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "placeCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                }
+              },
+              "required": [
+                "tagId",
+                "name",
+                "placeCount",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "VisitHistoryResponse": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "visit-history.v1"
+          },
+          "placeId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "items": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "visitId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "visitedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                "recordedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                }
+              },
+              "required": [
+                "visitId",
+                "visitedAt",
+                "recordedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "placeId",
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "WritingListResponse": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "writing-list.v1"
+          },
+          "filter": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "all",
+                  "note",
+                  "entry"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          "items": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "note"
+                    },
+                    "title": {
+                      "type": "null"
+                    },
+                    "documentId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "bodyPreview": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 280
+                    },
+                    "bodyTruncated": {
+                      "type": "boolean"
+                    },
+                    "visibility": {
+                      "type": "string",
+                      "enum": [
+                        "private",
+                        "unlisted",
+                        "public"
+                      ]
+                    },
+                    "publicationId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "version": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "placeIds": {
+                      "minItems": 1,
+                      "maxItems": 32,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      }
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "title",
+                    "documentId",
+                    "bodyPreview",
+                    "bodyTruncated",
+                    "visibility",
+                    "publicationId",
+                    "version",
+                    "placeIds",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "entry"
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "documentId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "bodyPreview": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 280
+                    },
+                    "bodyTruncated": {
+                      "type": "boolean"
+                    },
+                    "visibility": {
+                      "type": "string",
+                      "enum": [
+                        "private",
+                        "unlisted",
+                        "public"
+                      ]
+                    },
+                    "publicationId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "version": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "placeIds": {
+                      "minItems": 1,
+                      "maxItems": 32,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      }
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "title",
+                    "documentId",
+                    "bodyPreview",
+                    "bodyTruncated",
+                    "visibility",
+                    "publicationId",
+                    "version",
+                    "placeIds",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "filter",
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "WritingDetailResponse": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "writing-detail.v1"
+          },
+          "document": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "note"
+                  },
+                  "title": {
+                    "type": "null"
+                  },
+                  "documentId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100000
+                  },
+                  "visibility": {
+                    "type": "string",
+                    "enum": [
+                      "private",
+                      "unlisted",
+                      "public"
+                    ]
+                  },
+                  "publicationId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "version": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "placeIds": {
+                    "minItems": 1,
+                    "maxItems": 32,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    }
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "title",
+                  "documentId",
+                  "body",
+                  "visibility",
+                  "publicationId",
+                  "version",
+                  "placeIds",
+                  "createdAt",
+                  "updatedAt"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "entry"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "documentId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100000
+                  },
+                  "visibility": {
+                    "type": "string",
+                    "enum": [
+                      "private",
+                      "unlisted",
+                      "public"
+                    ]
+                  },
+                  "publicationId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "version": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "placeIds": {
+                    "minItems": 1,
+                    "maxItems": 32,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    }
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "title",
+                  "documentId",
+                  "body",
+                  "visibility",
+                  "publicationId",
+                  "version",
+                  "placeIds",
+                  "createdAt",
+                  "updatedAt"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "document"
+        ],
+        "additionalProperties": false
+      },
+      "PlaceDetail": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "place-detail.v1"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "redirected"
+            ]
+          },
+          "requestedPlaceId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "redirectedFrom": {
+            "maxItems": 32,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          "placeId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "areaLabel": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "latitude": {
+                "type": "number",
+                "minimum": -90,
+                "maximum": 90
+              },
+              "longitude": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              }
+            },
+            "required": [
+              "latitude",
+              "longitude"
+            ],
+            "additionalProperties": false
+          },
+          "primaryTaxonomy": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  }
+                },
+                "required": [
+                  "key",
+                  "label"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "taxonomyKeys": {
+            "maxItems": 32,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "evidence": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "verified",
+                  "unverified",
+                  "conflicted",
+                  "stale"
+                ]
+              },
+              "projectedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              }
+            },
+            "required": [
+              "status",
+              "projectedAt"
+            ],
+            "additionalProperties": false
+          },
+          "personalState": {
+            "type": "object",
+            "properties": {
+              "saved": {
+                "type": "boolean"
+              },
+              "wanted": {
+                "type": "boolean"
+              },
+              "personalRating": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0.1,
+                    "maximum": 5,
+                    "multipleOf": 0.1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "preferencesUpdatedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "visits": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "visited": {
+                        "type": "boolean",
+                        "const": false
+                      },
+                      "count": {
+                        "type": "number",
+                        "const": 0
+                      }
+                    },
+                    "required": [
+                      "visited",
+                      "count"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "visited": {
+                        "type": "boolean",
+                        "const": true
+                      },
+                      "count": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "firstVisitedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      },
+                      "lastVisitedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      }
+                    },
+                    "required": [
+                      "visited",
+                      "count",
+                      "firstVisitedAt",
+                      "lastVisitedAt"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "required": [
+              "saved",
+              "wanted",
+              "personalRating",
+              "preferencesUpdatedAt",
+              "visits"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "status",
+          "requestedPlaceId",
+          "redirectedFrom",
+          "placeId",
+          "name",
+          "areaLabel",
+          "location",
+          "primaryTaxonomy",
+          "taxonomyKeys",
+          "evidence"
+        ],
+        "additionalProperties": false
       },
       "PlaceSearchRequest": {
         "type": "object",
@@ -5100,6 +8190,26 @@
       }
     },
     "responses": {
+      "ProductUnavailable": {
+        "description": "A required product capability is temporarily unavailable",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "BrowserBackendUnavailable": {
+        "description": "The fixed internal Place Backend is temporarily unavailable",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
       "ProductRequestInvalid": {
         "description": "The product request is malformed or contains unsupported fields",
         "content": {
@@ -5112,6 +8222,66 @@
       },
       "ProductNotFound": {
         "description": "The owned resource or disclosed publication is unavailable",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "PlaceRetired": {
+        "description": "The canonical Place was retired and has no active successor",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "PlaceDetailUnavailable": {
+        "description": "The canonical Place detail projection is temporarily unavailable",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "LibraryQueryUnavailable": {
+        "description": "The bounded Library query is temporarily unavailable",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "VisitQueryUnavailable": {
+        "description": "The bounded Visit query is temporarily unavailable",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "WritingQueryUnavailable": {
+        "description": "The bounded Writing query is temporarily unavailable",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      },
+      "ImportQueryUnavailable": {
+        "description": "The bounded Import query is temporarily unavailable",
         "content": {
           "application/problem+json": {
             "schema": {
