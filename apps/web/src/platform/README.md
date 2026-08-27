@@ -10,3 +10,6 @@ lifecycle은 소유하지 않는다. `imports`는 연결 계정 Import용 인증
 소유하며 좁은 인증 session 인터페이스만 소비한다. `imports/connector`는 확장 프로그램과 통신하는
 고정 공개 BFF를 소유한다. 일회성 grant를 발급할 때만 좁은 인증 session 인터페이스를 소비하며
 capture 제출 경로는 브라우저 session cookie를 사용하지 않는다.
+
+`library`는 좁은 인증 session 인터페이스와 공용 고정 Backend transport만 소비해 Place detail 및
+개인 Library의 same-origin BFF를 제공한다. 권한과 등급 정책은 Backend Product Authorizer에 남긴다.

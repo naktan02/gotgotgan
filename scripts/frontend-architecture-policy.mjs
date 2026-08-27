@@ -8,6 +8,7 @@ export const frontendArchitecturePolicy = defineFrontendArchitecturePolicy({
   sameLayerDependencies: {
     platform: {
       imports: ['auth'],
+      library: ['auth', 'backend-http'],
       membership: ['auth'],
       'process-readiness': ['auth', 'imports', 'membership'],
       publications: ['backend-http'],

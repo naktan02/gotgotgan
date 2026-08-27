@@ -81,6 +81,13 @@ Tag 이름이 바뀌어도 조회 identity와 기존 cursor 의미가 흔들리�
 응답 `library-place-list.v2`는 정렬된 Tag ID와 match mode를 되돌려주며 cursor도 그 전체 filter에
 묶인다. 이는 회원 수동 분류 API이고 자동·AI 분류나 Provider 수집을 요구하지 않는다.
 
+Web은 동일한 계약을 `/api/library/places`, `/api/library/collections`,
+`/api/library/collections/{collectionId}`, `/api/library/tags`, `/api/library/commands`와
+`/api/places/{placeId}`에 다시 노출한다. 이 same-origin BFF는 opaque browser session을 서버에서
+해석하고 bearer token을 browser에 반환하지 않는다. query, command, identifier, success/problem을
+양방향으로 다시 검증하며 private 응답은 `no-store`다. Product Tier 정책은 BFF가 아니라 기존
+Backend Product Authorizer seam에 남는다.
+
 `GET /v1/public/collections/{publicationId}`와 `GET /v1/public/writing/{publicationId}`는
 Stage 4에서 유일한 anonymous Backend projection이다. Web은 고정된 내부 Backend origin을 통해
 대응하는 `/api/public/...` BFF 조회와 `/share/...` page를 제공한다. 알 수 없는 identifier와

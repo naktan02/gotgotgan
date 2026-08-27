@@ -153,6 +153,10 @@ const pathParameters = {
     name: 'batchId', in: 'path', required: true,
     schema: { type: 'string', format: 'uuid' },
   },
+  collectionId: {
+    name: 'collectionId', in: 'path', required: true,
+    schema: { type: 'string', format: 'uuid' },
+  },
 }
 
 const connectorOriginHeader = {
@@ -277,6 +281,77 @@ const paths = {
     },
     { security: anonymous, requestSchema: 'MembershipOnboardingRequest' },
   ) },
+  '/api/places/{placeId}': {
+    parameters: [pathParameters.placeId],
+    get: operation('getPlaceDetailForBrowser', {
+      '200': described('Return Place detail with the requesting member personal state', 'PlaceDetailResponse'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, { security: browserSession }),
+  },
+  '/api/library/places': { get: operation('listPlaceLibraryPlacesForBrowser', {
+    '200': described('Return a bounded member Place preference page', 'LibraryPlaceListResponse'),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '401': ref('responses', 'AuthenticationRequired'),
+    '403': ref('responses', 'AccessDenied'),
+    '503': ref('responses', 'BrowserBackendUnavailable'),
+  }, {
+    security: browserSession,
+    parameters: [
+      libraryPlaceStateParameter,
+      libraryTagIdsParameter,
+      libraryTagMatchParameter,
+      boundedCursorParameter,
+      boundedLimitParameter,
+    ],
+  }) },
+  '/api/library/collections': { get: operation('listPlaceLibraryCollectionsForBrowser', {
+    '200': described('Return a bounded member Collection page', 'LibraryCollectionListResponse'),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '401': ref('responses', 'AuthenticationRequired'),
+    '403': ref('responses', 'AccessDenied'),
+    '503': ref('responses', 'BrowserBackendUnavailable'),
+  }, {
+    security: browserSession,
+    parameters: [boundedCursorParameter, boundedLimitParameter],
+  }) },
+  '/api/library/collections/{collectionId}': {
+    parameters: [pathParameters.collectionId],
+    get: operation('getPlaceLibraryCollectionForBrowser', {
+      '200': described('Return Collection metadata and a bounded Place page', 'LibraryCollectionDetailResponse'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, {
+      security: browserSession,
+      parameters: [boundedCursorParameter, boundedLimitParameter],
+    }),
+  },
+  '/api/library/tags': { get: operation('listPlaceLibraryTagsForBrowser', {
+    '200': described('Return a bounded member Tag page', 'LibraryTagListResponse'),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '401': ref('responses', 'AuthenticationRequired'),
+    '403': ref('responses', 'AccessDenied'),
+    '503': ref('responses', 'BrowserBackendUnavailable'),
+  }, {
+    security: browserSession,
+    parameters: [boundedCursorParameter, boundedLimitParameter],
+  }) },
+  '/api/library/commands': { post: operation('applyPlaceLibraryCommandForBrowser', {
+    '200': described('Return an idempotently replayed command result', 'LibraryCommandResult'),
+    '201': described('Return an applied command result', 'LibraryCommandResult'),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '401': ref('responses', 'AuthenticationRequired'),
+    '403': ref('responses', 'AccessDenied'),
+    '404': ref('responses', 'ProductNotFound'),
+    '409': ref('responses', 'ProductConflict'),
+    '503': ref('responses', 'BrowserBackendUnavailable'),
+  }, { security: browserSession, requestSchema: 'LibraryCommandRequest' }) },
   '/api/imports/connections': { get: operation('listPlaceProviderConnectionsForBrowser', {
     '200': described('Return sanitized provider connection metadata', 'ProviderConnectionList'),
     '401': ref('responses', 'AuthenticationRequired'),

@@ -12,3 +12,9 @@ Taxonomy를 선택하고, 목록과 지도에서 같은 Place를 선택하며, �
 현재 영역을 다시 검색하고 cursor로 다음 결과를 읽는다. 새 입력은 debounce되고 이전 요청은
 취소된다. 개인 저장·가고 싶음·방문·별점 filter는 verified membership이 있을 때만 허용한다.
 한 source의 실패는 partial 상태로 표현하고 전체 실패·빈 결과·재시도는 서로 구분한다.
+
+Stage 7.7의 개인 Library journey는 인증된 사용자가 저장됨·가고 싶음·평가함 상태를 전환하고,
+안정된 Tag ID 여러 개를 all/any로 조합하거나 명시적 순서의 Collection을 선택해 Place를 찾는다.
+선택한 Place는 개인 상태와 evidence를 별도 상세 projection으로 확인한다. desktop은
+Collection/목록/상세 작업 공간, mobile은 같은 의미를 세로 흐름으로 유지한다. session 부재,
+빈 결과, loading, failure, pagination을 구분하고 브라우저에 bearer token을 노출하지 않는다.

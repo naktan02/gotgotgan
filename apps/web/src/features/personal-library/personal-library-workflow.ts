@@ -1,0 +1,235 @@
+'use client'
+
+import {
+  type LibraryCollectionListResponse,
+  type LibraryPlaceState,
+  type LibraryTagListResponse,
+  type LibraryTagMatch,
+} from '@place/contracts/library'
+import type { PlaceDetailResponse } from '@place/contracts/places'
+import { useCallback, useEffect, useRef, useState } from 'react'
+
+import {
+  BrowserLibraryProblem,
+  personalLibraryHttp,
+  type PersonalLibraryRow,
+} from './personal-library-http'
+
+type LibrarySurface =
+  | Readonly<{ kind: 'state'; state: LibraryPlaceState }>
+  | Readonly<{ kind: 'collection'; collectionId: string }>
+
+export function usePersonalLibraryWorkflow() {
+  const [surface, setSurface] = useState<LibrarySurface>({ kind: 'state', state: 'saved' })
+  const [selectedTagIds, setSelectedTagIds] = useState<readonly string[]>([])
+  const [tagMatch, setTagMatch] = useState<LibraryTagMatch>('all')
+  const [tags, setTags] = useState<LibraryTagListResponse['items']>([])
+  const [tagCursor, setTagCursor] = useState<string | undefined>()
+  const [collections, setCollections] = useState<LibraryCollectionListResponse['items']>([])
+  const [collectionCursor, setCollectionCursor] = useState<string | undefined>()
+  const [rows, setRows] = useState<readonly PersonalLibraryRow[]>([])
+  const [nextCursor, setNextCursor] = useState<string | undefined>()
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | undefined>()
+  const [selectedDetail, setSelectedDetail] = useState<PlaceDetailResponse | undefined>()
+  const [collectionName, setCollectionName] = useState<string | undefined>()
+  const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [metadataLoading, setMetadataLoading] = useState(true)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [authenticationRequired, setAuthenticationRequired] = useState(false)
+  const [error, setError] = useState<string | undefined>()
+  const requestSequence = useRef(0)
+  const detailSequence = useRef(0)
+
+  const handleFailure = useCallback((reason: unknown) => {
+    if (reason instanceof DOMException && reason.name === 'AbortError') return
+    if (reason instanceof BrowserLibraryProblem && reason.status === 401) {
+      setAuthenticationRequired(true)
+      setError(undefined)
+      return
+    }
+    if (reason instanceof BrowserLibraryProblem && reason.status === 403) {
+      setError('현재 등급에서는 이 라이브러리를 사용할 수 없습니다.')
+      return
+    }
+    setError('라이브러리를 불러오지 못했습니다. 잠시 뒤 다시 시도해 주세요.')
+  }, [])
+
+  const loadTags = useCallback(async (cursor?: string, append = false) => {
+    const parsed = await personalLibraryHttp.tags(cursor)
+    setTags((current) => append ? [...current, ...parsed.items] : parsed.items)
+    setTagCursor(parsed.nextCursor)
+  }, [])
+
+  const loadCollections = useCallback(async (cursor?: string, append = false) => {
+    const parsed = await personalLibraryHttp.collections(cursor)
+    setCollections((current) => append ? [...current, ...parsed.items] : parsed.items)
+    setCollectionCursor(parsed.nextCursor)
+  }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setMetadataLoading(true)
+    Promise.all([
+      personalLibraryHttp.tags(undefined, controller.signal),
+      personalLibraryHttp.collections(undefined, controller.signal),
+    ])
+      .then(([tagPage, collectionPage]) => {
+        setTags(tagPage.items)
+        setTagCursor(tagPage.nextCursor)
+        setCollections(collectionPage.items)
+        setCollectionCursor(collectionPage.nextCursor)
+      })
+      .catch(handleFailure)
+      .finally(() => setMetadataLoading(false))
+    return () => controller.abort()
+  }, [handleFailure])
+
+  const loadRows = useCallback(async (
+    cursor: string | undefined,
+    append: boolean,
+    signal?: AbortSignal,
+  ) => {
+    const sequence = ++requestSequence.current
+    append ? setLoadingMore(true) : setLoading(true)
+    setError(undefined)
+    try {
+      const page = surface.kind === 'collection'
+        ? await personalLibraryHttp.collection(surface.collectionId, cursor, signal)
+        : await personalLibraryHttp.places(
+            surface.state,
+            selectedTagIds,
+            tagMatch,
+            cursor,
+            signal,
+          )
+      if (sequence !== requestSequence.current) return
+      setCollectionName(page.collectionName)
+      setRows((current) => {
+        const available = append ? [...current, ...page.rows] : page.rows
+        setSelectedPlaceId((selected) => (
+          selected !== undefined && available.some((row) => row.placeId === selected)
+            ? selected
+            : available[0]?.placeId
+        ))
+        return available
+      })
+      setNextCursor(page.nextCursor)
+      setAuthenticationRequired(false)
+    } catch (reason) {
+      if (
+        sequence !== requestSequence.current ||
+        (reason instanceof DOMException && reason.name === 'AbortError')
+      ) return
+      if (!append) {
+        setRows([])
+        setSelectedPlaceId(undefined)
+      }
+      handleFailure(reason)
+    } finally {
+      if (sequence === requestSequence.current) {
+        setLoading(false)
+        setLoadingMore(false)
+      }
+    }
+  }, [handleFailure, selectedTagIds, surface, tagMatch])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void loadRows(undefined, false, controller.signal)
+    return () => controller.abort()
+  }, [loadRows])
+
+  useEffect(() => {
+    setSelectedDetail(undefined)
+    if (selectedPlaceId === undefined) return
+    const sequence = ++detailSequence.current
+    const controller = new AbortController()
+    setDetailLoading(true)
+    personalLibraryHttp.place(selectedPlaceId, controller.signal)
+      .then((value) => {
+        if (sequence === detailSequence.current) {
+          setSelectedDetail(value)
+        }
+      })
+      .catch((reason: unknown) => {
+        if (
+          sequence === detailSequence.current &&
+          !(reason instanceof DOMException && reason.name === 'AbortError')
+        ) {
+          setSelectedDetail(undefined)
+        }
+      })
+      .finally(() => {
+        if (sequence === detailSequence.current) setDetailLoading(false)
+      })
+    return () => controller.abort()
+  }, [selectedPlaceId])
+
+  const selectedRow = rows.find((row) => row.placeId === selectedPlaceId)
+
+  function chooseState(state: LibraryPlaceState) {
+    setSurface({ kind: 'state', state })
+  }
+
+  function chooseCollection(collectionId: string) {
+    setSelectedTagIds([])
+    setTagMatch('all')
+    setSurface({ kind: 'collection', collectionId })
+  }
+
+  function toggleTag(tagId: string) {
+    setSelectedTagIds((current) => (
+      current.includes(tagId)
+        ? current.filter((candidate) => candidate !== tagId)
+        : [...current, tagId]
+    ))
+    setSurface((current) => current.kind === 'state' ? current : { kind: 'state', state: 'saved' })
+  }
+
+  function loadMore() {
+    if (nextCursor === undefined) return
+    void loadRows(nextCursor, true)
+  }
+
+  return {
+    surface,
+    selectedTagIds,
+    tagMatch,
+    tags,
+    tagCursor,
+    collections,
+    collectionCursor,
+    rows,
+    nextCursor,
+    selectedPlaceId,
+    selectedRow,
+    selectedDetail,
+    collectionName,
+    loading,
+    loadingMore,
+    metadataLoading,
+    detailLoading,
+    authenticationRequired,
+    error,
+    chooseState,
+    chooseCollection,
+    toggleTag,
+    setTagMatch,
+    selectPlace: setSelectedPlaceId,
+    loadMore,
+    retry: () => Promise.all([
+      loadTags(),
+      loadCollections(),
+      loadRows(undefined, false),
+    ]).catch(handleFailure),
+    loadMoreTags: () => tagCursor === undefined
+      ? undefined
+      : loadTags(tagCursor, true).catch(handleFailure),
+    loadMoreCollections: () => collectionCursor === undefined
+      ? undefined
+      : loadCollections(collectionCursor, true).catch(handleFailure),
+  }
+}
+
+export type PersonalLibraryWorkflow = ReturnType<typeof usePersonalLibraryWorkflow>

@@ -9,6 +9,7 @@ import styles from './place-workspace-shell.module.css'
 
 const placeNavigation = [
   { id: 'home', label: '작업 공간', href: '/' },
+  { id: 'library', label: '내 장소', href: '/library' },
   { id: 'search', label: '장소 찾기', href: '/search' },
   { id: 'imports', label: '가져오기', href: '/imports' },
 ] as const
