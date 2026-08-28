@@ -10,7 +10,6 @@ import type {
 import type {
   LibraryAttempt,
   LibraryCommandOutcome,
-  MemberLibrary,
   PlacePreferences,
   PublishedCollection,
 } from '../../domain/model.js'
@@ -282,38 +281,4 @@ export class PostgresLibraryStore implements LibraryStore, ImportedPlaceSaveStor
     }
   }
 
-  async getMemberLibrary(memberId: string): Promise<MemberLibrary> {
-    const client = await this.pool.connect()
-    try {
-      await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
-      const preferences = await client.query<{ canonical_place_id: string; saved: boolean; wanted: boolean; personal_rating: string | null; updated_at: Date }>(
-          `SELECT canonical_place_id, saved, wanted, personal_rating, updated_at
-           FROM library.place_preferences WHERE membership_id = $1 ORDER BY updated_at DESC, canonical_place_id`, [memberId],
-        )
-      const collections = await client.query<{ id: string; name: string; description: string | null; visibility: 'private' | 'unlisted' | 'public'; publication_id: string | null; updated_at: Date; places: { placeId: string; position: number }[] }>(
-          `SELECT c.id, c.name, c.description, c.visibility, c.publication_id, c.updated_at,
-                  coalesce(jsonb_agg(jsonb_build_object('placeId', cp.canonical_place_id, 'position', cp.position)
-                    ORDER BY cp.position) FILTER (WHERE cp.canonical_place_id IS NOT NULL), '[]') AS places
-           FROM library.collections c LEFT JOIN library.collection_places cp ON cp.collection_id = c.id
-           WHERE c.owner_membership_id = $1 GROUP BY c.id ORDER BY c.updated_at DESC, c.id`, [memberId],
-        )
-      const tags = await client.query<{ id: string; name: string; place_ids: string[] }>(
-          `SELECT t.id, t.name, coalesce(array_agg(pt.canonical_place_id ORDER BY pt.canonical_place_id)
-             FILTER (WHERE pt.canonical_place_id IS NOT NULL), '{}') AS place_ids
-           FROM library.tags t LEFT JOIN library.place_tags pt ON pt.tag_id = t.id AND pt.membership_id = t.owner_membership_id
-           WHERE t.owner_membership_id = $1 GROUP BY t.id ORDER BY t.normalized_name, t.id`, [memberId],
-        )
-      await client.query('COMMIT')
-      return {
-        places: preferences.rows.map((row) => ({ memberId, placeId: row.canonical_place_id, saved: row.saved, wanted: row.wanted, personalRating: row.personal_rating === null ? null : Number(row.personal_rating), updatedAt: row.updated_at.toISOString() })),
-        collections: collections.rows.map((row) => ({ collectionId: row.id, name: row.name, description: row.description, visibility: row.visibility, publicationId: row.publication_id, places: row.places, updatedAt: row.updated_at.toISOString() })),
-        tags: tags.rows.map((row) => ({ tagId: row.id, name: row.name, placeIds: row.place_ids })),
-      }
-    } catch (error) {
-      await client.query('ROLLBACK')
-      throw error
-    } finally {
-      client.release()
-    }
-  }
 }

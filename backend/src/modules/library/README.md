@@ -13,6 +13,10 @@ Place, Collection 목록/상세, Tag 목록은 최대 50개와 용도별 opaque 
 Collection 상세의 Place membership도 별도로 page한다. 잘못된 filter 또는 다른 Collection에서
 가져온 cursor는 재사용할 수 없다.
 
+HTTP composition은 `LibraryQueries`를 필수로 주입한다. command Store는 회원의 전체 Library를
+무제한 aggregate로 반환하지 않으며, 단건 Place preference와 공개 Collection projection만
+명시적으로 읽는다. 따라서 테스트도 실제 소비자가 사용하는 bounded Interface를 통해 상태를 확인한다.
+
 Place 목록은 최대 20개의 Tag ID를 `all` 또는 `any`로 결합한다. Tag 이름은 표시·수정 가능한
 회원 데이터이고 query identity로 쓰지 않는다. cursor는 state, 정렬된 Tag ID, match mode에 모두
 묶여 다른 분류 조합에서 재사용할 수 없다. `라면`, `성수동`, `쇼유라멘`처럼 서로 다른 축의 Tag를

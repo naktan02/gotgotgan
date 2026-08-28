@@ -19,24 +19,6 @@ export type PublishedCollection = Readonly<{
   updatedAt: string
 }>
 
-export type MemberLibrary = Readonly<{
-  places: readonly PlacePreferences[]
-  collections: readonly Readonly<{
-    collectionId: string
-    name: string
-    description: string | null
-    visibility: LibraryVisibility
-    publicationId: string | null
-    places: readonly Readonly<{ placeId: string; position: number }>[]
-    updatedAt: string
-  }>[]
-  tags: readonly Readonly<{
-    tagId: string
-    name: string
-    placeIds: readonly string[]
-  }>[]
-}>
-
 export type LibraryCommand =
   | Readonly<{
       kind: 'set-place-preferences'

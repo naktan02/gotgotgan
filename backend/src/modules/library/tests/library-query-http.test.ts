@@ -15,7 +15,7 @@ const at = '2026-08-28T00:00:00.000Z'
 
 const store: LibraryStore = {
   apply: async () => ({ status: 'applied' }),
-  getMemberLibrary: async () => ({ places: [], collections: [], tags: [] }),
+  getPlacePreferences: async () => undefined,
   getPublishedCollection: async () => undefined,
 }
 

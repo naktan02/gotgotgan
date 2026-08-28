@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { LibraryStore, PublishedCollection } from '../../modules/library/index.js'
+import type { LibraryQueries, LibraryStore, PublishedCollection } from '../../modules/library/index.js'
 import type { VisitQueries, VisitRecord, VisitStore } from '../../modules/visits/index.js'
 import type {
   PublishedWriting,
@@ -29,7 +29,19 @@ function fixtureApplication() {
       places: [{ placeId, position: 0 }],
       updatedAt: now().toISOString(),
     } : undefined,
-    getMemberLibrary: async () => ({ places: [], collections: [], tags: [] }),
+  }
+  const libraryQueries: LibraryQueries = {
+    listPlaces: async (input) => ({
+      schemaVersion: 'library-place-list.v2',
+      filter: { state: input.state, tagIds: input.tagIds, tagMatch: input.tagMatch },
+      items: [],
+    }),
+    listCollections: async () => ({ schemaVersion: 'library-collection-list.v1', items: [] }),
+    getCollection: async () => undefined,
+    listTags: async () => ({ schemaVersion: 'library-tag-list.v1', items: [] }),
+    getPlaceOrganization: async (input) => ({
+      schemaVersion: 'library-place-organization.v1', placeId: input.placeId, items: [],
+    }),
   }
   const visits: VisitStore = {
     append: async (_record: VisitRecord) => 'recorded',
@@ -62,7 +74,7 @@ function fixtureApplication() {
     get: async () => undefined,
   }
   return buildHttpApplication({
-    library: { authorizer, store: library, now },
+    library: { authorizer, store: library, queries: libraryQueries, now },
     visits: { authorizer, store: visits, queries: visitQueries, now },
     writing: { authorizer, store: writing, queries: writingQueries, now },
   })

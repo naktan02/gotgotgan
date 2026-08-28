@@ -80,6 +80,9 @@ Library 조직 기능에서 Collection은 ordered membership, Tag는 member-scop
 책임을 끌어오지 않는다. 자동 분류는 미래 producer일 뿐 Tag truth나 command Interface의 owner가
 아니다.
 
+회원 전체 Library를 한 번에 반환하는 unbounded Store 메서드는 두지 않는다. HTTP composition은
+bounded `LibraryQueries`를 필수로 주입하고 테스트도 같은 public Interface를 사용한다.
+
 필수 회원 route와 optional-member Place/Search route는 platform HTTP의 공통 authorization
 Interface를 사용한다. 이 Interface는 `anonymous`, authorized `member`, 이미 안전한 응답을 보낸
 `replied` 상태만 transport에 돌려주며, feature module에는 token·role·tier 문자열을 전달하지 않는다.

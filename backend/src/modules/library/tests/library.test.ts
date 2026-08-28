@@ -29,8 +29,8 @@ class MemoryLibraryStore implements LibraryStore {
     return this.published?.publicationId === publicationId ? this.published : undefined
   }
 
-  async getMemberLibrary() {
-    return { places: [], collections: [], tags: [] }
+  async getPlacePreferences() {
+    return undefined
   }
 }
 

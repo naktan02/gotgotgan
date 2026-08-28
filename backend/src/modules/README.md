@@ -35,7 +35,8 @@ interface와 공통 authorization 결과를 주입한다.
 회원 콘텐츠 목록은 command Store의 무제한 메서드가 아니라 owner별 query Interface로 제공한다.
 Library, Visits, Writing의 PostgreSQL query Adapter는 자기 schema만 읽고 bounded keyset cursor와
 응답 projection을 감춘다. Writing list는 전체 본문을 읽기 계약으로 확산하지 않고 단건 detail과
-분리한다.
+분리한다. Library HTTP composition은 query Interface를 필수로 받아 목록 route의 존재와 의존성이
+환경마다 달라지지 않게 한다.
 
 `taxonomy`는 provider-neutral Node version을 소유하고 식당·카페·여행지 같은 예시를 고정
 상위 enum으로 만들지 않는다. `search`는 텍스트·Taxonomy·공간·개인 filter용 Local Search

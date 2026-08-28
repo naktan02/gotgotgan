@@ -104,6 +104,7 @@ test('personal content remains owned, repeatable, versioned, and privacy project
     runtimeClient = new Client({ connectionString: runtimeUrl })
     await runtimeClient.connect()
     const libraryStore = new library.PostgresLibraryStore(pool)
+    const libraryQueries = new library.PostgresLibraryQueries(pool, async () => [])
     const visitStore = new visits.PostgresVisitStore(pool)
     const visitQueries = new visits.PostgresVisitQueries(pool)
     const writingStore = new writing.PostgresWritingStore(pool)
@@ -157,10 +158,14 @@ test('personal content remains owned, repeatable, versioned, and privacy project
       kind: 'create-collection', collectionId: privateCollectionId, name: 'Private map', visibility: 'private',
     } })
     assert.equal(await libraryStore.getPublishedCollection(privateCollectionId), undefined)
-    const memberLibrary = await libraryStore.getMemberLibrary(memberId)
-    assert.equal(memberLibrary.places[0].personalRating, 4.7)
-    assert.equal(memberLibrary.collections.length, 2)
-    assert.deepEqual(memberLibrary.tags, [])
+    const savedPlaces = await libraryQueries.listPlaces({
+      memberId, state: 'saved', tagIds: [], tagMatch: 'all', limit: 50,
+    })
+    const collections = await libraryQueries.listCollections({ memberId, limit: 50 })
+    const tags = await libraryQueries.listTags({ memberId, limit: 50 })
+    assert.equal(savedPlaces.items[0].personalRating, 4.7)
+    assert.equal(collections.items.length, 2)
+    assert.deepEqual(tags.items, [])
 
     const entryId = '01992d10-0000-7000-8000-000000000040'
     const writingPublication = '01992d10-0000-7000-8000-000000000041'

@@ -6,7 +6,6 @@ export {
   type LibraryCommand,
   type LibraryCommandOutcome,
   type LibraryVisibility,
-  type MemberLibrary,
   type PlacePreferences,
   type PublishedCollection,
 } from './domain/model.js'

@@ -20,17 +20,15 @@ import { registerLibraryQueryHttpRoutes } from './register-library-query-http.js
 export type LibraryHttpDependencies = Readonly<{
   authorizer: ProductAuthorizer
   store: LibraryStore
-  queries?: LibraryQueries
+  queries: LibraryQueries
   now: () => Date
 }>
 
 export function registerLibraryHttpRoutes(application: FastifyInstance, dependencies: LibraryHttpDependencies): void {
-  if (dependencies.queries !== undefined) {
-    registerLibraryQueryHttpRoutes(application, {
-      authorizer: dependencies.authorizer,
-      queries: dependencies.queries,
-    })
-  }
+  registerLibraryQueryHttpRoutes(application, {
+    authorizer: dependencies.authorizer,
+    queries: dependencies.queries,
+  })
   application.post('/v1/library/commands', async (request, reply) => {
     const memberId = await requireProductMember(request, reply, dependencies.authorizer, 'library.write')
     if (memberId === undefined) return
@@ -56,7 +54,7 @@ export function registerLibraryHttpRoutes(application: FastifyInstance, dependen
     if (memberId === undefined) return
     const parsed = placeIdentifierParamsSchema.safeParse(request.params)
     if (!parsed.success) return sendProductProblem(request, reply, 400, 'PLACE_LIBRARY_QUERY_INVALID', 'Library query is invalid')
-    const result = await dependencies.store.getPlacePreferences?.(memberId, parsed.data.placeId)
+    const result = await dependencies.store.getPlacePreferences(memberId, parsed.data.placeId)
     return result === undefined
       ? sendProductProblem(request, reply, 404, 'PLACE_LIBRARY_RESOURCE_NOT_FOUND', 'Library resource not found')
       : reply.header('cache-control', 'no-store').status(200).send(
