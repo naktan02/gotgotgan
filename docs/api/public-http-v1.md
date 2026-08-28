@@ -69,7 +69,8 @@ composition에서 member를 파생한다. Library와 Writing command ID는 멱�
 expected version도 필요하다. Library command는 Collection 생성·이름 변경·삭제, Place
 추가·이동·제거, Tag 생성·이름 변경·부착·해제·삭제를 지원한다. `GET /v1/library/places/{placeId}`와
 `GET /v1/places/{placeId}/visit-summary`는 회원 private projection을 반환한다.
-`GET /v1/library/places`, `/collections`, `/collections/{collectionId}`, `/tags`,
+`GET /v1/library/places`, `/places/{placeId}/organization`, `/collections`,
+`/collections/{collectionId}`, `/tags`,
 `GET /v1/writing`, `/v1/writing/{documentId}`, `GET /v1/places/{placeId}/visits`,
 `GET /v1/imports`, `/v1/imports/{batchId}`는 bounded 인증 owner view이며 동등한 anonymous route는
 없다. 사용되지 않던 unbounded `GET /v1/library` HTTP aggregate는 제거됐다. 각 bounded route와
@@ -81,8 +82,17 @@ Tag 이름이 바뀌어도 조회 identity와 기존 cursor 의미가 흔들리�
 응답 `library-place-list.v2`는 정렬된 Tag ID와 match mode를 되돌려주며 cursor도 그 전체 filter에
 묶인다. 이는 회원 수동 분류 API이고 자동·AI 분류나 Provider 수집을 요구하지 않는다.
 
+`GET /v1/library/places/{placeId}/organization`은 전역 카테고리 목록이 아니라 현재 회원이
+직접 만들었거나 Provider 저장 목록에서 가져온 Collection과 Tag만 반환한다. 각 선택지는 해당
+Place의 `selected` 상태를 포함하고 최대 50개씩 opaque cursor로 페이지를 나눈다. 선택되지 않은
+Collection의 `position`은 `null`이며 선택된 Collection에는 실제 순서가 있다. 회원 소유권은
+인증 principal에서 파생되고 다른 회원의 분류 이름이나 소속은 노출하지 않는다. Collection에
+Place를 추가하는 command는 `position`을 생략할 수 있으며 이 경우 Backend가 현재 마지막 위치
+뒤에 원자적으로 배치한다. 명시적 재정렬은 별도 move command가 담당한다.
+
 Web은 동일한 계약을 `/api/library/places`, `/api/library/collections`,
-`/api/library/collections/{collectionId}`, `/api/library/tags`, `/api/library/commands`와
+`/api/library/places/{placeId}/organization`, `/api/library/collections/{collectionId}`,
+`/api/library/tags`, `/api/library/commands`와
 `/api/places/{placeId}`에 다시 노출한다. 이 same-origin BFF는 opaque browser session을 서버에서
 해석하고 bearer token을 browser에 반환하지 않는다. query, command, identifier, success/problem을
 양방향으로 다시 검증하며 private 응답은 `no-store`다. Product Tier 정책은 BFF가 아니라 기존

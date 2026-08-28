@@ -14,6 +14,7 @@ import {
   personalLibraryHttp,
   type PersonalLibraryRow,
 } from './personal-library-http'
+import { usePersonalLibraryOrganizationWorkflow } from './personal-library-organization-workflow'
 
 type LibrarySurface =
   | Readonly<{ kind: 'state'; state: LibraryPlaceState }>
@@ -192,6 +193,20 @@ export function usePersonalLibraryWorkflow() {
     void loadRows(nextCursor, true)
   }
 
+  const refreshLibrary = useCallback(async () => {
+    await Promise.all([
+      loadTags(),
+      loadCollections(),
+      loadRows(undefined, false),
+    ])
+  }, [loadCollections, loadRows, loadTags])
+
+  const organization = usePersonalLibraryOrganizationWorkflow({
+    selectedPlaceId,
+    onAccessFailure: handleFailure,
+    refreshLibrary,
+  })
+
   return {
     surface,
     selectedTagIds,
@@ -205,6 +220,7 @@ export function usePersonalLibraryWorkflow() {
     selectedPlaceId,
     selectedRow,
     selectedDetail,
+    ...organization,
     collectionName,
     loading,
     loadingMore,

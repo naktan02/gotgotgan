@@ -174,6 +174,14 @@ test('bounded Library queries paginate, hydrate public Place facts, and isolate 
       organizedCollection.places.map((item) => [item.placeId, item.position]),
       [[places[2], 0], [places[1], 2]],
     )
+    await command('01992d20-3000-7000-8000-000000000529', memberA, {
+      kind: 'add-collection-place', collectionId: collectionA, placeId: places[0],
+    })
+    assert.deepEqual((await queries.getCollection({
+      memberId: memberA, collectionId: collectionA, limit: 20,
+    })).places.map((item) => [item.placeId, item.position]), [
+      [places[2], 0], [places[1], 2], [places[0], 3],
+    ])
     await command('01992d20-3000-7000-8000-000000000523', memberA, {
       kind: 'delete-collection', collectionId: collectionA2,
     })
@@ -254,6 +262,42 @@ test('bounded Library queries paginate, hydrate public Place facts, and isolate 
     assert.deepEqual(tags.items.map((item) => [item.name, item.placeCount]), [
       ['데이트', 2], ['혼밥', 2],
     ])
+
+    const organizationFirst = await queries.getPlaceOrganization({
+      memberId: memberA, placeId: places[1], limit: 2,
+    })
+    assert.deepEqual(organizationFirst.items, [{
+      kind: 'collection', collectionId: collectionA, name: '성수 라멘',
+      selected: true, position: 2,
+    }, {
+      kind: 'tag', tagId: tagTwo, name: '데이트', selected: true,
+    }])
+    assert.ok(organizationFirst.nextCursor)
+    const organizationSecond = await queries.getPlaceOrganization({
+      memberId: memberA,
+      placeId: places[1],
+      limit: 2,
+      cursor: organizationFirst.nextCursor,
+    })
+    assert.deepEqual(organizationSecond.items, [{
+      kind: 'tag', tagId: tagOne, name: '혼밥', selected: true,
+    }])
+    assert.equal(organizationSecond.nextCursor, undefined)
+    assert.deepEqual((await queries.getPlaceOrganization({
+      memberId: memberB, placeId: places[1], limit: 20,
+    })).items, [{
+      kind: 'collection', collectionId: collectionB, name: '비공개',
+      selected: false, position: null,
+    }])
+    await assert.rejects(
+      queries.getPlaceOrganization({
+        memberId: memberA,
+        placeId: places[0],
+        limit: 20,
+        cursor: organizationFirst.nextCursor,
+      }),
+      library.InvalidLibraryCursorError,
+    )
 
     const allTags = await queries.listPlaces({
       memberId: memberA,

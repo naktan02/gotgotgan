@@ -27,7 +27,7 @@ export const addCollectionPlaceCommandSchema = z.object({
   kind: z.literal('add-collection-place'),
   collectionId: uuidSchema,
   placeId: uuidSchema,
-  position: z.number().int().min(0).max(1_000_000),
+  position: z.number().int().min(0).max(1_000_000).optional(),
 }).strict()
 
 export const renameCollectionCommandSchema = z.object({

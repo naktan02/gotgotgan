@@ -39,8 +39,17 @@ export const libraryTagListQuerySchema = z.object({
   limit: pageLimitSchema,
 }).strict()
 
+export const libraryPlaceOrganizationQuerySchema = z.object({
+  cursor: cursorSchema.optional(),
+  limit: pageLimitSchema,
+}).strict()
+
 export const libraryCollectionIdentifierParamsSchema = z.object({
   collectionId: uuidSchema,
+}).strict()
+
+export const libraryPlaceIdentifierParamsSchema = z.object({
+  placeId: uuidSchema,
 }).strict()
 
 const preferenceFields = {
@@ -115,6 +124,30 @@ export const libraryTagListResponseSchema = z.object({
   nextCursor: cursorSchema.optional(),
 }).strict()
 
+export const libraryPlaceOrganizationResponseSchema = z.object({
+  schemaVersion: z.literal('library-place-organization.v1'),
+  placeId: uuidSchema,
+  items: z.array(z.discriminatedUnion('kind', [
+    z.object({
+      kind: z.literal('collection'),
+      collectionId: uuidSchema,
+      name: z.string().min(1).max(120),
+      selected: z.boolean(),
+      position: z.number().int().nonnegative().nullable(),
+    }).strict().refine(
+      (item) => item.selected === (item.position !== null),
+      'selected Collection choices must have a position',
+    ),
+    z.object({
+      kind: z.literal('tag'),
+      tagId: uuidSchema,
+      name: z.string().min(1).max(64),
+      selected: z.boolean(),
+    }).strict(),
+  ])).max(50),
+  nextCursor: cursorSchema.optional(),
+}).strict()
+
 export type LibraryPlaceState = z.infer<typeof libraryPlaceStateSchema>
 export type LibraryTagMatch = z.infer<typeof libraryTagMatchSchema>
 export type LibraryPlacePreferencesResponse = z.infer<typeof libraryPlacePreferencesResponseSchema>
@@ -127,3 +160,5 @@ export type LibraryCollectionDetailQuery = z.infer<typeof libraryCollectionDetai
 export type LibraryCollectionDetailResponse = z.infer<typeof libraryCollectionDetailResponseSchema>
 export type LibraryTagListQuery = z.infer<typeof libraryTagListQuerySchema>
 export type LibraryTagListResponse = z.infer<typeof libraryTagListResponseSchema>
+export type LibraryPlaceOrganizationQuery = z.infer<typeof libraryPlaceOrganizationQuerySchema>
+export type LibraryPlaceOrganizationResponse = z.infer<typeof libraryPlaceOrganizationResponseSchema>

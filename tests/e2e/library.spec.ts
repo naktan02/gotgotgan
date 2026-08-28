@@ -29,6 +29,10 @@ const ramen = place(ramenPlaceId, '멘야 하루', '서울 성동구 성수동',
 const cafe = place(cafePlaceId, '서울숲 로스터스', '서울 성동구 성수동', '카페')
 
 async function installLibraryFixture(page: Page) {
+  let collectionSelected = true
+  let ramenTagSelected = true
+  let shoyuTagSelected = false
+  const commands: unknown[] = []
   await page.route('**/api/library/tags?*', (route) => json(route, {
     schemaVersion: 'library-tag-list.v1',
     items: [
@@ -94,6 +98,32 @@ async function installLibraryFixture(page: Page) {
       items,
     })
   })
+  await page.route('**/api/library/places/*/organization?*', (route) => json(route, {
+    schemaVersion: 'library-place-organization.v1',
+    placeId: route.request().url().includes(ramenPlaceId) ? ramenPlaceId : cafePlaceId,
+    items: [{
+      kind: 'collection',
+      collectionId: seongsuCollectionId,
+      name: '성수동',
+      selected: collectionSelected,
+      position: collectionSelected ? 0 : null,
+    }, {
+      kind: 'tag', tagId: ramenTagId, name: '라면', selected: ramenTagSelected,
+    }, {
+      kind: 'tag', tagId: shoyuTagId, name: '쇼유라멘', selected: shoyuTagSelected,
+    }],
+  }))
+  await page.route('**/api/library/commands', async (route) => {
+    const body = route.request().postDataJSON()
+    commands.push(body)
+    if (body.command.kind === 'remove-collection-place') collectionSelected = false
+    if (body.command.kind === 'add-collection-place') collectionSelected = true
+    if (body.command.kind === 'untag-place' && body.command.tagId === ramenTagId) ramenTagSelected = false
+    if (body.command.kind === 'tag-place' && body.command.tagId === ramenTagId) ramenTagSelected = true
+    if (body.command.kind === 'untag-place' && body.command.tagId === shoyuTagId) shoyuTagSelected = false
+    if (body.command.kind === 'tag-place' && body.command.tagId === shoyuTagId) shoyuTagSelected = true
+    return json(route, { schemaVersion: 'library-command-result.v1', status: 'applied' }, 201)
+  })
   await page.route('**/api/places/*', (route) => {
     const selected = route.request().url().includes(ramenPlaceId) ? ramen : cafe
     return json(route, {
@@ -113,23 +143,25 @@ async function installLibraryFixture(page: Page) {
       },
     })
   })
+  return commands
 }
 
 test('browses saved Places by tags and Collection without leaking the Backend boundary', async ({ page }) => {
   await installLibraryFixture(page)
   await page.goto('/library')
 
+  const tagFilters = page.getByLabel('태그 필터')
   await expect(page.getByRole('heading', { name: '내 장소' })).toBeVisible()
   await expect(page.getByRole('link', { name: '내 장소' })).toHaveAttribute('aria-current', 'page')
-  await expect(page.getByRole('button', { name: /라면/ })).toBeVisible()
+  await expect(tagFilters.getByRole('button', { name: /^라면/ })).toBeVisible()
   await expect(page.getByText('멘야 하루', { exact: true }).first()).toBeVisible()
   await expect(page.locator('dl').getByText('4.5', { exact: true })).toBeVisible()
 
-  await page.getByRole('button', { name: /^라면/ }).click()
-  await expect(page.getByRole('button', { name: /^라면/ })).toHaveAttribute('aria-pressed', 'true')
+  await tagFilters.getByRole('button', { name: /^라면/ }).click()
+  await expect(tagFilters.getByRole('button', { name: /^라면/ })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByText('서울숲 로스터스', { exact: true })).toHaveCount(0)
 
-  await page.getByRole('button', { name: /^쇼유라멘/ }).click()
+  await tagFilters.getByRole('button', { name: /^쇼유라멘/ }).click()
   await page.getByRole('button', { name: '하나 이상' }).click()
   await expect(page.getByRole('button', { name: '하나 이상' })).toHaveAttribute('aria-pressed', 'true')
 
@@ -152,4 +184,37 @@ test('shows a login action when the opaque browser session is absent', async ({ 
 
   await expect(page.getByRole('heading', { name: '내 장소를 보려면 로그인이 필요합니다.' })).toBeVisible()
   await expect(page.getByRole('link', { name: '로그인하고 계속' })).toHaveAttribute('href', '/api/auth/oidc/start')
+})
+
+test('organizes a Place with only the member saved Collections and Tags', async ({ page }) => {
+  const commands = await installLibraryFixture(page)
+  await page.goto('/library')
+
+  const organization = page.getByRole('region', { name: '내 분류' })
+  await expect(organization.getByText('내가 저장하거나 가져온 컬렉션과 태그만 표시됩니다.')).toBeVisible()
+  await expect(organization.getByRole('button', { name: '성수동 포함됨' }))
+    .toHaveAttribute('aria-pressed', 'true')
+  await expect(organization.getByRole('button', { name: '쇼유라멘 추가' }))
+    .toHaveAttribute('aria-pressed', 'false')
+
+  await organization.getByRole('button', { name: '쇼유라멘 추가' }).click()
+  await expect(organization.getByRole('button', { name: '쇼유라멘 포함됨' }))
+    .toHaveAttribute('aria-pressed', 'true')
+  await organization.getByRole('button', { name: '성수동 포함됨' }).click()
+  await expect(organization.getByRole('button', { name: '성수동 추가' }))
+    .toHaveAttribute('aria-pressed', 'false')
+
+  expect(commands).toHaveLength(2)
+  expect(commands).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      command: { kind: 'tag-place', tagId: shoyuTagId, placeId: ramenPlaceId },
+    }),
+    expect.objectContaining({
+      command: {
+        kind: 'remove-collection-place',
+        collectionId: seongsuCollectionId,
+        placeId: ramenPlaceId,
+      },
+    }),
+  ]))
 })

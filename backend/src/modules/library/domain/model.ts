@@ -57,7 +57,7 @@ export type LibraryCommand =
       kind: 'add-collection-place'
       collectionId: string
       placeId: string
-      position: number
+      position?: number | undefined
     }>
   | Readonly<{ kind: 'rename-collection'; collectionId: string; name: string }>
   | Readonly<{ kind: 'delete-collection'; collectionId: string }>
@@ -129,8 +129,13 @@ export function assertLibraryCommand(command: LibraryCommand): void {
     return
   }
   if (command.kind === 'add-collection-place' || command.kind === 'move-collection-place') {
-    if (!Number.isInteger(command.position) || command.position < 0 || command.position > 1_000_000) {
+    if (command.position !== undefined && (
+      !Number.isInteger(command.position) || command.position < 0 || command.position > 1_000_000
+    )) {
       throw new InvalidLibraryCommandError('position must be an integer between 0 and 1000000')
+    }
+    if (command.kind === 'move-collection-place' && command.position === undefined) {
+      throw new InvalidLibraryCommandError('position is required when moving a Collection Place')
     }
     return
   }

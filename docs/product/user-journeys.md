@@ -18,3 +18,9 @@ Stage 7.7의 개인 Library journey는 인증된 사용자가 저장됨·가고 
 선택한 Place는 개인 상태와 evidence를 별도 상세 projection으로 확인한다. desktop은
 Collection/목록/상세 작업 공간, mobile은 같은 의미를 세로 흐름으로 유지한다. session 부재,
 빈 결과, loading, failure, pagination을 구분하고 브라우저에 bearer token을 노출하지 않는다.
+
+Stage 7.8에서 선택한 Place의 `내 분류`는 서비스 전역 카테고리를 제시하지 않는다. 현재 회원이
+직접 만들었거나 NAVER 같은 Provider 저장 목록에서 가져온 Collection과 Tag를 페이지 단위로
+가져와 현재 포함 여부를 함께 표시한다. 사용자는 그 기존 항목을 즉시 연결·해제할 수 있고 모든
+변경은 멱등 command를 거친다. 항목 수가 많아도 아직 읽지 않은 소속을 추측하지 않으며, Google,
+Kakao 수집이나 AI 자동분류가 없어도 이 수동 흐름은 동작한다.

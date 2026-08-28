@@ -58,6 +58,7 @@ import {
   libraryCollectionDetailResponseSchema,
   libraryCollectionListResponseSchema,
   libraryPlacePreferencesResponseSchema,
+  libraryPlaceOrganizationResponseSchema,
   libraryPlaceListResponseSchema,
   libraryTagListResponseSchema,
 } from '../library/index.js'
@@ -308,6 +309,22 @@ const paths = {
       boundedLimitParameter,
     ],
   }) },
+  '/api/library/places/{placeId}/organization': {
+    parameters: [pathParameters.placeId],
+    get: operation('getPlaceLibraryOrganizationForBrowser', {
+      '200': described(
+        'Return bounded current-member Collection and Tag choices with selection state for one Place',
+        'LibraryPlaceOrganizationResponse',
+      ),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, {
+      security: browserSession,
+      parameters: [boundedCursorParameter, boundedLimitParameter],
+    }),
+  },
   '/api/library/collections': { get: operation('listPlaceLibraryCollectionsForBrowser', {
     '200': described('Return a bounded member Collection page', 'LibraryCollectionListResponse'),
     '400': ref('responses', 'ProductRequestInvalid'),
@@ -592,6 +609,22 @@ const paths = {
       ],
     }),
   },
+  '/v1/library/places/{placeId}/organization': {
+    parameters: [pathParameters.placeId],
+    get: operation('getLibraryPlaceOrganization', {
+      '200': described(
+        'Return bounded current-member Collection and Tag choices with selection state for one Place',
+        'LibraryPlaceOrganizationResponse',
+      ),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '503': ref('responses', 'LibraryQueryUnavailable'),
+    }, {
+      security: bearer,
+      parameters: [boundedCursorParameter, boundedLimitParameter],
+    }),
+  },
   '/v1/library/collections': {
     get: operation('listLibraryCollections', {
       '200': described('Return one bounded page of member Collection summaries', 'LibraryCollectionListResponse'),
@@ -829,6 +862,7 @@ const schemas: Readonly<Record<string, ZodType>> = {
   PublishedCollection: publishedCollectionSchema,
   PublishedWriting: publishedWritingSchema,
   LibraryPlaceListResponse: libraryPlaceListResponseSchema,
+  LibraryPlaceOrganizationResponse: libraryPlaceOrganizationResponseSchema,
   LibraryCollectionListResponse: libraryCollectionListResponseSchema,
   LibraryCollectionDetailResponse: libraryCollectionDetailResponseSchema,
   LibraryTagListResponse: libraryTagListResponseSchema,

@@ -8,6 +8,8 @@ import {
 const placeId = '01992d20-0000-7000-8000-000000000001'
 const tagA = '01992d20-0000-7000-8000-000000000002'
 const tagB = '01992d20-0000-7000-8000-000000000003'
+const collectionId = '01992d20-0000-7000-8000-000000000004'
+const commandId = '01992d20-0000-7000-8000-000000000005'
 
 describe('personal library browser interface', () => {
   it('serializes stable repeated Tag IDs and parses a versioned Place page', async () => {
@@ -42,6 +44,39 @@ describe('personal library browser interface', () => {
     const http = createPersonalLibraryHttp(async () => Response.json({}, { status: 401 }))
 
     await expect(http.tags()).rejects.toEqual(new BrowserLibraryProblem(401))
+  })
+
+  it('reads member-scoped organization choices and posts an append command without a position', async () => {
+    const calls: Array<Readonly<{ input: string; init?: RequestInit }>> = []
+    const fetcher = async (input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push({ input: String(input), init })
+      if (init?.method === 'POST') {
+        return Response.json({ schemaVersion: 'library-command-result.v1', status: 'applied' })
+      }
+      return Response.json({
+        schemaVersion: 'library-place-organization.v1',
+        placeId,
+        items: [{
+          kind: 'collection', collectionId, name: 'NAVER · 라멘', selected: false, position: null,
+        }],
+      })
+    }
+    const http = createPersonalLibraryHttp(fetcher as unknown as typeof fetch)
+
+    await expect(http.organization(placeId)).resolves.toMatchObject({
+      items: [{ collectionId, selected: false }],
+    })
+    await expect(http.command({
+      commandId,
+      command: { kind: 'add-collection-place', collectionId, placeId },
+    })).resolves.toMatchObject({ status: 'applied' })
+    expect(calls[0]?.input).toBe(
+      `/api/library/places/${placeId}/organization?limit=50`,
+    )
+    expect(JSON.parse(String(calls[1]?.init?.body))).toEqual({
+      commandId,
+      command: { kind: 'add-collection-place', collectionId, placeId },
+    })
   })
 
   it('keeps collection metadata separate from normalized Place rows', async () => {

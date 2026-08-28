@@ -4,6 +4,7 @@ import type { LibraryPlaceState } from '@place/contracts/library'
 
 import styles from './personal-library.module.css'
 import type { PersonalLibraryWorkflow } from './personal-library-workflow'
+import { PersonalLibraryOrganizationEditor } from './PersonalLibraryOrganizationEditor'
 
 const stateTabs: ReadonlyArray<Readonly<{ state: LibraryPlaceState; label: string }>> = [
   { state: 'saved', label: '저장됨' },
@@ -213,6 +214,7 @@ export function PersonalLibraryView({
                 <div><dt>정보 상태</dt><dd>{evidenceLabel(selectedPlace.evidence.status)}</dd></div>
                 <div><dt>위치</dt><dd>{selectedPlace.location.latitude.toFixed(5)}, {selectedPlace.location.longitude.toFixed(5)}</dd></div>
               </dl>
+              <PersonalLibraryOrganizationEditor workflow={workflow} />
             </>
           )}
         </aside>

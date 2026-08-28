@@ -94,6 +94,31 @@ describe('browser library HTTP', () => {
     expect(resolveAuthRuntime).not.toHaveBeenCalled()
   })
 
+  it('validates and forwards a bounded selected Place organization query', async () => {
+    const observed: string[] = []
+    const http = createBrowserLibraryHttp({
+      resolveAuthRuntime: sessionRuntime,
+      backend: backend(async (url) => {
+        observed.push(url.toString())
+        return Response.json({
+          schemaVersion: 'library-place-organization.v1',
+          placeId,
+          items: [{ kind: 'tag', tagId: tagA, name: '쇼유라멘', selected: true }],
+        })
+      }),
+      createCorrelationRef: () => 'unused',
+    })
+
+    const response = await http.organization(new Request(
+      `https://place.example/api/library/places/${placeId}/organization?cursor=page-2&limit=50`,
+    ), placeId)
+
+    expect(response.status).toBe(200)
+    expect(observed).toEqual([
+      `https://place-backend.example/v1/library/places/${placeId}/organization?limit=50&cursor=page-2`,
+    ])
+  })
+
   it('forwards a strict command and preserves applied status', async () => {
     const http = createBrowserLibraryHttp({
       resolveAuthRuntime: sessionRuntime,

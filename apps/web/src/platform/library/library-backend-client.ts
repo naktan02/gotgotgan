@@ -2,6 +2,7 @@ import type {
   LibraryCollectionDetailQuery,
   LibraryCollectionListQuery,
   LibraryPlaceListQuery,
+  LibraryPlaceOrganizationQuery,
   LibraryTagListQuery,
 } from '@place/contracts/library'
 
@@ -56,6 +57,18 @@ export function createLibraryBackendClient(config: LibraryBackendClientConfig = 
       parameters.set('tagMatch', query.tagMatch)
       for (const tagId of query.tagIds) parameters.append('tagIds', tagId)
       return send(`/v1/library/places?${parameters}`, accessToken, signal)
+    },
+    organization(
+      accessToken: string,
+      placeId: string,
+      query: LibraryPlaceOrganizationQuery,
+      signal: AbortSignal,
+    ) {
+      return send(
+        `/v1/library/places/${placeId}/organization?${queryString(query)}`,
+        accessToken,
+        signal,
+      )
     },
     collections(accessToken: string, query: LibraryCollectionListQuery, signal: AbortSignal) {
       return send(`/v1/library/collections?${queryString(query)}`, accessToken, signal)

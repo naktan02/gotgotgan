@@ -142,6 +142,7 @@ export async function applyCollectionWrite(
       [command.collectionId, command.placeId],
     )
     if (existing.rows[0] !== undefined) {
+      if (command.position === undefined) return 'applied'
       return moveCollectionPlace(client, {
         collectionId: command.collectionId,
         placeId: command.placeId,
@@ -149,18 +150,23 @@ export async function applyCollectionWrite(
         occurredAt: attempt.occurredAt,
       })
     }
+    const position = command.position ?? Number((await client.query<{ position: number }>(
+      `SELECT coalesce(max(position) + 1, 0)::int AS position
+       FROM library.collection_places WHERE collection_id = $1::uuid`,
+      [command.collectionId],
+    )).rows[0]?.position ?? 0)
     await client.query('SET CONSTRAINTS library.collection_places_position_unique DEFERRED')
     await client.query(
       `UPDATE library.collection_places
        SET position = position + 1
        WHERE collection_id = $1::uuid AND position >= $2::int`,
-      [command.collectionId, command.position],
+      [command.collectionId, position],
     )
     await client.query(
       `INSERT INTO library.collection_places
         (collection_id, canonical_place_id, position, added_at)
        VALUES ($1::uuid,$2::uuid,$3::int,$4::timestamptz)`,
-      [command.collectionId, command.placeId, command.position, attempt.occurredAt],
+      [command.collectionId, command.placeId, position, attempt.occurredAt],
     )
     await touchCollection(client, command.collectionId, attempt.occurredAt)
     return 'applied'

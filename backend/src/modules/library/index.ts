@@ -27,6 +27,7 @@ export {
   type LibraryCollectionListPage,
   type LibraryCollectionSummary,
   type LibraryPlaceListPage,
+  type LibraryPlaceOrganizationPage,
   type LibraryPlaceState,
   type LibraryPlaceSummary,
   type LibraryTagMatch,

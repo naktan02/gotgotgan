@@ -22,6 +22,7 @@ describe('library backend client', () => {
     await client.places('server-token', {
       state: 'wanted', tagIds: [tagA, tagB], tagMatch: 'any', cursor: 'next/+', limit: 25,
     }, signal)
+    await client.organization('server-token', placeId, { cursor: 'organization-2', limit: 50 }, signal)
     await client.collections('server-token', { limit: 50 }, signal)
     await client.collection('server-token', collectionId, { cursor: 'page-2', limit: 20 }, signal)
     await client.tags('server-token', { limit: 50 }, signal)
@@ -30,6 +31,7 @@ describe('library backend client', () => {
 
     expect(calls.map((call) => call.url)).toEqual([
       `https://place-backend.example/v1/library/places?limit=25&cursor=next%2F%2B&state=wanted&tagMatch=any&tagIds=${tagA}&tagIds=${tagB}`,
+      `https://place-backend.example/v1/library/places/${placeId}/organization?limit=50&cursor=organization-2`,
       'https://place-backend.example/v1/library/collections?limit=50',
       `https://place-backend.example/v1/library/collections/${collectionId}?limit=20&cursor=page-2`,
       'https://place-backend.example/v1/library/tags?limit=50',

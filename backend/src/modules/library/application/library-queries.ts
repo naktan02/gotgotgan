@@ -2,6 +2,7 @@ import type {
   LibraryCollectionDetail,
   LibraryCollectionListPage,
   LibraryPlaceListPage,
+  LibraryPlaceOrganizationPage,
   LibraryPlaceState,
   LibraryTagMatch,
   LibraryTagListPage,
@@ -35,4 +36,11 @@ export interface LibraryQueries {
     cursor?: string
     limit: number
   }>): Promise<LibraryTagListPage>
+
+  getPlaceOrganization(input: Readonly<{
+    memberId: string
+    placeId: string
+    cursor?: string
+    limit: number
+  }>): Promise<LibraryPlaceOrganizationPage>
 }

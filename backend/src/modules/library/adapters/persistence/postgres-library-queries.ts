@@ -17,6 +17,7 @@ import type {
   LibraryPlaceSummary,
 } from '../../domain/queries.js'
 import { InvalidLibraryQueryError } from '../../domain/queries.js'
+import { getPostgresLibraryPlaceOrganization } from './postgres-library-place-organization-query.js'
 
 type PreferenceRow = Readonly<{
   canonical_place_id: string
@@ -354,5 +355,9 @@ export class PostgresLibraryQueries implements LibraryQueries {
         nextCursor: encodeTagCursor({ normalizedName: last.normalized_name }),
       } : {}),
     }
+  }
+
+  async getPlaceOrganization(input: Parameters<LibraryQueries['getPlaceOrganization']>[0]) {
+    return getPostgresLibraryPlaceOrganization(this.pool, input)
   }
 }

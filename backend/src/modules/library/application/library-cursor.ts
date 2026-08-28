@@ -8,6 +8,11 @@ type PlaceCursor = Readonly<{ updatedAt: string; placeId: string }>
 type CollectionCursor = Readonly<{ updatedAt: string; collectionId: string }>
 type CollectionPlaceCursor = Readonly<{ position: number; placeId: string }>
 type TagCursor = Readonly<{ normalizedName: string }>
+type PlaceOrganizationCursor = Readonly<{
+  itemKind: 'collection' | 'tag'
+  sortName: string
+  resourceId: string
+}>
 type PlaceFilter = Readonly<{
   state: LibraryPlaceState
   tagIds: readonly string[]
@@ -111,4 +116,31 @@ export function decodeTagCursor(value: string | undefined): TagCursor | undefine
 
 export function encodeTagCursor(cursor: TagCursor): string {
   return encode({ v: 1, kind: 'tags', ...cursor })
+}
+
+export function decodePlaceOrganizationCursor(
+  value: string | undefined,
+  placeId: string,
+): PlaceOrganizationCursor | undefined {
+  const payload = readPayload(value)
+  if (payload === undefined) return undefined
+  if (
+    payload.v !== 1 || payload.kind !== 'place-organization' ||
+    payload.placeId !== placeId ||
+    (payload.itemKind !== 'collection' && payload.itemKind !== 'tag') ||
+    typeof payload.sortName !== 'string' || payload.sortName.length === 0 ||
+    payload.sortName.length > 120 || !validUuid(payload.resourceId)
+  ) throw new InvalidLibraryCursorError('Library Place organization cursor is invalid.')
+  return {
+    itemKind: payload.itemKind,
+    sortName: payload.sortName,
+    resourceId: payload.resourceId,
+  }
+}
+
+export function encodePlaceOrganizationCursor(
+  placeId: string,
+  cursor: PlaceOrganizationCursor,
+): string {
+  return encode({ v: 1, kind: 'place-organization', placeId, ...cursor })
 }

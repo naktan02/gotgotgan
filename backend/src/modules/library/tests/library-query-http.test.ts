@@ -67,6 +67,22 @@ function fixture(overrides: Partial<LibraryQueries> = {}) {
         createdAt: at,
       }],
     }),
+    getPlaceOrganization: async (input) => ({
+      schemaVersion: 'library-place-organization.v1',
+      placeId: input.placeId,
+      items: [{
+        kind: 'collection',
+        collectionId,
+        name: '성수',
+        selected: true,
+        position: 0,
+      }, {
+        kind: 'tag',
+        tagId: '01992d20-3000-7000-8000-000000000401',
+        name: '혼밥',
+        selected: false,
+      }],
+    }),
     ...overrides,
   }
   const app = Fastify({ logger: false })
@@ -124,6 +140,17 @@ describe('bounded Library HTTP queries', () => {
     expect(collection.json()).toHaveProperty('places.0.position', 0)
     const tags = await app.inject({ method: 'GET', url: '/v1/library/tags', headers })
     expect(tags.json()).toHaveProperty('items.0.name', '혼밥')
+    const organization = await app.inject({
+      method: 'GET', url: `/v1/library/places/${placeId}/organization`, headers,
+    })
+    expect(organization.json()).toMatchObject({
+      schemaVersion: 'library-place-organization.v1',
+      placeId,
+      items: [
+        { kind: 'collection', collectionId, selected: true },
+        { kind: 'tag', selected: false },
+      ],
+    })
     await app.close()
   })
 
@@ -170,6 +197,32 @@ describe('bounded Library HTTP queries', () => {
     expect((await app.inject({
       method: 'GET', url: `/v1/library/collections/${collectionId}`, headers,
     })).statusCode).toBe(404)
+    await app.close()
+  })
+
+  it('validates and forwards a bounded selected Place organization query', async () => {
+    const getPlaceOrganization = vi.fn<LibraryQueries['getPlaceOrganization']>(async (input) => ({
+      schemaVersion: 'library-place-organization.v1',
+      placeId: input.placeId,
+      items: [],
+    }))
+    const { app } = fixture({ getPlaceOrganization })
+    const headers = { authorization: 'Bearer good' }
+
+    expect((await app.inject({
+      method: 'GET',
+      url: '/v1/library/places/not-a-place/organization',
+      headers,
+    })).statusCode).toBe(400)
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/library/places/${placeId}/organization?cursor=next-page&limit=12`,
+      headers,
+    })
+    expect(response.statusCode).toBe(200)
+    expect(getPlaceOrganization).toHaveBeenCalledWith({
+      memberId, placeId, cursor: 'next-page', limit: 12,
+    })
     await app.close()
   })
 })

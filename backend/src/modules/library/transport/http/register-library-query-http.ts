@@ -6,6 +6,9 @@ import {
   libraryCollectionListResponseSchema,
   libraryPlaceListQuerySchema,
   libraryPlaceListResponseSchema,
+  libraryPlaceIdentifierParamsSchema,
+  libraryPlaceOrganizationQuerySchema,
+  libraryPlaceOrganizationResponseSchema,
   libraryTagListQuerySchema,
   libraryTagListResponseSchema,
 } from '@place/contracts/library'
@@ -62,6 +65,33 @@ export function registerLibraryQueryHttpRoutes(
         limit: parsed.data.limit,
         ...(parsed.data.cursor === undefined ? {} : { cursor: parsed.data.cursor }),
       }))
+      return reply.header('cache-control', 'no-store').status(200).send(response)
+    } catch (error) {
+      return queryFailure(request, reply, error)
+    }
+  })
+
+  application.get('/v1/library/places/:placeId/organization', async (request, reply) => {
+    const memberId = await requireProductMember(
+      request, reply, dependencies.authorizer, 'library.read',
+    )
+    if (memberId === undefined) return
+    const params = libraryPlaceIdentifierParamsSchema.safeParse(request.params)
+    const query = libraryPlaceOrganizationQuerySchema.safeParse(request.query)
+    if (!params.success || !query.success) {
+      return sendProductProblem(
+        request, reply, 400, 'PLACE_LIBRARY_QUERY_INVALID', 'Library query is invalid',
+      )
+    }
+    try {
+      const response = libraryPlaceOrganizationResponseSchema.parse(
+        await dependencies.queries.getPlaceOrganization({
+          memberId,
+          placeId: params.data.placeId,
+          limit: query.data.limit,
+          ...(query.data.cursor === undefined ? {} : { cursor: query.data.cursor }),
+        }),
+      )
       return reply.header('cache-control', 'no-store').status(200).send(response)
     } catch (error) {
       return queryFailure(request, reply, error)

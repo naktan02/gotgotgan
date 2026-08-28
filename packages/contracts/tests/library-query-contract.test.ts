@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   libraryCollectionDetailResponseSchema,
+  libraryPlaceOrganizationQuerySchema,
+  libraryPlaceOrganizationResponseSchema,
   libraryPlaceListQuerySchema,
   libraryPlaceListResponseSchema,
   libraryTagListResponseSchema,
@@ -43,6 +45,7 @@ describe('bounded library query contracts', () => {
     const collectionId = '01992d20-3000-7000-8000-000000000011'
     const tagId = '01992d20-3000-7000-8000-000000000012'
     for (const command of [
+      { kind: 'add-collection-place', collectionId, placeId },
       { kind: 'rename-collection', collectionId, name: '성수 라멘' },
       { kind: 'move-collection-place', collectionId, placeId, position: 1 },
       { kind: 'remove-collection-place', collectionId, placeId },
@@ -53,6 +56,38 @@ describe('bounded library query contracts', () => {
     ]) {
       expect(libraryCommandRequestSchema.safeParse({ commandId, command }).success).toBe(true)
     }
+  })
+
+  it('bounds the selected Place organization projection', () => {
+    expect(libraryPlaceOrganizationQuerySchema.parse({})).toEqual({ limit: 20 })
+    expect(libraryPlaceOrganizationQuerySchema.safeParse({ limit: 51 }).success).toBe(false)
+    expect(libraryPlaceOrganizationResponseSchema.parse({
+      schemaVersion: 'library-place-organization.v1',
+      placeId,
+      items: [{
+        kind: 'collection',
+        collectionId: '01992d20-3000-7000-8000-000000000002',
+        name: '성수동',
+        selected: true,
+        position: 3,
+      }, {
+        kind: 'tag',
+        tagId: '01992d20-3000-7000-8000-000000000003',
+        name: '쇼유라멘',
+        selected: false,
+      }],
+    }).items).toHaveLength(2)
+    expect(libraryPlaceOrganizationResponseSchema.safeParse({
+      schemaVersion: 'library-place-organization.v1',
+      placeId,
+      items: [{
+        kind: 'collection',
+        collectionId: '01992d20-3000-7000-8000-000000000002',
+        name: '성수동',
+        selected: false,
+        position: 3,
+      }],
+    }).success).toBe(false)
   })
 
   it('bounds collection places and tag summaries', () => {

@@ -1,10 +1,17 @@
 import {
+  libraryCommandRequestSchema,
+  type LibraryCommandRequest,
+} from '@place/contracts/http'
+import {
+  libraryCommandResultSchema,
   libraryCollectionDetailResponseSchema,
   libraryCollectionListResponseSchema,
   libraryPlaceListResponseSchema,
+  libraryPlaceOrganizationResponseSchema,
   libraryTagListResponseSchema,
   type LibraryCollectionListResponse,
   type LibraryPlaceState,
+  type LibraryPlaceOrganizationResponse,
   type LibraryTagListResponse,
   type LibraryTagMatch,
 } from '@place/contracts/library'
@@ -79,6 +86,26 @@ export function createPersonalLibraryHttp(fetcher: typeof fetch = fetch) {
         pathWithQuery('/api/library/collections', { limit: '50', cursor }),
         signal,
       ))
+    },
+    async organization(
+      placeId: string,
+      cursor?: string,
+      signal?: AbortSignal,
+    ): Promise<LibraryPlaceOrganizationResponse> {
+      return libraryPlaceOrganizationResponseSchema.parse(await read(pathWithQuery(
+        `/api/library/places/${placeId}/organization`,
+        { limit: '50', cursor },
+      ), signal))
+    },
+    async command(request: LibraryCommandRequest, signal?: AbortSignal) {
+      const body = libraryCommandRequestSchema.parse(request)
+      const response = await fetcher('/api/library/commands', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+        ...(signal === undefined ? {} : { signal }),
+      })
+      return libraryCommandResultSchema.parse(await payload(response))
     },
     async places(
       state: LibraryPlaceState,

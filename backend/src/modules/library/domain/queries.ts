@@ -71,6 +71,27 @@ export type LibraryTagListPage = Readonly<{
   nextCursor?: string
 }>
 
+export type LibraryPlaceOrganizationPage = Readonly<{
+  schemaVersion: 'library-place-organization.v1'
+  placeId: string
+  items: readonly (
+    | Readonly<{
+        kind: 'collection'
+        collectionId: string
+        name: string
+        selected: boolean
+        position: number | null
+      }>
+    | Readonly<{
+        kind: 'tag'
+        tagId: string
+        name: string
+        selected: boolean
+      }>
+  )[]
+  nextCursor?: string
+}>
+
 export class InvalidLibraryCursorError extends Error {
   override readonly name = 'InvalidLibraryCursorError'
 }

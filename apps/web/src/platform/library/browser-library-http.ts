@@ -14,6 +14,9 @@ import {
   libraryCommandResultSchema,
   libraryPlaceListQuerySchema,
   libraryPlaceListResponseSchema,
+  libraryPlaceIdentifierParamsSchema,
+  libraryPlaceOrganizationQuerySchema,
+  libraryPlaceOrganizationResponseSchema,
   libraryTagListQuerySchema,
   libraryTagListResponseSchema,
 } from '@place/contracts/library'
@@ -172,6 +175,21 @@ export function createBrowserLibraryHttp(dependencies: Dependencies) {
         request,
         (accessToken) => dependencies.backend.places(accessToken, query, request.signal),
         libraryPlaceListResponseSchema,
+      )
+    },
+    organization(request: Request, placeId: string): Promise<Response> {
+      const identifier = libraryPlaceIdentifierParamsSchema.safeParse({ placeId }).data
+      const query = parseQuery(request, libraryPlaceOrganizationQuerySchema)
+      if (identifier === undefined || query === undefined) return Promise.resolve(invalid())
+      return invoke(
+        request,
+        (accessToken) => dependencies.backend.organization(
+          accessToken,
+          identifier.placeId,
+          query,
+          request.signal,
+        ),
+        libraryPlaceOrganizationResponseSchema,
       )
     },
     collections(request: Request): Promise<Response> {
