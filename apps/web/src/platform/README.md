@@ -13,3 +13,7 @@ capture 제출 경로는 브라우저 session cookie를 사용하지 않는다.
 
 `library`는 좁은 인증 session 인터페이스와 공용 고정 Backend transport만 소비해 Place detail 및
 개인 Library의 same-origin BFF를 제공한다. 권한과 등급 정책은 Backend Product Authorizer에 남긴다.
+
+`visits`는 같은 두 의존성만 소비해 Visit 기록과 Place별 bounded history의 same-origin BFF를
+제공한다. 브라우저 입력에서는 내부 evidence와 member ID를 허용하지 않으며, 불변 occurrence와 replay
+판정은 Backend Visits owner가 담당한다.

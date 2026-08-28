@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
-import type { LibraryCommandRequest } from '@place/contracts/http'
+import type { BrowserVisitRecordRequest, LibraryCommandRequest } from '@place/contracts/http'
 
 const ramenPlaceId = '01992d20-7000-7000-8000-000000000101'
 const cafePlaceId = '01992d20-7000-7000-8000-000000000102'
@@ -32,6 +32,8 @@ type FixtureTag = {
   createdAt: string
 }
 
+type FixtureVisit = BrowserVisitRecordRequest & Readonly<{ recordedAt: string }>
+
 function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
 }
@@ -59,13 +61,17 @@ async function installLibraryFixture(
     preferenceConflictOnce?: boolean
     preferenceFailureOnce?: boolean
     managementFailureOnce?: boolean
+    visitFailureOnce?: boolean
+    paginatedVisits?: boolean
   }> = {},
 ) {
   let preferenceRevision = 0
   let preferenceConflictPending = options.preferenceConflictOnce ?? false
   let preferenceFailurePending = options.preferenceFailureOnce ?? false
   let managementFailurePending = options.managementFailureOnce ?? false
+  let visitFailurePending = options.visitFailureOnce ?? false
   const appliedCommandIds = new Set<string>()
+  const appliedVisitFingerprints = new Map<string, string>()
   const collections = new Map<string, FixtureCollection>([[seongsuCollectionId, {
     collectionId: seongsuCollectionId,
     name: '성수동',
@@ -89,7 +95,22 @@ async function installLibraryFixture(
       saved: true, wanted: false, personalRating: null, updatedAt: timestamp,
     },
   }
+  const visits = new Map<string, FixtureVisit[]>([
+    [ramenPlaceId, [{
+      id: '01992d20-7000-7000-8000-000000000401',
+      placeId: ramenPlaceId,
+      visitedAt: timestamp,
+      recordedAt: '2026-08-28T00:05:00.000Z',
+    }, {
+      id: '01992d20-7000-7000-8000-000000000402',
+      placeId: ramenPlaceId,
+      visitedAt: '2026-08-27T03:00:00.000Z',
+      recordedAt: '2026-08-27T03:10:00.000Z',
+    }]],
+    [cafePlaceId, []],
+  ])
   const commands: LibraryCommandRequest[] = []
+  const visitRequests: BrowserVisitRecordRequest[] = []
   await page.route('**/api/library/place-facets', (route) => json(route, {
     schemaVersion: 'library-place-facets.v1',
     sourceState: 'saved',
@@ -327,9 +348,11 @@ async function installLibraryFixture(
     }
     return json(route, { schemaVersion: 'library-command-result.v1', status: 'applied' }, 201)
   })
-  await page.route('**/api/places/*', (route) => {
+  await page.route(/\/api\/places\/[^/]+$/, (route) => {
     const selected = route.request().url().includes(ramenPlaceId) ? ramen : cafe
     const preference = preferences[selected.placeId]!
+    const placeVisits = visits.get(selected.placeId) ?? []
+    const visitedTimes = placeVisits.map((visit) => visit.visitedAt).sort()
     return json(route, {
       schemaVersion: 'place-detail.v1',
       status: 'available',
@@ -341,13 +364,75 @@ async function installLibraryFixture(
         wanted: preference.wanted,
         personalRating: preference.personalRating,
         preferencesUpdatedAt: preference.updatedAt,
-        visits: selected.placeId === ramenPlaceId
-          ? { visited: true, count: 2, firstVisitedAt: timestamp, lastVisitedAt: timestamp }
-          : { visited: false, count: 0 },
+        visits: placeVisits.length === 0
+          ? { visited: false, count: 0 }
+          : {
+              visited: true,
+              count: placeVisits.length,
+              firstVisitedAt: visitedTimes[0],
+              lastVisitedAt: visitedTimes.at(-1),
+            },
       },
     })
   })
-  return commands
+  await page.route('**/api/places/*/visits?*', (route) => {
+    const url = new URL(route.request().url())
+    const placeId = url.pathname.split('/').at(-2)!
+    const placeVisits = visits.get(placeId) ?? []
+    const cursor = url.searchParams.get('cursor')
+    const items = options.paginatedVisits
+      ? cursor === null ? placeVisits.slice(0, 1) : placeVisits.slice(1)
+      : placeVisits
+    return json(route, {
+      schemaVersion: 'visit-history.v1',
+      placeId,
+      items: items.map((visit) => ({
+        visitId: visit.id,
+        visitedAt: visit.visitedAt,
+        recordedAt: visit.recordedAt,
+      })),
+      ...(options.paginatedVisits && cursor === null && placeVisits.length > 1
+        ? { nextCursor: 'visit-page-2' }
+        : {}),
+    })
+  })
+  await page.route('**/api/visits', (route) => {
+    const body = route.request().postDataJSON() as BrowserVisitRecordRequest
+    visitRequests.push(body)
+    const fingerprint = JSON.stringify(body)
+    const appliedFingerprint = appliedVisitFingerprints.get(body.id)
+    if (appliedFingerprint !== undefined) {
+      return appliedFingerprint === fingerprint
+        ? json(route, { schemaVersion: 'visit-record-result.v1', status: 'recorded' }, 201)
+        : json(route, {
+            type: 'urn:place:error:visit-conflict',
+            title: 'Visit conflicts with an earlier record',
+            status: 409,
+            code: 'PLACE_VISIT_CONFLICT',
+            retryable: true,
+            correlationRef: 'e2e-visit-conflict',
+          }, 409)
+    }
+    const placeVisits = visits.get(body.placeId) ?? []
+    visits.set(body.placeId, [{
+      ...body,
+      recordedAt: '2026-08-28T14:30:00.000Z',
+    }, ...placeVisits].sort((left, right) => right.visitedAt.localeCompare(left.visitedAt)))
+    appliedVisitFingerprints.set(body.id, fingerprint)
+    if (visitFailurePending) {
+      visitFailurePending = false
+      return json(route, {
+        type: 'urn:place:error:visit-unavailable',
+        title: 'Visits are temporarily unavailable',
+        status: 503,
+        code: 'PLACE_VISIT_UNAVAILABLE',
+        retryable: true,
+        correlationRef: 'e2e-visit-response-loss',
+      }, 503)
+    }
+    return json(route, { schemaVersion: 'visit-record-result.v1', status: 'recorded' }, 201)
+  })
+  return { commands, visitRequests }
 }
 
 test('browses saved Places by tags and Collection without leaking the Backend boundary', async ({ page }) => {
@@ -403,7 +488,7 @@ test('shows a login action when the opaque browser session is absent', async ({ 
 })
 
 test('updates saved, wanted, and Personal Rating with observed preference versions', async ({ page }) => {
-  const commands = await installLibraryFixture(page)
+  const { commands } = await installLibraryFixture(page)
   await page.goto('/library')
 
   const preferences = page.getByRole('region', { name: '내 상태' })
@@ -455,7 +540,7 @@ test('refreshes a stale Place preference instead of overwriting it', async ({ pa
 })
 
 test('retries a response-lost preference command with the same command ID', async ({ page }) => {
-  const commands = await installLibraryFixture(page, { preferenceFailureOnce: true })
+  const { commands } = await installLibraryFixture(page, { preferenceFailureOnce: true })
   await page.goto('/library')
 
   const preferences = page.getByRole('region', { name: '내 상태' })
@@ -473,7 +558,7 @@ test('retries a response-lost preference command with the same command ID', asyn
 })
 
 test('manages Place-owned Collections, Tags, and ordered memberships', async ({ page }) => {
-  const commands = await installLibraryFixture(page)
+  const { commands } = await installLibraryFixture(page)
   await page.goto('/library')
   await page.getByRole('button', { name: '목록·태그 관리' }).click()
 
@@ -527,7 +612,7 @@ test('manages Place-owned Collections, Tags, and ordered memberships', async ({ 
 })
 
 test('retries a response-lost management command with the same command ID', async ({ page }) => {
-  const commands = await installLibraryFixture(page, { managementFailureOnce: true })
+  const { commands } = await installLibraryFixture(page, { managementFailureOnce: true })
   await page.goto('/library')
   await page.getByRole('button', { name: '목록·태그 관리' }).click()
 
@@ -544,8 +629,45 @@ test('retries a response-lost management command with the same command ID', asyn
   expect(createCommands[0]?.command).toEqual(createCommands[1]?.command)
 })
 
+test('records repeated immutable Visits and reads bounded history', async ({ page }) => {
+  const { visitRequests } = await installLibraryFixture(page, { paginatedVisits: true })
+  await page.goto('/library')
+
+  const visitRegion = page.getByRole('region', { name: '방문 기록' })
+  await expect(visitRegion.getByText(/총 2회/)).toBeVisible()
+  await expect(visitRegion.locator('ol > li')).toHaveCount(1)
+  await visitRegion.getByRole('button', { name: '이전 방문 더 보기' }).click()
+  await expect(visitRegion.locator('ol > li')).toHaveCount(2)
+
+  await visitRegion.getByLabel('방문한 시각').fill('2026-08-27T08:30')
+  await visitRegion.getByRole('button', { name: '방문 추가' }).click()
+
+  await expect(visitRegion.getByRole('status')).toHaveText('방문 기록을 추가했습니다.')
+  await expect(visitRegion.getByText(/총 3회/)).toBeVisible()
+  expect(visitRequests).toHaveLength(1)
+  expect(visitRequests[0]).toMatchObject({ placeId: ramenPlaceId })
+  expect(visitRequests[0]).not.toHaveProperty('memberId')
+  expect(visitRequests[0]).not.toHaveProperty('evidence')
+})
+
+test('retries a response-lost Visit with the same immutable request', async ({ page }) => {
+  const { visitRequests } = await installLibraryFixture(page, { visitFailureOnce: true })
+  await page.goto('/library')
+
+  const visitRegion = page.getByRole('region', { name: '방문 기록' })
+  await visitRegion.getByLabel('방문한 시각').fill('2026-08-26T19:10')
+  await visitRegion.getByRole('button', { name: '방문 추가' }).click()
+  await expect(visitRegion.getByRole('alert')).toContainText('방문 기록 결과를 확인하지 못했습니다.')
+  await visitRegion.getByRole('button', { name: '같은 기록 다시 확인' }).click()
+
+  await expect(visitRegion.getByRole('status')).toHaveText('방문 기록을 추가했습니다.')
+  await expect(visitRegion.getByText(/총 3회/)).toBeVisible()
+  expect(visitRequests).toHaveLength(2)
+  expect(visitRequests[0]).toEqual(visitRequests[1])
+})
+
 test('organizes a Place with only the member saved Collections and Tags', async ({ page }) => {
-  const commands = await installLibraryFixture(page)
+  const { commands } = await installLibraryFixture(page)
   await page.goto('/library')
 
   const organization = page.getByRole('region', { name: '내 분류' })

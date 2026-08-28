@@ -69,6 +69,11 @@ Collection Place 이웃 순서 이동·제거, 관리 후 탐색 화면의 최�
 command ID/payload 재전송을 desktop/mobile에서 검증한다. 화면은 Provider 원본 목록을 바꾸지 않는다는
 문구를 함께 노출한다.
 
+Visit E2E는 같은 Place의 반복 방문이 서로 다른 불변 occurrence로 쌓이고 bounded history와 Place
+summary가 갱신되는지 desktop/mobile에서 검증한다. 첫 기록 응답을 유실시킨 경우에는 새 ID를 만들지
+않고 동일 Visit ID와 payload를 재전송한다. focused Personal Library suite는 두 browser project에서
+20개 case를 실행하며 browser request에 evidence나 member ID를 넣지 않는다.
+
 Stage 5 Playwright는 같은 공개 경계에 결정적인 Taxonomy/Search fixture를 연결한다. 입력
 debounce와 교체 요청의 실제 upstream 취소, 목록·마커 선택 동기화, 명시적 bounds 재검색,
 Taxonomy filter, cursor pagination, mobile 목록/지도 전환, partial·loading·empty·error·retry와

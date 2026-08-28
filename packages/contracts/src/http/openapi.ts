@@ -20,6 +20,7 @@ import {
 } from './access.js'
 import {
   addCollectionPlaceCommandSchema,
+  browserVisitRecordRequestSchema,
   copyPublishedCollectionCommandSchema,
   createCollectionCommandSchema,
   createEntryCommandSchema,
@@ -310,6 +311,27 @@ const paths = {
       '503': ref('responses', 'BrowserBackendUnavailable'),
     }, { security: browserSession }),
   },
+  '/api/places/{placeId}/visits': {
+    parameters: [pathParameters.placeId],
+    get: operation('listCurrentMemberPlaceVisitsForBrowser', {
+      '200': described('Return a bounded current-member Visit history', 'VisitHistoryResponse'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, {
+      security: browserSession,
+      parameters: [boundedCursorParameter, boundedLimitParameter],
+    }),
+  },
+  '/api/visits': { post: operation('recordPlaceVisitForBrowser', {
+    '201': described('Record or replay an immutable Visit occurrence', 'VisitRecordResult'),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '401': ref('responses', 'AuthenticationRequired'),
+    '403': ref('responses', 'AccessDenied'),
+    '409': ref('responses', 'ProductConflict'),
+    '503': ref('responses', 'BrowserBackendUnavailable'),
+  }, { security: browserSession, requestSchema: 'BrowserVisitRecordRequest' }) },
   '/api/library/places': { get: operation('listPlaceLibraryPlacesForBrowser', {
     '200': described('Return a bounded member Place preference page', 'LibraryPlaceListResponse'),
     '400': ref('responses', 'ProductRequestInvalid'),
@@ -881,6 +903,7 @@ const schemas: Readonly<Record<string, ZodType>> = {
   UntagPlaceCommand: untagPlaceCommandSchema,
   CopyPublishedCollectionCommand: copyPublishedCollectionCommandSchema,
   VisitRecordRequest: visitRecordRequestSchema,
+  BrowserVisitRecordRequest: browserVisitRecordRequestSchema,
   VisitRecordResult: visitRecordResultSchema,
   VisitSummaryResponse: visitSummaryResponseSchema,
   WritingCommandRequest: writingCommandRequestSchema,

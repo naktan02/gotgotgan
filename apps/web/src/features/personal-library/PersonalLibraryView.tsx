@@ -4,6 +4,7 @@ import type { LibraryPlaceState } from '@place/contracts/library'
 
 import styles from './personal-library.module.css'
 import { PersonalLibraryManagementView } from './PersonalLibraryManagementView'
+import { PersonalLibraryVisits } from './PersonalLibraryVisits'
 import type { PersonalLibraryWorkflow } from './personal-library-workflow'
 import { PersonalLibraryOrganizationEditor } from './PersonalLibraryOrganizationEditor'
 import { PersonalLibraryPreferenceEditor } from './PersonalLibraryPreferenceEditor'
@@ -276,8 +277,8 @@ export function PersonalLibraryView({
               <dl className={styles.placeFacts}>
                 <div><dt>정보 상태</dt><dd>{evidenceLabel(selectedPlace.evidence.status)}</dd></div>
                 <div><dt>위치</dt><dd>{selectedPlace.location.latitude.toFixed(5)}, {selectedPlace.location.longitude.toFixed(5)}</dd></div>
-                {personalState !== undefined && <div><dt>방문</dt><dd>{personalState.visits.count}회</dd></div>}
               </dl>
+              {personalState !== undefined && <PersonalLibraryVisits visits={workflow.visits} />}
               <PersonalLibraryOrganizationEditor workflow={workflow} />
             </>
           )}

@@ -69,6 +69,26 @@
 .savingLabel { position: absolute; right: 0; bottom: 1px; color: var(--muted); font-size: 9px; }
 .tagManagementBody { display: grid; grid-template-columns: minmax(120px, 42%) minmax(0, 1fr); min-height: 280px; }
 .tagUsage { margin: 0; padding: 14px 18px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.visits { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 20px; }
+.visitHeading h3 { margin: 0; font-size: 15px; }
+.visitHeading p { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.visitForm { display: grid; gap: 7px; margin-top: 14px; }
+.visitForm label { color: var(--muted); font-size: 11px; font-weight: 700; }
+.visitForm > div { display: flex; gap: 6px; }
+.visitForm input { min-width: 0; flex: 1; height: 36px; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); padding: 0 8px; font-size: 11px; }
+.visitForm button, .visitError button, .visitHistory > button { min-height: 34px; border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); padding: 0 10px; font-size: 11px; }
+.visitForm button:disabled, .visitHistory > button:disabled { cursor: wait; opacity: .55; }
+.visitForm small { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.visitError { display: grid; gap: 7px; margin-top: 12px; border: 1px solid #ecd0d0; border-radius: var(--radius-control); background: #fff2f2; padding: 10px; color: var(--danger); font-size: 11px; }
+.visitError button { justify-self: start; border-color: #e4caca; color: var(--danger); }
+.visitNotice { margin: 12px 0 0; border-radius: var(--radius-control); background: var(--accent-soft); padding: 9px 10px; color: var(--accent); font-size: 11px; }
+.visitHistory { margin-top: 16px; }
+.visitHistory > strong { font-size: 12px; }
+.visitHistory > p { color: var(--muted); font-size: 11px; }
+.visitHistory ol { margin: 8px 0 0; padding: 0; list-style: none; }
+.visitHistory li { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 34px; border-top: 1px solid var(--line); font-size: 11px; }
+.visitHistory li small { color: var(--muted); font-size: 9px; text-align: right; }
+.visitHistory > button { width: 100%; margin-top: 8px; }
 .workspace { display: grid; grid-template-columns: 220px minmax(320px, 1fr) minmax(280px, 34%); min-height: calc(100vh - 64px - 108px - 111px); }
 .collections, .places, .detail { min-width: 0; background: var(--surface); }
 .collections, .places { border-right: 1px solid var(--line); }
@@ -140,7 +160,7 @@
 .gate h1 { margin: 0; font-size: clamp(28px, 5vw, 42px); letter-spacing: -.04em; }
 .gate span { max-width: 520px; margin-top: 16px; color: var(--muted); line-height: 1.7; }
 .gate a { margin-top: 24px; border-radius: var(--radius-control); background: var(--accent); color: white; padding: 11px 16px; font-weight: 700; text-decoration: none; }
-.tabs button:focus-visible, .tags button:focus-visible, .facetOptions button:focus-visible, .matchMode button:focus-visible, .libraryMode button:focus-visible, .collections button:focus-visible, .places button:focus-visible, .more:focus-visible, .preferences button:focus-visible, .preferences input:focus-visible, .organization button:focus-visible, .management button:focus-visible, .management input:focus-visible, .gate a:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+.tabs button:focus-visible, .tags button:focus-visible, .facetOptions button:focus-visible, .matchMode button:focus-visible, .libraryMode button:focus-visible, .collections button:focus-visible, .places button:focus-visible, .more:focus-visible, .preferences button:focus-visible, .preferences input:focus-visible, .visits button:focus-visible, .visits input:focus-visible, .organization button:focus-visible, .management button:focus-visible, .management input:focus-visible, .gate a:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
 
 @media (max-width: 980px) {
   .workspace { grid-template-columns: 190px minmax(300px, 1fr); }
@@ -168,6 +188,8 @@
   .detail { padding: 20px 16px; }
   .ratingEditor { grid-template-columns: auto minmax(80px, 1fr); }
   .ratingEditor button { width: 100%; }
+  .visitForm > div { align-items: stretch; flex-direction: column; }
+  .visitForm button { width: 100%; }
   .management { padding: 10px; }
   .managementNotice { display: grid; gap: 5px; }
   .managementNotice span { text-align: left; }

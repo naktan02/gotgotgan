@@ -14,9 +14,16 @@ Tag 이름 변경·삭제, Collection Place 위/아래 이동·제거를 기존 
 내부 seam으로 나뉜다. View는 command 조립이나 재시도 ID를 알지 못한다. 삭제와 제거는 Place 내부
 정리만 바꾸며 Provider 원본 목록, 저장 preference, Place 자체를 삭제하지 않는다.
 
+선택한 장소의 `방문 기록`은 과거 또는 현재 시각의 새 불변 occurrence를 추가하고 최신 이력을 bounded
+cursor로 읽는다. 같은 장소를 다시 방문하면 이전 행을 수정하지 않고 새 ID로 기록한다. 응답 결과를
+모르는 경우에만 같은 Visit ID와 payload를 재전송하며, 브라우저는 내부 evidence를 만들거나 보내지
+않는다.
+
 지역·분류 선택지는 `library-place-facets.v1`만 표시하며 count와 불완전 표본 상태도 그대로 전달한다.
 화면은 지역명을 번역·병합하거나 Taxonomy를 새로 추론하지 않는다.
 
 `personal-library-http.ts`는 versioned browser payload 해석을, 기본 workflow는 목록·상세 조정을,
 preference workflow는 버전 기반 상태 변경과 안전한 재시도를, organization workflow는 선택 장소의
-분류 변경을, management workflow는 Collection·Tag 수명주기와 순서를, 각 View는 접근 가능한 표현만 맡는다.
+분류 변경을, management workflow는 Collection·Tag 수명주기와 순서를 맡는다. visit workflow는 불변
+기록·동일 요청 재시도·history pagination을 하나의 좁은 Interface 뒤에 두고, 각 View는 접근 가능한
+표현만 맡는다.

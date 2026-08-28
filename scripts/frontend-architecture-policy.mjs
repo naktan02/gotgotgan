@@ -13,6 +13,7 @@ export const frontendArchitecturePolicy = defineFrontendArchitecturePolicy({
       'process-readiness': ['auth', 'imports', 'membership'],
       publications: ['backend-http'],
       search: ['backend-http'],
+      visits: ['auth', 'backend-http'],
     },
   },
   shellFeaturePublicSegments: ['public'],

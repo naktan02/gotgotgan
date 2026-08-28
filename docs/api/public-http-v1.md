@@ -120,6 +120,12 @@ Web은 동일한 계약을 `/api/library/places`, `/api/library/place-facets`, `
 양방향으로 다시 검증하며 private 응답은 `no-store`다. Product Tier 정책은 BFF가 아니라 기존
 Backend Product Authorizer seam에 남는다.
 
+Web은 Visit 계약을 `GET /api/places/{placeId}/visits`와 `POST /api/visits`로도 다시 노출한다. 기록
+요청은 `id`, `placeId`, `visitedAt`만 허용하며 Backend의 선택적 내부 `evidence`와 member ID는
+브라우저 계약에 포함하지 않는다. 같은 장소의 반복 방문은 서로 다른 ID의 불변 occurrence이고,
+응답 결과가 불명확한 동일 시도만 원래 ID와 payload로 재전송한다. history query와 응답은 Backend의
+bounded cursor 계약을 그대로 검증하며 private 응답은 `no-store`다.
+
 `GET /v1/public/collections/{publicationId}`와 `GET /v1/public/writing/{publicationId}`는
 Stage 4에서 유일한 anonymous Backend projection이다. Web은 고정된 내부 Backend origin을 통해
 대응하는 `/api/public/...` BFF 조회와 `/share/...` page를 제공한다. 알 수 없는 identifier와

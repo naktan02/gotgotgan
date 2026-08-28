@@ -89,6 +89,12 @@ Web의 Library management module은 View에 하나의 Interface를 제공한다.
 Collection 순서 규칙이나 재시도 정책을 View 파일과 Tag 흐름에 반복하지 않으면서도 선택한 Place의
 기존 조직 편집 workflow와 관리 surface를 섞지 않는다.
 
+Web의 `platform/visits`는 인증 session과 고정 Backend transport만 소비하는 same-origin Adapter다.
+Personal Library의 visit workflow는 View에 기록·history·retry를 묶은 하나의 Interface만 제공하고,
+불변 ID/payload 보존, selection staleness, bounded pagination을 내부에 숨긴다. Backend Visits owner가
+replay/conflict와 occurrence truth를 계속 소유하며 Web은 Product Tier나 Provider evidence를 해석하지
+않는다.
+
 회원 전체 Library를 한 번에 반환하는 unbounded Store 메서드는 두지 않는다. HTTP composition은
 bounded `LibraryQueries`를 필수로 주입하고 테스트도 같은 public Interface를 사용한다.
 

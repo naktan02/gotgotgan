@@ -121,6 +121,8 @@ export const visitRecordRequestSchema = z.object({
   evidence: z.record(z.string(), z.unknown()).optional(),
 }).strict()
 
+export const browserVisitRecordRequestSchema = visitRecordRequestSchema.omit({ evidence: true })
+
 const publicationFields = {
   visibility: visibilitySchema,
   publicationId: uuidSchema.optional(),
@@ -217,6 +219,7 @@ export const publishedWritingSchema = z.discriminatedUnion('kind', [
 
 export type LibraryCommandRequest = z.infer<typeof libraryCommandRequestSchema>
 export type VisitRecordRequest = z.infer<typeof visitRecordRequestSchema>
+export type BrowserVisitRecordRequest = z.infer<typeof browserVisitRecordRequestSchema>
 export type WritingCommandRequest = z.infer<typeof writingCommandRequestSchema>
 export type PublishedCollection = z.infer<typeof publishedCollectionSchema>
 export type PublishedWriting = z.infer<typeof publishedWritingSchema>

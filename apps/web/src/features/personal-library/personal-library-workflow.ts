@@ -18,6 +18,8 @@ import {
 import { usePersonalLibraryManagementWorkflow } from './personal-library-management'
 import { usePersonalLibraryOrganizationWorkflow } from './personal-library-organization-workflow'
 import { usePersonalLibraryPreferenceWorkflow } from './personal-library-preference-workflow'
+import { usePersonalLibraryVisitWorkflow } from './personal-library-visit-workflow'
+import { BrowserVisitProblem } from './personal-library-visits-http'
 
 type LibrarySurface =
   | Readonly<{ kind: 'state'; state: LibraryPlaceState }>
@@ -51,13 +53,16 @@ export function usePersonalLibraryWorkflow() {
 
   const handleFailure = useCallback((reason: unknown) => {
     if (reason instanceof DOMException && reason.name === 'AbortError') return
-    if (reason instanceof BrowserLibraryProblem && reason.status === 401) {
+    const status = reason instanceof BrowserLibraryProblem || reason instanceof BrowserVisitProblem
+      ? reason.status
+      : undefined
+    if (status === 401) {
       setAuthenticationRequired(true)
       setError(undefined)
       return
     }
-    if (reason instanceof BrowserLibraryProblem && reason.status === 403) {
-      setError('현재 등급에서는 이 라이브러리를 사용할 수 없습니다.')
+    if (status === 403) {
+      setError('현재 등급에서는 이 기능을 사용할 수 없습니다.')
       return
     }
     setError('라이브러리를 불러오지 못했습니다. 잠시 뒤 다시 시도해 주세요.')
@@ -282,14 +287,22 @@ export function usePersonalLibraryWorkflow() {
       setSelectedTagIds((current) => current.filter((candidate) => candidate !== tagId))
     },
   })
+  const refreshSelectedPlace = useCallback(() => selectedPlaceId === undefined
+    ? Promise.resolve()
+    : loadSelectedDetail(selectedPlaceId, undefined, true), [loadSelectedDetail, selectedPlaceId])
   const preferences = usePersonalLibraryPreferenceWorkflow({
     selectedPlaceId,
     personalState: selectedDetail?.personalState,
     onAccessFailure: handleFailure,
     refreshLibrary,
-    refreshPlace: () => selectedPlaceId === undefined
-      ? Promise.resolve()
-      : loadSelectedDetail(selectedPlaceId, undefined, true),
+    refreshPlace: refreshSelectedPlace,
+  })
+  const visitWorkflow = usePersonalLibraryVisitWorkflow({
+    active: mode === 'browse',
+    selectedPlaceId,
+    summary: selectedDetail?.personalState?.visits,
+    onAccessFailure: handleFailure,
+    refreshPlace: refreshSelectedPlace,
   })
   const { refreshSelectedOrganization, ...organizationView } = organization
 
@@ -312,6 +325,7 @@ export function usePersonalLibraryWorkflow() {
     selectedDetail,
     ...managementWorkflow,
     ...preferences,
+    ...visitWorkflow,
     ...organizationView,
     collectionName,
     loading,
