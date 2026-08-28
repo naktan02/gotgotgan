@@ -7,6 +7,7 @@ const placeId = '01992d20-0000-7000-8000-000000000001'
 const tagA = '01992d20-0000-7000-8000-000000000002'
 const tagB = '01992d20-0000-7000-8000-000000000003'
 const commandId = '01992d20-0000-7000-8000-000000000004'
+const areaKey = 'area_abcdefghijklmnopqrstuv'
 
 function backend(responder: (url: URL, init: RequestInit) => Promise<Response>) {
   return createLibraryBackendClient({
@@ -50,8 +51,11 @@ describe('browser library HTTP', () => {
         observed.push(url.toString())
         expect(new Headers(init.headers).get('authorization')).toBe('Bearer server-access-token')
         return Response.json({
-          schemaVersion: 'library-place-list.v2',
-          filter: { state: 'wanted', tagIds: [tagA, tagB], tagMatch: 'all' },
+          schemaVersion: 'library-place-list.v3',
+          filter: {
+            state: 'wanted', tagIds: [tagA, tagB], tagMatch: 'all',
+            areaKeys: [areaKey], taxonomyKeys: ['food.noodle.ramen'],
+          },
           items: [{
             placeId,
             saved: true,
@@ -66,17 +70,41 @@ describe('browser library HTTP', () => {
     })
 
     const response = await http.places(new Request(
-      `https://place.example/api/library/places?state=wanted&tagIds=${tagB}&tagIds=${tagA}&limit=20`,
+      `https://place.example/api/library/places?state=wanted&tagIds=${tagB}&tagIds=${tagA}&areaKeys=${areaKey}&taxonomyKeys=food.noodle.ramen&limit=20`,
     ))
 
     expect(response.status).toBe(200)
     expect(observed).toEqual([
-      `https://place-backend.example/v1/library/places?limit=20&state=wanted&tagMatch=all&tagIds=${tagA}&tagIds=${tagB}`,
+      `https://place-backend.example/v1/library/places?limit=20&state=wanted&tagMatch=all&tagIds=${tagA}&tagIds=${tagB}&areaKeys=${areaKey}&taxonomyKeys=food.noodle.ramen`,
     ])
     expect(await response.json()).toMatchObject({
-      schemaVersion: 'library-place-list.v2',
-      filter: { state: 'wanted', tagIds: [tagA, tagB], tagMatch: 'all' },
+      schemaVersion: 'library-place-list.v3',
+      filter: {
+        state: 'wanted', tagIds: [tagA, tagB], tagMatch: 'all',
+        areaKeys: [areaKey], taxonomyKeys: ['food.noodle.ramen'],
+      },
     })
+  })
+
+  it('forwards the member-scoped facet projection without query parameters', async () => {
+    const observed: string[] = []
+    const http = createBrowserLibraryHttp({
+      resolveAuthRuntime: sessionRuntime,
+      backend: backend(async (url) => {
+        observed.push(url.toString())
+        return Response.json({
+          schemaVersion: 'library-place-facets.v1', sourceState: 'saved',
+          coverage: { savedPlaceCount: 2, sampledPlaceCount: 2, projectedPlaceCount: 2, complete: true },
+          areas: [{ key: areaKey, label: '서울 성동구', count: 2 }],
+          taxonomies: [],
+        })
+      }),
+      createCorrelationRef: () => 'unused',
+    })
+
+    expect((await http.facets(new Request('https://place.example/api/library/place-facets'))).status).toBe(200)
+    expect(observed).toEqual(['https://place-backend.example/v1/library/place-facets'])
+    expect((await http.facets(new Request('https://place.example/api/library/place-facets?memberId=private'))).status).toBe(400)
   })
 
   it('rejects unknown, duplicate, and invalid query values before authentication', async () => {

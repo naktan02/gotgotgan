@@ -15,11 +15,13 @@ export type LibraryPlaceSummary = Readonly<{
 }>
 
 export type LibraryPlaceListPage = Readonly<{
-  schemaVersion: 'library-place-list.v2'
+  schemaVersion: 'library-place-list.v3'
   filter: Readonly<{
     state: LibraryPlaceState
     tagIds: readonly string[]
     tagMatch: LibraryTagMatch
+    areaKeys: readonly string[]
+    taxonomyKeys: readonly string[]
   }>
   items: readonly Readonly<{
     placeId: string
@@ -30,6 +32,25 @@ export type LibraryPlaceListPage = Readonly<{
     place: LibraryPlaceSummary | null
   }>[]
   nextCursor?: string
+}>
+
+export type LibraryPlaceFacet = Readonly<{
+  key: string
+  label: string
+  count: number
+}>
+
+export type LibraryPlaceFacetsPage = Readonly<{
+  schemaVersion: 'library-place-facets.v1'
+  sourceState: 'saved'
+  coverage: Readonly<{
+    savedPlaceCount: number
+    sampledPlaceCount: number
+    projectedPlaceCount: number
+    complete: boolean
+  }>
+  areas: readonly LibraryPlaceFacet[]
+  taxonomies: readonly LibraryPlaceFacet[]
 }>
 
 export type LibraryCollectionSummary = Readonly<{

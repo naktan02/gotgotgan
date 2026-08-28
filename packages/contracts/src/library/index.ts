@@ -12,6 +12,22 @@ const tagIdsSchema = z.preprocess(
     'tagIds must be unique',
   ).transform((tagIds) => [...tagIds].sort()),
 )
+const areaFacetKeySchema = z.string().regex(/^area_[A-Za-z0-9_-]{22}$/)
+const taxonomyFacetKeySchema = z.string().min(1).max(128)
+const areaKeysSchema = z.preprocess(
+  (value) => value === undefined ? [] : typeof value === 'string' ? [value] : value,
+  z.array(areaFacetKeySchema).max(10).refine(
+    (keys) => new Set(keys).size === keys.length,
+    'areaKeys must be unique',
+  ).transform((keys) => [...keys].sort()),
+)
+const taxonomyKeysSchema = z.preprocess(
+  (value) => value === undefined ? [] : typeof value === 'string' ? [value] : value,
+  z.array(taxonomyFacetKeySchema).max(10).refine(
+    (keys) => new Set(keys).size === keys.length,
+    'taxonomyKeys must be unique',
+  ).transform((keys) => [...keys].sort()),
+)
 
 export const libraryPlaceStateSchema = z.enum(['saved', 'wanted', 'rated'])
 export const libraryTagMatchSchema = z.enum(['all', 'any'])
@@ -20,6 +36,8 @@ export const libraryPlaceListQuerySchema = z.object({
   state: libraryPlaceStateSchema.default('saved'),
   tagIds: tagIdsSchema,
   tagMatch: libraryTagMatchSchema.default('all'),
+  areaKeys: areaKeysSchema,
+  taxonomyKeys: taxonomyKeysSchema,
   cursor: cursorSchema.optional(),
   limit: pageLimitSchema,
 }).strict()
@@ -43,6 +61,8 @@ export const libraryPlaceOrganizationQuerySchema = z.object({
   cursor: cursorSchema.optional(),
   limit: pageLimitSchema,
 }).strict()
+
+export const libraryPlaceFacetsQuerySchema = z.object({}).strict()
 
 export const libraryCollectionIdentifierParamsSchema = z.object({
   collectionId: uuidSchema,
@@ -71,11 +91,13 @@ export const libraryCommandResultSchema = z.object({
 }).strict()
 
 export const libraryPlaceListResponseSchema = z.object({
-  schemaVersion: z.literal('library-place-list.v2'),
+  schemaVersion: z.literal('library-place-list.v3'),
   filter: z.object({
     state: libraryPlaceStateSchema,
     tagIds: z.array(uuidSchema).max(20),
     tagMatch: libraryTagMatchSchema,
+    areaKeys: z.array(areaFacetKeySchema).max(10),
+    taxonomyKeys: z.array(taxonomyFacetKeySchema).max(10),
   }).strict(),
   items: z.array(z.object({
     placeId: uuidSchema,
@@ -83,6 +105,32 @@ export const libraryPlaceListResponseSchema = z.object({
     place: placeSummarySchema.nullable(),
   }).strict()).max(50),
   nextCursor: cursorSchema.optional(),
+}).strict()
+
+const libraryPlaceFacetSchema = z.object({
+  key: z.string().min(1).max(128),
+  label: z.string().min(1).max(300),
+  count: z.number().int().positive(),
+}).strict()
+
+export const libraryPlaceFacetsResponseSchema = z.object({
+  schemaVersion: z.literal('library-place-facets.v1'),
+  sourceState: z.literal('saved'),
+  coverage: z.object({
+    savedPlaceCount: z.number().int().nonnegative(),
+    sampledPlaceCount: z.number().int().nonnegative(),
+    projectedPlaceCount: z.number().int().nonnegative(),
+    complete: z.boolean(),
+  }).strict().refine(
+    (coverage) => coverage.projectedPlaceCount <= coverage.sampledPlaceCount &&
+      coverage.sampledPlaceCount <= coverage.savedPlaceCount,
+    'facet coverage counts must be monotonic',
+  ),
+  areas: z.array(libraryPlaceFacetSchema.extend({ key: areaFacetKeySchema })).max(50),
+  taxonomies: z.array(libraryPlaceFacetSchema.extend({
+    key: taxonomyFacetKeySchema,
+    label: z.string().min(1).max(160),
+  })).max(50),
 }).strict()
 
 const collectionSummarySchema = z.object({
@@ -154,6 +202,8 @@ export type LibraryPlacePreferencesResponse = z.infer<typeof libraryPlacePrefere
 export type LibraryCommandResult = z.infer<typeof libraryCommandResultSchema>
 export type LibraryPlaceListQuery = z.infer<typeof libraryPlaceListQuerySchema>
 export type LibraryPlaceListResponse = z.infer<typeof libraryPlaceListResponseSchema>
+export type LibraryPlaceFacetsResponse = z.infer<typeof libraryPlaceFacetsResponseSchema>
+export type LibraryPlaceFacetsQuery = z.infer<typeof libraryPlaceFacetsQuerySchema>
 export type LibraryCollectionListQuery = z.infer<typeof libraryCollectionListQuerySchema>
 export type LibraryCollectionListResponse = z.infer<typeof libraryCollectionListResponseSchema>
 export type LibraryCollectionDetailQuery = z.infer<typeof libraryCollectionDetailQuerySchema>

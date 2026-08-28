@@ -159,7 +159,8 @@ test('personal content remains owned, repeatable, versioned, and privacy project
     } })
     assert.equal(await libraryStore.getPublishedCollection(privateCollectionId), undefined)
     const savedPlaces = await libraryQueries.listPlaces({
-      memberId, state: 'saved', tagIds: [], tagMatch: 'all', limit: 50,
+      memberId, state: 'saved', tagIds: [], tagMatch: 'all',
+      areaKeys: [], taxonomyKeys: [], limit: 50,
     })
     const collections = await libraryQueries.listCollections({ memberId, limit: 50 })
     const tags = await libraryQueries.listTags({ memberId, limit: 50 })

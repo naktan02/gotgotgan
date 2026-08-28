@@ -56,7 +56,12 @@ export function createLibraryBackendClient(config: LibraryBackendClientConfig = 
       parameters.set('state', query.state)
       parameters.set('tagMatch', query.tagMatch)
       for (const tagId of query.tagIds) parameters.append('tagIds', tagId)
+      for (const areaKey of query.areaKeys) parameters.append('areaKeys', areaKey)
+      for (const taxonomyKey of query.taxonomyKeys) parameters.append('taxonomyKeys', taxonomyKey)
       return send(`/v1/library/places?${parameters}`, accessToken, signal)
+    },
+    facets(accessToken: string, signal: AbortSignal) {
+      return send('/v1/library/place-facets', accessToken, signal)
     },
     organization(
       accessToken: string,

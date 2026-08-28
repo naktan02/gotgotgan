@@ -69,7 +69,7 @@ composition에서 member를 파생한다. Library와 Writing command ID는 멱�
 expected version도 필요하다. Library command는 Collection 생성·이름 변경·삭제, Place
 추가·이동·제거, Tag 생성·이름 변경·부착·해제·삭제를 지원한다. `GET /v1/library/places/{placeId}`와
 `GET /v1/places/{placeId}/visit-summary`는 회원 private projection을 반환한다.
-`GET /v1/library/places`, `/places/{placeId}/organization`, `/collections`,
+`GET /v1/library/places`, `/place-facets`, `/places/{placeId}/organization`, `/collections`,
 `/collections/{collectionId}`, `/tags`,
 `GET /v1/writing`, `/v1/writing/{documentId}`, `GET /v1/places/{placeId}/visits`,
 `GET /v1/imports`, `/v1/imports/{batchId}`는 bounded 인증 owner view이며 동등한 anonymous route는
@@ -79,8 +79,17 @@ expected version도 필요하다. Library command는 Collection 생성·이름 �
 `GET /v1/library/places`는 saved/wanted/rated state와 함께 반복 `tagIds` 최대 20개를 받는다.
 `tagMatch=all`은 모든 Tag가 붙은 Place만, `tagMatch=any`는 하나 이상 붙은 Place를 반환한다.
 Tag 이름이 바뀌어도 조회 identity와 기존 cursor 의미가 흔들리지 않도록 UUID만 filter에 사용한다.
-응답 `library-place-list.v2`는 정렬된 Tag ID와 match mode를 되돌려주며 cursor도 그 전체 filter에
-묶인다. 이는 회원 수동 분류 API이고 자동·AI 분류나 Provider 수집을 요구하지 않는다.
+반복 `areaKeys`와 `taxonomyKeys`도 축별 최대 10개를 받으며 축 안에서는 하나 이상, 축 사이에서는
+모두 일치해야 한다. 응답 `library-place-list.v3`는 모든 정규화 filter를 되돌려주며 cursor도 그
+전체 filter에 묶인다. facet filter가 있으면 한 요청에서 최대 500개의 authoritative preference를
+검사하고 남은 후보가 있으면 결과가 비어 있어도 `nextCursor`를 줄 수 있다.
+
+`GET /v1/library/place-facets`의 `library-place-facets.v1`은 현재 회원의 saved Place만 원천으로 삼는다.
+최근 저장 순서로 최대 2,000개를 public Place summary와 조합하고 지역·primary Taxonomy 상위 50개씩을
+count와 함께 반환한다. `coverage`는 saved/sample/projected Place 수와 전체 표본·facet 반환이 완전한지
+밝힌다. 지역 key는 NFKC·공백·대소문자를 정규화한 현재 지역 표시명에서 결정적으로 만들지만 서로
+다른 한글/영문 지역명을 임의로 합치지는 않는다. Taxonomy는 provider-neutral key만 identity로 쓴다.
+이는 회원 데이터 기반 탐색 API이며 전역 master나 Provider/AI 자동 분류를 요구하지 않는다.
 
 `GET /v1/library/places/{placeId}/organization`은 전역 카테고리 목록이 아니라 현재 회원이
 직접 만들었거나 Provider 저장 목록에서 가져온 Collection과 Tag만 반환한다. 각 선택지는 해당
@@ -90,7 +99,7 @@ Collection의 `position`은 `null`이며 선택된 Collection에는 실제 순�
 Place를 추가하는 command는 `position`을 생략할 수 있으며 이 경우 Backend가 현재 마지막 위치
 뒤에 원자적으로 배치한다. 명시적 재정렬은 별도 move command가 담당한다.
 
-Web은 동일한 계약을 `/api/library/places`, `/api/library/collections`,
+Web은 동일한 계약을 `/api/library/places`, `/api/library/place-facets`, `/api/library/collections`,
 `/api/library/places/{placeId}/organization`, `/api/library/collections/{collectionId}`,
 `/api/library/tags`, `/api/library/commands`와
 `/api/places/{placeId}`에 다시 노출한다. 이 same-origin BFF는 opaque browser session을 서버에서

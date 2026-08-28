@@ -58,6 +58,7 @@ import {
   libraryCollectionDetailResponseSchema,
   libraryCollectionListResponseSchema,
   libraryPlacePreferencesResponseSchema,
+  libraryPlaceFacetsResponseSchema,
   libraryPlaceOrganizationResponseSchema,
   libraryPlaceListResponseSchema,
   libraryTagListResponseSchema,
@@ -195,6 +196,22 @@ const libraryTagMatchParameter = {
   schema: { type: 'string', enum: ['all', 'any'], default: 'all' },
 }
 
+const libraryAreaKeysParameter = {
+  name: 'areaKeys', in: 'query', required: false, style: 'form', explode: true,
+  schema: {
+    type: 'array', maxItems: 10, uniqueItems: true,
+    items: { type: 'string', pattern: '^area_[A-Za-z0-9_-]{22}$' },
+  },
+}
+
+const libraryTaxonomyKeysParameter = {
+  name: 'taxonomyKeys', in: 'query', required: false, style: 'form', explode: true,
+  schema: {
+    type: 'array', maxItems: 10, uniqueItems: true,
+    items: { type: 'string', minLength: 1, maxLength: 128 },
+  },
+}
+
 const writingKindParameter = {
   name: 'kind', in: 'query', required: false,
   schema: { type: 'string', enum: ['all', 'note', 'entry'], default: 'all' },
@@ -305,10 +322,19 @@ const paths = {
       libraryPlaceStateParameter,
       libraryTagIdsParameter,
       libraryTagMatchParameter,
+      libraryAreaKeysParameter,
+      libraryTaxonomyKeysParameter,
       boundedCursorParameter,
       boundedLimitParameter,
     ],
   }) },
+  '/api/library/place-facets': { get: operation('getPlaceLibraryFacetsForBrowser', {
+    '200': described('Return bounded area and taxonomy facets from the member saved Places', 'LibraryPlaceFacetsResponse'),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '401': ref('responses', 'AuthenticationRequired'),
+    '403': ref('responses', 'AccessDenied'),
+    '503': ref('responses', 'BrowserBackendUnavailable'),
+  }, { security: browserSession }) },
   '/api/library/places/{placeId}/organization': {
     parameters: [pathParameters.placeId],
     get: operation('getPlaceLibraryOrganizationForBrowser', {
@@ -604,10 +630,21 @@ const paths = {
         libraryPlaceStateParameter,
         libraryTagIdsParameter,
         libraryTagMatchParameter,
+        libraryAreaKeysParameter,
+        libraryTaxonomyKeysParameter,
         boundedCursorParameter,
         boundedLimitParameter,
       ],
     }),
+  },
+  '/v1/library/place-facets': {
+    get: operation('getLibraryPlaceFacets', {
+      '200': described('Return bounded area and taxonomy facets derived only from current-member saved Places', 'LibraryPlaceFacetsResponse'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '503': ref('responses', 'LibraryQueryUnavailable'),
+    }, { security: bearer }),
   },
   '/v1/library/places/{placeId}/organization': {
     parameters: [pathParameters.placeId],
@@ -862,6 +899,7 @@ const schemas: Readonly<Record<string, ZodType>> = {
   PublishedCollection: publishedCollectionSchema,
   PublishedWriting: publishedWritingSchema,
   LibraryPlaceListResponse: libraryPlaceListResponseSchema,
+  LibraryPlaceFacetsResponse: libraryPlaceFacetsResponseSchema,
   LibraryPlaceOrganizationResponse: libraryPlaceOrganizationResponseSchema,
   LibraryCollectionListResponse: libraryCollectionListResponseSchema,
   LibraryCollectionDetailResponse: libraryCollectionDetailResponseSchema,

@@ -22,8 +22,11 @@ const store: LibraryStore = {
 function fixture(overrides: Partial<LibraryQueries> = {}) {
   const queries: LibraryQueries = {
     listPlaces: async (input) => ({
-      schemaVersion: 'library-place-list.v2',
-      filter: { state: input.state, tagIds: input.tagIds, tagMatch: input.tagMatch },
+      schemaVersion: 'library-place-list.v3',
+      filter: {
+        state: input.state, tagIds: input.tagIds, tagMatch: input.tagMatch,
+        areaKeys: input.areaKeys, taxonomyKeys: input.taxonomyKeys,
+      },
       items: [{
         placeId,
         saved: true,
@@ -32,6 +35,12 @@ function fixture(overrides: Partial<LibraryQueries> = {}) {
         updatedAt: at,
         place: null,
       }],
+    }),
+    getPlaceFacets: async () => ({
+      schemaVersion: 'library-place-facets.v1', sourceState: 'saved',
+      coverage: { savedPlaceCount: 2, sampledPlaceCount: 2, projectedPlaceCount: 2, complete: true },
+      areas: [{ key: 'area_abcdefghijklmnopqrstuv', label: '서울 성동구', count: 2 }],
+      taxonomies: [{ key: 'food.noodle.ramen', label: '라멘', count: 1 }],
     }),
     listCollections: async () => ({
       schemaVersion: 'library-collection-list.v1',
@@ -100,8 +109,11 @@ function fixture(overrides: Partial<LibraryQueries> = {}) {
 describe('bounded Library HTTP queries', () => {
   it('requires a member and applies saved/20 defaults', async () => {
     const listPlaces = vi.fn<LibraryQueries['listPlaces']>(async (input) => ({
-      schemaVersion: 'library-place-list.v2',
-      filter: { state: input.state, tagIds: input.tagIds, tagMatch: input.tagMatch },
+      schemaVersion: 'library-place-list.v3',
+      filter: {
+        state: input.state, tagIds: input.tagIds, tagMatch: input.tagMatch,
+        areaKeys: input.areaKeys, taxonomyKeys: input.taxonomyKeys,
+      },
       items: [],
     }))
     const { app } = fixture({ listPlaces })
@@ -113,7 +125,8 @@ describe('bounded Library HTTP queries', () => {
     })
     expect(response.statusCode).toBe(200)
     expect(listPlaces).toHaveBeenCalledWith({
-      memberId, state: 'saved', tagIds: [], tagMatch: 'all', limit: 20,
+      memberId, state: 'saved', tagIds: [], tagMatch: 'all',
+      areaKeys: [], taxonomyKeys: [], limit: 20,
     })
     await app.close()
   })
@@ -127,9 +140,20 @@ describe('bounded Library HTTP queries', () => {
     })
     expect(places.statusCode).toBe(200)
     expect(places.json()).toMatchObject({
-      schemaVersion: 'library-place-list.v2',
-      filter: { state: 'rated', tagIds: [], tagMatch: 'all' },
+      schemaVersion: 'library-place-list.v3',
+      filter: { state: 'rated', tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: [] },
     })
+    const facets = await app.inject({
+      method: 'GET', url: '/v1/library/place-facets', headers,
+    })
+    expect(facets.json()).toMatchObject({
+      schemaVersion: 'library-place-facets.v1',
+      sourceState: 'saved',
+      coverage: { savedPlaceCount: 2 },
+    })
+    expect((await app.inject({
+      method: 'GET', url: '/v1/library/place-facets?memberId=private', headers,
+    })).statusCode).toBe(400)
     const collections = await app.inject({
       method: 'GET', url: '/v1/library/collections', headers,
     })
@@ -158,14 +182,17 @@ describe('bounded Library HTTP queries', () => {
     const firstTag = '01992d20-3000-7000-8000-000000000402'
     const secondTag = '01992d20-3000-7000-8000-000000000401'
     const listPlaces = vi.fn<LibraryQueries['listPlaces']>(async (input) => ({
-      schemaVersion: 'library-place-list.v2',
-      filter: { state: input.state, tagIds: input.tagIds, tagMatch: input.tagMatch },
+      schemaVersion: 'library-place-list.v3',
+      filter: {
+        state: input.state, tagIds: input.tagIds, tagMatch: input.tagMatch,
+        areaKeys: input.areaKeys, taxonomyKeys: input.taxonomyKeys,
+      },
       items: [],
     }))
     const { app } = fixture({ listPlaces })
     const response = await app.inject({
       method: 'GET',
-      url: `/v1/library/places?tagIds=${firstTag}&tagIds=${secondTag}&tagMatch=any`,
+      url: `/v1/library/places?tagIds=${firstTag}&tagIds=${secondTag}&tagMatch=any&areaKeys=area_abcdefghijklmnopqrstuv&taxonomyKeys=food.noodle.ramen`,
       headers: { authorization: 'Bearer good' },
     })
     expect(response.statusCode).toBe(200)
@@ -174,6 +201,8 @@ describe('bounded Library HTTP queries', () => {
       state: 'saved',
       tagIds: [secondTag, firstTag],
       tagMatch: 'any',
+      areaKeys: ['area_abcdefghijklmnopqrstuv'],
+      taxonomyKeys: ['food.noodle.ramen'],
       limit: 20,
     })
     await app.close()

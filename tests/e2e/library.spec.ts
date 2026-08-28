@@ -6,6 +6,8 @@ const ramenTagId = '01992d20-7000-7000-8000-000000000201'
 const shoyuTagId = '01992d20-7000-7000-8000-000000000202'
 const seongsuCollectionId = '01992d20-7000-7000-8000-000000000301'
 const timestamp = '2026-08-28T00:00:00.000Z'
+const seongsuAreaKey = 'area_abcdefghijklmnopqrstuv'
+const seoulForestAreaKey = 'area_vutsrqponmlkjihgfedcba'
 
 function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
@@ -26,13 +28,26 @@ function place(placeId: string, name: string, areaLabel: string, taxonomy: strin
 }
 
 const ramen = place(ramenPlaceId, '멘야 하루', '서울 성동구 성수동', '쇼유라멘')
-const cafe = place(cafePlaceId, '서울숲 로스터스', '서울 성동구 성수동', '카페')
+const cafe = place(cafePlaceId, '서울숲 로스터스', '서울 성동구 서울숲', '카페')
 
 async function installLibraryFixture(page: Page) {
   let collectionSelected = true
   let ramenTagSelected = true
   let shoyuTagSelected = false
   const commands: unknown[] = []
+  await page.route('**/api/library/place-facets', (route) => json(route, {
+    schemaVersion: 'library-place-facets.v1',
+    sourceState: 'saved',
+    coverage: { savedPlaceCount: 2, sampledPlaceCount: 2, projectedPlaceCount: 2, complete: true },
+    areas: [
+      { key: seongsuAreaKey, label: '서울 성동구 성수동', count: 1 },
+      { key: seoulForestAreaKey, label: '서울 성동구 서울숲', count: 1 },
+    ],
+    taxonomies: [
+      { key: '쇼유라멘', label: '쇼유라멘', count: 1 },
+      { key: '카페', label: '카페', count: 1 },
+    ],
+  }))
   await page.route('**/api/library/tags?*', (route) => json(route, {
     schemaVersion: 'library-tag-list.v1',
     items: [
@@ -71,8 +86,9 @@ async function installLibraryFixture(page: Page) {
   await page.route('**/api/library/places?*', (route) => {
     const url = new URL(route.request().url())
     const selectedTags = url.searchParams.getAll('tagIds')
-    const items = selectedTags.length === 0 || selectedTags.includes(ramenTagId)
-      ? [{
+    const selectedAreas = url.searchParams.getAll('areaKeys')
+    const selectedTaxonomies = url.searchParams.getAll('taxonomyKeys')
+    const allItems = [{
           placeId: ramenPlaceId,
           saved: true,
           wanted: url.searchParams.get('state') === 'wanted',
@@ -86,14 +102,26 @@ async function installLibraryFixture(page: Page) {
           personalRating: null,
           updatedAt: timestamp,
           place: cafe,
-        }].slice(0, selectedTags.length === 0 ? 2 : 1)
-      : []
+        }]
+    const items = allItems.filter((item) => (
+      (selectedTags.length === 0 || (
+        selectedTags.includes(ramenTagId) && item.placeId === ramenPlaceId
+      )) &&
+      (selectedAreas.length === 0 || (
+        selectedAreas.includes(item.placeId === ramenPlaceId ? seongsuAreaKey : seoulForestAreaKey)
+      )) &&
+      (selectedTaxonomies.length === 0 || selectedTaxonomies.includes(
+        item.place.primaryTaxonomy.key,
+      ))
+    ))
     return json(route, {
-      schemaVersion: 'library-place-list.v2',
+      schemaVersion: 'library-place-list.v3',
       filter: {
         state: url.searchParams.get('state') ?? 'saved',
         tagIds: [...selectedTags].sort(),
         tagMatch: url.searchParams.get('tagMatch') ?? 'all',
+        areaKeys: [...selectedAreas].sort(),
+        taxonomyKeys: [...selectedTaxonomies].sort(),
       },
       items,
     })
@@ -156,6 +184,18 @@ test('browses saved Places by tags and Collection without leaking the Backend bo
   await expect(tagFilters.getByRole('button', { name: /^라면/ })).toBeVisible()
   await expect(page.getByText('멘야 하루', { exact: true }).first()).toBeVisible()
   await expect(page.locator('dl').getByText('4.5', { exact: true })).toBeVisible()
+
+  const areaFilters = page.getByLabel('저장 장소 지역 필터')
+  await areaFilters.getByRole('button', { name: /^서울 성동구 성수동/ }).click()
+  await expect(areaFilters.getByRole('button', { name: /^서울 성동구 성수동/ }))
+    .toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByText('서울숲 로스터스', { exact: true })).toHaveCount(0)
+  await areaFilters.getByRole('button', { name: /^서울 성동구 성수동/ }).click()
+
+  const taxonomyFilters = page.getByLabel('저장 장소 분류 필터')
+  await taxonomyFilters.getByRole('button', { name: /^쇼유라멘/ }).click()
+  await expect(page.getByText('서울숲 로스터스', { exact: true })).toHaveCount(0)
+  await taxonomyFilters.getByRole('button', { name: /^쇼유라멘/ }).click()
 
   await tagFilters.getByRole('button', { name: /^라면/ }).click()
   await expect(tagFilters.getByRole('button', { name: /^라면/ })).toHaveAttribute('aria-pressed', 'true')

@@ -25,6 +25,8 @@ export {
   type LibraryCollectionDetail,
   type LibraryCollectionListPage,
   type LibraryCollectionSummary,
+  type LibraryPlaceFacet,
+  type LibraryPlaceFacetsPage,
   type LibraryPlaceListPage,
   type LibraryPlaceOrganizationPage,
   type LibraryPlaceState,

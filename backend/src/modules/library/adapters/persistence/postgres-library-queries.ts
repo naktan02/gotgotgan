@@ -4,11 +4,9 @@ import type { LibraryQueries } from '../../application/library-queries.js'
 import {
   decodeCollectionCursor,
   decodeCollectionPlaceCursor,
-  decodePlaceCursor,
   decodeTagCursor,
   encodeCollectionCursor,
   encodeCollectionPlaceCursor,
-  encodePlaceCursor,
   encodeTagCursor,
 } from '../../application/library-cursor.js'
 import type { LibraryPlaceSummaryReader } from '../../application/ports/library-place-summary-reader.js'
@@ -18,14 +16,10 @@ import type {
 } from '../../domain/queries.js'
 import { InvalidLibraryQueryError } from '../../domain/queries.js'
 import { getPostgresLibraryPlaceOrganization } from './postgres-library-place-organization-query.js'
-
-type PreferenceRow = Readonly<{
-  canonical_place_id: string
-  saved: boolean
-  wanted: boolean
-  personal_rating: string | null
-  updated_at: Date
-}>
+import {
+  getPostgresLibraryPlaceFacets,
+  listPostgresLibraryPlaces,
+} from './postgres-library-place-queries.js'
 
 type CollectionRow = Readonly<{
   id: string
@@ -69,17 +63,6 @@ function requireBoundedLimit(limit: number): void {
   }
 }
 
-function normalizeTagIds(tagIds: readonly string[]): readonly string[] {
-  const normalized = [...tagIds].sort()
-  if (
-    normalized.length > 20 || new Set(normalized).size !== normalized.length ||
-    normalized.some((tagId) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(tagId))
-  ) {
-    throw new InvalidLibraryQueryError('Library tag filter is invalid.')
-  }
-  return normalized
-}
-
 export class PostgresLibraryQueries implements LibraryQueries {
   constructor(
     private readonly pool: Pool,
@@ -88,107 +71,20 @@ export class PostgresLibraryQueries implements LibraryQueries {
 
   private async summariesById(placeIds: readonly string[]): Promise<ReadonlyMap<string, LibraryPlaceSummary>> {
     if (placeIds.length === 0) return new Map()
-    const summaries = await this.readPlaceSummaries(placeIds)
     const requested = new Set(placeIds)
     return new Map(
-      summaries
+      (await this.readPlaceSummaries(placeIds))
         .filter((summary) => requested.has(summary.placeId))
         .map((summary) => [summary.placeId, summary]),
     )
   }
 
   async listPlaces(input: Parameters<LibraryQueries['listPlaces']>[0]) {
-    requireBoundedLimit(input.limit)
-    if (input.tagMatch !== 'all' && input.tagMatch !== 'any') {
-      throw new InvalidLibraryQueryError('Library tag match mode is invalid.')
-    }
-    const tagIds = normalizeTagIds(input.tagIds)
-    const cursor = decodePlaceCursor(input.cursor, {
-      state: input.state,
-      tagIds,
-      tagMatch: input.tagMatch,
-    })
-    const filter = input.state === 'saved'
-      ? 'saved'
-      : input.state === 'wanted'
-        ? 'wanted'
-        : 'personal_rating IS NOT NULL'
-    const result = await this.pool.query<PreferenceRow>(
-      `
-        SELECT canonical_place_id, saved, wanted, personal_rating, updated_at
-        FROM library.place_preferences
-        WHERE membership_id = $1::uuid
-          AND ${filter}
-          AND (
-            cardinality($4::uuid[]) = 0
-            OR (
-              $5::text = 'any'
-              AND EXISTS (
-                SELECT 1
-                FROM library.place_tags AS tagged
-                WHERE tagged.membership_id = $1::uuid
-                  AND tagged.canonical_place_id = library.place_preferences.canonical_place_id
-                  AND tagged.tag_id = ANY($4::uuid[])
-              )
-            )
-            OR (
-              $5::text = 'all'
-              AND (
-                SELECT count(*)
-                FROM library.place_tags AS tagged
-                WHERE tagged.membership_id = $1::uuid
-                  AND tagged.canonical_place_id = library.place_preferences.canonical_place_id
-                  AND tagged.tag_id = ANY($4::uuid[])
-              ) = cardinality($4::uuid[])
-            )
-          )
-          AND (
-            $2::timestamptz IS NULL
-            OR updated_at < $2::timestamptz
-            OR (updated_at = $2::timestamptz AND canonical_place_id > $3::uuid)
-          )
-        ORDER BY updated_at DESC, canonical_place_id ASC
-        LIMIT $6
-      `,
-      [
-        input.memberId,
-        cursor?.updatedAt ?? null,
-        cursor?.placeId ?? null,
-        tagIds,
-        input.tagMatch,
-        input.limit + 1,
-      ],
-    )
-    const hasMore = result.rows.length > input.limit
-    const rows = hasMore ? result.rows.slice(0, input.limit) : result.rows
-    const summaries = await this.summariesById(rows.map((row) => row.canonical_place_id))
-    const last = rows.at(-1)
-    return {
-      schemaVersion: 'library-place-list.v2' as const,
-      filter: {
-        state: input.state,
-        tagIds,
-        tagMatch: input.tagMatch,
-      },
-      items: rows.map((row) => ({
-        placeId: row.canonical_place_id,
-        saved: row.saved,
-        wanted: row.wanted,
-        personalRating: row.personal_rating === null ? null : Number(row.personal_rating),
-        updatedAt: row.updated_at.toISOString(),
-        place: summaries.get(row.canonical_place_id) ?? null,
-      })),
-      ...(hasMore && last !== undefined ? {
-        nextCursor: encodePlaceCursor({
-          state: input.state,
-          tagIds,
-          tagMatch: input.tagMatch,
-        }, {
-          updatedAt: last.updated_at.toISOString(),
-          placeId: last.canonical_place_id,
-        }),
-      } : {}),
-    }
+    return listPostgresLibraryPlaces(this.pool, this.readPlaceSummaries, input)
+  }
+
+  async getPlaceFacets(input: Parameters<LibraryQueries['getPlaceFacets']>[0]) {
+    return getPostgresLibraryPlaceFacets(this.pool, this.readPlaceSummaries, input.memberId)
   }
 
   async listCollections(input: Parameters<LibraryQueries['listCollections']>[0]) {

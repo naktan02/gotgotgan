@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   libraryCollectionDetailResponseSchema,
+  libraryPlaceFacetsResponseSchema,
+  libraryPlaceFacetsQuerySchema,
   libraryPlaceOrganizationQuerySchema,
   libraryPlaceOrganizationResponseSchema,
   libraryPlaceListQuerySchema,
@@ -15,7 +17,7 @@ const placeId = '01992d20-3000-7000-8000-000000000001'
 describe('bounded library query contracts', () => {
   it('defaults to a bounded saved-place page and rejects unbounded limits', () => {
     expect(libraryPlaceListQuerySchema.parse({})).toEqual({
-      state: 'saved', tagIds: [], tagMatch: 'all', limit: 20,
+      state: 'saved', tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: [], limit: 20,
     })
     expect(libraryPlaceListQuerySchema.safeParse({ limit: 51 }).success).toBe(false)
     expect(libraryPlaceListQuerySchema.parse({ tagIds: placeId })).toMatchObject({
@@ -26,8 +28,8 @@ describe('bounded library query contracts', () => {
 
   it('keeps an owned preference when its public place projection is unavailable', () => {
     const page = libraryPlaceListResponseSchema.parse({
-      schemaVersion: 'library-place-list.v2',
-      filter: { state: 'saved', tagIds: [], tagMatch: 'all' },
+      schemaVersion: 'library-place-list.v3',
+      filter: { state: 'saved', tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: [] },
       items: [{
         placeId,
         saved: true,
@@ -38,6 +40,25 @@ describe('bounded library query contracts', () => {
       }],
     })
     expect(page.items[0]?.place).toBeNull()
+  })
+
+  it('accepts only bounded saved-Place facet coverage and stable keys', () => {
+    expect(libraryPlaceFacetsQuerySchema.safeParse({ memberId: placeId }).success).toBe(false)
+    expect(libraryPlaceFacetsResponseSchema.parse({
+      schemaVersion: 'library-place-facets.v1',
+      sourceState: 'saved',
+      coverage: {
+        savedPlaceCount: 3, sampledPlaceCount: 3, projectedPlaceCount: 2, complete: true,
+      },
+      areas: [{ key: 'area_abcdefghijklmnopqrstuv', label: '서울 성동구', count: 2 }],
+      taxonomies: [{ key: 'food.noodle.ramen', label: '라멘', count: 1 }],
+    }).sourceState).toBe('saved')
+    expect(libraryPlaceListQuerySchema.parse({
+      areaKeys: 'area_abcdefghijklmnopqrstuv', taxonomyKeys: 'food.noodle.ramen',
+    })).toMatchObject({
+      areaKeys: ['area_abcdefghijklmnopqrstuv'], taxonomyKeys: ['food.noodle.ramen'],
+    })
+    expect(libraryPlaceListQuerySchema.safeParse({ areaKeys: '서울 성동구' }).success).toBe(false)
   })
 
   it('accepts the complete manual Collection and Tag lifecycle', () => {

@@ -32,9 +32,17 @@ function fixtureApplication() {
   }
   const libraryQueries: LibraryQueries = {
     listPlaces: async (input) => ({
-      schemaVersion: 'library-place-list.v2',
-      filter: { state: input.state, tagIds: input.tagIds, tagMatch: input.tagMatch },
+      schemaVersion: 'library-place-list.v3',
+      filter: {
+        state: input.state, tagIds: input.tagIds, tagMatch: input.tagMatch,
+        areaKeys: input.areaKeys, taxonomyKeys: input.taxonomyKeys,
+      },
       items: [],
+    }),
+    getPlaceFacets: async () => ({
+      schemaVersion: 'library-place-facets.v1', sourceState: 'saved',
+      coverage: { savedPlaceCount: 0, sampledPlaceCount: 0, projectedPlaceCount: 0, complete: true },
+      areas: [], taxonomies: [],
     }),
     listCollections: async () => ({ schemaVersion: 'library-collection-list.v1', items: [] }),
     getCollection: async () => undefined,

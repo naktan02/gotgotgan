@@ -2,6 +2,7 @@
 
 import {
   type LibraryCollectionListResponse,
+  type LibraryPlaceFacetsResponse,
   type LibraryPlaceState,
   type LibraryTagListResponse,
   type LibraryTagMatch,
@@ -24,6 +25,9 @@ export function usePersonalLibraryWorkflow() {
   const [surface, setSurface] = useState<LibrarySurface>({ kind: 'state', state: 'saved' })
   const [selectedTagIds, setSelectedTagIds] = useState<readonly string[]>([])
   const [tagMatch, setTagMatch] = useState<LibraryTagMatch>('all')
+  const [selectedAreaKeys, setSelectedAreaKeys] = useState<readonly string[]>([])
+  const [selectedTaxonomyKeys, setSelectedTaxonomyKeys] = useState<readonly string[]>([])
+  const [facets, setFacets] = useState<LibraryPlaceFacetsResponse | undefined>()
   const [tags, setTags] = useState<LibraryTagListResponse['items']>([])
   const [tagCursor, setTagCursor] = useState<string | undefined>()
   const [collections, setCollections] = useState<LibraryCollectionListResponse['items']>([])
@@ -62,6 +66,10 @@ export function usePersonalLibraryWorkflow() {
     setTagCursor(parsed.nextCursor)
   }, [])
 
+  const loadFacets = useCallback(async () => {
+    setFacets(await personalLibraryHttp.facets())
+  }, [])
+
   const loadCollections = useCallback(async (cursor?: string, append = false) => {
     const parsed = await personalLibraryHttp.collections(cursor)
     setCollections((current) => append ? [...current, ...parsed.items] : parsed.items)
@@ -72,10 +80,12 @@ export function usePersonalLibraryWorkflow() {
     const controller = new AbortController()
     setMetadataLoading(true)
     Promise.all([
+      personalLibraryHttp.facets(controller.signal),
       personalLibraryHttp.tags(undefined, controller.signal),
       personalLibraryHttp.collections(undefined, controller.signal),
     ])
-      .then(([tagPage, collectionPage]) => {
+      .then(([facetPage, tagPage, collectionPage]) => {
+        setFacets(facetPage)
         setTags(tagPage.items)
         setTagCursor(tagPage.nextCursor)
         setCollections(collectionPage.items)
@@ -101,6 +111,8 @@ export function usePersonalLibraryWorkflow() {
             surface.state,
             selectedTagIds,
             tagMatch,
+            selectedAreaKeys,
+            selectedTaxonomyKeys,
             cursor,
             signal,
           )
@@ -133,7 +145,7 @@ export function usePersonalLibraryWorkflow() {
         setLoadingMore(false)
       }
     }
-  }, [handleFailure, selectedTagIds, surface, tagMatch])
+  }, [handleFailure, selectedAreaKeys, selectedTagIds, selectedTaxonomyKeys, surface, tagMatch])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -176,6 +188,8 @@ export function usePersonalLibraryWorkflow() {
   function chooseCollection(collectionId: string) {
     setSelectedTagIds([])
     setTagMatch('all')
+    setSelectedAreaKeys([])
+    setSelectedTaxonomyKeys([])
     setSurface({ kind: 'collection', collectionId })
   }
 
@@ -188,6 +202,24 @@ export function usePersonalLibraryWorkflow() {
     setSurface((current) => current.kind === 'state' ? current : { kind: 'state', state: 'saved' })
   }
 
+  function toggleArea(areaKey: string) {
+    setSelectedAreaKeys((current) => (
+      current.includes(areaKey)
+        ? current.filter((candidate) => candidate !== areaKey)
+        : current.length >= 10 ? current : [...current, areaKey]
+    ))
+    setSurface((current) => current.kind === 'state' ? current : { kind: 'state', state: 'saved' })
+  }
+
+  function toggleTaxonomy(taxonomyKey: string) {
+    setSelectedTaxonomyKeys((current) => (
+      current.includes(taxonomyKey)
+        ? current.filter((candidate) => candidate !== taxonomyKey)
+        : current.length >= 10 ? current : [...current, taxonomyKey]
+    ))
+    setSurface((current) => current.kind === 'state' ? current : { kind: 'state', state: 'saved' })
+  }
+
   function loadMore() {
     if (nextCursor === undefined) return
     void loadRows(nextCursor, true)
@@ -195,11 +227,12 @@ export function usePersonalLibraryWorkflow() {
 
   const refreshLibrary = useCallback(async () => {
     await Promise.all([
+      loadFacets(),
       loadTags(),
       loadCollections(),
       loadRows(undefined, false),
     ])
-  }, [loadCollections, loadRows, loadTags])
+  }, [loadCollections, loadFacets, loadRows, loadTags])
 
   const organization = usePersonalLibraryOrganizationWorkflow({
     selectedPlaceId,
@@ -211,6 +244,9 @@ export function usePersonalLibraryWorkflow() {
     surface,
     selectedTagIds,
     tagMatch,
+    selectedAreaKeys,
+    selectedTaxonomyKeys,
+    facets,
     tags,
     tagCursor,
     collections,
@@ -231,10 +267,13 @@ export function usePersonalLibraryWorkflow() {
     chooseState,
     chooseCollection,
     toggleTag,
+    toggleArea,
+    toggleTaxonomy,
     setTagMatch,
     selectPlace: setSelectedPlaceId,
     loadMore,
     retry: () => Promise.all([
+      loadFacets(),
       loadTags(),
       loadCollections(),
       loadRows(undefined, false),

@@ -83,6 +83,11 @@ Library 조직 기능에서 Collection은 ordered membership, Tag는 member-scop
 회원 전체 Library를 한 번에 반환하는 unbounded Store 메서드는 두지 않는다. HTTP composition은
 bounded `LibraryQueries`를 필수로 주입하고 테스트도 같은 public Interface를 사용한다.
 
+지역·Taxonomy facet도 `LibraryQueries`의 깊은 Interface 뒤에 둔다. Library Adapter는 current-member
+saved Place ID만 bounded하게 읽고 composition이 주입한 public Place summary reader로 집계·필터한다.
+Search table을 직접 join하거나 전역 Taxonomy node를 회원 선택지로 제공하지 않으며, 불완전한
+projection과 표본 한계는 versioned coverage로 드러낸다.
+
 필수 회원 route와 optional-member Place/Search route는 platform HTTP의 공통 authorization
 Interface를 사용한다. 이 Interface는 `anonymous`, authorized `member`, 이미 안전한 응답을 보낸
 `replied` 상태만 transport에 돌려주며, feature module에는 token·role·tier 문자열을 전달하지 않는다.

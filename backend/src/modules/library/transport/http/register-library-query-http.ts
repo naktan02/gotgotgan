@@ -6,6 +6,8 @@ import {
   libraryCollectionListResponseSchema,
   libraryPlaceListQuerySchema,
   libraryPlaceListResponseSchema,
+  libraryPlaceFacetsResponseSchema,
+  libraryPlaceFacetsQuerySchema,
   libraryPlaceIdentifierParamsSchema,
   libraryPlaceOrganizationQuerySchema,
   libraryPlaceOrganizationResponseSchema,
@@ -45,6 +47,26 @@ export function registerLibraryQueryHttpRoutes(
   application: FastifyInstance,
   dependencies: LibraryQueryHttpDependencies,
 ): void {
+  application.get('/v1/library/place-facets', async (request, reply) => {
+    const memberId = await requireProductMember(
+      request, reply, dependencies.authorizer, 'library.read',
+    )
+    if (memberId === undefined) return
+    if (!libraryPlaceFacetsQuerySchema.safeParse(request.query).success) {
+      return sendProductProblem(
+        request, reply, 400, 'PLACE_LIBRARY_QUERY_INVALID', 'Library query is invalid',
+      )
+    }
+    try {
+      const response = libraryPlaceFacetsResponseSchema.parse(
+        await dependencies.queries.getPlaceFacets({ memberId }),
+      )
+      return reply.header('cache-control', 'no-store').status(200).send(response)
+    } catch (error) {
+      return queryFailure(request, reply, error)
+    }
+  })
+
   application.get('/v1/library/places', async (request, reply) => {
     const memberId = await requireProductMember(
       request, reply, dependencies.authorizer, 'library.read',
@@ -62,6 +84,8 @@ export function registerLibraryQueryHttpRoutes(
         state: parsed.data.state,
         tagIds: parsed.data.tagIds,
         tagMatch: parsed.data.tagMatch,
+        areaKeys: parsed.data.areaKeys,
+        taxonomyKeys: parsed.data.taxonomyKeys,
         limit: parsed.data.limit,
         ...(parsed.data.cursor === undefined ? {} : { cursor: parsed.data.cursor }),
       }))

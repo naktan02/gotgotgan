@@ -18,8 +18,9 @@ HTTP composition은 `LibraryQueries`를 필수로 주입한다. command Store는
 명시적으로 읽는다. 따라서 테스트도 실제 소비자가 사용하는 bounded Interface를 통해 상태를 확인한다.
 
 Place 목록은 최대 20개의 Tag ID를 `all` 또는 `any`로 결합한다. Tag 이름은 표시·수정 가능한
-회원 데이터이고 query identity로 쓰지 않는다. cursor는 state, 정렬된 Tag ID, match mode에 모두
-묶여 다른 분류 조합에서 재사용할 수 없다. `라면`, `성수동`, `쇼유라멘`처럼 서로 다른 축의 Tag를
+회원 데이터이고 query identity로 쓰지 않는다. 저장 Place에서 파생한 지역·primary Taxonomy facet은
+각 축의 안정 key를 최대 10개까지 받으며 축 안은 OR, 축 사이는 AND로 적용한다. cursor는 state,
+정렬된 Tag ID, match mode, 지역·Taxonomy key에 모두 묶여 다른 조합에서 재사용할 수 없다. `라면`, `성수동`, `쇼유라멘`처럼 서로 다른 축의 Tag를
 한 Place에 동시에 붙일 수 있으며 자동 분류는 이 수동 truth를 바꾸지 않는 별도 후속 기능이다.
 
 Collection은 순서가 있는 목록, Tag는 다대다 교차 분류다. 멱등 command는 Collection 이름 변경,
@@ -32,6 +33,11 @@ Place 추가·이동·제거, Collection 삭제와 Tag 이름 변경·부착·�
 조회한다. `PostgresLibraryQueries`는 Library schema만 읽으며 Search table을 join하지 않는다.
 공개 Place projection이 아직 없더라도 회원이 저장한 preference나 Collection membership은
 삭제하지 않고 `place: null`로 반환한다.
+
+facet 집계도 같은 public Place summary reader만 사용한다. 최근 saved Place 최대 2,000개와 지역·
+primary Taxonomy 상위 50개씩으로 제한하고 saved/sample/projected coverage를 반환한다. facet-filtered
+목록은 요청당 최대 500개 preference만 검사하며 남은 후보는 purpose-bound cursor로 이어 간다.
+지역 key는 정규화한 현재 표시명 기반이어서 서로 다른 언어 표기를 같은 지역이라고 추측하지 않는다.
 
 연결 계정 Import의 Library 공개 interface는 Canonical Place 저장, Provider Source List에 대응하는
 private Collection 생성·재사용, 정렬된 membership, import provenance와 command receipt를 한

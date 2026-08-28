@@ -1,6 +1,7 @@
 import type {
   LibraryCollectionDetail,
   LibraryCollectionListPage,
+  LibraryPlaceFacetsPage,
   LibraryPlaceListPage,
   LibraryPlaceOrganizationPage,
   LibraryPlaceState,
@@ -14,9 +15,15 @@ export interface LibraryQueries {
     state: LibraryPlaceState
     tagIds: readonly string[]
     tagMatch: LibraryTagMatch
+    areaKeys: readonly string[]
+    taxonomyKeys: readonly string[]
     cursor?: string
     limit: number
   }>): Promise<LibraryPlaceListPage>
+
+  getPlaceFacets(input: Readonly<{
+    memberId: string
+  }>): Promise<LibraryPlaceFacetsPage>
 
   listCollections(input: Readonly<{
     memberId: string

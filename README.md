@@ -125,12 +125,18 @@ PostGIS 검증이 회원 격리, cursor 오용 거부, 내부 참조 비노출, 
 detail cursor/limit와 `nextCursor`를 보존한다. Google/Kakao 연결 수집, Provider 상세, AI 검증은 이
 완료 조건에 포함되지 않는다.
 
-Stage 7.6은 Personal Library의 수동 조직 기능을 완성한다. `library-place-list.v2`는 saved/wanted/rated
-목록에 최대 20개의 Tag ID를 `all`/`any`로 결합하며 cursor를 전체 filter에 묶는다. Collection은
+Stage 7.6은 Personal Library의 수동 조직 기능을 완성한다. `library-place-list.v3`는 saved/wanted/rated
+목록에 최대 20개의 Tag ID를 `all`/`any`로 결합하고, 저장 장소에서 파생한 지역·Taxonomy key를
+각각 최대 10개까지 더해 cursor를 전체 filter에 묶는다. Collection은
 순서가 있는 목록으로 이름 변경·Place 추가/이동/제거·삭제를, Tag는 다대다 분류로 이름 변경·부착/
 해제·삭제를 같은 멱등 command 경계에서 제공한다. Migration `000027`은 Tag-first index, transaction
 내 순서 재배치, owner-scoped 삭제와 Import provenance 정리를 지원한다. 이 기능은 Google/Kakao,
 Provider 상세, AI 자동 분류나 프론트 화면 없이 독립적으로 동작한다.
+
+Stage 7.8 후속 조각은 `library-place-facets.v1`을 추가한다. 전역 카테고리 master가 아니라 현재 회원의
+saved Place ID를 최대 2,000개까지 public Place summary와 조합해 지역·provider-neutral primary
+Taxonomy별 count를 만든다. 응답은 표본·projection coverage와 완전 여부를 명시하며 Library와 Search
+schema를 직접 join하지 않는다. 지역명 표기가 서로 다른 경우를 임의로 합치거나 AI로 분류하지 않는다.
 
 ## Repository boundaries
 

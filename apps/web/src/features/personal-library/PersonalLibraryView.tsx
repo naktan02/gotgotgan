@@ -26,6 +26,9 @@ export function PersonalLibraryView({
     surface,
     selectedTagIds,
     tagMatch,
+    selectedAreaKeys,
+    selectedTaxonomyKeys,
+    facets,
     tags,
     tagCursor,
     collections,
@@ -45,6 +48,8 @@ export function PersonalLibraryView({
     chooseState,
     chooseCollection,
     toggleTag,
+    toggleArea,
+    toggleTaxonomy,
     setTagMatch,
     selectPlace,
     loadMore,
@@ -91,6 +96,53 @@ export function PersonalLibraryView({
               {tab.label}
             </button>
           ))}
+        </div>
+        <div className={styles.facetControls}>
+          <span className={styles.filterLabel}>지역</span>
+          <div aria-label="저장 장소 지역 필터" className={styles.facetOptions}>
+            {facets?.areas.map((facet) => (
+              <button
+                aria-pressed={selectedAreaKeys.includes(facet.key)}
+                disabled={!selectedAreaKeys.includes(facet.key) && selectedAreaKeys.length >= 10}
+                key={facet.key}
+                onClick={() => toggleArea(facet.key)}
+                type="button"
+              >
+                {facet.label}<span>{facet.count}</span>
+              </button>
+            ))}
+            {!metadataLoading && facets?.areas.length === 0 && <span className={styles.noTags}>표시할 지역이 없습니다.</span>}
+          </div>
+        </div>
+        <div className={styles.facetControls}>
+          <span className={styles.filterLabel}>분류</span>
+          <div aria-label="저장 장소 분류 필터" className={styles.facetOptions}>
+            {facets?.taxonomies.map((facet) => (
+              <button
+                aria-pressed={selectedTaxonomyKeys.includes(facet.key)}
+                disabled={!selectedTaxonomyKeys.includes(facet.key) && selectedTaxonomyKeys.length >= 10}
+                key={facet.key}
+                onClick={() => toggleTaxonomy(facet.key)}
+                type="button"
+              >
+                {facet.label}<span>{facet.count}</span>
+              </button>
+            ))}
+            {!metadataLoading && facets?.taxonomies.length === 0 && <span className={styles.noTags}>표시할 분류가 없습니다.</span>}
+          </div>
+          {facets !== undefined && (
+            <small className={styles.facetCoverage}>
+              저장 장소 {facets.coverage.savedPlaceCount}개 기준
+              {facets.coverage.projectedPlaceCount < facets.coverage.sampledPlaceCount
+                ? ` · 기본 정보 ${facets.coverage.projectedPlaceCount}개 반영`
+                : ''}
+              {!facets.coverage.complete
+                ? facets.coverage.sampledPlaceCount < facets.coverage.savedPlaceCount
+                  ? ` · 최근 ${facets.coverage.sampledPlaceCount}개 표본의 상위 선택지만 표시`
+                  : ' · 상위 선택지만 표시'
+                : ''}
+            </small>
+          )}
         </div>
         <div className={styles.tagControls}>
           <span className={styles.filterLabel}>태그</span>

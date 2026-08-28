@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+
 import {
   InvalidLibraryCursorError,
   type LibraryPlaceState,
@@ -17,6 +19,8 @@ type PlaceFilter = Readonly<{
   state: LibraryPlaceState
   tagIds: readonly string[]
   tagMatch: LibraryTagMatch
+  areaKeys: readonly string[]
+  taxonomyKeys: readonly string[]
 }>
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -44,9 +48,8 @@ function encode(payload: Readonly<Record<string, unknown>>): string {
   return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url')
 }
 
-function sameStrings(left: unknown, right: readonly string[]): boolean {
-  return Array.isArray(left) && left.length === right.length &&
-    left.every((value, index) => value === right[index])
+function placeFilterFingerprint(filter: PlaceFilter): string {
+  return createHash('sha256').update(JSON.stringify(filter)).digest('base64url')
 }
 
 export function decodePlaceCursor(
@@ -56,15 +59,21 @@ export function decodePlaceCursor(
   const payload = readPayload(value)
   if (payload === undefined) return undefined
   if (
-    payload.v !== 2 || payload.kind !== 'places' || payload.state !== filter.state ||
-    payload.tagMatch !== filter.tagMatch || !sameStrings(payload.tagIds, filter.tagIds) ||
+    payload.v !== 3 || payload.kind !== 'places' || payload.state !== filter.state ||
+    payload.filterFingerprint !== placeFilterFingerprint(filter) ||
     !validTimestamp(payload.updatedAt) || !validUuid(payload.placeId)
   ) throw new InvalidLibraryCursorError('Library place cursor is invalid.')
   return { updatedAt: payload.updatedAt, placeId: payload.placeId }
 }
 
 export function encodePlaceCursor(filter: PlaceFilter, cursor: PlaceCursor): string {
-  return encode({ v: 2, kind: 'places', ...filter, ...cursor })
+  return encode({
+    v: 3,
+    kind: 'places',
+    state: filter.state,
+    filterFingerprint: placeFilterFingerprint(filter),
+    ...cursor,
+  })
 }
 
 export function decodeCollectionCursor(value: string | undefined): CollectionCursor | undefined {

@@ -6,10 +6,12 @@ import {
   libraryCommandResultSchema,
   libraryCollectionDetailResponseSchema,
   libraryCollectionListResponseSchema,
+  libraryPlaceFacetsResponseSchema,
   libraryPlaceListResponseSchema,
   libraryPlaceOrganizationResponseSchema,
   libraryTagListResponseSchema,
   type LibraryCollectionListResponse,
+  type LibraryPlaceFacetsResponse,
   type LibraryPlaceState,
   type LibraryPlaceOrganizationResponse,
   type LibraryTagListResponse,
@@ -72,6 +74,12 @@ export function createPersonalLibraryHttp(fetcher: typeof fetch = fetch) {
   }).then(payload)
 
   return {
+    async facets(signal?: AbortSignal): Promise<LibraryPlaceFacetsResponse> {
+      return libraryPlaceFacetsResponseSchema.parse(await read(
+        '/api/library/place-facets',
+        signal,
+      ))
+    },
     async tags(cursor?: string, signal?: AbortSignal): Promise<LibraryTagListResponse> {
       return libraryTagListResponseSchema.parse(await read(
         pathWithQuery('/api/library/tags', { limit: '50', cursor }),
@@ -111,12 +119,21 @@ export function createPersonalLibraryHttp(fetcher: typeof fetch = fetch) {
       state: LibraryPlaceState,
       tagIds: readonly string[],
       tagMatch: LibraryTagMatch,
+      areaKeys: readonly string[],
+      taxonomyKeys: readonly string[],
       cursor?: string,
       signal?: AbortSignal,
     ): Promise<PersonalLibraryPage> {
       const page = libraryPlaceListResponseSchema.parse(await read(pathWithQuery(
         '/api/library/places',
-        { state, tagMatch, tagIds: [...tagIds].sort(), limit: '20', cursor },
+        {
+          state,
+          tagMatch,
+          tagIds: [...tagIds].sort(),
+          areaKeys: [...areaKeys].sort(),
+          taxonomyKeys: [...taxonomyKeys].sort(),
+          limit: '20', cursor,
+        },
       ), signal))
       return { rows: page.items, nextCursor: page.nextCursor }
     },

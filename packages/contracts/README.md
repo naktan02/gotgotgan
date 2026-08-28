@@ -50,11 +50,12 @@ Imports/Connector에서 Search·HTTP로 향하는 역방향 의존성을 거부�
 `@place/contracts/places`는 `place-detail.v1`을 소유한다. 공개 Canonical Place 사실과 선택적인
 회원 개인 상태를 분리하며, 아직 수집 근거가 없는 Provider 상세 필드는 허용하지 않는다.
 
-`@place/contracts/library`는 `library-command-result.v1`, `library-place-preferences.v1`과 bounded `library-place-list.v2`, `library-collection-list.v1`,
+`@place/contracts/library`는 `library-command-result.v1`, `library-place-preferences.v1`과 bounded `library-place-list.v3`, `library-place-facets.v1`, `library-collection-list.v1`,
 `library-collection-detail.v1`, `library-tag-list.v1` projection을 소유한다. 모든 page limit은
 1~50이고 cursor는 불투명하다. 개인 목록은 회원 ID를 browser 입력으로 받지 않으며, 장소 표시
 정보는 `@place/contracts/places`의 공개 summary만 재사용한다. Place 목록은 반복 `tagIds` 최대
-20개와 `all`/`any` match mode를 받고 응답과 cursor에 정규화된 filter를 보존한다. Library command
+20개와 `all`/`any` match mode, 지역·Taxonomy key를 축별 최대 10개까지 받고 응답과 cursor에
+정규화된 filter를 보존한다. Facet 응답은 saved/sample/projected Place 수와 완전 여부를 함께 반환한다. Library command
 union은 Collection rename/delete와 Place move/remove, Tag rename/delete/untag까지 같은 command ID
 replay 규칙을 사용한다.
 

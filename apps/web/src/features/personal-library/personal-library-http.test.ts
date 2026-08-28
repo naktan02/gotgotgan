@@ -10,6 +10,7 @@ const tagA = '01992d20-0000-7000-8000-000000000002'
 const tagB = '01992d20-0000-7000-8000-000000000003'
 const collectionId = '01992d20-0000-7000-8000-000000000004'
 const commandId = '01992d20-0000-7000-8000-000000000005'
+const areaKey = 'area_abcdefghijklmnopqrstuv'
 
 describe('personal library browser interface', () => {
   it('serializes stable repeated Tag IDs and parses a versioned Place page', async () => {
@@ -17,8 +18,11 @@ describe('personal library browser interface', () => {
     const fetcher = async (input: RequestInfo | URL) => {
       calls.push(String(input))
       return Response.json({
-        schemaVersion: 'library-place-list.v2',
-        filter: { state: 'saved', tagIds: [tagA, tagB], tagMatch: 'any' },
+        schemaVersion: 'library-place-list.v3',
+        filter: {
+          state: 'saved', tagIds: [tagA, tagB], tagMatch: 'any',
+          areaKeys: [areaKey], taxonomyKeys: ['food.noodle.ramen'],
+        },
         items: [{
           placeId,
           saved: true,
@@ -32,12 +36,27 @@ describe('personal library browser interface', () => {
     }
     const http = createPersonalLibraryHttp(fetcher as unknown as typeof fetch)
 
-    await expect(http.places('saved', [tagB, tagA], 'any')).resolves.toMatchObject({
+    await expect(http.places(
+      'saved', [tagB, tagA], 'any', [areaKey], ['food.noodle.ramen'],
+    )).resolves.toMatchObject({
       rows: [{ placeId }], nextCursor: 'next-page',
     })
     expect(calls[0]).toBe(
-      `/api/library/places?state=saved&tagMatch=any&tagIds=${tagA}&tagIds=${tagB}&limit=20`,
+      `/api/library/places?state=saved&tagMatch=any&tagIds=${tagA}&tagIds=${tagB}&areaKeys=${areaKey}&taxonomyKeys=food.noodle.ramen&limit=20`,
     )
+  })
+
+  it('reads saved-Place area and taxonomy facets separately from list pagination', async () => {
+    const http = createPersonalLibraryHttp(async () => Response.json({
+      schemaVersion: 'library-place-facets.v1', sourceState: 'saved',
+      coverage: { savedPlaceCount: 2, sampledPlaceCount: 2, projectedPlaceCount: 1, complete: true },
+      areas: [{ key: areaKey, label: '서울 성동구', count: 1 }],
+      taxonomies: [{ key: 'food.noodle.ramen', label: '라멘', count: 1 }],
+    }))
+
+    await expect(http.facets()).resolves.toMatchObject({
+      sourceState: 'saved', areas: [{ key: areaKey }],
+    })
   })
 
   it('surfaces authentication absence without interpreting a problem body', async () => {
