@@ -10,6 +10,11 @@ Personal Rating은 0.1부터 5.0까지 소수 첫째 자리로 저장한다. 따
 갱신하고 비공개 rating event를 추가한다. provider rating과 Canonical Place 사실은 변경하지
 않는다.
 
+저장·가고 싶음·Personal Rating 변경은 부분 toggle이 아니라 세 값의 최종 목표 상태를 한 command로
+기록한다. command는 화면이 읽었던 preference `updatedAt`을 예상 버전으로 포함한다. 같은 회원·Place의
+write는 직렬화되며 현재 버전이 다르면 아무 값도 쓰지 않고 충돌을 반환한다. 적용된 command의 동일
+ID 재전송은 replay되고, 성공한 write의 `updatedAt`은 이전 값보다 반드시 커진다.
+
 Collection은 정렬된 Canonical Place reference를 소유한다. 기본 visibility는 private이다.
 public과 unlisted Collection에는 불투명한 publication ID가 필요하다. 공개된 Collection을
 복사하면 독립된 private Collection과 출처 provenance가 생성된다. 정렬된 Place reference만

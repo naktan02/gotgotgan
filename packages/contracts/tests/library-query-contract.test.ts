@@ -79,6 +79,33 @@ describe('bounded library query contracts', () => {
     }
   })
 
+  it('requires the observed preference version for a goal-state update', () => {
+    const request = {
+      commandId: '01992d20-3000-7000-8000-000000000010',
+      command: {
+        kind: 'set-place-preferences' as const,
+        placeId,
+        expectedUpdatedAt: '2026-08-28T00:00:00.000Z',
+        saved: true,
+        wanted: false,
+        personalRating: 4.5,
+      },
+    }
+    expect(libraryCommandRequestSchema.parse(request)).toEqual(request)
+    expect(libraryCommandRequestSchema.safeParse({
+      ...request,
+      command: { ...request.command, expectedUpdatedAt: undefined },
+    }).success).toBe(false)
+    expect(libraryCommandRequestSchema.safeParse({
+      ...request,
+      command: { ...request.command, expectedUpdatedAt: null },
+    }).success).toBe(true)
+    expect(libraryCommandRequestSchema.parse({
+      ...request,
+      command: { ...request.command, expectedUpdatedAt: '2026-08-28T09:00:00+09:00' },
+    }).command).toMatchObject({ expectedUpdatedAt: '2026-08-28T00:00:00.000Z' })
+  })
+
   it('bounds the selected Place organization projection', () => {
     expect(libraryPlaceOrganizationQuerySchema.parse({})).toEqual({ limit: 20 })
     expect(libraryPlaceOrganizationQuerySchema.safeParse({ limit: 51 }).success).toBe(false)

@@ -37,6 +37,10 @@ Collection rename/reorder/remove/delete, Tag rename/untag/delete와 Import prove
 Collection membership의 제거·재수집·삭제를 실행한다. Migration `000027`의 Tag-first index가 실제
 query plan에 선택되는지도 확인한다. 좁은 반복 명령은 `npm run test:library-queries`다.
 
+Personal content suite는 같은 command ID의 preference replay, stale 예상 timestamp 거부, 동일한
+회원·Place에 대한 동시 최초 write 중 하나만 적용, 같은 발생 시각에서도 단조 증가하는 preference
+timestamp와 중복 없는 Rating event를 실제 runtime role로 검증한다.
+
 추가 Materialization PostGIS 수직 검증은 두 회원이 동일 NAVER Place ID를 가져왔을 때 공동 job 1개와
 회원별 intent를 만들고 외부 상세 호출 없이 Source Snapshot evidence로 한 Canonical Place와 Provider
 link를 생성하는지 확인한다. 각 회원 Library에는 즉시 멱등 저장하고 Provider 상세 상태는 `pending`으로

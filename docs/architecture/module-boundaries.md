@@ -80,6 +80,10 @@ Library 조직 기능에서 Collection은 ordered membership, Tag는 member-scop
 책임을 끌어오지 않는다. 자동 분류는 미래 producer일 뿐 Tag truth나 command Interface의 owner가
 아니다.
 
+Preference write leaf는 작은 `set-place-preferences` Interface 뒤에서 목표 상태 갱신, command replay,
+회원·Place별 직렬화, 예상 timestamp 비교, 단조 버전 갱신, Rating event를 한 transaction으로 처리한다.
+Web과 HTTP는 이 동시성 구현을 알지 못하고 Place detail에서 받은 opaque timestamp만 되돌려준다.
+
 회원 전체 Library를 한 번에 반환하는 unbounded Store 메서드는 두지 않는다. HTTP composition은
 bounded `LibraryQueries`를 필수로 주입하고 테스트도 같은 public Interface를 사용한다.
 

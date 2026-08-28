@@ -58,6 +58,12 @@ Chromium은 실제 Web server 경계를 통해 unlisted Collection과 public Ent
 않은 identifier는 membership이나 Rating data 없이 동일한 안전한 404를 반환하는지 확인한다.
 fixture는 계약을 따르는 개인 데이터만 포함하며 provider 또는 authentication 우회가 아니다.
 
+Personal Library Playwright는 저장·가고 싶음·Personal Rating의 목표 상태 command가 직전
+`preferencesUpdatedAt`을 연쇄적으로 사용하고, 저장 해제 후 saved 목록이 갱신되는 흐름을 desktop과
+mobile에서 검증한다. stale 409에서는 사용자의 의도를 자동 재적용하지 않고 최신 상태를 다시 읽는
+것과 적용 후 응답 유실에서는 같은 command ID로 재시도하는 것도 확인한다. 이 fixture는 member ID,
+bearer token, Provider payload를 browser command에 포함하지 않는다.
+
 Stage 5 Playwright는 같은 공개 경계에 결정적인 Taxonomy/Search fixture를 연결한다. 입력
 debounce와 교체 요청의 실제 upstream 취소, 목록·마커 선택 동기화, 명시적 bounds 재검색,
 Taxonomy filter, cursor pagination, mobile 목록/지도 전환, partial·loading·empty·error·retry와

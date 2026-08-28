@@ -16,6 +16,7 @@ import {
   type PersonalLibraryRow,
 } from './personal-library-http'
 import { usePersonalLibraryOrganizationWorkflow } from './personal-library-organization-workflow'
+import { usePersonalLibraryPreferenceWorkflow } from './personal-library-preference-workflow'
 
 type LibrarySurface =
   | Readonly<{ kind: 'state'; state: LibraryPlaceState }>
@@ -153,31 +154,35 @@ export function usePersonalLibraryWorkflow() {
     return () => controller.abort()
   }, [loadRows])
 
+  const loadSelectedDetail = useCallback(async (
+    placeId: string,
+    signal?: AbortSignal,
+    background = false,
+  ) => {
+    const sequence = ++detailSequence.current
+    if (!background) {
+      setSelectedDetail(undefined)
+      setDetailLoading(true)
+    }
+    try {
+      const value = await personalLibraryHttp.place(placeId, signal)
+      if (sequence === detailSequence.current) setSelectedDetail(value)
+    } catch (reason) {
+      if (reason instanceof DOMException && reason.name === 'AbortError') return
+      if (sequence === detailSequence.current && !background) setSelectedDetail(undefined)
+      throw reason
+    } finally {
+      if (sequence === detailSequence.current && !background) setDetailLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     setSelectedDetail(undefined)
     if (selectedPlaceId === undefined) return
-    const sequence = ++detailSequence.current
     const controller = new AbortController()
-    setDetailLoading(true)
-    personalLibraryHttp.place(selectedPlaceId, controller.signal)
-      .then((value) => {
-        if (sequence === detailSequence.current) {
-          setSelectedDetail(value)
-        }
-      })
-      .catch((reason: unknown) => {
-        if (
-          sequence === detailSequence.current &&
-          !(reason instanceof DOMException && reason.name === 'AbortError')
-        ) {
-          setSelectedDetail(undefined)
-        }
-      })
-      .finally(() => {
-        if (sequence === detailSequence.current) setDetailLoading(false)
-      })
+    void loadSelectedDetail(selectedPlaceId, controller.signal).catch(() => undefined)
     return () => controller.abort()
-  }, [selectedPlaceId])
+  }, [loadSelectedDetail, selectedPlaceId])
 
   const selectedRow = rows.find((row) => row.placeId === selectedPlaceId)
 
@@ -239,6 +244,15 @@ export function usePersonalLibraryWorkflow() {
     onAccessFailure: handleFailure,
     refreshLibrary,
   })
+  const preferences = usePersonalLibraryPreferenceWorkflow({
+    selectedPlaceId,
+    personalState: selectedDetail?.personalState,
+    onAccessFailure: handleFailure,
+    refreshLibrary,
+    refreshPlace: () => selectedPlaceId === undefined
+      ? Promise.resolve()
+      : loadSelectedDetail(selectedPlaceId, undefined, true),
+  })
 
   return {
     surface,
@@ -256,6 +270,7 @@ export function usePersonalLibraryWorkflow() {
     selectedPlaceId,
     selectedRow,
     selectedDetail,
+    ...preferences,
     ...organization,
     collectionName,
     loading,

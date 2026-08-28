@@ -8,6 +8,12 @@ application interface는 멱등 domain command를 받는다. persistence는 tabl
 아니라 하나의 깊은 adapter로 제공한다. 공개 Collection 조회는 owner ID, Tag, Rating,
 Visit, private record를 반환할 수 없는 별도 허용 목록 projection을 사용한다.
 
+`set-place-preferences`는 saved/wanted/Personal Rating의 목표 상태 전체와 정규화된
+`expectedUpdatedAt`을 받는다. preference write leaf가 회원·Place별 advisory transaction lock,
+현재 버전 비교, 단조 증가 timestamp, Rating event를 한 transaction에 숨긴다. stale write는
+retryable 409이며 command 영수증이나 preference를 만들지 않는다. 이미 적용된 같은 command ID는
+버전 비교 전에 replay되므로 응답 유실 후에도 중복 Rating event를 만들지 않는다.
+
 회원 read는 command Store와 분리된 `LibraryQueries` Interface를 사용한다. 저장·가고 싶음·평점
 Place, Collection 목록/상세, Tag 목록은 최대 50개와 용도별 opaque keyset cursor로 제한된다.
 Collection 상세의 Place membership도 별도로 page한다. 잘못된 filter 또는 다른 Collection에서

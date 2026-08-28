@@ -57,7 +57,8 @@ Imports/Connector에서 Search·HTTP로 향하는 역방향 의존성을 거부�
 20개와 `all`/`any` match mode, 지역·Taxonomy key를 축별 최대 10개까지 받고 응답과 cursor에
 정규화된 filter를 보존한다. Facet 응답은 saved/sample/projected Place 수와 완전 여부를 함께 반환한다. Library command
 union은 Collection rename/delete와 Place move/remove, Tag rename/delete/untag까지 같은 command ID
-replay 규칙을 사용한다.
+replay 규칙을 사용한다. `set-place-preferences`는 saved/wanted/Personal Rating 목표 상태 전체와
+nullable `expectedUpdatedAt`을 요구하며 offset timestamp를 UTC로 정규화한다.
 
 `@place/contracts/visits`는 `visit-record-result.v1`, `visit-summary.v1`과 회원·fingerprint·임의 evidence를 노출하지 않는 bounded
 `visit-history.v1`을 소유한다. `@place/contracts/writing`은 `writing-command-result.v1`과 본문을 최대 280자 preview로 제한한

@@ -13,7 +13,10 @@ import {
 import { requireProductMember, sendProductProblem, type ProductAuthorizer } from '../../../../platform/http/product-authorization.js'
 import { applyLibraryCommand } from '../../application/apply-library-command.js'
 import type { LibraryStore } from '../../application/ports/library-store.js'
-import { LibraryCommandConflictError } from '../../domain/model.js'
+import {
+  LibraryCommandConflictError,
+  LibraryPreferenceVersionConflictError,
+} from '../../domain/model.js'
 import type { LibraryQueries } from '../../application/library-queries.js'
 import { registerLibraryQueryHttpRoutes } from './register-library-query-http.js'
 
@@ -45,6 +48,7 @@ export function registerLibraryHttpRoutes(application: FastifyInstance, dependen
         .status(result.status === 'applied' ? 201 : 200).send(response)
     } catch (error) {
       if (error instanceof LibraryCommandConflictError) return sendProductProblem(request, reply, 409, 'PLACE_LIBRARY_COMMAND_CONFLICT', 'Library command conflicts with an earlier request')
+      if (error instanceof LibraryPreferenceVersionConflictError) return sendProductProblem(request, reply, 409, 'PLACE_LIBRARY_PREFERENCE_VERSION_CONFLICT', 'Place preferences changed after they were read', true)
       return sendProductProblem(request, reply, 400, 'PLACE_LIBRARY_COMMAND_INVALID', 'Library command is invalid')
     }
   })

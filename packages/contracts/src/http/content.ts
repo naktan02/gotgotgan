@@ -9,6 +9,9 @@ export const visibilitySchema = z.enum(['private', 'unlisted', 'public'])
 export const setPlacePreferencesCommandSchema = z.object({
   kind: z.literal('set-place-preferences'),
   placeId: uuidSchema,
+  expectedUpdatedAt: z.iso.datetime({ offset: true }).nullable().transform((value) => (
+    value === null ? null : new Date(value).toISOString()
+  )),
   saved: z.boolean(),
   wanted: z.boolean(),
   personalRating: z.number().min(0.1).max(5).multipleOf(0.1).nullable(),

@@ -121,14 +121,56 @@ test('personal content remains owned, repeatable, versioned, and privacy project
     )
     await runtimeClient.query('INSERT INTO places.canonical_places (id) VALUES ($1), ($2)', [placeId, placeTwo])
 
-    const preference = (commandId, personalRating) => library.applyLibraryCommand({
+    const preference = (commandId, personalRating, expectedUpdatedAt) => library.applyLibraryCommand({
       commandId, memberId, occurredAt: at,
-      command: { kind: 'set-place-preferences', placeId, saved: true, wanted: false, personalRating },
+      command: {
+        kind: 'set-place-preferences', placeId, expectedUpdatedAt,
+        saved: true, wanted: false, personalRating,
+      },
       store: libraryStore,
     })
-    assert.deepEqual(await preference('01992d10-0000-7000-8000-000000000010', 4.4), { status: 'applied' })
-    assert.deepEqual(await preference('01992d10-0000-7000-8000-000000000011', 4.7), { status: 'applied' })
-    assert.equal((await libraryStore.getPlacePreferences(memberId, placeId)).personalRating, 4.7)
+    assert.deepEqual(
+      await preference('01992d10-0000-7000-8000-000000000010', 4.4, null),
+      { status: 'applied' },
+    )
+    assert.deepEqual(
+      await preference('01992d10-0000-7000-8000-000000000011', 4.7, at),
+      { status: 'applied' },
+    )
+    assert.deepEqual(
+      await preference('01992d10-0000-7000-8000-000000000011', 4.7, at),
+      { status: 'replayed' },
+    )
+    await assert.rejects(
+      preference('01992d10-0000-7000-8000-000000000012', 3.2, at),
+      (error) => error instanceof library.LibraryPreferenceVersionConflictError,
+    )
+    const currentPreference = await libraryStore.getPlacePreferences(memberId, placeId)
+    assert.equal(currentPreference.personalRating, 4.7)
+    assert.equal(currentPreference.updatedAt, '2026-08-26T10:00:00.001Z')
+    const concurrent = await Promise.allSettled([
+      library.applyLibraryCommand({
+        commandId: '01992d10-0000-7000-8000-000000000013', memberId, occurredAt: at,
+        command: {
+          kind: 'set-place-preferences', placeId: placeTwo, expectedUpdatedAt: null,
+          saved: true, wanted: false, personalRating: null,
+        },
+        store: libraryStore,
+      }),
+      library.applyLibraryCommand({
+        commandId: '01992d10-0000-7000-8000-000000000014', memberId, occurredAt: at,
+        command: {
+          kind: 'set-place-preferences', placeId: placeTwo, expectedUpdatedAt: null,
+          saved: false, wanted: true, personalRating: null,
+        },
+        store: libraryStore,
+      }),
+    ])
+    assert.equal(concurrent.filter((result) => result.status === 'fulfilled').length, 1)
+    assert.equal(concurrent.filter((result) => (
+      result.status === 'rejected' &&
+      result.reason instanceof library.LibraryPreferenceVersionConflictError
+    )).length, 1)
     assert.equal((await runtimeClient.query('SELECT count(*)::int AS count FROM library.personal_rating_events')).rows[0].count, 2)
 
     for (const [id, visitedAt] of [

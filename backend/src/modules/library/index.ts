@@ -1,6 +1,7 @@
 export {
   InvalidLibraryCommandError,
   LibraryCommandConflictError,
+  LibraryPreferenceVersionConflictError,
   libraryVisibilities,
   type LibraryAttempt,
   type LibraryCommand,

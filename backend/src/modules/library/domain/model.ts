@@ -23,6 +23,7 @@ export type LibraryCommand =
   | Readonly<{
       kind: 'set-place-preferences'
       placeId: string
+      expectedUpdatedAt: string | null
       saved: boolean
       wanted: boolean
       personalRating: number | null
@@ -82,6 +83,10 @@ export class LibraryCommandConflictError extends Error {
   override readonly name = 'LibraryCommandConflictError'
 }
 
+export class LibraryPreferenceVersionConflictError extends Error {
+  override readonly name = 'LibraryPreferenceVersionConflictError'
+}
+
 function requireText(value: string, field: string, maximum: number): void {
   if (value.trim().length === 0 || value.length > maximum) {
     throw new InvalidLibraryCommandError(`${field} is invalid`)
@@ -96,6 +101,10 @@ function requirePublication(visibility: LibraryVisibility, publicationId?: strin
 
 export function assertLibraryCommand(command: LibraryCommand): void {
   if (command.kind === 'set-place-preferences') {
+    if (
+      command.expectedUpdatedAt !== null &&
+      Number.isNaN(Date.parse(command.expectedUpdatedAt))
+    ) throw new InvalidLibraryCommandError('expectedUpdatedAt must be an ISO timestamp or null')
     if (command.personalRating !== null && (
       !Number.isFinite(command.personalRating) || command.personalRating < 0.1 ||
       command.personalRating > 5 || Math.round(command.personalRating * 10) !== command.personalRating * 10

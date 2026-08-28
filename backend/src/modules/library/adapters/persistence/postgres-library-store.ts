@@ -14,6 +14,7 @@ import type {
   PublishedCollection,
 } from '../../domain/model.js'
 import { applyPostgresLibraryCommand } from './postgres-library-command-writes.js'
+import { lockPostgresPlacePreference } from './postgres-library-preference-writes.js'
 
 type Receipt = Readonly<{ command_fingerprint: string; outcome: 'applied' | 'not-found' | 'forbidden' }>
 
@@ -116,12 +117,21 @@ export class PostgresLibraryStore implements LibraryStore, ImportedPlaceSaveStor
         )
       }
 
+      await lockPostgresPlacePreference(
+        client,
+        attempt.memberId,
+        attempt.canonicalPlaceId,
+      )
       await client.query(
         `INSERT INTO library.place_preferences (
            membership_id, canonical_place_id, saved, wanted, personal_rating, created_at, updated_at
          ) VALUES ($1::uuid,$2::uuid,true,false,NULL,$3::timestamptz,$3::timestamptz)
          ON CONFLICT (membership_id, canonical_place_id) DO UPDATE
-           SET saved = true, updated_at = EXCLUDED.updated_at`,
+           SET saved = true,
+               updated_at = greatest(
+                 EXCLUDED.updated_at,
+                 library.place_preferences.updated_at + interval '1 millisecond'
+               )`,
         [attempt.memberId, attempt.canonicalPlaceId, attempt.occurredAt],
       )
       const placed = await client.query(

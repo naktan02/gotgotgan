@@ -48,6 +48,7 @@ describe('personal library', () => {
       command: {
         kind: 'set-place-preferences',
         placeId: '01992d00-0000-7000-8000-000000000003',
+        expectedUpdatedAt: null,
         saved: true,
         wanted: false,
         personalRating: 4.4,
@@ -60,6 +61,26 @@ describe('personal library', () => {
       wanted: false,
       personalRating: 4.4,
     })])
+  })
+
+  it('canonicalizes the observed preference timestamp before fingerprinting and storing', async () => {
+    const store = new MemoryLibraryStore()
+    await applyLibraryCommand({
+      ...context,
+      commandId: '01992d00-0000-7000-8000-000000000004',
+      command: {
+        kind: 'set-place-preferences',
+        placeId: '01992d00-0000-7000-8000-000000000005',
+        expectedUpdatedAt: '2026-08-26T19:00:00+09:00',
+        saved: true,
+        wanted: false,
+        personalRating: null,
+      },
+      store,
+    })
+    expect(store.commands[0]).toMatchObject({
+      expectedUpdatedAt: '2026-08-26T10:00:00.000Z',
+    })
   })
 
   it('supports collections, tags, and independent copying by publication id', async () => {
@@ -153,6 +174,7 @@ describe('personal library', () => {
       command: {
         kind: 'set-place-preferences' as const,
         placeId: '01992d00-0000-7000-8000-000000000043',
+        expectedUpdatedAt: null,
         saved: true,
         wanted: true,
         personalRating: null,

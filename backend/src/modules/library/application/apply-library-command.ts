@@ -17,12 +17,19 @@ type Input = Readonly<{
 export async function applyLibraryCommand(input: Input) {
   assertLibraryCommand(input.command)
   if (Number.isNaN(Date.parse(input.occurredAt))) throw new Error('occurredAt must be an ISO timestamp')
+  const command: LibraryCommand = input.command.kind === 'set-place-preferences' &&
+    input.command.expectedUpdatedAt !== null
+    ? {
+        ...input.command,
+        expectedUpdatedAt: new Date(input.command.expectedUpdatedAt).toISOString(),
+      }
+    : input.command
   const outcome = await input.store.apply({
     commandId: input.commandId,
     memberId: input.memberId,
-    command: input.command,
+    command,
     occurredAt: input.occurredAt,
-    fingerprint: fingerprintLibraryCommand({ memberId: input.memberId, command: input.command }),
+    fingerprint: fingerprintLibraryCommand({ memberId: input.memberId, command }),
   })
   if (outcome.status === 'conflict') throw new LibraryCommandConflictError('commandId is already used')
   return outcome

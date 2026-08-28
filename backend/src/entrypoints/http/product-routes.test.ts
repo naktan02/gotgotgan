@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import type { LibraryQueries, LibraryStore, PublishedCollection } from '../../modules/library/index.js'
+import {
+  LibraryPreferenceVersionConflictError,
+  type LibraryQueries,
+  type LibraryStore,
+  type PublishedCollection,
+} from '../../modules/library/index.js'
 import type { VisitQueries, VisitRecord, VisitStore } from '../../modules/visits/index.js'
 import type {
   PublishedWriting,
@@ -17,9 +22,11 @@ const authorizer = async (authorization: string | undefined) => authorization ==
   ? { status: 'authorized' as const, memberId }
   : { status: 'authentication-required' as const }
 
-function fixtureApplication() {
+function fixtureApplication(
+  apply: LibraryStore['apply'] = async () => ({ status: 'applied' }),
+) {
   const library: LibraryStore = {
-    apply: async () => ({ status: 'applied' }),
+    apply,
     getPlacePreferences: async () => ({ memberId, placeId, saved: true, wanted: false, personalRating: 4.4, updatedAt: now().toISOString() }),
     getPublishedCollection: async (id): Promise<PublishedCollection | undefined> => id === publicationId ? {
       publicationId,
@@ -125,11 +132,38 @@ describe('Stage 4 product HTTP boundary', () => {
         commandId: '01992d04-0000-7000-8000-000000000010',
         memberId,
         role: 'owner',
-        command: { kind: 'set-place-preferences', placeId, saved: true, wanted: false, personalRating: 4.4 },
+        command: {
+          kind: 'set-place-preferences', placeId, expectedUpdatedAt: now().toISOString(),
+          saved: true, wanted: false, personalRating: 4.4,
+        },
       },
     })
     expect(response.statusCode).toBe(400)
     expect(response.json()).toMatchObject({ code: 'PLACE_LIBRARY_COMMAND_INVALID' })
+    await application.close()
+  })
+
+  it('reports a stale preference version as a retryable conflict', async () => {
+    const application = fixtureApplication(async () => {
+      throw new LibraryPreferenceVersionConflictError('stale preference version')
+    })
+    const response = await application.inject({
+      method: 'POST',
+      url: '/v1/library/commands',
+      headers: { authorization: 'Bearer good' },
+      payload: {
+        commandId: '01992d04-0000-7000-8000-000000000011',
+        command: {
+          kind: 'set-place-preferences', placeId, expectedUpdatedAt: now().toISOString(),
+          saved: false, wanted: true, personalRating: null,
+        },
+      },
+    })
+    expect(response.statusCode).toBe(409)
+    expect(response.json()).toMatchObject({
+      code: 'PLACE_LIBRARY_PREFERENCE_VERSION_CONFLICT',
+      retryable: true,
+    })
     await application.close()
   })
 

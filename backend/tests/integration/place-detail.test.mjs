@@ -53,6 +53,7 @@ test('place detail joins canonical facts with an authorized personal overlay', {
       occurredAt: at,
       command: {
         kind: 'set-place-preferences', placeId,
+        expectedUpdatedAt: null,
         saved: true, wanted: false, personalRating: 4.4,
       },
       store: libraryStore,

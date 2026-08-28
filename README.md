@@ -6,7 +6,7 @@ Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed doc
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **source-only; Stages 6.5, 7.5, and 7.6 complete, Stages 2 and 7 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
+Current delivery state: **source-only; Stages 6.5 and 7.5–7.9 complete, Stages 2 and 7 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
@@ -137,6 +137,12 @@ Stage 7.8 후속 조각은 `library-place-facets.v1`을 추가한다. 전역 카
 saved Place ID를 최대 2,000개까지 public Place summary와 조합해 지역·provider-neutral primary
 Taxonomy별 count를 만든다. 응답은 표본·projection coverage와 완전 여부를 명시하며 Library와 Search
 schema를 직접 join하지 않는다. 지역명 표기가 서로 다른 경우를 임의로 합치거나 AI로 분류하지 않는다.
+
+Stage 7.9는 선택한 Place의 저장·가고 싶음·Personal Rating을 Web에서 직접 수정한다. 기존
+`set-place-preferences` command는 세 값의 최종 목표 상태와 `expectedUpdatedAt`을 함께 요구하며,
+같은 `commandId` 재전송은 한 번만 적용한다. PostgreSQL Adapter는 회원·Place별 write를 직렬화하고
+`updated_at`을 단조 증가시켜 다른 기기의 변경을 409로 보고할 뿐 덮어쓰지 않는다. 이 경로도
+`library.write` 권한 뒤에 있고 Provider, AI, 전역 지역 identity를 요구하지 않는다.
 
 ## Repository boundaries
 

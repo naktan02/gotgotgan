@@ -156,6 +156,7 @@ describe('browser library HTTP', () => {
           command: {
             kind: 'set-place-preferences',
             placeId,
+            expectedUpdatedAt: '2026-08-28T00:00:00.000Z',
             saved: true,
             wanted: false,
             personalRating: 4.5,
@@ -175,6 +176,7 @@ describe('browser library HTTP', () => {
         commandId,
         command: {
           kind: 'set-place-preferences', placeId,
+          expectedUpdatedAt: '2026-08-28T00:00:00.000Z',
           saved: true, wanted: false, personalRating: 4.5,
         },
       }),

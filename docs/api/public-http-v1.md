@@ -69,6 +69,13 @@ composition에서 member를 파생한다. Library와 Writing command ID는 멱�
 expected version도 필요하다. Library command는 Collection 생성·이름 변경·삭제, Place
 추가·이동·제거, Tag 생성·이름 변경·부착·해제·삭제를 지원한다. `GET /v1/library/places/{placeId}`와
 `GET /v1/places/{placeId}/visit-summary`는 회원 private projection을 반환한다.
+
+Library의 `set-place-preferences`는 saved/wanted/Personal Rating 전체 목표 상태와 Place detail에서
+읽은 nullable `expectedUpdatedAt`을 요구한다. 같은 command ID와 payload 재전송은 `replayed`이고,
+현재 preference timestamp가 예상과 다르면 값을 쓰지 않은 채 retryable
+`PLACE_LIBRARY_PREFERENCE_VERSION_CONFLICT` 409를 반환한다. 클라이언트는 최신 Place detail을 다시
+읽고 사용자가 원하면 새 command ID로 재적용한다. 이는 부분 toggle 재전송이나 여러 기기의 lost
+update를 피한다.
 `GET /v1/library/places`, `/place-facets`, `/places/{placeId}/organization`, `/collections`,
 `/collections/{collectionId}`, `/tags`,
 `GET /v1/writing`, `/v1/writing/{documentId}`, `GET /v1/places/{placeId}/visits`,

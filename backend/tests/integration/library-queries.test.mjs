@@ -67,7 +67,10 @@ test('bounded Library queries paginate, hydrate public Place facts, and isolate 
     const preference = (commandId, memberId, placeId, saved, wanted, personalRating, occurredAt) => (
       library.applyLibraryCommand({
         commandId, memberId, occurredAt,
-        command: { kind: 'set-place-preferences', placeId, saved, wanted, personalRating },
+        command: {
+          kind: 'set-place-preferences', placeId, expectedUpdatedAt: null,
+          saved, wanted, personalRating,
+        },
         store: libraryStore,
       })
     )
@@ -244,6 +247,11 @@ test('bounded Library queries paginate, hydrate public Place facts, and isolate 
       source: importedSource,
       store: libraryStore,
     })
+    const firstImportedPreferenceVersion = (await database.pool.query(
+      `SELECT updated_at FROM library.place_preferences
+       WHERE membership_id = $1::uuid AND canonical_place_id = $2::uuid`,
+      [memberA, places[3]],
+    )).rows[0].updated_at
     const importedCollection = await database.pool.query(
       `SELECT collection_id FROM library.collection_import_provenance
        WHERE owner_membership_id = $1::uuid AND source_list_id = $2`,
@@ -264,10 +272,19 @@ test('bounded Library queries paginate, hydrate public Place facts, and isolate 
       commandId: '01992d20-3000-7000-8000-000000000527',
       memberId: memberA,
       canonicalPlaceId: places[3],
-      occurredAt: '2026-08-28T06:04:00.000Z',
+      occurredAt: '2026-08-28T06:03:00.000Z',
       source: importedSource,
       store: libraryStore,
     })
+    const secondImportedPreferenceVersion = (await database.pool.query(
+      `SELECT updated_at FROM library.place_preferences
+       WHERE membership_id = $1::uuid AND canonical_place_id = $2::uuid`,
+      [memberA, places[3]],
+    )).rows[0].updated_at
+    assert.equal(
+      secondImportedPreferenceVersion.getTime(),
+      firstImportedPreferenceVersion.getTime() + 1,
+    )
     await command('01992d20-3000-7000-8000-000000000528', memberA, {
       kind: 'delete-collection', collectionId: importedCollectionId,
     })

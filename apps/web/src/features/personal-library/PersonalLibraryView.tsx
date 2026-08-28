@@ -5,6 +5,7 @@ import type { LibraryPlaceState } from '@place/contracts/library'
 import styles from './personal-library.module.css'
 import type { PersonalLibraryWorkflow } from './personal-library-workflow'
 import { PersonalLibraryOrganizationEditor } from './PersonalLibraryOrganizationEditor'
+import { PersonalLibraryPreferenceEditor } from './PersonalLibraryPreferenceEditor'
 
 const stateTabs: ReadonlyArray<Readonly<{ state: LibraryPlaceState; label: string }>> = [
   { state: 'saved', label: '저장됨' },
@@ -254,17 +255,11 @@ export function PersonalLibraryView({
                 <h2>{selectedPlace.name}</h2>
                 <span>{selectedPlace.areaLabel ?? '지역 정보 없음'}</span>
               </div>
-              {personalState !== undefined && (
-                <dl className={styles.personalState}>
-                  <div><dt>저장</dt><dd>{personalState.saved ? '저장됨' : '저장 안 함'}</dd></div>
-                  <div><dt>가고 싶음</dt><dd>{personalState.wanted ? '표시됨' : '표시 안 함'}</dd></div>
-                  <div><dt>내 평점</dt><dd>{personalState.personalRating?.toFixed(1) ?? '없음'}</dd></div>
-                  <div><dt>방문</dt><dd>{personalState.visits.count}회</dd></div>
-                </dl>
-              )}
+              {personalState !== undefined && <PersonalLibraryPreferenceEditor workflow={workflow} />}
               <dl className={styles.placeFacts}>
                 <div><dt>정보 상태</dt><dd>{evidenceLabel(selectedPlace.evidence.status)}</dd></div>
                 <div><dt>위치</dt><dd>{selectedPlace.location.latitude.toFixed(5)}, {selectedPlace.location.longitude.toFixed(5)}</dd></div>
+                {personalState !== undefined && <div><dt>방문</dt><dd>{personalState.visits.count}회</dd></div>}
               </dl>
               <PersonalLibraryOrganizationEditor workflow={workflow} />
             </>
