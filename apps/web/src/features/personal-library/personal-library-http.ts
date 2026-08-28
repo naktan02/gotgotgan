@@ -10,6 +10,7 @@ import {
   libraryPlaceListResponseSchema,
   libraryPlaceOrganizationResponseSchema,
   libraryTagListResponseSchema,
+  type LibraryCollectionDetailResponse,
   type LibraryCollectionListResponse,
   type LibraryPlaceFacetsResponse,
   type LibraryPlaceState,
@@ -36,6 +37,7 @@ export type PersonalLibraryPage = Readonly<{
   rows: readonly PersonalLibraryRow[]
   nextCursor?: string
   collectionName?: string
+  collection?: LibraryCollectionDetailResponse['collection']
 }>
 
 export class BrowserLibraryProblem extends Error {
@@ -150,6 +152,7 @@ export function createPersonalLibraryHttp(fetcher: typeof fetch = fetch) {
         rows: page.places,
         nextCursor: page.nextCursor,
         collectionName: page.collection.name,
+        collection: page.collection,
       }
     },
     async place(placeId: string, signal?: AbortSignal) {

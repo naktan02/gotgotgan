@@ -34,3 +34,9 @@ Place ID를 별도 열로 보존한다. 따라서 NAVER·Google·Kakao의 식별
 
 Provider 폴더는 개인 정리 방식이므로 Taxonomy Node가 아니다. 하나의 Canonical Place가 여러 원본
 폴더에 있으면 저장 preference와 Canonical Place는 하나지만 각 Collection membership은 모두 유지한다.
+
+회원의 수동 관리 화면에서 새 Collection은 private으로 생성한다. Collection 삭제는 해당 Collection의
+membership과 Library 소유 provenance를 정리하지만 Canonical Place, 저장 preference, Provider 원본
+목록은 삭제하지 않는다. Collection에서 Place 하나를 제거하거나 순서를 바꾸는 것도 같은 원칙을
+따른다. Tag 삭제는 모든 회원 소유 Tag 연결을 지우지만 Place는 남긴다. Provider 원본을 실제로
+변경하는 outbound sync는 이 관리 수명주기와 별도다.

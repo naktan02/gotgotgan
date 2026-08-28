@@ -3,6 +3,7 @@
 import type { LibraryPlaceState } from '@place/contracts/library'
 
 import styles from './personal-library.module.css'
+import { PersonalLibraryManagementView } from './PersonalLibraryManagementView'
 import type { PersonalLibraryWorkflow } from './personal-library-workflow'
 import { PersonalLibraryOrganizationEditor } from './PersonalLibraryOrganizationEditor'
 import { PersonalLibraryPreferenceEditor } from './PersonalLibraryPreferenceEditor'
@@ -24,6 +25,7 @@ export function PersonalLibraryView({
   workflow,
 }: Readonly<{ workflow: PersonalLibraryWorkflow }>) {
   const {
+    mode,
     surface,
     selectedTagIds,
     tagMatch,
@@ -46,6 +48,9 @@ export function PersonalLibraryView({
     detailLoading,
     authenticationRequired,
     error,
+    management,
+    showBrowse,
+    showManagement,
     chooseState,
     chooseCollection,
     toggleTag,
@@ -81,10 +86,22 @@ export function PersonalLibraryView({
           <p className={styles.eyebrow}>Personal Library</p>
           <h1 id="personal-library-title">내 장소</h1>
         </div>
-        <p>상태, 태그, 컬렉션을 겹쳐 보며 장소를 다시 찾습니다.</p>
+        <div className={styles.libraryMode}>
+          <p>{mode === 'browse'
+            ? '상태, 태그, 컬렉션을 겹쳐 보며 장소를 다시 찾습니다.'
+            : '내 컬렉션과 태그, 컬렉션 안 장소 순서를 관리합니다.'}</p>
+          <div aria-label="라이브러리 보기 방식">
+            <button aria-pressed={mode === 'browse'} onClick={showBrowse} type="button">장소 보기</button>
+            <button aria-pressed={mode === 'manage'} onClick={showManagement} type="button">목록·태그 관리</button>
+          </div>
+        </div>
       </header>
 
-      <div className={styles.filters}>
+      {mode === 'manage' ? (
+        <PersonalLibraryManagementView management={management} />
+      ) : (
+        <>
+          <div className={styles.filters}>
         <div aria-label="장소 상태" className={styles.tabs} role="tablist">
           {stateTabs.map((tab) => (
             <button
@@ -170,16 +187,16 @@ export function PersonalLibraryView({
             </div>
           )}
         </div>
-      </div>
+          </div>
 
-      {error !== undefined && (
-        <div className={styles.error} role="alert">
-          <span>{error}</span>
-          <button onClick={() => void retry()} type="button">다시 시도</button>
-        </div>
-      )}
+          {error !== undefined && (
+            <div className={styles.error} role="alert">
+              <span>{error}</span>
+              <button onClick={() => void retry()} type="button">다시 시도</button>
+            </div>
+          )}
 
-      <div className={styles.workspace}>
+          <div className={styles.workspace}>
         <aside aria-label="내 컬렉션" className={styles.collections}>
           <div className={styles.paneHeading}>
             <strong>컬렉션</strong>
@@ -265,7 +282,9 @@ export function PersonalLibraryView({
             </>
           )}
         </aside>
-      </div>
+          </div>
+        </>
+      )}
     </section>
   )
 }

@@ -106,6 +106,12 @@ Collection의 `position`은 `null`이며 선택된 Collection에는 실제 순�
 Place를 추가하는 command는 `position`을 생략할 수 있으며 이 경우 Backend가 현재 마지막 위치
 뒤에 원자적으로 배치한다. 명시적 재정렬은 별도 move command가 담당한다.
 
+Web의 Personal Library 관리 모드는 새 operation을 만들지 않고 같은 bounded Collection/Tag 조회와
+`POST /v1/library/commands`를 same-origin BFF 뒤에서 조합한다. 새 Collection은 private으로 만들며,
+Collection/Tag 이름 변경·삭제와 Collection Place 이동·제거는 매번 새 command ID를 사용한다. 응답을
+받지 못한 동일 시도만 원래 command ID와 payload를 보존해 재전송한다. 이 operation은 Provider
+즐겨찾기나 원본 목록을 수정하는 outbound sync가 아니다.
+
 Web은 동일한 계약을 `/api/library/places`, `/api/library/place-facets`, `/api/library/collections`,
 `/api/library/places/{placeId}/organization`, `/api/library/collections/{collectionId}`,
 `/api/library/tags`, `/api/library/commands`와

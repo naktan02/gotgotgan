@@ -84,6 +84,11 @@ Preference write leaf는 작은 `set-place-preferences` Interface 뒤에서 목�
 회원·Place별 직렬화, 예상 timestamp 비교, 단조 버전 갱신, Rating event를 한 transaction으로 처리한다.
 Web과 HTTP는 이 동시성 구현을 알지 못하고 Place detail에서 받은 opaque timestamp만 되돌려준다.
 
+Web의 Library management module은 View에 하나의 Interface를 제공한다. 구현 안에서는 Collection
+조회·순서·삭제, Tag 수명주기, response-loss command 재시도를 별도 내부 seam으로 나눈다. 따라서
+Collection 순서 규칙이나 재시도 정책을 View 파일과 Tag 흐름에 반복하지 않으면서도 선택한 Place의
+기존 조직 편집 workflow와 관리 surface를 섞지 않는다.
+
 회원 전체 Library를 한 번에 반환하는 unbounded Store 메서드는 두지 않는다. HTTP composition은
 bounded `LibraryQueries`를 필수로 주입하고 테스트도 같은 public Interface를 사용한다.
 

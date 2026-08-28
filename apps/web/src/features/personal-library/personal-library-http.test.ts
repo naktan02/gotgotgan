@@ -128,6 +128,15 @@ describe('personal library browser interface', () => {
       }],
       nextCursor: undefined,
       collectionName: '성수동',
+      collection: {
+        collectionId: tagA,
+        name: '성수동',
+        description: null,
+        visibility: 'private',
+        publicationId: null,
+        placeCount: 1,
+        updatedAt: '2026-08-28T00:00:00.000Z',
+      },
     })
   })
 })

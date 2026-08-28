@@ -6,7 +6,7 @@ Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed doc
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **source-only; Stages 6.5 and 7.5–7.9 complete, Stages 2 and 7 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
+Current delivery state: **source-only; Stages 6.5 and 7.5–7.10 complete, Stages 2 and 7 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
@@ -143,6 +143,12 @@ Stage 7.9는 선택한 Place의 저장·가고 싶음·Personal Rating을 Web에
 같은 `commandId` 재전송은 한 번만 적용한다. PostgreSQL Adapter는 회원·Place별 write를 직렬화하고
 `updated_at`을 단조 증가시켜 다른 기기의 변경을 409로 보고할 뿐 덮어쓰지 않는다. 이 경로도
 `library.write` 권한 뒤에 있고 Provider, AI, 전역 지역 identity를 요구하지 않는다.
+
+Stage 7.10은 Personal Library에 탐색과 분리된 `목록·태그 관리` 모드를 추가한다. 회원은 비공개
+Collection과 Tag를 만들고 이름을 바꾸거나 삭제하며, Collection 안 Place를 이웃 위치 기준으로
+재정렬하거나 목록에서 제거할 수 있다. 응답 유실은 동일 command ID와 payload로 재시도하고,
+Collection·Tag·재시도 구현은 하나의 관리 Interface 뒤의 내부 seam으로 분리한다. 이 작업은 Place
+소유 데이터만 변경하며 NAVER·Google·Kakao의 원본 저장 목록이나 즐겨찾기를 수정하지 않는다.
 
 ## Repository boundaries
 

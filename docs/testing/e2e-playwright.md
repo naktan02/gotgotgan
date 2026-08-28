@@ -64,6 +64,11 @@ mobile에서 검증한다. stale 409에서는 사용자의 의도를 자동 재�
 것과 적용 후 응답 유실에서는 같은 command ID로 재시도하는 것도 확인한다. 이 fixture는 member ID,
 bearer token, Provider payload를 browser command에 포함하지 않는다.
 
+Library 관리 E2E는 private Collection 생성·삭제, Collection/Tag 이름 변경, Tag 생성·삭제,
+Collection Place 이웃 순서 이동·제거, 관리 후 탐색 화면의 최신 목록, 응답 유실 후 동일 management
+command ID/payload 재전송을 desktop/mobile에서 검증한다. 화면은 Provider 원본 목록을 바꾸지 않는다는
+문구를 함께 노출한다.
+
 Stage 5 Playwright는 같은 공개 경계에 결정적인 Taxonomy/Search fixture를 연결한다. 입력
 debounce와 교체 요청의 실제 upstream 취소, 목록·마커 선택 동기화, 명시적 bounds 재검색,
 Taxonomy filter, cursor pagination, mobile 목록/지도 전환, partial·loading·empty·error·retry와

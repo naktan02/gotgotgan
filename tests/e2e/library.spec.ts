@@ -17,6 +17,21 @@ type FixturePreference = Readonly<{
   updatedAt: string
 }>
 
+type FixtureCollection = {
+  collectionId: string
+  name: string
+  description: string | null
+  placeIds: string[]
+  updatedAt: string
+}
+
+type FixtureTag = {
+  tagId: string
+  name: string
+  placeIds: Set<string>
+  createdAt: string
+}
+
 function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
 }
@@ -43,15 +58,29 @@ async function installLibraryFixture(
   options: Readonly<{
     preferenceConflictOnce?: boolean
     preferenceFailureOnce?: boolean
+    managementFailureOnce?: boolean
   }> = {},
 ) {
-  let collectionSelected = true
-  let ramenTagSelected = true
-  let shoyuTagSelected = false
   let preferenceRevision = 0
   let preferenceConflictPending = options.preferenceConflictOnce ?? false
   let preferenceFailurePending = options.preferenceFailureOnce ?? false
-  const appliedPreferenceCommandIds = new Set<string>()
+  let managementFailurePending = options.managementFailureOnce ?? false
+  const appliedCommandIds = new Set<string>()
+  const collections = new Map<string, FixtureCollection>([[seongsuCollectionId, {
+    collectionId: seongsuCollectionId,
+    name: '성수동',
+    description: '성수동에서 다시 가볼 곳',
+    placeIds: [ramenPlaceId, cafePlaceId],
+    updatedAt: timestamp,
+  }]])
+  const tags = new Map<string, FixtureTag>([
+    [ramenTagId, {
+      tagId: ramenTagId, name: '라면', placeIds: new Set([ramenPlaceId]), createdAt: timestamp,
+    }],
+    [shoyuTagId, {
+      tagId: shoyuTagId, name: '쇼유라멘', placeIds: new Set([cafePlaceId]), createdAt: timestamp,
+    }],
+  ])
   const preferences: Record<string, FixturePreference> = {
     [ramenPlaceId]: {
       saved: true, wanted: false, personalRating: 4.5, updatedAt: timestamp,
@@ -76,39 +105,48 @@ async function installLibraryFixture(
   }))
   await page.route('**/api/library/tags?*', (route) => json(route, {
     schemaVersion: 'library-tag-list.v1',
-    items: [
-      { tagId: ramenTagId, name: '라면', placeCount: 1, createdAt: timestamp },
-      { tagId: shoyuTagId, name: '쇼유라멘', placeCount: 1, createdAt: timestamp },
-    ],
+    items: [...tags.values()].map((tag) => ({
+      tagId: tag.tagId,
+      name: tag.name,
+      placeCount: tag.placeIds.size,
+      createdAt: tag.createdAt,
+    })),
   }))
   await page.route('**/api/library/collections?*', (route) => json(route, {
     schemaVersion: 'library-collection-list.v1',
-    items: [{
-      collectionId: seongsuCollectionId,
-      name: '성수동',
-      description: '성수동에서 다시 가볼 곳',
+    items: [...collections.values()].map((collection) => ({
+      collectionId: collection.collectionId,
+      name: collection.name,
+      description: collection.description,
       visibility: 'private',
       publicationId: null,
-      placeCount: 2,
-      updatedAt: timestamp,
-    }],
+      placeCount: collection.placeIds.length,
+      updatedAt: collection.updatedAt,
+    })),
   }))
-  await page.route(`**/api/library/collections/${seongsuCollectionId}?*`, (route) => json(route, {
-    schemaVersion: 'library-collection-detail.v1',
-    collection: {
-      collectionId: seongsuCollectionId,
-      name: '성수동',
-      description: '성수동에서 다시 가볼 곳',
-      visibility: 'private',
-      publicationId: null,
-      placeCount: 2,
-      updatedAt: timestamp,
-    },
-    places: [
-      { placeId: ramenPlaceId, position: 0, addedAt: timestamp, place: ramen },
-      { placeId: cafePlaceId, position: 1, addedAt: timestamp, place: cafe },
-    ],
-  }))
+  await page.route('**/api/library/collections/*?*', (route) => {
+    const collectionId = new URL(route.request().url()).pathname.split('/').at(-1)!
+    const collection = collections.get(collectionId)
+    if (collection === undefined) return json(route, {}, 404)
+    return json(route, {
+      schemaVersion: 'library-collection-detail.v1',
+      collection: {
+        collectionId: collection.collectionId,
+        name: collection.name,
+        description: collection.description,
+        visibility: 'private',
+        publicationId: null,
+        placeCount: collection.placeIds.length,
+        updatedAt: collection.updatedAt,
+      },
+      places: collection.placeIds.map((placeId, position) => ({
+        placeId,
+        position,
+        addedAt: timestamp,
+        place: placeId === ramenPlaceId ? ramen : cafe,
+      })),
+    })
+  })
   await page.route('**/api/library/places?*', (route) => {
     const url = new URL(route.request().url())
     const selectedTags = url.searchParams.getAll('tagIds')
@@ -148,34 +186,38 @@ async function installLibraryFixture(
       items,
     })
   })
-  await page.route('**/api/library/places/*/organization?*', (route) => json(route, {
-    schemaVersion: 'library-place-organization.v1',
-    placeId: route.request().url().includes(ramenPlaceId) ? ramenPlaceId : cafePlaceId,
-    items: [{
-      kind: 'collection',
-      collectionId: seongsuCollectionId,
-      name: '성수동',
-      selected: collectionSelected,
-      position: collectionSelected ? 0 : null,
-    }, {
-      kind: 'tag', tagId: ramenTagId, name: '라면', selected: ramenTagSelected,
-    }, {
-      kind: 'tag', tagId: shoyuTagId, name: '쇼유라멘', selected: shoyuTagSelected,
-    }],
-  }))
+  await page.route('**/api/library/places/*/organization?*', (route) => {
+    const placeId = route.request().url().includes(ramenPlaceId) ? ramenPlaceId : cafePlaceId
+    return json(route, {
+      schemaVersion: 'library-place-organization.v1',
+      placeId,
+      items: [
+        ...[...collections.values()].map((collection) => {
+          const position = collection.placeIds.indexOf(placeId)
+          return {
+            kind: 'collection' as const,
+            collectionId: collection.collectionId,
+            name: collection.name,
+            selected: position >= 0,
+            position: position >= 0 ? position : null,
+          }
+        }),
+        ...[...tags.values()].map((tag) => ({
+          kind: 'tag' as const,
+          tagId: tag.tagId,
+          name: tag.name,
+          selected: tag.placeIds.has(placeId),
+        })),
+      ],
+    })
+  })
   await page.route('**/api/library/commands', async (route) => {
     const body = route.request().postDataJSON() as LibraryCommandRequest
     commands.push(body)
-    if (body.command.kind === 'remove-collection-place') collectionSelected = false
-    if (body.command.kind === 'add-collection-place') collectionSelected = true
-    if (body.command.kind === 'untag-place' && body.command.tagId === ramenTagId) ramenTagSelected = false
-    if (body.command.kind === 'tag-place' && body.command.tagId === ramenTagId) ramenTagSelected = true
-    if (body.command.kind === 'untag-place' && body.command.tagId === shoyuTagId) shoyuTagSelected = false
-    if (body.command.kind === 'tag-place' && body.command.tagId === shoyuTagId) shoyuTagSelected = true
+    if (appliedCommandIds.has(body.commandId)) {
+      return json(route, { schemaVersion: 'library-command-result.v1', status: 'replayed' })
+    }
     if (body.command.kind === 'set-place-preferences') {
-      if (appliedPreferenceCommandIds.has(body.commandId)) {
-        return json(route, { schemaVersion: 'library-command-result.v1', status: 'replayed' })
-      }
       const current = preferences[body.command.placeId]
       if (current === undefined) return json(route, {}, 404)
       if (preferenceConflictPending) {
@@ -210,7 +252,7 @@ async function installLibraryFixture(
         personalRating: body.command.personalRating,
         updatedAt: new Date(Date.parse(timestamp) + preferenceRevision * 1_000).toISOString(),
       }
-      appliedPreferenceCommandIds.add(body.commandId)
+      appliedCommandIds.add(body.commandId)
       if (preferenceFailurePending) {
         preferenceFailurePending = false
         return json(route, {
@@ -222,6 +264,66 @@ async function installLibraryFixture(
           correlationRef: 'e2e-preference-response-loss',
         }, 503)
       }
+    } else if (body.command.kind === 'create-collection') {
+      collections.set(body.command.collectionId, {
+        collectionId: body.command.collectionId,
+        name: body.command.name,
+        description: body.command.description ?? null,
+        placeIds: [],
+        updatedAt: timestamp,
+      })
+    } else if (body.command.kind === 'rename-collection') {
+      const collection = collections.get(body.command.collectionId)
+      if (collection !== undefined) collection.name = body.command.name
+    } else if (body.command.kind === 'delete-collection') {
+      collections.delete(body.command.collectionId)
+    } else if (body.command.kind === 'add-collection-place') {
+      const collection = collections.get(body.command.collectionId)
+      if (collection !== undefined && !collection.placeIds.includes(body.command.placeId)) {
+        collection.placeIds.splice(body.command.position ?? collection.placeIds.length, 0, body.command.placeId)
+      }
+    } else if (body.command.kind === 'remove-collection-place') {
+      const collection = collections.get(body.command.collectionId)
+      if (collection !== undefined) {
+        collection.placeIds = collection.placeIds.filter((placeId) => placeId !== body.command.placeId)
+      }
+    } else if (body.command.kind === 'move-collection-place') {
+      const collection = collections.get(body.command.collectionId)
+      const current = collection?.placeIds.indexOf(body.command.placeId) ?? -1
+      if (collection !== undefined && current >= 0) {
+        const [placeId] = collection.placeIds.splice(current, 1)
+        collection.placeIds.splice(body.command.position, 0, placeId!)
+      }
+    } else if (body.command.kind === 'create-tag') {
+      tags.set(body.command.tagId, {
+        tagId: body.command.tagId,
+        name: body.command.name,
+        placeIds: new Set(),
+        createdAt: timestamp,
+      })
+    } else if (body.command.kind === 'rename-tag') {
+      const tag = tags.get(body.command.tagId)
+      if (tag !== undefined) tag.name = body.command.name
+    } else if (body.command.kind === 'delete-tag') {
+      tags.delete(body.command.tagId)
+    } else if (body.command.kind === 'tag-place') {
+      tags.get(body.command.tagId)?.placeIds.add(body.command.placeId)
+    } else if (body.command.kind === 'untag-place') {
+      tags.get(body.command.tagId)?.placeIds.delete(body.command.placeId)
+    }
+    if (body.command.kind !== 'set-place-preferences') {
+      appliedCommandIds.add(body.commandId)
+    }
+    if (managementFailurePending && body.command.kind === 'create-collection') {
+      managementFailurePending = false
+      return json(route, {
+        type: 'urn:place:error:library-unavailable',
+        title: 'Library is temporarily unavailable',
+        status: 503,
+        code: 'PLACE_LIBRARY_UNAVAILABLE',
+        retryable: true,
+        correlationRef: 'e2e-management-response-loss',
+      }, 503)
     }
     return json(route, { schemaVersion: 'library-command-result.v1', status: 'applied' }, 201)
   })
@@ -368,6 +470,78 @@ test('retries a response-lost preference command with the same command ID', asyn
   ))
   expect(preferenceCommands).toHaveLength(2)
   expect(preferenceCommands[0]?.commandId).toBe(preferenceCommands[1]?.commandId)
+})
+
+test('manages Place-owned Collections, Tags, and ordered memberships', async ({ page }) => {
+  const commands = await installLibraryFixture(page)
+  await page.goto('/library')
+  await page.getByRole('button', { name: '목록·태그 관리' }).click()
+
+  await expect(page.getByText('NAVER·Google·Kakao의 원본 저장 목록이나 즐겨찾기는')).toBeVisible()
+  const collectionManager = page.getByRole('region', { name: '컬렉션' })
+  await collectionManager.getByLabel('새 컬렉션 이름').fill('을지로 라멘')
+  await collectionManager.getByRole('button', { name: '만들기' }).click()
+  await expect(collectionManager.getByRole('button', { name: /을지로 라멘/ })).toBeVisible()
+  await collectionManager.getByRole('button', { name: '컬렉션 삭제' }).click()
+  await collectionManager.getByRole('button', { name: '삭제 확인' }).click()
+  await expect(collectionManager.getByRole('button', { name: /을지로 라멘/ })).toHaveCount(0)
+
+  await collectionManager.getByRole('button', { name: /성수동/ }).click()
+  await collectionManager.getByLabel('컬렉션 이름', { exact: true }).fill('성수 라멘')
+  await collectionManager.getByRole('button', { name: '이름 변경' }).click()
+  await expect(collectionManager.getByRole('button', { name: /성수 라멘/ })).toBeVisible()
+  await collectionManager.getByRole('button', { name: '서울숲 로스터스 위로 이동' }).click()
+  await expect(collectionManager.locator('ol > li').first()).toContainText('서울숲 로스터스')
+  await collectionManager.getByRole('button', { name: '멘야 하루 컬렉션에서 제거' }).click()
+  await expect(collectionManager.getByText('멘야 하루', { exact: true })).toHaveCount(0)
+
+  const tagManager = page.getByRole('region', { name: '태그' })
+  await tagManager.getByLabel('새 태그 이름').fill('혼밥')
+  await tagManager.getByRole('button', { name: '만들기' }).click()
+  await expect(tagManager.getByRole('button', { name: /혼밥/ })).toBeVisible()
+  await tagManager.getByRole('button', { name: /라면/ }).click()
+  await tagManager.getByLabel('태그 이름', { exact: true }).fill('라멘 전문점')
+  await tagManager.getByRole('button', { name: '이름 변경' }).click()
+  await expect(tagManager.getByRole('button', { name: /라멘 전문점/ })).toBeVisible()
+  await tagManager.getByRole('button', { name: '태그 삭제' }).click()
+  await tagManager.getByRole('button', { name: '삭제 확인' }).click()
+  await expect(tagManager.getByRole('button', { name: /라멘 전문점/ })).toHaveCount(0)
+
+  await page.getByRole('button', { name: '장소 보기' }).click()
+  const collectionNavigation = page.getByLabel('내 컬렉션')
+  await collectionNavigation.getByRole('button', { name: /성수 라멘/ }).click()
+  const placeList = page.getByRole('region', { name: '장소 목록' })
+  await expect(placeList.getByText('서울숲 로스터스', { exact: true })).toBeVisible()
+  await expect(placeList.getByText('멘야 하루', { exact: true })).toHaveCount(0)
+
+  expect(commands.map((value) => value.command.kind)).toEqual(expect.arrayContaining([
+    'create-collection',
+    'delete-collection',
+    'rename-collection',
+    'move-collection-place',
+    'remove-collection-place',
+    'create-tag',
+    'rename-tag',
+    'delete-tag',
+  ]))
+})
+
+test('retries a response-lost management command with the same command ID', async ({ page }) => {
+  const commands = await installLibraryFixture(page, { managementFailureOnce: true })
+  await page.goto('/library')
+  await page.getByRole('button', { name: '목록·태그 관리' }).click()
+
+  const collectionManager = page.getByRole('region', { name: '컬렉션' })
+  await collectionManager.getByLabel('새 컬렉션 이름').fill('응답 유실 복구')
+  await collectionManager.getByRole('button', { name: '만들기' }).click()
+  await expect(page.getByText('컬렉션을 만들지 못했습니다.', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '같은 요청 다시 시도' }).click()
+  await expect(collectionManager.getByRole('button', { name: /응답 유실 복구/ })).toBeVisible()
+
+  const createCommands = commands.filter((value) => value.command.kind === 'create-collection')
+  expect(createCommands).toHaveLength(2)
+  expect(createCommands[0]?.commandId).toBe(createCommands[1]?.commandId)
+  expect(createCommands[0]?.command).toEqual(createCommands[1]?.command)
 })
 
 test('organizes a Place with only the member saved Collections and Tags', async ({ page }) => {

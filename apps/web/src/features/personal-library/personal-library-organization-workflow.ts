@@ -132,6 +132,9 @@ export function usePersonalLibraryOrganizationWorkflow({
     retryOrganization: () => selectedPlaceId === undefined
       ? undefined
       : loadOrganization(selectedPlaceId),
+    refreshSelectedOrganization: () => selectedPlaceId === undefined
+      ? Promise.resolve()
+      : loadOrganization(selectedPlaceId),
     toggleCollectionMembership,
     toggleTagMembership,
   }

@@ -15,6 +15,7 @@ import {
   personalLibraryHttp,
   type PersonalLibraryRow,
 } from './personal-library-http'
+import { usePersonalLibraryManagementWorkflow } from './personal-library-management'
 import { usePersonalLibraryOrganizationWorkflow } from './personal-library-organization-workflow'
 import { usePersonalLibraryPreferenceWorkflow } from './personal-library-preference-workflow'
 
@@ -23,6 +24,7 @@ type LibrarySurface =
   | Readonly<{ kind: 'collection'; collectionId: string }>
 
 export function usePersonalLibraryWorkflow() {
+  const [mode, setMode] = useState<'browse' | 'manage'>('browse')
   const [surface, setSurface] = useState<LibrarySurface>({ kind: 'state', state: 'saved' })
   const [selectedTagIds, setSelectedTagIds] = useState<readonly string[]>([])
   const [tagMatch, setTagMatch] = useState<LibraryTagMatch>('all')
@@ -239,10 +241,46 @@ export function usePersonalLibraryWorkflow() {
     ])
   }, [loadCollections, loadFacets, loadRows, loadTags])
 
+  const refreshMetadata = useCallback(async () => {
+    await Promise.all([loadTags(), loadCollections()])
+  }, [loadCollections, loadTags])
+
+  const loadMoreTags = useCallback(() => tagCursor === undefined
+    ? undefined
+    : loadTags(tagCursor, true).catch(handleFailure), [handleFailure, loadTags, tagCursor])
+  const loadMoreCollections = useCallback(() => collectionCursor === undefined
+    ? undefined
+    : loadCollections(collectionCursor, true).catch(handleFailure), [
+      collectionCursor,
+      handleFailure,
+      loadCollections,
+    ])
+
   const organization = usePersonalLibraryOrganizationWorkflow({
     selectedPlaceId,
     onAccessFailure: handleFailure,
     refreshLibrary,
+  })
+  const managementWorkflow = usePersonalLibraryManagementWorkflow({
+    active: mode === 'manage',
+    collections,
+    tags,
+    metadataLoading,
+    collectionCursor,
+    tagCursor,
+    loadMoreCollections,
+    loadMoreTags,
+    refreshMetadata,
+    onAccessFailure: handleFailure,
+    onCollectionDeleted: (collectionId) => {
+      setSurface((current) => current.kind === 'collection' &&
+        current.collectionId === collectionId
+        ? { kind: 'state', state: 'saved' }
+        : current)
+    },
+    onTagDeleted: (tagId) => {
+      setSelectedTagIds((current) => current.filter((candidate) => candidate !== tagId))
+    },
   })
   const preferences = usePersonalLibraryPreferenceWorkflow({
     selectedPlaceId,
@@ -253,8 +291,10 @@ export function usePersonalLibraryWorkflow() {
       ? Promise.resolve()
       : loadSelectedDetail(selectedPlaceId, undefined, true),
   })
+  const { refreshSelectedOrganization, ...organizationView } = organization
 
   return {
+    mode,
     surface,
     selectedTagIds,
     tagMatch,
@@ -270,8 +310,9 @@ export function usePersonalLibraryWorkflow() {
     selectedPlaceId,
     selectedRow,
     selectedDetail,
+    ...managementWorkflow,
     ...preferences,
-    ...organization,
+    ...organizationView,
     collectionName,
     loading,
     loadingMore,
@@ -279,6 +320,14 @@ export function usePersonalLibraryWorkflow() {
     detailLoading,
     authenticationRequired,
     error,
+    showBrowse: () => {
+      setMode('browse')
+      void Promise.all([
+        refreshLibrary(),
+        refreshSelectedOrganization(),
+      ]).catch(handleFailure)
+    },
+    showManagement: () => setMode('manage'),
     chooseState,
     chooseCollection,
     toggleTag,
@@ -293,12 +342,8 @@ export function usePersonalLibraryWorkflow() {
       loadCollections(),
       loadRows(undefined, false),
     ]).catch(handleFailure),
-    loadMoreTags: () => tagCursor === undefined
-      ? undefined
-      : loadTags(tagCursor, true).catch(handleFailure),
-    loadMoreCollections: () => collectionCursor === undefined
-      ? undefined
-      : loadCollections(collectionCursor, true).catch(handleFailure),
+    loadMoreTags,
+    loadMoreCollections,
   }
 }
 
