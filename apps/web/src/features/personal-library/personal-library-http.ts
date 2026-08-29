@@ -1,6 +1,6 @@
 import {
-  libraryCommandRequestSchema,
-  type LibraryCommandRequest,
+  browserLibraryCommandRequestSchema,
+  type BrowserLibraryCommandRequest,
 } from '@place/contracts/http'
 import {
   libraryCommandResultSchema,
@@ -107,8 +107,8 @@ export function createPersonalLibraryHttp(fetcher: typeof fetch = fetch) {
         { limit: '50', cursor },
       ), signal))
     },
-    async command(request: LibraryCommandRequest, signal?: AbortSignal) {
-      const body = libraryCommandRequestSchema.parse(request)
+    async command(request: BrowserLibraryCommandRequest, signal?: AbortSignal) {
+      const body = browserLibraryCommandRequestSchema.parse(request)
       const response = await fetcher('/api/library/commands', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },

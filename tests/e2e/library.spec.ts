@@ -1,8 +1,8 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
 import type {
+  BrowserLibraryCommandRequest,
   BrowserPrivateNoteCommandRequest,
   BrowserVisitRecordRequest,
-  LibraryCommandRequest,
 } from '@place/contracts/http'
 
 const ramenPlaceId = '01992d20-7000-7000-8000-000000000101'
@@ -28,6 +28,8 @@ type FixtureCollection = {
   name: string
   description: string | null
   placeIds: string[]
+  visibility: 'private' | 'unlisted' | 'public'
+  publicationId: string | null
   updatedAt: string
 }
 
@@ -98,6 +100,8 @@ async function installLibraryFixture(
     name: '성수동',
     description: '성수동에서 다시 가볼 곳',
     placeIds: [ramenPlaceId, cafePlaceId],
+    visibility: 'private',
+    publicationId: null,
     updatedAt: timestamp,
   }]])
   const tags = new Map<string, FixtureTag>([
@@ -148,7 +152,7 @@ async function installLibraryFixture(
       updatedAt: '2026-08-28T01:00:00.000Z',
     }],
   ])
-  const commands: LibraryCommandRequest[] = []
+  const commands: BrowserLibraryCommandRequest[] = []
   const visitRequests: BrowserVisitRecordRequest[] = []
   const writingRequests: BrowserPrivateNoteCommandRequest[] = []
   await page.route('**/api/library/place-facets', (route) => json(route, {
@@ -179,8 +183,8 @@ async function installLibraryFixture(
       collectionId: collection.collectionId,
       name: collection.name,
       description: collection.description,
-      visibility: 'private',
-      publicationId: null,
+      visibility: collection.visibility,
+      publicationId: collection.publicationId,
       placeCount: collection.placeIds.length,
       updatedAt: collection.updatedAt,
     })),
@@ -195,8 +199,8 @@ async function installLibraryFixture(
         collectionId: collection.collectionId,
         name: collection.name,
         description: collection.description,
-        visibility: 'private',
-        publicationId: null,
+        visibility: collection.visibility,
+        publicationId: collection.publicationId,
         placeCount: collection.placeIds.length,
         updatedAt: collection.updatedAt,
       },
@@ -273,7 +277,7 @@ async function installLibraryFixture(
     })
   })
   await page.route('**/api/library/commands', async (route) => {
-    const body = route.request().postDataJSON() as LibraryCommandRequest
+    const body = route.request().postDataJSON() as BrowserLibraryCommandRequest
     commands.push(body)
     if (appliedCommandIds.has(body.commandId)) {
       return json(route, { schemaVersion: 'library-command-result.v1', status: 'replayed' })
@@ -331,11 +335,31 @@ async function installLibraryFixture(
         name: body.command.name,
         description: body.command.description ?? null,
         placeIds: [],
+        visibility: 'private',
+        publicationId: null,
         updatedAt: timestamp,
       })
     } else if (body.command.kind === 'rename-collection') {
       const collection = collections.get(body.command.collectionId)
       if (collection !== undefined) collection.name = body.command.name
+    } else if (body.command.kind === 'set-collection-publication') {
+      const collection = collections.get(body.command.collectionId)
+      if (collection === undefined) return json(route, {}, 404)
+      if (collection.updatedAt !== body.command.expectedUpdatedAt) {
+        return json(route, {
+          type: 'urn:place:error:library-collection-version-conflict',
+          title: 'Collection changed after it was read',
+          status: 409,
+          code: 'PLACE_LIBRARY_COLLECTION_VERSION_CONFLICT',
+          retryable: true,
+          correlationRef: 'e2e-collection-conflict',
+        }, 409)
+      }
+      collection.publicationId = body.command.visibility === 'private'
+        ? null
+        : collection.publicationId ?? body.commandId
+      collection.visibility = body.command.visibility
+      collection.updatedAt = new Date(Date.parse(collection.updatedAt) + 1).toISOString()
     } else if (body.command.kind === 'delete-collection') {
       collections.delete(body.command.collectionId)
     } else if (body.command.kind === 'add-collection-place') {
@@ -879,6 +903,38 @@ test('manages Place-owned Collections, Tags, and ordered memberships', async ({ 
     'rename-tag',
     'delete-tag',
   ]))
+})
+
+test('publishes, changes, and revokes a Collection without exposing private metadata', async ({ page }) => {
+  const { commands } = await installLibraryFixture(page)
+  await page.goto('/library')
+  await page.getByRole('button', { name: '목록·태그 관리' }).click()
+
+  const sharing = page.getByRole('region', { name: '컬렉션 공유' })
+  await expect(sharing.getByText('나만 보기')).toBeVisible()
+  await expect(sharing).toContainText('개인 평점·태그·방문·메모는 포함하지 않고')
+
+  await sharing.getByRole('button', { name: '링크로 공유' }).click()
+  await expect(sharing.getByText('링크를 아는 사람')).toBeVisible()
+  const shareLink = sharing.getByRole('link', { name: '공유 화면 열기' })
+  const firstPath = await shareLink.getAttribute('href')
+  expect(firstPath).toMatch(/^\/share\/collections\/[0-9a-f-]{36}$/)
+
+  await sharing.getByRole('button', { name: '전체 공개' }).click()
+  await expect(sharing.getByText('전체 공개')).toBeVisible()
+  await expect(shareLink).toHaveAttribute('href', firstPath!)
+
+  await sharing.getByRole('button', { name: '공유 해제' }).click()
+  await expect(sharing.getByText('나만 보기')).toBeVisible()
+  await expect(sharing.getByRole('link', { name: '공유 화면 열기' })).toHaveCount(0)
+
+  const publicationCommands = commands.filter((request) => (
+    request.command.kind === 'set-collection-publication'
+  ))
+  expect(publicationCommands.map((request) => request.command.visibility)).toEqual([
+    'unlisted', 'public', 'private',
+  ])
+  expect(publicationCommands.every((request) => !('publicationId' in request.command))).toBe(true)
 })
 
 test('retries a response-lost management command with the same command ID', async ({ page }) => {

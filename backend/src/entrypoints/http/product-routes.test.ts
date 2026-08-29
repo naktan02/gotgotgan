@@ -12,18 +12,20 @@ import type {
   WritingQueries,
   WritingStore,
 } from '../../modules/writing/index.js'
+import type { ProductAuthorizer } from '../../platform/http/product-authorization.js'
 import { buildHttpApplication } from './app.js'
 
 const memberId = '01992d04-0000-7000-8000-000000000001'
 const placeId = '01992d04-0000-7000-8000-000000000002'
 const publicationId = '01992d04-0000-7000-8000-000000000003'
 const now = () => new Date('2026-08-26T10:00:00.000Z')
-const authorizer = async (authorization: string | undefined) => authorization === 'Bearer good'
+const authorizer: ProductAuthorizer = async (authorization) => authorization === 'Bearer good'
   ? { status: 'authorized' as const, memberId }
   : { status: 'authentication-required' as const }
 
 function fixtureApplication(
   apply: LibraryStore['apply'] = async () => ({ status: 'applied' }),
+  fixtureAuthorizer: ProductAuthorizer = authorizer,
 ) {
   const library: LibraryStore = {
     apply,
@@ -89,9 +91,9 @@ function fixtureApplication(
     get: async () => undefined,
   }
   return buildHttpApplication({
-    library: { authorizer, store: library, queries: libraryQueries, now },
-    visits: { authorizer, store: visits, queries: visitQueries, now },
-    writing: { authorizer, store: writing, queries: writingQueries, now },
+    library: { authorizer: fixtureAuthorizer, store: library, queries: libraryQueries, now },
+    visits: { authorizer: fixtureAuthorizer, store: visits, queries: visitQueries, now },
+    writing: { authorizer: fixtureAuthorizer, store: writing, queries: writingQueries, now },
   })
 }
 
@@ -167,10 +169,41 @@ describe('Stage 4 product HTTP boundary', () => {
     await application.close()
   })
 
+  it('routes Collection publication through the dedicated product permission seam', async () => {
+    const permissions: string[] = []
+    const application = fixtureApplication(async () => ({ status: 'applied' }), async (
+      authorization,
+      permission,
+    ) => {
+      permissions.push(permission)
+      return authorization === 'Bearer good'
+        ? { status: 'authorized', memberId }
+        : { status: 'authentication-required' }
+    })
+    const response = await application.inject({
+      method: 'POST',
+      url: '/v1/library/commands',
+      headers: { authorization: 'Bearer good' },
+      payload: {
+        commandId: '01992d04-0000-7000-8000-000000000012',
+        command: {
+          kind: 'set-collection-publication',
+          collectionId: '01992d04-0000-7000-8000-000000000013',
+          expectedUpdatedAt: now().toISOString(),
+          visibility: 'unlisted',
+        },
+      },
+    })
+    expect(response.statusCode).toBe(201)
+    expect(permissions).toEqual(['library.share'])
+    await application.close()
+  })
+
   it('exposes allowlisted public projections and hides unknown/private identifiers', async () => {
     const application = fixtureApplication()
     const collection = await application.inject({ method: 'GET', url: `/v1/public/collections/${publicationId}` })
     expect(collection.statusCode).toBe(200)
+    expect(collection.headers['cache-control']).toBe('no-store')
     expect(collection.json()).toEqual({
       schemaVersion: 'place-published-collection.v1',
       publicationId,
@@ -185,6 +218,7 @@ describe('Stage 4 product HTTP boundary', () => {
     expect(absent.json()).not.toHaveProperty('memberId')
     const writing = await application.inject({ method: 'GET', url: `/v1/public/writing/${publicationId}` })
     expect(writing.json()).toMatchObject({ schemaVersion: 'place-published-writing.v1' })
+    expect(writing.headers['cache-control']).toBe('no-store')
     expect(writing.json()).not.toHaveProperty('memberId')
     await application.close()
   })

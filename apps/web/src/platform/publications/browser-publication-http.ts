@@ -42,10 +42,7 @@ export function createBrowserPublicationHttp(dependencies: Dependencies) {
   async function read(operation: () => Promise<unknown>): Promise<Response> {
     try {
       return Response.json(await operation(), {
-        headers: {
-          ...privateHeaders,
-          'cache-control': 'public, max-age=60',
-        },
+        headers: privateHeaders,
       })
     } catch (error) {
       const notFound = error instanceof PublicationNotFoundError

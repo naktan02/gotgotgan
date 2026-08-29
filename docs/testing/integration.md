@@ -99,7 +99,9 @@ runtime-role checks prove evidence, decisions, redirects, and lineage cannot be 
 Visits, Writing public interface를 사용한다. Personal Rating 변경 이력 보존, 반복 Visit에서
 최초·최근·횟수 파생, public Collection/Writing의 명시적 field 허용 목록, 여러 Place를 연결한
 Entry revision의 optimistic 변경과 보존, runtime의 Visit·rating event·Writing revision 수정
-거부를 검증한다.
+거부를 검증한다. Migration `000029` 이후 같은 suite는 private→unlisted→public 전환에서 링크 유지,
+공유 해제 즉시 이전 projection 소멸, 재공개 시 새 ID, 다른 회원의 private copy와 source publication
+provenance, Place 순서 외 private metadata 비복사를 실제 row lock과 runtime role로 검증한다.
 
 로컬 검색 suite도 독립적인 disposable PostGIS runtime에 전체 migration을 적용한다. data-defined
 Taxonomy의 publish/replay/conflict, 공개 Place 문서와 회원별 signal projection, text·taxonomy·bounds

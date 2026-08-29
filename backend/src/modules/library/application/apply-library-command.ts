@@ -17,13 +17,18 @@ type Input = Readonly<{
 export async function applyLibraryCommand(input: Input) {
   assertLibraryCommand(input.command)
   if (Number.isNaN(Date.parse(input.occurredAt))) throw new Error('occurredAt must be an ISO timestamp')
-  const command: LibraryCommand = input.command.kind === 'set-place-preferences' &&
-    input.command.expectedUpdatedAt !== null
-    ? {
-        ...input.command,
-        expectedUpdatedAt: new Date(input.command.expectedUpdatedAt).toISOString(),
-      }
-    : input.command
+  let command: LibraryCommand = input.command
+  if (input.command.kind === 'set-place-preferences' && input.command.expectedUpdatedAt !== null) {
+    command = {
+      ...input.command,
+      expectedUpdatedAt: new Date(input.command.expectedUpdatedAt).toISOString(),
+    }
+  } else if (input.command.kind === 'set-collection-publication') {
+    command = {
+      ...input.command,
+      expectedUpdatedAt: new Date(input.command.expectedUpdatedAt).toISOString(),
+    }
+  }
   const outcome = await input.store.apply({
     commandId: input.commandId,
     memberId: input.memberId,

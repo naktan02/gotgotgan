@@ -1,5 +1,6 @@
 'use client'
 
+import { PersonalCollectionPublication } from './PersonalCollectionPublication'
 import type { PersonalCollectionManagement } from './personal-library-management'
 import styles from './personal-library.module.css'
 
@@ -102,6 +103,14 @@ export function PersonalCollectionManager({
                   <button disabled={busy || !management.collectionNameValid} type="submit">이름 변경</button>
                 </div>
               </form>
+
+              {management.publication !== undefined && (
+                <PersonalCollectionPublication
+                  busy={busy}
+                  key={selected.collectionId}
+                  publication={management.publication}
+                />
+              )}
 
               <div className={styles.managementDanger}>
                 {management.collectionDeleteArmed ? (

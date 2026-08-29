@@ -112,3 +112,8 @@ Collection/Tag command가 자기 row와 Library-owned copy/import provenance를 
 `000028`은 정규화된 Writing Place link에 `(canonical_place_id, document_id)` 역방향 조회 index를
 추가한다. 새 table, Provider별 column, runtime 권한은 만들지 않고 선택 Place의 bounded owner Writing
 조회만 지원한다.
+
+`000029`는 Collection 공개 상태 변경을 일반 Library write와 독립적으로 판단할 수 있도록
+`library.share` 권한만 추가한다. Product Tier 이름은 Collection 모듈로 전달하지 않고 Product
+Authorizer가 이 권한을 현재 역할·향후 tier 정책에 따라 판정한다. rollback은 활성 share resource
+grant가 있으면 삭제하지 않고 fail closed한다.

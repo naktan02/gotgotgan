@@ -91,8 +91,6 @@ describe('personal library', () => {
         collectionId: '01992d00-0000-7000-8000-000000000010',
         name: 'Seoul ramen',
         description: 'Places worth revisiting',
-        visibility: 'unlisted',
-        publicationId: '01992d00-0000-7000-8000-000000000011',
       },
       {
         kind: 'add-collection-place',
@@ -114,6 +112,12 @@ describe('personal library', () => {
         kind: 'rename-collection',
         collectionId: '01992d00-0000-7000-8000-000000000010',
         name: '성수 라멘',
+      },
+      {
+        kind: 'set-collection-publication',
+        collectionId: '01992d00-0000-7000-8000-000000000010',
+        expectedUpdatedAt: '2026-08-26T19:00:00+09:00',
+        visibility: 'public',
       },
       {
         kind: 'move-collection-place',
@@ -146,25 +150,27 @@ describe('personal library', () => {
         store,
       })
     }
-    expect(store.commands).toEqual(commands)
+    expect(store.commands).toEqual(commands.map((command) => (
+      command.kind === 'set-collection-publication'
+        ? { ...command, expectedUpdatedAt: '2026-08-26T10:00:00.000Z' }
+        : command
+    )))
   })
 
-  it('rejects invalid visibility and conflicting command reuse', async () => {
+  it('rejects invalid Collection input and conflicting command reuse', async () => {
     const store = new MemoryLibraryStore()
     const commandId = '01992d00-0000-7000-8000-000000000040'
-    const privateWithPublication = {
+    const invalidCollection = {
       ...context,
       commandId,
       command: {
         kind: 'create-collection' as const,
         collectionId: '01992d00-0000-7000-8000-000000000041',
-        name: 'Private',
-        visibility: 'private' as const,
-        publicationId: '01992d00-0000-7000-8000-000000000042',
+        name: ' ',
       },
       store,
     }
-    await expect(applyLibraryCommand(privateWithPublication)).rejects.toMatchObject({
+    await expect(applyLibraryCommand(invalidCollection)).rejects.toMatchObject({
       name: 'InvalidLibraryCommandError',
     })
 

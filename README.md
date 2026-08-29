@@ -6,7 +6,7 @@ Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed doc
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **source-only; Stages 6.5 and 7.5–7.16 complete, Stages 2 and 7 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
+Current delivery state: **source-only; Stages 6.5, 7.5–7.16, and 11A complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
@@ -186,6 +186,15 @@ Stage 7.16은 canonical Search 선택과 Personal Library가 하나의 `Personal
 Collection/Tag, Visit, body-only private Note를 조립한다. 앱 계층이 Search의 canonical renderer seam에
 이를 주입하므로 두 feature는 서로의 내부를 알지 않는다. Provider 검색 결과는 materialization 전까지
 이 seam을 사용하지 않고 evidence와 원문 링크만 유지한다.
+
+Stage 11A는 Provider 추가·outbound sync와 독립적인 Collection 공유 수직 조각을 먼저 완성한다.
+소유자는 optimistic `updatedAt`으로 private/unlisted/public을 전환하고 공유를 해제한다. 첫 공유 ID는
+서버가 만들고 unlisted/public 전환에는 유지하며, 해제 뒤 재공개에는 새 ID를 사용한다. 이 command는
+별도 `library.share` Product Authorizer seam을 통과하므로 향후 tier 정책이 Library나 Web에 스며들지
+않는다. 공개 viewer는 정렬된 Place reference만 자기 private Collection으로 멱등 복사하고 source
+publication provenance를 남긴다. 개인 평점·Tag·Visit·Writing·ownership은 공개하거나 복사하지 않는다.
+Migration `000029`, 실제 PostGIS, Web 단위 테스트와 desktop/mobile Playwright가 전환·해제·복사를
+검증하며 public profile/map discovery와 cross-product PlaceReference 소비자는 아직 후속이다.
 
 ## Repository boundaries
 

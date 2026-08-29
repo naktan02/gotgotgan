@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import {
-  libraryCommandRequestSchema,
+  browserLibraryCommandRequestSchema,
   placeIdentifierParamsSchema,
   problemSchema,
 } from '@place/contracts/http'
@@ -242,7 +242,7 @@ export function createBrowserLibraryHttp(dependencies: Dependencies) {
       )
     },
     async command(request: Request): Promise<Response> {
-      const body = await requestBody(request, libraryCommandRequestSchema)
+      const body = await requestBody(request, browserLibraryCommandRequestSchema)
       if (body === undefined) return invalid()
       return invoke(
         request,

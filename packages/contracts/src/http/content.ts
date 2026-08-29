@@ -22,8 +22,6 @@ export const createCollectionCommandSchema = z.object({
   collectionId: uuidSchema,
   name: z.string().min(1).max(120),
   description: z.string().max(2_000).optional(),
-  visibility: visibilitySchema,
-  publicationId: uuidSchema.optional(),
 }).strict()
 
 export const addCollectionPlaceCommandSchema = z.object({
@@ -37,6 +35,15 @@ export const renameCollectionCommandSchema = z.object({
   kind: z.literal('rename-collection'),
   collectionId: uuidSchema,
   name: z.string().min(1).max(120),
+}).strict()
+
+export const setCollectionPublicationCommandSchema = z.object({
+  kind: z.literal('set-collection-publication'),
+  collectionId: uuidSchema,
+  expectedUpdatedAt: z.iso.datetime({ offset: true }).transform((value) => (
+    new Date(value).toISOString()
+  )),
+  visibility: visibilitySchema,
 }).strict()
 
 export const deleteCollectionCommandSchema = z.object({
@@ -98,6 +105,7 @@ export const libraryCommandSchema = z.discriminatedUnion('kind', [
   createCollectionCommandSchema,
   addCollectionPlaceCommandSchema,
   renameCollectionCommandSchema,
+  setCollectionPublicationCommandSchema,
   deleteCollectionCommandSchema,
   removeCollectionPlaceCommandSchema,
   moveCollectionPlaceCommandSchema,
@@ -112,6 +120,30 @@ export const libraryCommandSchema = z.discriminatedUnion('kind', [
 export const libraryCommandRequestSchema = z.object({
   commandId: uuidSchema,
   command: libraryCommandSchema,
+}).strict()
+
+export const browserCreatePrivateCollectionCommandSchema = createCollectionCommandSchema
+
+export const browserLibraryCommandSchema = z.discriminatedUnion('kind', [
+  setPlacePreferencesCommandSchema,
+  browserCreatePrivateCollectionCommandSchema,
+  addCollectionPlaceCommandSchema,
+  renameCollectionCommandSchema,
+  setCollectionPublicationCommandSchema,
+  deleteCollectionCommandSchema,
+  removeCollectionPlaceCommandSchema,
+  moveCollectionPlaceCommandSchema,
+  createTagCommandSchema,
+  tagPlaceCommandSchema,
+  renameTagCommandSchema,
+  deleteTagCommandSchema,
+  untagPlaceCommandSchema,
+  copyPublishedCollectionCommandSchema,
+])
+
+export const browserLibraryCommandRequestSchema = z.object({
+  commandId: uuidSchema,
+  command: browserLibraryCommandSchema,
 }).strict()
 
 export const visitRecordRequestSchema = z.object({
@@ -236,6 +268,7 @@ export const publishedWritingSchema = z.discriminatedUnion('kind', [
 ])
 
 export type LibraryCommandRequest = z.infer<typeof libraryCommandRequestSchema>
+export type BrowserLibraryCommandRequest = z.infer<typeof browserLibraryCommandRequestSchema>
 export type VisitRecordRequest = z.infer<typeof visitRecordRequestSchema>
 export type BrowserVisitRecordRequest = z.infer<typeof browserVisitRecordRequestSchema>
 export type BrowserPrivateNoteCommandRequest = z.infer<typeof browserPrivateNoteCommandRequestSchema>

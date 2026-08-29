@@ -58,7 +58,7 @@ export function registerWritingHttpRoutes(application: FastifyInstance, dependen
     const result = await dependencies.store.getPublished(parsed.data.publicationId)
     return result === undefined
       ? sendProductProblem(request, reply, 404, 'PLACE_PUBLICATION_NOT_FOUND', 'Publication not found')
-      : reply.header('cache-control', 'public, max-age=60').status(200).send(
+      : reply.header('cache-control', 'no-store').status(200).send(
           publishedWritingSchema.parse({
             schemaVersion: 'place-published-writing.v1',
             ...result,

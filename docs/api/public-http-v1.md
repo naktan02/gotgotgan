@@ -73,7 +73,9 @@ retryable `PLACE_DETAIL_UNAVAILABLE` 503이다. 같은 Canonical Place를 인증
 인증을 요구하는 Backend operation이다. member, role, grade, tier 입력을 거부하고 Access
 composition에서 member를 파생한다. Library와 Writing command ID는 멱등이고 Writing 수정에는
 expected version도 필요하다. Library command는 Collection 생성·이름 변경·삭제, Place
-추가·이동·제거, Tag 생성·이름 변경·부착·해제·삭제를 지원한다. `GET /v1/library/places/{placeId}`와
+추가·이동·제거, 공유 상태 변경, 공개 Collection 복사, Tag 생성·이름 변경·부착·해제·삭제를 지원한다.
+공유 상태 변경만 `library.share`, 나머지는 `library.write` 권한으로 Product Authorizer를 통과한다.
+`GET /v1/library/places/{placeId}`와
 `GET /v1/places/{placeId}/visit-summary`는 회원 private projection을 반환한다.
 
 Library의 `set-place-preferences`는 saved/wanted/Personal Rating 전체 목표 상태와 Place detail에서
@@ -122,6 +124,12 @@ Collection/Tag 이름 변경·삭제와 Collection Place 이동·제거는 매�
 받지 못한 동일 시도만 원래 command ID와 payload를 보존해 재전송한다. 이 operation은 Provider
 즐겨찾기나 원본 목록을 수정하는 outbound sync가 아니다.
 
+`set-collection-publication`은 `collectionId`, 목표 visibility, owner detail에서 읽은
+`expectedUpdatedAt`만 받는다. Backend가 첫 publication ID를 만들고 unlisted/public 전환에는 유지한다.
+private 전환은 기존 ID를 폐기하며 재공개는 새 ID를 사용한다. stale timestamp는 retryable
+`PLACE_LIBRARY_COLLECTION_VERSION_CONFLICT` 409다. `copy-published-collection`은 publication ID,
+새 private Collection ID와 이름만 받으며, 정렬된 Place reference와 copy provenance만 복사한다.
+
 Web은 동일한 계약을 `/api/library/places`, `/api/library/place-facets`, `/api/library/collections`,
 `/api/library/places/{placeId}/organization`, `/api/library/collections/{collectionId}`,
 `/api/library/tags`, `/api/library/commands`와
@@ -129,6 +137,11 @@ Web은 동일한 계약을 `/api/library/places`, `/api/library/place-facets`, `
 해석하고 bearer token을 browser에 반환하지 않는다. query, command, identifier, success/problem을
 양방향으로 다시 검증하며 private 응답은 `no-store`다. Product Tier 정책은 BFF가 아니라 기존
 Backend Product Authorizer seam에 남는다.
+
+Browser Library command는 새 Collection의 visibility/publication ID를 허용하지 않고 server Adapter가
+private을 고정한다. 공유 command에도 publication ID 입력은 없다. `/share/collections/{publicationId}`의
+복사 동작은 같은 `/api/library/commands` 경계를 사용하며 결과를 잃은 재시도에는 동일 command와 target
+Collection ID를 보존한다.
 
 Web은 Visit 계약을 `GET /api/places/{placeId}/visits`와 `POST /api/visits`로도 다시 노출한다. 기록
 요청은 `id`, `placeId`, `visitedAt`만 허용하며 Backend의 선택적 내부 `evidence`와 member ID는
@@ -149,6 +162,9 @@ Stage 4에서 유일한 anonymous Backend projection이다. Web은 고정된 내
 대응하는 `/api/public/...` BFF 조회와 `/share/...` page를 제공한다. 알 수 없는 identifier와
 private identifier는 동일하고 안전한 not-found 응답을 반환한다. public projection에는
 membership, Rating, Visit, Tag, provenance, revision history가 포함되지 않는다.
+공개 Collection 화면은 인증된 viewer가 이 projection의 Place ID·순서만 자기 private Collection으로
+복사할 수 있는 동작을 제공한다. 공유가 해제된 ID는 공개 조회와 후속 복사 모두 동일한 404가 된다.
+현재 공개 projection 응답은 별도 purge infrastructure 없이 revocation을 보장하기 위해 `no-store`다.
 
 `GET /healthz` reports process liveness and does not depend on PostgreSQL, Identity, or another
 process. `GET /readyz` reports 503 with a bounded `unavailable` projection when an explicitly required

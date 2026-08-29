@@ -1,6 +1,6 @@
 'use client'
 
-import type { LibraryCommandRequest } from '@place/contracts/http'
+import type { BrowserLibraryCommandRequest } from '@place/contracts/http'
 import type { LibraryCollectionListResponse } from '@place/contracts/library'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -115,7 +115,6 @@ export function usePersonalCollectionManagementWorkflow(input: CollectionManagem
         commandId: crypto.randomUUID(),
         command: {
           kind: 'create-collection', collectionId, name: newCollectionValue,
-          visibility: 'private',
         },
       },
       failureMessage: '컬렉션을 만들지 못했습니다.',
@@ -171,7 +170,7 @@ export function usePersonalCollectionManagementWorkflow(input: CollectionManagem
 
   const changeCollectionPlace = (
     placeId: string,
-    command: LibraryCommandRequest['command'],
+    command: BrowserLibraryCommandRequest['command'],
     action: 'move' | 'remove',
   ) => selectedCollectionId === undefined
     ? Promise.resolve()
@@ -208,6 +207,36 @@ export function usePersonalCollectionManagementWorkflow(input: CollectionManagem
         placeId,
       }, 'remove')
 
+  const setCollectionPublication = (visibility: 'private' | 'unlisted' | 'public') => {
+    const current = collection?.collectionId === selectedCollectionId
+      ? collection
+      : selectedCollection
+    if (current === undefined || current.visibility === visibility) return Promise.resolve()
+    return input.execute({
+      key: `collection:publication:${current.collectionId}`,
+      request: {
+        commandId: crypto.randomUUID(),
+        command: {
+          kind: 'set-collection-publication',
+          collectionId: current.collectionId,
+          expectedUpdatedAt: current.updatedAt,
+          visibility,
+        },
+      },
+      failureMessage: visibility === 'private'
+        ? '컬렉션 공유를 해제하지 못했습니다.'
+        : '컬렉션 공유 설정을 바꾸지 못했습니다.',
+      onApplied: () => Promise.all([
+        input.refreshMetadata(),
+        loadCollection(current.collectionId),
+      ]),
+    })
+  }
+
+  const currentCollection = collection?.collectionId === selectedCollectionId
+    ? collection
+    : selectedCollection
+
   return {
     collections: input.collections,
     collectionCursor: input.collectionCursor,
@@ -234,6 +263,13 @@ export function usePersonalCollectionManagementWorkflow(input: CollectionManagem
     deleteCollection,
     moveCollectionPlace,
     removeCollectionPlace,
+    publication: currentCollection === undefined ? undefined : {
+      visibility: currentCollection.visibility,
+      sharePath: currentCollection.publicationId === null
+        ? undefined
+        : `/share/collections/${currentCollection.publicationId}`,
+      setVisibility: setCollectionPublication,
+    },
     retryCollection: () => selectedCollectionId === undefined
       ? undefined
       : loadCollection(selectedCollectionId),

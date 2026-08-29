@@ -152,15 +152,15 @@ test('bounded Library queries paginate, hydrate public Place facts, and isolate 
     })
     await command('01992d20-3000-7000-8000-000000000501', memberA, {
       kind: 'create-collection', collectionId: collectionA,
-      name: '성수', visibility: 'private',
+      name: '성수',
     }, '2026-08-28T05:00:00.000Z')
     await command('01992d20-3000-7000-8000-000000000502', memberA, {
       kind: 'create-collection', collectionId: collectionA2,
-      name: '을지로', visibility: 'private',
+      name: '을지로',
     }, '2026-08-28T04:00:00.000Z')
     await command('01992d20-3000-7000-8000-000000000503', memberB, {
       kind: 'create-collection', collectionId: collectionB,
-      name: '비공개', visibility: 'private',
+      name: '비공개',
     })
     for (const [index, placeId] of places.slice(0, 3).entries()) {
       await command(`01992d20-3000-7000-8000-${String(510 + index).padStart(12, '0')}`, memberA, {

@@ -43,6 +43,7 @@ describe('Place access policy', () => {
 
   it.each([
     ['member', 'library.write', true],
+    ['member', 'library.share', true],
     ['member', 'imports.write', true],
     ['member', 'review.decide', false],
     ['reviewer', 'review.decide', true],

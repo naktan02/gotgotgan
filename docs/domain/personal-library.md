@@ -20,6 +20,11 @@ public과 unlisted Collection에는 불투명한 publication ID가 필요하다.
 복사하면 독립된 private Collection과 출처 provenance가 생성된다. 정렬된 Place reference만
 복사하며 Rating, Tag, Visit, Writing, ownership은 복사하지 않는다.
 
+공유 상태 변경은 읽었던 Collection `updatedAt`을 예상 버전으로 사용한다. 첫 공유가 ID를 만들고
+unlisted/public 전환은 같은 링크를 유지한다. private 전환은 ID를 폐기해 기존 링크를 되살릴 수 없고,
+나중에 다시 공유하면 새 ID를 만든다. 복사는 공유 상태를 확인한 transaction 안에서 source를 잠그므로
+공유 해제와 복사 중 먼저 시작한 operation만 명확한 순서로 완료된다.
+
 연결 계정에서 가져온 Provider 폴더는 회원별 private Collection을 처음 만드는 입력이다. Provider의
 목록 ID·이름·순서는 `Collection Import Provenance`로 보존하고, 목록 안 장소 순서는 Collection
 membership 위치로 보존한다. 같은 Provider 연결과 목록 ID를 다시 가져오면 같은 Collection에

@@ -18,7 +18,7 @@ describe('browser publication HTTP', () => {
 
     expect(configured.getCollection).toHaveBeenCalledWith('collection-1')
     expect(response.status).toBe(200)
-    expect(response.headers.get('cache-control')).toBe('public, max-age=60')
+    expect(response.headers.get('cache-control')).toBe('no-store')
     expect(response.headers.get('x-content-type-options')).toBe('nosniff')
   })
 

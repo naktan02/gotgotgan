@@ -35,6 +35,13 @@ Place 추가·이동·제거, Collection 삭제와 Tag 이름 변경·부착·�
 해당 Library-owned provenance를 함께 정리한다. PostgreSQL command write는 query와 imported-save
 수명주기를 비대하게 만들지 않도록 preference, ordered Collection, Tag Adapter leaf로 나눈다.
 
+`set-collection-publication`은 소유자 Collection의 `updatedAt`을 예상 버전으로 받아 private,
+unlisted, public을 전환한다. 첫 공유의 publication ID는 PostgreSQL transaction 안에서 만들고
+unlisted/public 전환에는 유지한다. 공유 해제는 ID를 제거하므로 이전 링크가 즉시 not-found가 되며,
+다시 공유하면 새 ID를 만든다. 이 command만 transport의 `library.share` 권한을 사용해 향후 Product
+Tier 정책을 Collection 구현에 넣지 않는다. `copy-published-collection`은 공유 row를 잠근 뒤 정렬된
+Place reference만 새 회원 소유 private Collection으로 복사하고 provenance를 남긴다.
+
 목록 카드용 이름·위치·Taxonomy는 entrypoint가 주입한 public Place summary reader로 한 번에
 조회한다. `PostgresLibraryQueries`는 Library schema만 읽으며 Search table을 join하지 않는다.
 공개 Place projection이 아직 없더라도 회원이 저장한 preference나 Collection membership은

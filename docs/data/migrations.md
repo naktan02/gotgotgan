@@ -109,3 +109,8 @@ Migration `000028`은 `writing.document_place_links`에
 `(canonical_place_id, document_id)` index를 추가한다. document와 Place의 정규화 관계는 그대로 두고
 선택 Place에서 owner Writing을 역조회할 때 전체 회원 글을 browser가 순회하지 않게 한다. schema shape와
 runtime 권한은 바꾸지 않는다.
+
+Migration `000029`는 `access.membership_resource_grants` constraint에 `library.share`만 추가한다.
+Collection table이나 공개 projection shape는 바꾸지 않으며, Product Authorizer가 공유 기능을 일반
+write와 별도로 판단할 수 있는 최소 권한 seam만 만든다. 활성 share grant를 지우지 않도록 rollback은
+해당 grant가 있으면 fail closed한다.

@@ -11,6 +11,9 @@ export {
 } from './access.js'
 export {
   addCollectionPlaceCommandSchema,
+  browserCreatePrivateCollectionCommandSchema,
+  browserLibraryCommandRequestSchema,
+  browserLibraryCommandSchema,
   browserCreatePrivateNoteCommandSchema,
   browserPrivateNoteCommandRequestSchema,
   browserUpdatePrivateNoteCommandSchema,
@@ -31,6 +34,7 @@ export {
   removeCollectionPlaceCommandSchema,
   renameCollectionCommandSchema,
   renameTagCommandSchema,
+  setCollectionPublicationCommandSchema,
   setPlacePreferencesCommandSchema,
   sharedVisibilitySchema,
   tagPlaceCommandSchema,
@@ -42,6 +46,7 @@ export {
   visitRecordRequestSchema,
   writingCommandRequestSchema,
   type LibraryCommandRequest,
+  type BrowserLibraryCommandRequest,
   type BrowserPrivateNoteCommandRequest,
   type BrowserVisitRecordRequest,
   type PublishedCollection,

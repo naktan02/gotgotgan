@@ -41,3 +41,8 @@ Stage 7.16에서 canonical Search 결과를 선택한 사용자는 Library로 �
 저장·가고 싶음·개인 평점, 기존 Collection/Tag, Visit, private Note 기능을 사용한다. 로그인 부재와
 등급 거부는 상세 안에서 구분한다. Provider 검색 결과는 canonical Place로 materialize되기 전에는 이
 개인 기능을 표시하거나 호출하지 않고 출처와 원문 정보만 제공한다.
+
+Stage 11A에서 Collection 소유자는 관리 패널에서 나만 보기, 링크 공개, 전체 공개를 전환하고 공유를
+해제한다. 링크 공개와 전체 공개는 같은 최소 projection을 사용하되 검색 노출 의미만 다르다. 공유를
+보는 회원은 장소와 순서만 자기 private Collection으로 복사하며 원본 소유권, 개인 평점, Tag, Visit,
+Writing을 받지 않는다. 공유 해제 뒤 이전 링크와 복사는 not-found이고 다시 공유하면 새 링크가 된다.

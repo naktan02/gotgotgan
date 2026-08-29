@@ -7,6 +7,7 @@ export type ProductAuthorization =
 export type ProductPermission =
   | 'library.read'
   | 'library.write'
+  | 'library.share'
   | 'search.read'
   | 'imports.read'
   | 'imports.write'
@@ -50,7 +51,7 @@ export async function requireProductMember(
   request: FastifyRequest,
   reply: FastifyReply,
   authorizer: ProductAuthorizer,
-  permission: 'library.read' | 'library.write' | 'imports.read' | 'imports.write',
+  permission: 'library.read' | 'library.write' | 'library.share' | 'imports.read' | 'imports.write',
 ): Promise<string | undefined> {
   let result: ProductAuthorization
   try {

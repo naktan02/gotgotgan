@@ -33,8 +33,6 @@ export type LibraryCommand =
       collectionId: string
       name: string
       description?: string | undefined
-      visibility: LibraryVisibility
-      publicationId?: string | undefined
     }>
   | Readonly<{
       kind: 'add-collection-place'
@@ -43,6 +41,12 @@ export type LibraryCommand =
       position?: number | undefined
     }>
   | Readonly<{ kind: 'rename-collection'; collectionId: string; name: string }>
+  | Readonly<{
+      kind: 'set-collection-publication'
+      collectionId: string
+      expectedUpdatedAt: string
+      visibility: LibraryVisibility
+    }>
   | Readonly<{ kind: 'delete-collection'; collectionId: string }>
   | Readonly<{ kind: 'remove-collection-place'; collectionId: string; placeId: string }>
   | Readonly<{
@@ -87,15 +91,13 @@ export class LibraryPreferenceVersionConflictError extends Error {
   override readonly name = 'LibraryPreferenceVersionConflictError'
 }
 
+export class LibraryCollectionVersionConflictError extends Error {
+  override readonly name = 'LibraryCollectionVersionConflictError'
+}
+
 function requireText(value: string, field: string, maximum: number): void {
   if (value.trim().length === 0 || value.length > maximum) {
     throw new InvalidLibraryCommandError(`${field} is invalid`)
-  }
-}
-
-function requirePublication(visibility: LibraryVisibility, publicationId?: string): void {
-  if ((visibility === 'private') !== (publicationId === undefined)) {
-    throw new InvalidLibraryCommandError('publicationId is required only for shared visibility')
   }
 }
 
@@ -116,7 +118,6 @@ export function assertLibraryCommand(command: LibraryCommand): void {
     if (command.description !== undefined && command.description.length > 2_000) {
       throw new InvalidLibraryCommandError('description is too long')
     }
-    requirePublication(command.visibility, command.publicationId)
     return
   }
   if (command.kind === 'add-collection-place' || command.kind === 'move-collection-place') {
@@ -132,6 +133,12 @@ export function assertLibraryCommand(command: LibraryCommand): void {
   }
   if (command.kind === 'rename-collection') {
     requireText(command.name, 'name', 120)
+    return
+  }
+  if (command.kind === 'set-collection-publication') {
+    if (Number.isNaN(Date.parse(command.expectedUpdatedAt))) {
+      throw new InvalidLibraryCommandError('expectedUpdatedAt must be an ISO timestamp')
+    }
     return
   }
   if (command.kind === 'create-tag' || command.kind === 'rename-tag') {

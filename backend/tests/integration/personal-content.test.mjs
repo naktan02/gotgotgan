@@ -110,14 +110,17 @@ test('personal content remains owned, repeatable, versioned, and privacy project
     const writingStore = new writing.PostgresWritingStore(pool)
     const writingQueries = new writing.PostgresWritingQueries(pool)
     const memberId = '01992d10-0000-7000-8000-000000000001'
+    const viewerMemberId = '01992d10-0000-7000-8000-000000000004'
     const placeId = '01992d10-0000-7000-8000-000000000002'
     const placeTwo = '01992d10-0000-7000-8000-000000000003'
     const at = '2026-08-26T10:00:00.000Z'
     await runtimeClient.query(
       `INSERT INTO access.memberships
         (id, issuer, subject, status, authority_role, product_tier, user_grade, created_at, updated_at)
-       VALUES ($1,'https://identity.example.test','member-1','active','member','standard','unclassified',$2,$2)`,
-      [memberId, at],
+       VALUES
+         ($1,'https://identity.example.test','member-1','active','member','standard','unclassified',$3,$3),
+         ($2,'https://identity.example.test','member-2','active','member','standard','unclassified',$3,$3)`,
+      [memberId, viewerMemberId, at],
     )
     await runtimeClient.query('INSERT INTO places.canonical_places (id) VALUES ($1), ($2)', [placeId, placeTwo])
 
@@ -184,20 +187,82 @@ test('personal content remains owned, repeatable, versioned, and privacy project
     assert.equal((await visitQueries.listPlaceVisits({ memberId, placeId, limit: 20 })).items.length, 2)
 
     const publicCollectionId = '01992d10-0000-7000-8000-000000000030'
-    const publicCollectionPublication = '01992d10-0000-7000-8000-000000000031'
     await library.applyLibraryCommand({ commandId: '01992d10-0000-7000-8000-000000000032', memberId, occurredAt: at, store: libraryStore, command: {
-      kind: 'create-collection', collectionId: publicCollectionId, name: 'Public map', visibility: 'unlisted', publicationId: publicCollectionPublication,
+      kind: 'create-collection', collectionId: publicCollectionId, name: 'Public map',
     } })
     await library.applyLibraryCommand({ commandId: '01992d10-0000-7000-8000-000000000033', memberId, occurredAt: at, store: libraryStore, command: {
       kind: 'add-collection-place', collectionId: publicCollectionId, placeId, position: 0,
     } })
+    await library.applyLibraryCommand({ commandId: '01992d10-0000-7000-8000-000000000036', memberId, occurredAt: at, store: libraryStore, command: {
+      kind: 'set-collection-publication', collectionId: publicCollectionId,
+      expectedUpdatedAt: at, visibility: 'unlisted',
+    } })
+    let ownedCollection = await libraryQueries.getCollection({
+      memberId, collectionId: publicCollectionId, limit: 20,
+    })
+    const publicCollectionPublication = ownedCollection.collection.publicationId
+    assert.ok(publicCollectionPublication)
     const published = await libraryStore.getPublishedCollection(publicCollectionPublication)
     assert.deepEqual(Object.keys(published).sort(), ['description', 'name', 'places', 'publicationId', 'updatedAt', 'visibility'])
     assert.equal(published.places[0].placeId, placeId)
 
+    await assert.rejects(
+      library.applyLibraryCommand({ commandId: '01992d10-0000-7000-8000-000000000060', memberId, occurredAt: at, store: libraryStore, command: {
+        kind: 'set-collection-publication', collectionId: publicCollectionId,
+        expectedUpdatedAt: at, visibility: 'public',
+      } }),
+      { name: 'LibraryCollectionVersionConflictError' },
+    )
+    assert.equal((await libraryStore.getPublishedCollection(publicCollectionPublication)).visibility, 'unlisted')
+
+    await library.applyLibraryCommand({ commandId: '01992d10-0000-7000-8000-000000000037', memberId, occurredAt: at, store: libraryStore, command: {
+      kind: 'set-collection-publication', collectionId: publicCollectionId,
+      expectedUpdatedAt: ownedCollection.collection.updatedAt, visibility: 'public',
+    } })
+    ownedCollection = await libraryQueries.getCollection({
+      memberId, collectionId: publicCollectionId, limit: 20,
+    })
+    assert.equal(ownedCollection.collection.publicationId, publicCollectionPublication)
+    assert.equal((await libraryStore.getPublishedCollection(publicCollectionPublication)).visibility, 'public')
+
+    await library.applyLibraryCommand({ commandId: '01992d10-0000-7000-8000-000000000038', memberId, occurredAt: at, store: libraryStore, command: {
+      kind: 'set-collection-publication', collectionId: publicCollectionId,
+      expectedUpdatedAt: ownedCollection.collection.updatedAt, visibility: 'private',
+    } })
+    assert.equal(await libraryStore.getPublishedCollection(publicCollectionPublication), undefined)
+    ownedCollection = await libraryQueries.getCollection({
+      memberId, collectionId: publicCollectionId, limit: 20,
+    })
+    await library.applyLibraryCommand({ commandId: '01992d10-0000-7000-8000-000000000039', memberId, occurredAt: at, store: libraryStore, command: {
+      kind: 'set-collection-publication', collectionId: publicCollectionId,
+      expectedUpdatedAt: ownedCollection.collection.updatedAt, visibility: 'unlisted',
+    } })
+    ownedCollection = await libraryQueries.getCollection({
+      memberId, collectionId: publicCollectionId, limit: 20,
+    })
+    const replacementPublication = ownedCollection.collection.publicationId
+    assert.ok(replacementPublication)
+    assert.notEqual(replacementPublication, publicCollectionPublication)
+
+    const copiedCollectionId = '01992d10-0000-7000-8000-000000000050'
+    await library.applyLibraryCommand({ commandId: '01992d10-0000-7000-8000-000000000051', memberId: viewerMemberId, occurredAt: at, store: libraryStore, command: {
+      kind: 'copy-published-collection', sourcePublicationId: replacementPublication,
+      targetCollectionId: copiedCollectionId, targetName: 'Copied map',
+    } })
+    const copied = await libraryQueries.getCollection({
+      memberId: viewerMemberId, collectionId: copiedCollectionId, limit: 20,
+    })
+    assert.equal(copied.collection.visibility, 'private')
+    assert.equal(copied.collection.publicationId, null)
+    assert.deepEqual(copied.places.map((item) => item.placeId), [placeId])
+    assert.equal((await runtimeClient.query(
+      `SELECT source_publication_id FROM library.collection_copy_provenance
+       WHERE target_collection_id = $1`, [copiedCollectionId],
+    )).rows[0].source_publication_id, replacementPublication)
+
     const privateCollectionId = '01992d10-0000-7000-8000-000000000034'
     await library.applyLibraryCommand({ commandId: '01992d10-0000-7000-8000-000000000035', memberId, occurredAt: at, store: libraryStore, command: {
-      kind: 'create-collection', collectionId: privateCollectionId, name: 'Private map', visibility: 'private',
+      kind: 'create-collection', collectionId: privateCollectionId, name: 'Private map',
     } })
     assert.equal(await libraryStore.getPublishedCollection(privateCollectionId), undefined)
     const savedPlaces = await libraryQueries.listPlaces({

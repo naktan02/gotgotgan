@@ -69,6 +69,12 @@ Collection Place 이웃 순서 이동·제거, 관리 후 탐색 화면의 최�
 command ID/payload 재전송을 desktop/mobile에서 검증한다. 화면은 Provider 원본 목록을 바꾸지 않는다는
 문구를 함께 노출한다.
 
+Stage 11A E2E는 같은 관리 화면에서 private→unlisted→public→private 전환, 공유 링크 유지와 해제,
+private metadata 비노출 안내를 desktop/mobile에서 검증한다. 공개 Collection 화면은 Place 순서만
+private target으로 복사하는 browser command를 보낸다. Web 단위 테스트는 결과를 잃고 재시도해도
+command ID와 target Collection ID가 바뀌지 않는지 별도로 확인한다. 이 단계의 focused Library
+suite는 32개 desktop/mobile case이며 전체 root Playwright는 62개 case다.
+
 Visit E2E는 같은 Place의 반복 방문이 서로 다른 불변 occurrence로 쌓이고 bounded history와 Place
 summary가 갱신되는지 desktop/mobile에서 검증한다. 첫 기록 응답을 유실시킨 경우에는 새 ID를 만들지
 않고 동일 Visit ID와 payload를 재전송한다. focused Personal Library suite는 두 browser project에서

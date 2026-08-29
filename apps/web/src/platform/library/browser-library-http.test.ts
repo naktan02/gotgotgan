@@ -7,6 +7,7 @@ const placeId = '01992d20-0000-7000-8000-000000000001'
 const tagA = '01992d20-0000-7000-8000-000000000002'
 const tagB = '01992d20-0000-7000-8000-000000000003'
 const commandId = '01992d20-0000-7000-8000-000000000004'
+const collectionId = '01992d20-0000-7000-8000-000000000005'
 const areaKey = 'area_abcdefghijklmnopqrstuv'
 
 function backend(responder: (url: URL, init: RequestInit) => Promise<Response>) {
@@ -186,6 +187,50 @@ describe('browser library HTTP', () => {
     expect(await response.json()).toEqual({
       schemaVersion: 'library-command-result.v1', status: 'applied',
     })
+  })
+
+  it('server-fixes new Collections as private and rejects browser-selected visibility', async () => {
+    const observed: unknown[] = []
+    const resolveAuthRuntime = vi.fn(sessionRuntime)
+    const http = createBrowserLibraryHttp({
+      resolveAuthRuntime,
+      backend: backend(async (_url, init) => {
+        observed.push(JSON.parse(String(init.body)))
+        return Response.json({
+          schemaVersion: 'library-command-result.v1', status: 'applied',
+        }, { status: 201 })
+      }),
+      createCorrelationRef: () => 'unused',
+    })
+
+    const created = await http.command(new Request('https://place.example/api/library/commands', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        commandId,
+        command: { kind: 'create-collection', collectionId, name: '성수 라멘' },
+      }),
+    }))
+    expect(created.status).toBe(201)
+    expect(observed).toEqual([{
+      commandId,
+      command: { kind: 'create-collection', collectionId, name: '성수 라멘' },
+    }])
+
+    resolveAuthRuntime.mockClear()
+    const rejected = await http.command(new Request('https://place.example/api/library/commands', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        commandId,
+        command: {
+          kind: 'create-collection', collectionId, name: '공격자 공개 목록',
+          visibility: 'public', publicationId: placeId,
+        },
+      }),
+    }))
+    expect(rejected.status).toBe(400)
+    expect(resolveAuthRuntime).not.toHaveBeenCalled()
   })
 
   it('rejects an invalid Place identifier before authentication', async () => {

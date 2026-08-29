@@ -15,6 +15,7 @@ import { applyLibraryCommand } from '../../application/apply-library-command.js'
 import type { LibraryStore } from '../../application/ports/library-store.js'
 import {
   LibraryCommandConflictError,
+  LibraryCollectionVersionConflictError,
   LibraryPreferenceVersionConflictError,
 } from '../../domain/model.js'
 import type { LibraryQueries } from '../../application/library-queries.js'
@@ -33,10 +34,13 @@ export function registerLibraryHttpRoutes(application: FastifyInstance, dependen
     queries: dependencies.queries,
   })
   application.post('/v1/library/commands', async (request, reply) => {
-    const memberId = await requireProductMember(request, reply, dependencies.authorizer, 'library.write')
-    if (memberId === undefined) return
     const parsed = libraryCommandRequestSchema.safeParse(request.body)
     if (!parsed.success) return sendProductProblem(request, reply, 400, 'PLACE_LIBRARY_COMMAND_INVALID', 'Library command is invalid')
+    const permission = parsed.data.command.kind === 'set-collection-publication'
+      ? 'library.share'
+      : 'library.write'
+    const memberId = await requireProductMember(request, reply, dependencies.authorizer, permission)
+    if (memberId === undefined) return
     try {
       const result = await applyLibraryCommand({ ...parsed.data, memberId, occurredAt: dependencies.now().toISOString(), store: dependencies.store })
       if (result.status === 'not-found') return sendProductProblem(request, reply, 404, 'PLACE_LIBRARY_RESOURCE_NOT_FOUND', 'Library resource not found')
@@ -48,6 +52,7 @@ export function registerLibraryHttpRoutes(application: FastifyInstance, dependen
         .status(result.status === 'applied' ? 201 : 200).send(response)
     } catch (error) {
       if (error instanceof LibraryCommandConflictError) return sendProductProblem(request, reply, 409, 'PLACE_LIBRARY_COMMAND_CONFLICT', 'Library command conflicts with an earlier request')
+      if (error instanceof LibraryCollectionVersionConflictError) return sendProductProblem(request, reply, 409, 'PLACE_LIBRARY_COLLECTION_VERSION_CONFLICT', 'Collection changed after it was read', true)
       if (error instanceof LibraryPreferenceVersionConflictError) return sendProductProblem(request, reply, 409, 'PLACE_LIBRARY_PREFERENCE_VERSION_CONFLICT', 'Place preferences changed after they were read', true)
       return sendProductProblem(request, reply, 400, 'PLACE_LIBRARY_COMMAND_INVALID', 'Library command is invalid')
     }
@@ -79,7 +84,7 @@ export function registerLibraryHttpRoutes(application: FastifyInstance, dependen
     const result = await dependencies.store.getPublishedCollection(parsed.data.publicationId)
     return result === undefined
       ? sendProductProblem(request, reply, 404, 'PLACE_PUBLICATION_NOT_FOUND', 'Publication not found')
-      : reply.header('cache-control', 'public, max-age=60').status(200).send(
+      : reply.header('cache-control', 'no-store').status(200).send(
           publishedCollectionSchema.parse({
             schemaVersion: 'place-published-collection.v1',
             ...result,

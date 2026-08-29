@@ -1,6 +1,6 @@
 'use client'
 
-import type { LibraryCommandRequest } from '@place/contracts/http'
+import type { BrowserLibraryCommandRequest } from '@place/contracts/http'
 import type { PlaceDetailPersonalState } from '@place/contracts/places'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -19,7 +19,7 @@ type PreferenceWorkflowInput = Readonly<{
 
 type FailedPreferenceMutation = Readonly<{
   mutationKey: 'saved' | 'wanted' | 'rating'
-  request: LibraryCommandRequest
+  request: BrowserLibraryCommandRequest
 }>
 
 export function usePersonalLibraryPreferenceWorkflow({

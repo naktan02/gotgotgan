@@ -9,6 +9,10 @@ public과 unlisted는 동일한 최소 projection 형식을 사용한다. public
 private, 알 수 없는 ID, 잘못된 publication ID 모두 membership identity나 private field의
 존재를 노출하지 않는다.
 
+Collection 소유자는 private, unlisted, public을 바꿀 수 있다. 공유 해제 즉시 기존 publication ID는
+조회되지 않으며 재공개는 새 ID를 쓴다. 보는 회원의 복사 operation은 원본을 공동 편집하지 않고
+정렬된 Place reference와 source publication provenance만 가진 새 private Collection을 만든다.
+
 향후 추천 기능은 privacy 검토를 통과한 projection을 입력으로 받고 versioned interface로
 설명 또는 후보를 반환한다. 추천 infrastructure는 충분한 데이터와 별도 단계가 준비되기
 전까지 활성화하지 않는다.

@@ -89,6 +89,12 @@ Web의 Library management module은 View에 하나의 Interface를 제공한다.
 Collection 순서 규칙이나 재시도 정책을 View 파일과 Tag 흐름에 반복하지 않으면서도 선택한 Place의
 기존 조직 편집 workflow와 관리 surface를 섞지 않는다.
 
+Collection 공유도 같은 management Module의 작은 `publication` Interface 뒤에 둔다. Backend의
+ordered Collection write Adapter가 owner lock, optimistic version, publication ID 수명주기와 copy
+provenance를 한 transaction seam으로 숨긴다. HTTP는 `set-collection-publication`만 `library.share`로
+권한 판정하고 role/tier 문자열을 Library로 넘기지 않는다. 공개 화면의 copy Adapter는 한 시도의
+command/target ID를 보존해 View가 idempotency 구현을 알지 못하게 한다.
+
 Web의 `platform/visits`는 인증 session과 고정 Backend transport만 소비하는 same-origin Adapter다.
 Personal Library의 visit workflow는 View에 기록·history·retry를 묶은 하나의 Interface만 제공하고,
 불변 ID/payload 보존, selection staleness, bounded pagination을 내부에 숨긴다. Backend Visits owner가

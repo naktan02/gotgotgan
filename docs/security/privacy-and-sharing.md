@@ -10,6 +10,14 @@ ID, 갱신 시각만 포함한다. public Writing projection에는 publication I
 싶음 preference, Personal Rating과 이력, Tag, Visit, 복사 provenance, Writing revision을
 선택하지 않는다. Web도 동일한 허용 목록을 검증하고 예상하지 않은 Backend field를 거부한다.
 
+Collection publication mutation은 일반 `library.write`와 구분한 `library.share` 권한으로 Product
+Authorizer를 통과하고 owner-scoped row lock과 optimistic `updatedAt`을 사용한다. 브라우저는
+publication ID를 제출하지 않는다. 공유 해제는 ID를 제거하고 공개 조회는 같은 허용 목록 query에서
+not-found가 된다. 복사는 Place ID와 순서만 새 private Collection에 넣으며 source owner, Rating,
+Tag, Visit, Writing, Import provenance는 읽거나 복사하지 않는다.
+별도 cache purge가 없는 현재 단계의 공개 Collection/Writing 응답은 `no-store`로 전달해 해제 전
+projection이 browser나 중간 cache에 남는 시간을 허용하지 않는다.
+
 Stage 5 익명 검색은 공개 Place projection만 반환한다. 저장·가고 싶음·방문·Personal Rating
 filter는 verified membership과 `search.read` 권한이 있을 때만 실행하며 membership ID를 browser
 입력으로 받지 않는다. 회원별 signal은 Search 소유 별도 table에서 membership으로 격리하고,

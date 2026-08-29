@@ -1,6 +1,6 @@
 'use client'
 
-import type { LibraryCommandRequest } from '@place/contracts/http'
+import type { BrowserLibraryCommandRequest } from '@place/contracts/http'
 import { useCallback, useRef, useState } from 'react'
 
 import {
@@ -10,7 +10,7 @@ import {
 
 export type ManagementMutation = Readonly<{
   key: string
-  request: LibraryCommandRequest
+  request: BrowserLibraryCommandRequest
   failureMessage: string
   onApplied: () => Promise<unknown>
 }>

@@ -17,7 +17,7 @@ Read only the routes required by the task, after repository `AGENTS.md` and `REA
 - Local execution, worker lifecycle, deployment, backup, or incidents: `operations/README.md`.
 - A durable decision or supersession: `adr/README.md`.
 
-Delivery state is **source-only; Stages 6.5 and 7.5–7.16 complete, with Stages 2 and 7 in progress and Stage 8 paused after 8B**. A Place-owned physical PostGIS runtime is
+Delivery state is **source-only; Stages 6.5, 7.5–7.16, and 11A complete, with Stages 2, 7, and 11 in progress and Stage 8 paused after 8B**. A Place-owned physical PostGIS runtime is
 implemented and tested in disposable environments but not deployed or active. No provider account, browser profile, map credential, Identity
 client, Gateway route, family composer, or AI connection is active.
 
@@ -95,6 +95,13 @@ Stage 7.16은 `PersonalPlaceDetail`에 canonical `placeId`만 전달해 Search�
 상세 기능을 공유한다. app 조립 계층이 Search의 renderer Interface와 Personal Library의 공개
 Interface를 연결하며 feature 내부 import는 없다. 외부 Provider 결과는 canonical identity가 아니므로
 이 흐름을 호출하지 않고 evidence-only로 남는다.
+
+Stage 11A는 Stage 9·10의 Provider 작업을 기다리지 않아도 되는 Collection 공유를 먼저 연결한다.
+Library 관리 화면의 private/unlisted/public 전환과 해제, 별도 `library.share` 권한 seam, 서버 발급
+publication ID 수명주기, 공개 화면에서 다른 회원 private Library로의 Place 순서 복사를 구현한다.
+공유 projection과 copy에는 Rating, Tag, Visit, Writing, ownership이 없고 실제 PostGIS와
+desktop/mobile E2E가 해제된 링크 소멸과 copy provenance를 검증한다. 공개 profile/map discovery와
+cross-product PlaceReference 소비는 Stage 11의 남은 작업이다.
 
 Stage 5는 data-defined Taxonomy와 Search 소유 projection을 추가했다. 로컬 text·taxonomy·bounds·
 회원 signal 검색, cursor pagination, source-neutral partial 결과, responsive 목록/지도 UI를 실제

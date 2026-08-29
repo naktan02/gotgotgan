@@ -14,6 +14,11 @@ Tag 이름 변경·삭제, Collection Place 위/아래 이동·제거를 기존 
 내부 seam으로 나뉜다. View는 command 조립이나 재시도 ID를 알지 못한다. 삭제와 제거는 Place 내부
 정리만 바꾸며 Provider 원본 목록, 저장 preference, Place 자체를 삭제하지 않는다.
 
+같은 Collection workflow가 공유 상태도 좁은 `publication` Interface로 제공한다. View는 나만 보기,
+링크 공개, 전체 공개, 공유 해제와 현재 공유 경로만 렌더링한다. optimistic timestamp, publication ID
+발급·폐기, 소유권 확인, 응답 유실 replay는 workflow와 Backend가 숨기며 개인 평점·Tag·Visit·Note는
+공개 projection에 전달하지 않는다.
+
 선택한 장소의 `방문 기록`은 과거 또는 현재 시각의 새 불변 occurrence를 추가하고 최신 이력을 bounded
 cursor로 읽는다. 같은 장소를 다시 방문하면 이전 행을 수정하지 않고 새 ID로 기록한다. 응답 결과를
 모르는 경우에만 같은 Visit ID와 payload를 재전송하며, 브라우저는 내부 evidence를 만들거나 보내지

@@ -1,11 +1,16 @@
 import type { PoolClient } from 'pg'
 
-import type { LibraryAttempt, LibraryCommand } from '../../domain/model.js'
+import {
+  LibraryCollectionVersionConflictError,
+  type LibraryAttempt,
+  type LibraryCommand,
+} from '../../domain/model.js'
 
 type CollectionCommand = Extract<LibraryCommand, Readonly<{
   kind:
     | 'create-collection'
     | 'rename-collection'
+    | 'set-collection-publication'
     | 'delete-collection'
     | 'add-collection-place'
     | 'remove-collection-place'
@@ -90,10 +95,10 @@ export async function applyCollectionWrite(
     const result = await client.query(
       `INSERT INTO library.collections
         (id, owner_membership_id, name, description, visibility, publication_id, created_at, updated_at)
-       VALUES ($1::uuid,$2::uuid,$3,$4,$5,$6::uuid,$7::timestamptz,$7::timestamptz)
+       VALUES ($1::uuid,$2::uuid,$3,$4,'private',NULL,$5::timestamptz,$5::timestamptz)
        ON CONFLICT (id) DO NOTHING`,
       [command.collectionId, attempt.memberId, command.name, command.description ?? null,
-        command.visibility, command.publicationId ?? null, attempt.occurredAt],
+        attempt.occurredAt],
     )
     return result.rowCount === 1 ? 'applied' : 'forbidden'
   }
@@ -106,6 +111,36 @@ export async function applyCollectionWrite(
       [command.collectionId, attempt.memberId, command.name, attempt.occurredAt],
     )
     return result.rowCount === 1 ? 'applied' : 'not-found'
+  }
+
+  if (command.kind === 'set-collection-publication') {
+    const current = await client.query<{
+      visibility: 'private' | 'unlisted' | 'public'
+      updated_at: Date
+    }>(
+      `SELECT visibility, updated_at FROM library.collections
+       WHERE id = $1::uuid AND owner_membership_id = $2::uuid
+       FOR UPDATE`,
+      [command.collectionId, attempt.memberId],
+    )
+    const collection = current.rows[0]
+    if (collection === undefined) return 'not-found'
+    if (collection.updated_at.toISOString() !== command.expectedUpdatedAt) {
+      throw new LibraryCollectionVersionConflictError('Collection changed after it was read')
+    }
+    await client.query(
+      `UPDATE library.collections
+       SET visibility = $3,
+           publication_id = CASE
+             WHEN $3 = 'private' THEN NULL
+             WHEN visibility = 'private' THEN gen_random_uuid()
+             ELSE publication_id
+           END,
+           updated_at = greatest(updated_at + interval '1 millisecond', $4::timestamptz)
+       WHERE id = $1::uuid AND owner_membership_id = $2::uuid`,
+      [command.collectionId, attempt.memberId, command.visibility, attempt.occurredAt],
+    )
+    return 'applied'
   }
 
   if (command.kind === 'delete-collection') {
@@ -205,7 +240,8 @@ export async function applyCollectionWrite(
 
   const source = await client.query<{ id: string }>(
     `SELECT id FROM library.collections
-     WHERE publication_id = $1::uuid AND visibility IN ('unlisted', 'public')`,
+     WHERE publication_id = $1::uuid AND visibility IN ('unlisted', 'public')
+     FOR SHARE`,
     [command.sourcePublicationId],
   )
   if (source.rows[0] === undefined) return 'not-found'

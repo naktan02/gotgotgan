@@ -1,0 +1,9 @@
+.panel { display: grid; gap: 9px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.heading span { color: var(--muted); font-size: 11px; }
+.hint { display: block; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.link, .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.link a, .link button, .actions button { min-height: 34px; border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); padding: 7px 10px; font-size: 11px; text-decoration: none; }
+.link span { color: var(--danger); font-size: 10px; }
+.actions .danger { border-color: #e4caca; color: var(--danger); }
+.link button:disabled, .actions button:disabled { cursor: wait; opacity: .55; }

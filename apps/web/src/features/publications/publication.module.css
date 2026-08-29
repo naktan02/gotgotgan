@@ -3,5 +3,9 @@
 .eyebrow { margin: 0 0 12px; color: var(--accent); font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .title { margin: 0; font-size: clamp(28px, 5vw, 44px); line-height: 1.1; }
 .description { color: var(--muted); line-height: 1.7; white-space: pre-wrap; }
+.actions { display: grid; gap: 10px; margin-top: 24px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--accent-soft); }
+.actions p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.actions button, .actions > a { width: fit-content; min-height: 38px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--ink); padding: 9px 13px; font: inherit; text-decoration: none; }
+.actions button:disabled { cursor: wait; opacity: .6; }
 .list { margin: 28px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
 .item { padding: 16px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
