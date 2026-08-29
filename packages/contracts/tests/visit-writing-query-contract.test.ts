@@ -19,6 +19,9 @@ describe('bounded Visit and Writing query contracts', () => {
   it('defaults list queries to bounded pages', () => {
     expect(visitHistoryQuerySchema.parse({})).toEqual({ limit: 20 })
     expect(writingListQuerySchema.parse({})).toEqual({ kind: 'all', limit: 20 })
+    expect(writingListQuerySchema.parse({ placeId })).toEqual({
+      kind: 'all', placeId, limit: 20,
+    })
     expect(visitHistoryQuerySchema.safeParse({ limit: 51 }).success).toBe(false)
     expect(writingListQuerySchema.safeParse({ limit: 0 }).success).toBe(false)
   })
@@ -39,7 +42,7 @@ describe('bounded Visit and Writing query contracts', () => {
   it('bounds Writing list bodies and reserves full content for detail', () => {
     const list = writingListResponseSchema.parse({
       schemaVersion: 'writing-list.v1',
-      filter: { kind: 'all' },
+      filter: { kind: 'all', placeId },
       items: [{
         documentId,
         kind: 'note',

@@ -101,9 +101,27 @@ test('Visit and Writing queries stay bounded, cursor-safe, and member-isolated',
     })
     assert.deepEqual(writingSecond.items.map((item) => item.documentId), [entryId])
     assert.equal(writingSecond.nextCursor, undefined)
+    const placeNotes = await writingQueries.list({
+      memberId: memberA, kind: 'note', placeId: placeA, limit: 20,
+    })
+    assert.deepEqual(placeNotes.filter, { kind: 'note', placeId: placeA })
+    assert.deepEqual(placeNotes.items.map((item) => item.documentId), [noteId])
+    assert.deepEqual((await writingQueries.list({
+      memberId: memberA, kind: 'note', placeId: placeB, limit: 20,
+    })).items, [])
+    assert.deepEqual((await writingQueries.list({
+      memberId: memberA, kind: 'entry', placeId: placeB, limit: 20,
+    })).items.map((item) => item.documentId), [entryId])
     await assert.rejects(
       writingQueries.list({
         memberId: memberA, kind: 'note', limit: 20, cursor: writingFirst.nextCursor,
+      }),
+      writing.InvalidWritingCursorError,
+    )
+    await assert.rejects(
+      writingQueries.list({
+        memberId: memberA, kind: 'all', placeId: placeA, limit: 20,
+        cursor: writingFirst.nextCursor,
       }),
       writing.InvalidWritingCursorError,
     )
@@ -162,6 +180,7 @@ test('Visit and Writing queries stay bounded, cursor-safe, and member-isolated',
     `, [memberA])
     await database.pool.query('ANALYZE visits.visit_occurrences')
     await database.pool.query('ANALYZE writing.documents')
+    await database.pool.query('ANALYZE writing.document_place_links')
     await database.pool.query('SET enable_seqscan = off')
     const visitPlan = await database.pool.query(`
       EXPLAIN (FORMAT JSON)
@@ -177,6 +196,15 @@ test('Visit and Writing queries stay bounded, cursor-safe, and member-isolated',
       ORDER BY updated_at DESC, id ASC LIMIT 20
     `, [memberA])
     assert.match(JSON.stringify(writingPlan.rows[0]), /writing_documents_owner_updated/)
+    const writingPlacePlan = await database.pool.query(`
+      EXPLAIN (FORMAT JSON)
+      SELECT document_id FROM writing.document_place_links
+      WHERE canonical_place_id = $1::uuid
+    `, [placeA])
+    assert.match(
+      JSON.stringify(writingPlacePlan.rows[0]),
+      /writing_document_place_links_place_document/,
+    )
   } finally {
     await database.close()
   }

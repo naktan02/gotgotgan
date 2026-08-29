@@ -72,7 +72,12 @@ command ID/payload 재전송을 desktop/mobile에서 검증한다. 화면은 Pro
 Visit E2E는 같은 Place의 반복 방문이 서로 다른 불변 occurrence로 쌓이고 bounded history와 Place
 summary가 갱신되는지 desktop/mobile에서 검증한다. 첫 기록 응답을 유실시킨 경우에는 새 ID를 만들지
 않고 동일 Visit ID와 payload를 재전송한다. focused Personal Library suite는 두 browser project에서
-20개 case를 실행하며 browser request에 evidence나 member ID를 넣지 않는다.
+Visit 단계 기준 20개 case를 실행하며 browser request에 evidence나 member ID를 넣지 않는다.
+
+Private Note E2E는 Place-filtered bounded page, 생성·수정, 명시적 unsaved 상태, 응답 유실 후 동일
+command 재전송, optimistic version conflict에서 초안 보존과 명시적 최신 내용 교체를 desktop/mobile에서
+검증한다. Entry·visibility·publication·member authority는 browser command에 없으며 Note 추가 후 focused
+Personal Library suite는 26개 case다.
 
 Stage 5 Playwright는 같은 공개 경계에 결정적인 Taxonomy/Search fixture를 연결한다. 입력
 debounce와 교체 요청의 실제 upstream 취소, 목록·마커 선택 동기화, 명시적 bounds 재검색,

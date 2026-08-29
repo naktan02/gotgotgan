@@ -108,3 +108,7 @@ capture, provenance, review schema나 runtime 권한은 바꾸지 않는다.
 내 Collection 순서 이동용 deferrable unique constraint를 추가한다. runtime DELETE 권한은 owner-scoped
 Collection/Tag command가 자기 row와 Library-owned copy/import provenance를 함께 정리하는 table에만
 추가한다.
+
+`000028`은 정규화된 Writing Place link에 `(canonical_place_id, document_id)` 역방향 조회 index를
+추가한다. 새 table, Provider별 column, runtime 권한은 만들지 않고 선택 Place의 bounded owner Writing
+조회만 지원한다.

@@ -1,11 +1,17 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
-import type { BrowserVisitRecordRequest, LibraryCommandRequest } from '@place/contracts/http'
+import type {
+  BrowserPrivateNoteCommandRequest,
+  BrowserVisitRecordRequest,
+  LibraryCommandRequest,
+} from '@place/contracts/http'
 
 const ramenPlaceId = '01992d20-7000-7000-8000-000000000101'
 const cafePlaceId = '01992d20-7000-7000-8000-000000000102'
 const ramenTagId = '01992d20-7000-7000-8000-000000000201'
 const shoyuTagId = '01992d20-7000-7000-8000-000000000202'
 const seongsuCollectionId = '01992d20-7000-7000-8000-000000000301'
+const firstNoteId = '01992d20-7000-7000-8000-000000000501'
+const secondNoteId = '01992d20-7000-7000-8000-000000000502'
 const timestamp = '2026-08-28T00:00:00.000Z'
 const seongsuAreaKey = 'area_abcdefghijklmnopqrstuv'
 const seoulForestAreaKey = 'area_vutsrqponmlkjihgfedcba'
@@ -33,6 +39,14 @@ type FixtureTag = {
 }
 
 type FixtureVisit = BrowserVisitRecordRequest & Readonly<{ recordedAt: string }>
+type FixtureNote = {
+  documentId: string
+  placeId: string
+  body: string
+  version: number
+  createdAt: string
+  updatedAt: string
+}
 
 function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
@@ -63,6 +77,9 @@ async function installLibraryFixture(
     managementFailureOnce?: boolean
     visitFailureOnce?: boolean
     paginatedVisits?: boolean
+    writingFailureOnce?: boolean
+    writingConflictOnce?: boolean
+    paginatedNotes?: boolean
   }> = {},
 ) {
   let preferenceRevision = 0
@@ -70,8 +87,11 @@ async function installLibraryFixture(
   let preferenceFailurePending = options.preferenceFailureOnce ?? false
   let managementFailurePending = options.managementFailureOnce ?? false
   let visitFailurePending = options.visitFailureOnce ?? false
+  let writingFailurePending = options.writingFailureOnce ?? false
+  let writingConflictPending = options.writingConflictOnce ?? false
   const appliedCommandIds = new Set<string>()
   const appliedVisitFingerprints = new Map<string, string>()
+  const appliedWritingFingerprints = new Map<string, string>()
   const collections = new Map<string, FixtureCollection>([[seongsuCollectionId, {
     collectionId: seongsuCollectionId,
     name: '성수동',
@@ -109,8 +129,27 @@ async function installLibraryFixture(
     }]],
     [cafePlaceId, []],
   ])
+  const notes = new Map<string, FixtureNote>([
+    [firstNoteId, {
+      documentId: firstNoteId,
+      placeId: ramenPlaceId,
+      body: '국물이 깔끔하고 면 익힘이 좋았다.',
+      version: 1,
+      createdAt: '2026-08-27T01:00:00.000Z',
+      updatedAt: '2026-08-29T01:00:00.000Z',
+    }],
+    [secondNoteId, {
+      documentId: secondNoteId,
+      placeId: ramenPlaceId,
+      body: '다음에는 매운 토핑을 추가해 보기.',
+      version: 1,
+      createdAt: '2026-08-26T01:00:00.000Z',
+      updatedAt: '2026-08-28T01:00:00.000Z',
+    }],
+  ])
   const commands: LibraryCommandRequest[] = []
   const visitRequests: BrowserVisitRecordRequest[] = []
+  const writingRequests: BrowserPrivateNoteCommandRequest[] = []
   await page.route('**/api/library/place-facets', (route) => json(route, {
     schemaVersion: 'library-place-facets.v1',
     sourceState: 'saved',
@@ -432,7 +471,149 @@ async function installLibraryFixture(
     }
     return json(route, { schemaVersion: 'visit-record-result.v1', status: 'recorded' }, 201)
   })
-  return { commands, visitRequests }
+  await page.route('**/api/writing?*', (route) => {
+    const url = new URL(route.request().url())
+    const placeId = url.searchParams.get('placeId')!
+    const cursor = url.searchParams.get('cursor')
+    const placeNotes = [...notes.values()]
+      .filter((note) => note.placeId === placeId)
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    const items = options.paginatedNotes
+      ? cursor === null ? placeNotes.slice(0, 1) : placeNotes.slice(1)
+      : placeNotes
+    return json(route, {
+      schemaVersion: 'writing-list.v1',
+      filter: { kind: 'note', placeId },
+      items: items.map((note) => ({
+        documentId: note.documentId,
+        kind: 'note',
+        title: null,
+        bodyPreview: note.body.slice(0, 280),
+        bodyTruncated: note.body.length > 280,
+        visibility: 'private',
+        publicationId: null,
+        version: note.version,
+        placeIds: [note.placeId],
+        updatedAt: note.updatedAt,
+      })),
+      ...(options.paginatedNotes && cursor === null && placeNotes.length > 1
+        ? { nextCursor: 'note-page-2' }
+        : {}),
+    })
+  })
+  await page.route(/\/api\/writing\/[0-9a-f-]+$/, (route) => {
+    const documentId = new URL(route.request().url()).pathname.split('/').at(-1)!
+    const note = notes.get(documentId)
+    if (note === undefined) return json(route, {
+      type: 'urn:place:error:writing-not-found',
+      title: 'Writing not found',
+      status: 404,
+      code: 'PLACE_WRITING_NOT_FOUND',
+      retryable: false,
+      correlationRef: 'e2e-writing-not-found',
+    }, 404)
+    return json(route, {
+      schemaVersion: 'writing-detail.v1',
+      document: {
+        documentId: note.documentId,
+        kind: 'note',
+        title: null,
+        body: note.body,
+        visibility: 'private',
+        publicationId: null,
+        version: note.version,
+        placeIds: [note.placeId],
+        createdAt: note.createdAt,
+        updatedAt: note.updatedAt,
+      },
+    })
+  })
+  await page.route('**/api/writing/commands', (route) => {
+    const body = route.request().postDataJSON() as BrowserPrivateNoteCommandRequest
+    writingRequests.push(body)
+    const fingerprint = JSON.stringify(body)
+    const prior = appliedWritingFingerprints.get(body.commandId)
+    if (prior !== undefined) {
+      return prior === fingerprint
+        ? json(route, { schemaVersion: 'writing-command-result.v1', status: 'replayed' })
+        : json(route, {
+            type: 'urn:place:error:writing-command-conflict',
+            title: 'Writing command conflicts with an earlier request',
+            status: 409,
+            code: 'PLACE_WRITING_COMMAND_CONFLICT',
+            retryable: true,
+            correlationRef: 'e2e-writing-command-conflict',
+          }, 409)
+    }
+    if (body.command.kind === 'update-note' && writingConflictPending) {
+      writingConflictPending = false
+      const current = notes.get(body.command.documentId)!
+      notes.set(current.documentId, {
+        ...current,
+        body: '다른 기기에서 저장한 최신 메모',
+        version: current.version + 1,
+        updatedAt: '2026-08-29T02:00:00.000Z',
+      })
+      return json(route, {
+        type: 'urn:place:error:writing-version-conflict',
+        title: 'Writing changed concurrently',
+        status: 409,
+        code: 'PLACE_WRITING_VERSION_CONFLICT',
+        retryable: true,
+        correlationRef: 'e2e-writing-version-conflict',
+      }, 409)
+    }
+    let version: number
+    if (body.command.kind === 'create-note') {
+      version = 1
+      notes.set(body.command.documentId, {
+        documentId: body.command.documentId,
+        placeId: body.command.placeId,
+        body: body.command.body,
+        version,
+        createdAt: '2026-08-29T03:00:00.000Z',
+        updatedAt: '2026-08-29T03:00:00.000Z',
+      })
+    } else {
+      const current = notes.get(body.command.documentId)
+      if (current === undefined || current.version !== body.command.expectedVersion) {
+        return json(route, {
+          type: 'urn:place:error:writing-version-conflict',
+          title: 'Writing changed concurrently',
+          status: 409,
+          code: 'PLACE_WRITING_VERSION_CONFLICT',
+          retryable: true,
+          correlationRef: 'e2e-writing-version-conflict',
+        }, 409)
+      }
+      version = current.version + 1
+      notes.set(current.documentId, {
+        ...current,
+        body: body.command.body,
+        version,
+        updatedAt: '2026-08-29T03:00:00.000Z',
+      })
+    }
+    appliedWritingFingerprints.set(body.commandId, fingerprint)
+    if (writingFailurePending) {
+      writingFailurePending = false
+      return json(route, {
+        type: 'urn:place:error:writing-unavailable',
+        title: 'Writing is temporarily unavailable',
+        status: 503,
+        code: 'PLACE_WRITING_UNAVAILABLE',
+        retryable: true,
+        correlationRef: 'e2e-writing-response-loss',
+      }, 503)
+    }
+    return json(route, {
+      schemaVersion: 'writing-command-result.v1',
+      status: 'applied',
+      documentId: body.command.documentId,
+      version,
+    }, 201)
+  })
+  return { commands, visitRequests, writingRequests }
 }
 
 test('browses saved Places by tags and Collection without leaking the Backend boundary', async ({ page }) => {
@@ -664,6 +845,69 @@ test('retries a response-lost Visit with the same immutable request', async ({ p
   await expect(visitRegion.getByText(/총 3회/)).toBeVisible()
   expect(visitRequests).toHaveLength(2)
   expect(visitRequests[0]).toEqual(visitRequests[1])
+})
+
+test('creates and edits private Place Notes through bounded Writing pages', async ({ page }) => {
+  const { writingRequests } = await installLibraryFixture(page, { paginatedNotes: true })
+  await page.goto('/library')
+
+  const notes = page.getByRole('region', { name: '내 메모' })
+  await expect(notes.locator('ol > li')).toHaveCount(1)
+  await notes.getByRole('button', { name: '메모 더 보기' }).click()
+  await expect(notes.locator('ol > li')).toHaveCount(2)
+
+  await notes.getByRole('button', { name: /국물이 깔끔하고/ }).click()
+  const editor = notes.getByLabel('메모 편집')
+  await expect(editor).toHaveValue('국물이 깔끔하고 면 익힘이 좋았다.')
+  await editor.fill('국물이 깔끔하고 면 익힘이 아주 좋았다.')
+  await notes.getByRole('button', { name: '메모 저장' }).click()
+  await expect(notes.getByRole('status')).toHaveText('메모를 저장했습니다.')
+
+  await notes.getByRole('button', { name: '새 메모' }).click()
+  await notes.getByLabel('새 비공개 메모').fill('주말에는 대기가 길다.')
+  await notes.getByRole('button', { name: '메모 저장' }).click()
+  await expect(notes.getByRole('status')).toHaveText('비공개 메모를 만들었습니다.')
+
+  expect(writingRequests).toHaveLength(2)
+  expect(writingRequests[0]?.command.kind).toBe('update-note')
+  expect(writingRequests[1]?.command.kind).toBe('create-note')
+  expect(writingRequests.every((request) => (
+    !('memberId' in request) &&
+    !('visibility' in request.command) &&
+    !('publicationId' in request.command)
+  ))).toBe(true)
+})
+
+test('retries a response-lost private Note with the exact command', async ({ page }) => {
+  const { writingRequests } = await installLibraryFixture(page, { writingFailureOnce: true })
+  await page.goto('/library')
+
+  const notes = page.getByRole('region', { name: '내 메모' })
+  await notes.getByLabel('새 비공개 메모').fill('응답 유실에도 한 번만 저장할 메모')
+  await notes.getByRole('button', { name: '메모 저장' }).click()
+  await expect(notes.getByRole('alert')).toContainText('메모 저장 결과를 확인하지 못했습니다.')
+  await notes.getByRole('button', { name: '같은 저장 다시 확인' }).click()
+
+  await expect(notes.getByRole('status')).toHaveText('비공개 메모를 만들었습니다.')
+  expect(writingRequests).toHaveLength(2)
+  expect(writingRequests[0]).toEqual(writingRequests[1])
+})
+
+test('preserves a Note draft on optimistic version conflict', async ({ page }) => {
+  const { writingRequests } = await installLibraryFixture(page, { writingConflictOnce: true })
+  await page.goto('/library')
+
+  const notes = page.getByRole('region', { name: '내 메모' })
+  await notes.getByRole('button', { name: /국물이 깔끔하고/ }).click()
+  const editor = notes.getByLabel('메모 편집')
+  await editor.fill('내가 작성 중인 충돌 초안')
+  await notes.getByRole('button', { name: '메모 저장' }).click()
+
+  await expect(notes.getByRole('alert')).toContainText('현재 초안은 덮어쓰지 않았습니다.')
+  await expect(editor).toHaveValue('내가 작성 중인 충돌 초안')
+  await notes.getByRole('button', { name: '최신 내용 불러오기' }).click()
+  await expect(editor).toHaveValue('다른 기기에서 저장한 최신 메모')
+  expect(writingRequests).toHaveLength(1)
 })
 
 test('organizes a Place with only the member saved Collections and Tags', async ({ page }) => {

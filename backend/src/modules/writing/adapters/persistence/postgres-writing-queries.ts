@@ -49,7 +49,11 @@ export class PostgresWritingQueries implements WritingQueries {
 
   async list(input: Parameters<WritingQueries['list']>[0]) {
     requireBoundedLimit(input.limit)
-    const cursor = decodeWritingCursor(input.cursor, input.kind)
+    const filter = {
+      kind: input.kind,
+      ...(input.placeId === undefined ? {} : { placeId: input.placeId }),
+    }
+    const cursor = decodeWritingCursor(input.cursor, filter)
     const result = await this.pool.query<WritingListRow>(
       `
         SELECT
@@ -74,14 +78,23 @@ export class PostgresWritingQueries implements WritingQueries {
         WHERE document.owner_membership_id = $1::uuid
           AND ($2::text = 'all' OR document.kind = $2::text)
           AND (
-            $3::timestamptz IS NULL
-            OR document.updated_at < $3::timestamptz
-            OR (document.updated_at = $3::timestamptz AND document.id > $4::uuid)
+            $3::uuid IS NULL
+            OR EXISTS (
+              SELECT 1
+              FROM writing.document_place_links AS filtered_link
+              WHERE filtered_link.document_id = document.id
+                AND filtered_link.canonical_place_id = $3::uuid
+            )
+          )
+          AND (
+            $4::timestamptz IS NULL
+            OR document.updated_at < $4::timestamptz
+            OR (document.updated_at = $4::timestamptz AND document.id > $5::uuid)
           )
         ORDER BY document.updated_at DESC, document.id ASC
-        LIMIT $5
+        LIMIT $6
       `,
-      [input.memberId, input.kind, cursor?.updatedAt ?? null,
+      [input.memberId, input.kind, input.placeId ?? null, cursor?.updatedAt ?? null,
         cursor?.documentId ?? null, input.limit + 1],
     )
     const hasMore = result.rows.length > input.limit
@@ -89,7 +102,7 @@ export class PostgresWritingQueries implements WritingQueries {
     const last = rows.at(-1)
     return {
       schemaVersion: 'writing-list.v1' as const,
-      filter: { kind: input.kind },
+      filter,
       items: rows.map((row) => {
         const common = {
           documentId: row.id,
@@ -106,7 +119,7 @@ export class PostgresWritingQueries implements WritingQueries {
           : { kind: 'note' as const, title: null, ...common }
       }),
       ...(hasMore && last !== undefined ? {
-        nextCursor: encodeWritingCursor(input.kind, {
+        nextCursor: encodeWritingCursor(filter, {
           updatedAt: last.updated_at.toISOString(),
           documentId: last.id,
         }),

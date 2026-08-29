@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  browserPrivateNoteCommandRequestSchema,
   currentMembershipConsentsSchema,
   currentMembershipSchema,
   membershipOnboardingResultSchema,
@@ -61,6 +62,16 @@ describe('versioned product HTTP results', () => {
     expect(writingCommandResultSchema.parse({
       schemaVersion: 'writing-command-result.v1', status: 'applied', documentId, version: 1,
     }).status).toBe('applied')
+    expect(browserPrivateNoteCommandRequestSchema.parse({
+      commandId: membershipId,
+      command: { kind: 'create-note', documentId, placeId, body: '비공개 메모' },
+    }).command.kind).toBe('create-note')
+    expect(browserPrivateNoteCommandRequestSchema.safeParse({
+      commandId: membershipId,
+      command: {
+        kind: 'create-note', documentId, placeId, body: '공개 메모', visibility: 'public',
+      },
+    }).success).toBe(false)
   })
 
   it('versions both public content projections without exposing owner evidence', () => {

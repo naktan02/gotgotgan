@@ -56,6 +56,7 @@ export function registerWritingQueryHttpRoutes(
       const response = writingListResponseSchema.parse(await dependencies.queries.list({
         memberId,
         kind: query.data.kind,
+        ...(query.data.placeId === undefined ? {} : { placeId: query.data.placeId }),
         limit: query.data.limit,
         ...(query.data.cursor === undefined ? {} : { cursor: query.data.cursor }),
       }))

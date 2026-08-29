@@ -176,6 +176,24 @@ export const writingCommandRequestSchema = z.object({
   command: writingCommandSchema,
 }).strict()
 
+export const browserCreatePrivateNoteCommandSchema = createNoteCommandSchema.omit({
+  visibility: true,
+  publicationId: true,
+})
+
+export const browserUpdatePrivateNoteCommandSchema = updateNoteCommandSchema.omit({
+  visibility: true,
+  publicationId: true,
+})
+
+export const browserPrivateNoteCommandRequestSchema = z.object({
+  commandId: uuidSchema,
+  command: z.discriminatedUnion('kind', [
+    browserCreatePrivateNoteCommandSchema,
+    browserUpdatePrivateNoteCommandSchema,
+  ]),
+}).strict()
+
 export const publicationIdentifierParamsSchema = z.object({
   publicationId: uuidSchema,
 }).strict()
@@ -220,6 +238,7 @@ export const publishedWritingSchema = z.discriminatedUnion('kind', [
 export type LibraryCommandRequest = z.infer<typeof libraryCommandRequestSchema>
 export type VisitRecordRequest = z.infer<typeof visitRecordRequestSchema>
 export type BrowserVisitRecordRequest = z.infer<typeof browserVisitRecordRequestSchema>
+export type BrowserPrivateNoteCommandRequest = z.infer<typeof browserPrivateNoteCommandRequestSchema>
 export type WritingCommandRequest = z.infer<typeof writingCommandRequestSchema>
 export type PublishedCollection = z.infer<typeof publishedCollectionSchema>
 export type PublishedWriting = z.infer<typeof publishedWritingSchema>

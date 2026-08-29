@@ -104,3 +104,8 @@ Migration `000027`은 Tag-first 회원 Place 조회를 위해
 deferrable constraint로 바꿔 한 transaction 안의 충돌 없는 순서 이동을 허용하고, runtime에는
 owner 조건을 거친 Collection/Tag 삭제와 Library-owned Import/copy provenance 정리에 필요한 DELETE만
 추가한다. Collection과 Tag의 정규화된 table 관계나 Provider별 column은 추가하지 않는다.
+
+Migration `000028`은 `writing.document_place_links`에
+`(canonical_place_id, document_id)` index를 추가한다. document와 Place의 정규화 관계는 그대로 두고
+선택 Place에서 owner Writing을 역조회할 때 전체 회원 글을 browser가 순회하지 않게 한다. schema shape와
+runtime 권한은 바꾸지 않는다.

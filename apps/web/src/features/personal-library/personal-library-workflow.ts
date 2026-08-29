@@ -16,6 +16,8 @@ import {
   type PersonalLibraryRow,
 } from './personal-library-http'
 import { usePersonalLibraryManagementWorkflow } from './personal-library-management'
+import { usePersonalLibraryNoteWorkflow } from './personal-library-note-workflow'
+import { BrowserWritingProblem } from './personal-library-notes-http'
 import { usePersonalLibraryOrganizationWorkflow } from './personal-library-organization-workflow'
 import { usePersonalLibraryPreferenceWorkflow } from './personal-library-preference-workflow'
 import { usePersonalLibraryVisitWorkflow } from './personal-library-visit-workflow'
@@ -53,7 +55,8 @@ export function usePersonalLibraryWorkflow() {
 
   const handleFailure = useCallback((reason: unknown) => {
     if (reason instanceof DOMException && reason.name === 'AbortError') return
-    const status = reason instanceof BrowserLibraryProblem || reason instanceof BrowserVisitProblem
+    const status = reason instanceof BrowserLibraryProblem ||
+      reason instanceof BrowserVisitProblem || reason instanceof BrowserWritingProblem
       ? reason.status
       : undefined
     if (status === 401) {
@@ -304,6 +307,11 @@ export function usePersonalLibraryWorkflow() {
     onAccessFailure: handleFailure,
     refreshPlace: refreshSelectedPlace,
   })
+  const noteWorkflow = usePersonalLibraryNoteWorkflow({
+    active: mode === 'browse',
+    selectedPlaceId,
+    onAccessFailure: handleFailure,
+  })
   const { refreshSelectedOrganization, ...organizationView } = organization
 
   return {
@@ -326,6 +334,7 @@ export function usePersonalLibraryWorkflow() {
     ...managementWorkflow,
     ...preferences,
     ...visitWorkflow,
+    ...noteWorkflow,
     ...organizationView,
     collectionName,
     loading,

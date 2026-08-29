@@ -14,6 +14,7 @@ export const frontendArchitecturePolicy = defineFrontendArchitecturePolicy({
       publications: ['backend-http'],
       search: ['backend-http'],
       visits: ['auth', 'backend-http'],
+      writing: ['auth', 'backend-http'],
     },
   },
   shellFeaturePublicSegments: ['public'],

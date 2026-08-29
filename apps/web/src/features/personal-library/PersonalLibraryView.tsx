@@ -4,6 +4,7 @@ import type { LibraryPlaceState } from '@place/contracts/library'
 
 import styles from './personal-library.module.css'
 import { PersonalLibraryManagementView } from './PersonalLibraryManagementView'
+import { PersonalLibraryNotes } from './PersonalLibraryNotes'
 import { PersonalLibraryVisits } from './PersonalLibraryVisits'
 import type { PersonalLibraryWorkflow } from './personal-library-workflow'
 import { PersonalLibraryOrganizationEditor } from './PersonalLibraryOrganizationEditor'
@@ -279,6 +280,7 @@ export function PersonalLibraryView({
                 <div><dt>위치</dt><dd>{selectedPlace.location.latitude.toFixed(5)}, {selectedPlace.location.longitude.toFixed(5)}</dd></div>
               </dl>
               {personalState !== undefined && <PersonalLibraryVisits visits={workflow.visits} />}
+              {personalState !== undefined && <PersonalLibraryNotes notes={workflow.notes} />}
               <PersonalLibraryOrganizationEditor workflow={workflow} />
             </>
           )}

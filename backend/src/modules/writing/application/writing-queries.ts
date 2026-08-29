@@ -8,6 +8,7 @@ export interface WritingQueries {
   list(input: Readonly<{
     memberId: string
     kind: WritingKindFilter
+    placeId?: string
     cursor?: string
     limit: number
   }>): Promise<WritingListPage>

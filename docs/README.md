@@ -17,7 +17,7 @@ Read only the routes required by the task, after repository `AGENTS.md` and `REA
 - Local execution, worker lifecycle, deployment, backup, or incidents: `operations/README.md`.
 - A durable decision or supersession: `adr/README.md`.
 
-Delivery state is **source-only; Stages 6.5 and 7.5–7.11 complete, with Stages 2 and 7 in progress and Stage 8 paused after 8B**. A Place-owned physical PostGIS runtime is
+Delivery state is **source-only; Stages 6.5 and 7.5–7.12 complete, with Stages 2 and 7 in progress and Stage 8 paused after 8B**. A Place-owned physical PostGIS runtime is
 implemented and tested in disposable environments but not deployed or active. No provider account, browser profile, map credential, Identity
 client, Gateway route, family composer, or AI connection is active.
 
@@ -69,6 +69,11 @@ Stage 7.11은 기존 Visits Backend 계약을 Personal Library의 선택 Place �
 반복 방문은 각각 새로운 불변 occurrence이고, bounded history와 응답 유실 시 동일 요청 재전송을
 desktop/mobile에서 검증한다. 브라우저는 내부 evidence나 member ID를 제출하지 않으며 Provider 수집,
 AI, Product Tier UI 분기 없이 existing authorization seam을 사용한다.
+
+Stage 7.12는 Place-filtered bounded Writing query와 private Note 생성·수정 Web 흐름을 추가한다.
+브라우저 command는 visibility·publication·Entry 권한을 갖지 않고, 응답 유실 replay와 optimistic
+version conflict의 초안 보존을 desktop/mobile에서 검증한다. Migration `000028`은 기존 정규화 link
+table의 Place-first 조회만 보강한다.
 
 Stage 5는 data-defined Taxonomy와 Search 소유 projection을 추가했다. 로컬 text·taxonomy·bounds·
 회원 signal 검색, cursor pagination, source-neutral partial 결과, responsive 목록/지도 UI를 실제

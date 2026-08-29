@@ -9,6 +9,7 @@ export const writingKindFilterSchema = z.enum(['all', 'note', 'entry'])
 
 export const writingListQuerySchema = z.object({
   kind: writingKindFilterSchema.default('all'),
+  placeId: uuidSchema.optional(),
   cursor: cursorSchema.optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 }).strict()
@@ -43,7 +44,10 @@ export const writingSummarySchema = z.discriminatedUnion('kind', [
 
 export const writingListResponseSchema = z.object({
   schemaVersion: z.literal('writing-list.v1'),
-  filter: z.object({ kind: writingKindFilterSchema }).strict(),
+  filter: z.object({
+    kind: writingKindFilterSchema,
+    placeId: uuidSchema.optional(),
+  }).strict(),
   items: z.array(writingSummarySchema).max(50),
   nextCursor: cursorSchema.optional(),
 }).strict()

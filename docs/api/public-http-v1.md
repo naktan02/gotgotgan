@@ -83,6 +83,10 @@ update를 피한다.
 없다. 사용되지 않던 unbounded `GET /v1/library` HTTP aggregate는 제거됐다. 각 bounded route와
 내부 Library Interface가 기능별 책임을 나눠 가진다.
 
+`GET /v1/writing`은 `kind` 외에 optional canonical `placeId`를 받아 그 Place에 연결된 owner Writing만
+반환한다. opaque cursor는 kind와 Place ID 모두에 묶이며 filter가 다른 요청에서 재사용할 수 없다.
+`writing.document_place_links`의 정규화 관계를 유지하고 Place-first index로 bounded 역조회를 지원한다.
+
 `GET /v1/library/places`는 saved/wanted/rated state와 함께 반복 `tagIds` 최대 20개를 받는다.
 `tagMatch=all`은 모든 Tag가 붙은 Place만, `tagMatch=any`는 하나 이상 붙은 Place를 반환한다.
 Tag 이름이 바뀌어도 조회 identity와 기존 cursor 의미가 흔들리지 않도록 UUID만 filter에 사용한다.
@@ -125,6 +129,12 @@ Web은 Visit 계약을 `GET /api/places/{placeId}/visits`와 `POST /api/visits`�
 브라우저 계약에 포함하지 않는다. 같은 장소의 반복 방문은 서로 다른 ID의 불변 occurrence이고,
 응답 결과가 불명확한 동일 시도만 원래 ID와 payload로 재전송한다. history query와 응답은 Backend의
 bounded cursor 계약을 그대로 검증하며 private 응답은 `no-store`다.
+
+Web Writing은 `GET /api/writing`, `GET /api/writing/{documentId}`와
+`POST /api/writing/commands`로 owner 목록·상세와 private Note mutation을 노출한다. Browser command는
+create/update Note의 ID, Place, body, expected version만 허용한다. Entry, visibility, publication ID는
+거부하고 server Adapter가 Backend command에 `visibility: private`을 추가한다. 적용은 `201`, 동일
+command replay는 `200`, stale expected version은 retryable `409`로 보존한다.
 
 `GET /v1/public/collections/{publicationId}`와 `GET /v1/public/writing/{publicationId}`는
 Stage 4에서 유일한 anonymous Backend projection이다. Web은 고정된 내부 Backend origin을 통해

@@ -123,7 +123,8 @@ Visit/Writing query suite는 Place에 묶인 Visit cursor와 Writing kind에 묶
 거부하고, 회원별 행 격리와 1~50 limit guard를 검증한다. Visit 목록에 member/fingerprint/evidence가
 없고 Writing 목록은 280자 preview만 가지며 단건 detail에서만 전체 본문을 돌려주는지도 확인한다.
 각 5,000행 대표 부하에서는 member·Place·time·ID Visit index와 owner·updated-at·ID Writing index가
-실제 query plan에 선택된다.
+실제 query plan에 선택된다. Place-filtered Writing은 kind·Place에 cursor를 함께 묶고 Migration
+`000028`의 Place-first link index가 선택되는지도 검증한다.
 
 interactive suggestion suite는 빈 Canonical DB에서 fixture provider 후보를 Discovery와 impression에만
 저장하는지 확인한다. 같은 session의 반복 입력은 로컬 Discovery에서 같은 suggestion/evidence ID를

@@ -95,6 +95,11 @@ Personal Library의 visit workflow는 View에 기록·history·retry를 묶은 �
 replay/conflict와 occurrence truth를 계속 소유하며 Web은 Product Tier나 Provider evidence를 해석하지
 않는다.
 
+Web의 `platform/writing`도 인증 session과 고정 Backend transport만 소비한다. browser command
+Interface는 private Note 생성·수정만 허용하고 Adapter가 Backend command의 visibility를 고정한다.
+Personal Library note workflow는 목록·상세·draft·replay·version conflict를 하나의 Interface 뒤에
+숨긴다. Writing owner의 revision/publication 규칙이나 future Entry editor를 View로 끌어오지 않는다.
+
 회원 전체 Library를 한 번에 반환하는 unbounded Store 메서드는 두지 않는다. HTTP composition은
 bounded `LibraryQueries`를 필수로 주입하고 테스트도 같은 public Interface를 사용한다.
 

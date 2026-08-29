@@ -20,6 +20,9 @@ import {
 } from './access.js'
 import {
   addCollectionPlaceCommandSchema,
+  browserCreatePrivateNoteCommandSchema,
+  browserPrivateNoteCommandRequestSchema,
+  browserUpdatePrivateNoteCommandSchema,
   browserVisitRecordRequestSchema,
   copyPublishedCollectionCommandSchema,
   createCollectionCommandSchema,
@@ -218,6 +221,11 @@ const writingKindParameter = {
   schema: { type: 'string', enum: ['all', 'note', 'entry'], default: 'all' },
 }
 
+const writingPlaceIdParameter = {
+  name: 'placeId', in: 'query', required: false,
+  schema: { type: 'string', format: 'uuid' },
+}
+
 const importBatchStateParameter = {
   name: 'state', in: 'query', required: false,
   schema: {
@@ -332,6 +340,39 @@ const paths = {
     '409': ref('responses', 'ProductConflict'),
     '503': ref('responses', 'BrowserBackendUnavailable'),
   }, { security: browserSession, requestSchema: 'BrowserVisitRecordRequest' }) },
+  '/api/writing': {
+    get: operation('listCurrentMemberPlaceWritingForBrowser', {
+      '200': described('Return bounded current-member Writing summaries', 'WritingListResponse'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, {
+      security: browserSession,
+      parameters: [writingKindParameter, writingPlaceIdParameter, boundedCursorParameter, boundedLimitParameter],
+    }),
+  },
+  '/api/writing/{documentId}': {
+    parameters: [pathParameters.documentId],
+    get: operation('getCurrentMemberPlaceWritingForBrowser', {
+      '200': described('Return current-member Writing detail', 'WritingDetailResponse'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, { security: browserSession }),
+  },
+  '/api/writing/commands': { post: operation('applyPrivateNoteCommandForBrowser', {
+    '200': described('Return an idempotently replayed private Note command', 'WritingCommandResult'),
+    '201': described('Return an applied private Note command', 'WritingCommandResult'),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '401': ref('responses', 'AuthenticationRequired'),
+    '403': ref('responses', 'AccessDenied'),
+    '404': ref('responses', 'ProductNotFound'),
+    '409': ref('responses', 'ProductConflict'),
+    '503': ref('responses', 'BrowserBackendUnavailable'),
+  }, { security: browserSession, requestSchema: 'BrowserPrivateNoteCommandRequest' }) },
   '/api/library/places': { get: operation('listPlaceLibraryPlacesForBrowser', {
     '200': described('Return a bounded member Place preference page', 'LibraryPlaceListResponse'),
     '400': ref('responses', 'ProductRequestInvalid'),
@@ -778,7 +819,7 @@ const paths = {
       '503': ref('responses', 'WritingQueryUnavailable'),
     }, {
       security: bearer,
-      parameters: [writingKindParameter, boundedCursorParameter, boundedLimitParameter],
+      parameters: [writingKindParameter, writingPlaceIdParameter, boundedCursorParameter, boundedLimitParameter],
     }),
   },
   '/v1/writing/{documentId}': {
@@ -904,6 +945,9 @@ const schemas: Readonly<Record<string, ZodType>> = {
   CopyPublishedCollectionCommand: copyPublishedCollectionCommandSchema,
   VisitRecordRequest: visitRecordRequestSchema,
   BrowserVisitRecordRequest: browserVisitRecordRequestSchema,
+  BrowserCreatePrivateNoteCommand: browserCreatePrivateNoteCommandSchema,
+  BrowserUpdatePrivateNoteCommand: browserUpdatePrivateNoteCommandSchema,
+  BrowserPrivateNoteCommandRequest: browserPrivateNoteCommandRequestSchema,
   VisitRecordResult: visitRecordResultSchema,
   VisitSummaryResponse: visitSummaryResponseSchema,
   WritingCommandRequest: writingCommandRequestSchema,

@@ -80,6 +80,26 @@ describe('bounded Writing HTTP queries', () => {
     await app.close()
   })
 
+  it('passes one canonical Place filter to the Writing query Interface', async () => {
+    const list = vi.fn<WritingQueries['list']>(async (input) => ({
+      schemaVersion: 'writing-list.v1',
+      filter: { kind: input.kind, placeId: input.placeId! },
+      items: [],
+    }))
+    const app = fixture({ list })
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/writing?kind=note&placeId=${placeId}&limit=10`,
+      headers: { authorization: 'Bearer good' },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(list).toHaveBeenCalledWith({ memberId, kind: 'note', placeId, limit: 10 })
+    expect(response.json().filter).toEqual({ kind: 'note', placeId })
+    await app.close()
+  })
+
   it('returns bounded summaries and owner detail separately', async () => {
     const app = fixture()
     const headers = { authorization: 'Bearer good' }

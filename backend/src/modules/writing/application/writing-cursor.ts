@@ -1,12 +1,13 @@
 import { InvalidWritingCursorError, type WritingKindFilter } from '../domain/queries.js'
 
 type WritingCursor = Readonly<{ updatedAt: string; documentId: string }>
+type WritingCursorFilter = Readonly<{ kind: WritingKindFilter; placeId?: string }>
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 export function decodeWritingCursor(
   value: string | undefined,
-  kind: WritingKindFilter,
+  filter: WritingCursorFilter,
 ): WritingCursor | undefined {
   if (value === undefined) return undefined
   try {
@@ -15,7 +16,8 @@ export function decodeWritingCursor(
       typeof payload !== 'object' || payload === null || Array.isArray(payload) ||
       !('v' in payload) || payload.v !== 1 ||
       !('kind' in payload) || payload.kind !== 'writing' ||
-      !('filter' in payload) || payload.filter !== kind ||
+      !('filter' in payload) || payload.filter !== filter.kind ||
+      ('placeId' in payload ? payload.placeId : null) !== (filter.placeId ?? null) ||
       !('updatedAt' in payload) || typeof payload.updatedAt !== 'string' ||
       !Number.isFinite(Date.parse(payload.updatedAt)) ||
       !('documentId' in payload) || typeof payload.documentId !== 'string' ||
@@ -28,13 +30,14 @@ export function decodeWritingCursor(
 }
 
 export function encodeWritingCursor(
-  kind: WritingKindFilter,
+  filter: WritingCursorFilter,
   cursor: WritingCursor,
 ): string {
   return Buffer.from(JSON.stringify({
     v: 1,
     kind: 'writing',
-    filter: kind,
+    filter: filter.kind,
+    placeId: filter.placeId ?? null,
     ...cursor,
   }), 'utf8').toString('base64url')
 }

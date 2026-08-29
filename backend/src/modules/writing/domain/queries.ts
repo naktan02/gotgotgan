@@ -18,7 +18,7 @@ export type WritingSummary =
 
 export type WritingListPage = Readonly<{
   schemaVersion: 'writing-list.v1'
-  filter: Readonly<{ kind: WritingKindFilter }>
+  filter: Readonly<{ kind: WritingKindFilter; placeId?: string }>
   items: readonly WritingSummary[]
   nextCursor?: string
 }>

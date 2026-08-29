@@ -19,6 +19,11 @@ cursor로 읽는다. 같은 장소를 다시 방문하면 이전 행을 수정�
 모르는 경우에만 같은 Visit ID와 payload를 재전송하며, 브라우저는 내부 evidence를 만들거나 보내지
 않는다.
 
+`내 메모`는 선택한 Place에 연결된 짧은 private Note만 다룬다. 목록은 Place에 묶인 bounded cursor로
+읽고 생성·수정은 명시적 저장을 사용한다. 저장 결과를 잃으면 동일 command를 재전송하며 optimistic
+version conflict에서는 작성 중인 초안을 유지하고 사용자가 최신 내용을 불러오도록 한다. 저장하지
+않은 변경이 있으면 다른 Note 선택을 잠가 조용한 초안 유실을 막는다.
+
 지역·분류 선택지는 `library-place-facets.v1`만 표시하며 count와 불완전 표본 상태도 그대로 전달한다.
 화면은 지역명을 번역·병합하거나 Taxonomy를 새로 추론하지 않는다.
 
@@ -26,4 +31,4 @@ cursor로 읽는다. 같은 장소를 다시 방문하면 이전 행을 수정�
 preference workflow는 버전 기반 상태 변경과 안전한 재시도를, organization workflow는 선택 장소의
 분류 변경을, management workflow는 Collection·Tag 수명주기와 순서를 맡는다. visit workflow는 불변
 기록·동일 요청 재시도·history pagination을 하나의 좁은 Interface 뒤에 두고, 각 View는 접근 가능한
-표현만 맡는다.
+표현만 맡는다. note workflow도 목록·상세·optimistic mutation을 하나의 Interface 뒤에 숨긴다.
