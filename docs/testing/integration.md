@@ -110,9 +110,9 @@ filter, 불투명 cursor pagination, 익명 결과의 개인 상태 비노출과
 
 Canonical Place detail suite는 Places redirect/lifecycle 해석, Search 공개 문서, Library preference,
 Visits summary를 각 공개 Interface로 조립한다. 익명 응답의 개인 상태 비노출, 정상 optional bearer의
-개인 상태 결합, 잘못된 bearer의 `401`, retired의 `410`, projection lag의 retryable `503`을 실제
-least-privilege PostGIS 위에서 검증한다. 어느 persistence Adapter도 다른 owner schema를 join하지
-않는다.
+개인 상태 결합, 잘못된 bearer의 `401`, retired의 `410`을 실제 least-privilege PostGIS 위에서
+검증한다. projection lag는 익명 요청의 retryable `503`과 인증된 요청의 public-fact 없는 `pending`
+개인 projection을 모두 검증한다. 어느 persistence Adapter도 다른 owner schema를 join하지 않는다.
 
 Bounded Library query suite는 saved/wanted/rated filter별 keyset pagination, filter 간 cursor 재사용
 거부, Collection 목록과 membership pagination, 다른 회원 Collection의 비공개 `not-found`, Tag별

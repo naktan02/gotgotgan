@@ -40,7 +40,9 @@ Interface다. 내부 workflow가 Place detail 요청, 교체 선택 취소, 로�
 preference·organization·Visit·Note workflow 조립을 소유한다. 따라서 Library의 상위 workflow는
 목록·filter·선택·관리만 맡고, Search 같은 다른 app 흐름도 개인 기능을 복제하지 않고 이 Interface를
 사용할 수 있다. 공개 상세에 `personalState`가 없으면 canonical 사실은 유지한 채 로그인 동작을
-제시한다. 상세 내용과 하위 편집기 스타일도 별도 CSS module이 소유한다.
+제시한다. 인증된 `pending` 상세는 이름·좌표를 꾸미지 않고 기본 정보 대기를 표시하되, 공개 summary
+렌더링과 분리된 개인 상태·분류·방문·메모 controls는 계속 활성화한다. 상세 내용과 하위 편집기
+스타일도 별도 CSS module이 소유한다.
 
 `personal-library-http.ts`는 versioned browser payload 해석을, 기본 workflow는 목록 조정을,
 preference workflow는 버전 기반 상태 변경과 안전한 재시도를, organization workflow는 선택 장소의

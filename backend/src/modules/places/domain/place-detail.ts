@@ -28,12 +28,23 @@ export type PlaceDetailPersonalSource = Readonly<{
   visits: PlaceDetailVisitSummary
 }>
 
-export type PlaceDetail = Readonly<{
+type PlaceDetailIdentity = Readonly<{
   schemaVersion: 'place-detail.v1'
-  status: 'available' | 'redirected'
   requestedPlaceId: string
   placeId: string
   redirectedFrom: readonly string[]
+}>
+
+type PlaceDetailPersonalState = Readonly<{
+  saved: boolean
+  wanted: boolean
+  personalRating: number | null
+  preferencesUpdatedAt: string | null
+  visits: PlaceDetailVisitSummary
+}>
+
+type AvailablePlaceDetail = PlaceDetailIdentity & Readonly<{
+  status: 'available' | 'redirected'
   name: string
   areaLabel: string | null
   location: Readonly<{ latitude: number; longitude: number }>
@@ -43,14 +54,15 @@ export type PlaceDetail = Readonly<{
     status: PlaceDetailDocument['evidenceStatus']
     projectedAt: string
   }>
-  personalState?: Readonly<{
-    saved: boolean
-    wanted: boolean
-    personalRating: number | null
-    preferencesUpdatedAt: string | null
-    visits: PlaceDetailVisitSummary
-  }>
+  personalState?: PlaceDetailPersonalState
 }>
+
+type PendingPlaceDetail = PlaceDetailIdentity & Readonly<{
+  status: 'pending'
+  personalState: PlaceDetailPersonalState
+}>
+
+export type PlaceDetail = AvailablePlaceDetail | PendingPlaceDetail
 
 export type PlaceDetailReadResult =
   | Readonly<{ status: 'found'; detail: PlaceDetail }>

@@ -55,4 +55,31 @@ describe('place detail contract', () => {
     expect(detail.status).toBe('redirected')
     expect(detail.personalState).toBeUndefined()
   })
+
+  it('represents a member-owned Place while its public detail is still pending', () => {
+    const pending = {
+      schemaVersion: 'place-detail.v1',
+      status: 'pending',
+      requestedPlaceId: placeId,
+      placeId,
+      redirectedFrom: [],
+      personalState: {
+        saved: true,
+        wanted: false,
+        personalRating: null,
+        preferencesUpdatedAt: '2026-08-26T01:00:00.000Z',
+        visits: { visited: false, count: 0 },
+      },
+    } as const
+
+    expect(placeDetailResponseSchema.parse(pending)).toEqual(pending)
+    expect(() => placeDetailResponseSchema.parse({
+      ...pending,
+      personalState: undefined,
+    })).toThrow()
+    expect(() => placeDetailResponseSchema.parse({
+      ...pending,
+      name: '근거 없이 만든 공개 장소명',
+    })).toThrow()
+  })
 })

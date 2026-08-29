@@ -111,6 +111,48 @@ describe('place detail reader', () => {
     await expect(retired({ requestedPlaceId })).resolves.toEqual({ status: 'retired', placeId: canonicalPlaceId })
     await expect(unavailable({ requestedPlaceId })).resolves.toEqual({ status: 'unavailable', placeId: canonicalPlaceId })
   })
+
+  it('keeps an unprojected Place unavailable to anonymous readers but exposes member-owned state', async () => {
+    const readPersonal = vi.fn(async () => ({
+      preferences: {
+        saved: true,
+        wanted: false,
+        personalRating: null,
+        updatedAt: '2026-08-26T01:00:00.000Z',
+      },
+      visits: { visited: false as const, count: 0 as const },
+    }))
+    const read = createPlaceDetailReader({
+      canonical: canonical({ status: 'active', placeId: canonicalPlaceId, redirectedFrom: [] }),
+      readDocument: async () => undefined,
+      readPersonal,
+    })
+
+    await expect(read({ requestedPlaceId })).resolves.toEqual({
+      status: 'unavailable',
+      placeId: canonicalPlaceId,
+    })
+    expect(readPersonal).not.toHaveBeenCalled()
+
+    await expect(read({ requestedPlaceId, memberId: 'member-1' })).resolves.toEqual({
+      status: 'found',
+      detail: {
+        schemaVersion: 'place-detail.v1',
+        status: 'pending',
+        requestedPlaceId,
+        placeId: canonicalPlaceId,
+        redirectedFrom: [],
+        personalState: {
+          saved: true,
+          wanted: false,
+          personalRating: null,
+          preferencesUpdatedAt: '2026-08-26T01:00:00.000Z',
+          visits: { visited: false, count: 0 },
+        },
+      },
+    })
+    expect(readPersonal).toHaveBeenCalledWith('member-1', canonicalPlaceId)
+  })
 })
 
 describe('place detail HTTP boundary', () => {

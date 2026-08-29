@@ -58,6 +58,17 @@ test('place detail joins canonical facts with an authorized personal overlay', {
       },
       store: libraryStore,
     })
+    await library.applyLibraryCommand({
+      commandId: '01992d20-2000-7000-8000-000000000302',
+      memberId,
+      occurredAt: at,
+      command: {
+        kind: 'set-place-preferences', placeId: unprojectedPlaceId,
+        expectedUpdatedAt: null,
+        saved: true, wanted: false, personalRating: null,
+      },
+      store: libraryStore,
+    })
     for (const [id, visitedAt] of [
       ['01992d20-2000-7000-8000-000000000401', '2026-07-01T12:00:00.000Z'],
       ['01992d20-2000-7000-8000-000000000402', '2026-08-01T12:00:00.000Z'],
@@ -136,6 +147,25 @@ test('place detail joins canonical facts with an authorized personal overlay', {
     })
     assert.equal(unprojected.statusCode, 503)
     assert.equal(unprojected.json().retryable, true)
+    const personalUnprojected = await application.inject({
+      method: 'GET', url: `/v1/places/${unprojectedPlaceId}`,
+      headers: { authorization: 'Bearer good' },
+    })
+    assert.equal(personalUnprojected.statusCode, 200)
+    assert.deepEqual(personalUnprojected.json(), {
+      schemaVersion: 'place-detail.v1',
+      status: 'pending',
+      requestedPlaceId: unprojectedPlaceId,
+      placeId: unprojectedPlaceId,
+      redirectedFrom: [],
+      personalState: {
+        saved: true,
+        wanted: false,
+        personalRating: null,
+        preferencesUpdatedAt: at,
+        visits: { visited: false, count: 0 },
+      },
+    })
   } finally {
     await application?.close().catch(() => undefined)
     await database.close()

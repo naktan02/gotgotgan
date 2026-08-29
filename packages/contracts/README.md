@@ -47,8 +47,10 @@ import한다. Connector는 `@place/contracts/connector`만 사용한다. `http/o
 subpath는 이를 재사용하거나 기존 위치에서 재-export하며 Contracts architecture guard가
 Imports/Connector에서 Search·HTTP로 향하는 역방향 의존성을 거부한다.
 
-`@place/contracts/places`는 `place-detail.v1`을 소유한다. 공개 Canonical Place 사실과 선택적인
-회원 개인 상태를 분리하며, 아직 수집 근거가 없는 Provider 상세 필드는 허용하지 않는다.
+`@place/contracts/places`는 `place-detail.v1`을 소유한다. `available`/`redirected`는 공개 Canonical
+Place 사실과 선택적인 회원 개인 상태를 분리한다. 인증된 회원의 Canonical Place에 공개 Search
+문서가 아직 없으면 `pending`이 개인 상태만 반환하며 이름·좌표·Taxonomy 같은 공개 사실을 꾸며 넣지
+않는다. 아직 수집 근거가 없는 Provider 상세 필드도 허용하지 않는다.
 
 `@place/contracts/library`는 `library-command-result.v1`, `library-place-preferences.v1`과 bounded `library-place-list.v3`, `library-place-facets.v1`, `library-collection-list.v1`,
 `library-collection-detail.v1`, `library-tag-list.v1` projection을 소유한다. 모든 page limit은

@@ -93,6 +93,11 @@ Stage 7.16은 focused Search suite를 16개 desktop/mobile case로 확장한다.
 운영체제의 Windows/Linux Chromium에서 다시 생성하고 검토한다. Library의 28개 case도 같은 공유
 상세 module을 통해 계속 통과해야 한다.
 
+가져온 Place의 공개 detail projection이 아직 `pending`이어도 desktop/mobile Library는 일반 오류로
+바꾸지 않는다. 기본 정보 대기를 표시하면서 내 상태, 내 분류, 반복 방문, private Note controls가
+모두 남는지 별도 fixture로 검증한다. 이 follow-up을 포함한 focused Library suite는 30개
+desktop/mobile case다.
+
 Stage 5 Playwright는 같은 공개 경계에 결정적인 Taxonomy/Search fixture를 연결한다. 입력
 debounce와 교체 요청의 실제 upstream 취소, 목록·마커 선택 동기화, 명시적 bounds 재검색,
 Taxonomy filter, cursor pagination, mobile 목록/지도 전환, partial·loading·empty·error·retry와

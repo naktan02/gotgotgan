@@ -23,3 +23,6 @@ to anonymous access; Product Tier names and bearer tokens never enter the detail
 The current `place-detail.v1` projection contains only facts already owned by Place: name, area,
 coordinates, taxonomy, evidence freshness, and optional preferences/visit summary. Provider hours,
 menus, photos, ratings, raw observations, and review state are not fabricated into this response.
+When the public Search document is missing, anonymous reads remain retryable `503`. An authorized
+member instead receives a `pending` projection containing only canonical identity and authoritative
+personal state, so projection lag cannot disable personal Library, Visit, or Writing capabilities.

@@ -80,6 +80,7 @@ async function installLibraryFixture(
     writingFailureOnce?: boolean
     writingConflictOnce?: boolean
     paginatedNotes?: boolean
+    pendingDetail?: boolean
   }> = {},
 ) {
   let preferenceRevision = 0
@@ -216,7 +217,7 @@ async function installLibraryFixture(
     const allItems = [{
           placeId: ramenPlaceId,
           ...preferences[ramenPlaceId],
-          place: ramen,
+          place: options.pendingDetail ? null : ramen,
         }, {
           placeId: cafePlaceId,
           ...preferences[cafePlaceId],
@@ -231,7 +232,7 @@ async function installLibraryFixture(
         selectedAreas.includes(item.placeId === ramenPlaceId ? seongsuAreaKey : seoulForestAreaKey)
       )) &&
       (selectedTaxonomies.length === 0 || selectedTaxonomies.includes(
-        item.place.primaryTaxonomy.key,
+        item.place?.primaryTaxonomy.key ?? '',
       ))
     ))
     return json(route, {
@@ -392,6 +393,29 @@ async function installLibraryFixture(
     const preference = preferences[selected.placeId]!
     const placeVisits = visits.get(selected.placeId) ?? []
     const visitedTimes = placeVisits.map((visit) => visit.visitedAt).sort()
+    if (options.pendingDetail && selected.placeId === ramenPlaceId) {
+      return json(route, {
+        schemaVersion: 'place-detail.v1',
+        status: 'pending',
+        requestedPlaceId: selected.placeId,
+        placeId: selected.placeId,
+        redirectedFrom: [],
+        personalState: {
+          saved: preference.saved,
+          wanted: preference.wanted,
+          personalRating: preference.personalRating,
+          preferencesUpdatedAt: preference.updatedAt,
+          visits: placeVisits.length === 0
+            ? { visited: false, count: 0 }
+            : {
+                visited: true,
+                count: placeVisits.length,
+                firstVisitedAt: visitedTimes[0],
+                lastVisitedAt: visitedTimes.at(-1),
+              },
+        },
+      })
+    }
     return json(route, {
       schemaVersion: 'place-detail.v1',
       status: 'available',
@@ -695,6 +719,23 @@ test('keeps list, detail, and map coordinated across desktop and mobile surfaces
   await detail.getByRole('button', { name: '목록으로' }).click()
   await expect(list).toBeVisible()
   await expect(list.getByRole('button', { name: /멘야 하루/ })).toBeFocused()
+})
+
+test('keeps personal controls available while imported Place detail is pending', async ({ page }) => {
+  await installLibraryFixture(page, { pendingDetail: true })
+  await page.goto('/library')
+
+  await page.getByRole('region', { name: '장소 목록' })
+    .getByRole('button', { name: /장소 정보 동기화 중/ })
+    .click()
+
+  const detail = page.getByRole('complementary', { name: '선택한 장소 상세' })
+  await expect(detail.getByText('기본 정보 대기', { exact: true })).toBeVisible()
+  await expect(detail.getByRole('alert')).toHaveCount(0)
+  await expect(detail.getByRole('region', { name: '내 상태' })).toBeVisible()
+  await expect(detail.getByRole('region', { name: '내 분류' })).toBeVisible()
+  await expect(detail.getByRole('region', { name: '방문 기록' })).toBeVisible()
+  await expect(detail.getByRole('region', { name: '내 메모' })).toBeVisible()
 })
 
 test('shows a login action when the opaque browser session is absent', async ({ page }) => {

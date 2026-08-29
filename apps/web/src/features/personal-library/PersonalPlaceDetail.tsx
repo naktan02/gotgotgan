@@ -29,8 +29,9 @@ export function PersonalPlaceDetail({
   onChanged?: () => Promise<unknown>
 }>) {
   const workflow = usePersonalPlaceDetailWorkflow({ placeId, onChanged })
-  const selectedPlace = workflow.detail ?? summary
-  const evidenceStatus = workflow.detail?.evidence.status ?? summary?.evidenceStatus
+  const publicDetail = workflow.detail?.status === 'pending' ? undefined : workflow.detail
+  const selectedPlace = publicDetail ?? summary
+  const evidenceStatus = publicDetail?.evidence.status ?? summary?.evidenceStatus
   const personalState = workflow.detail?.personalState
   const loginRequired = workflow.authenticationRequired || (
     workflow.detail !== undefined && personalState === undefined
@@ -39,9 +40,17 @@ export function PersonalPlaceDetail({
   return (
     <div className={styles.detailContent}>
       {selectedPlace === undefined ? (
-        <div className={styles.detailEmpty} role={workflow.loading ? 'status' : undefined}>
-          {workflow.loading ? '상세 정보를 불러오는 중…' : '상세 정보를 지금 확인할 수 없습니다.'}
-        </div>
+        workflow.detail?.status === 'pending' ? (
+          <div className={styles.detailHeading}>
+            <p>분류 미확인</p>
+            <h2>장소 정보 동기화 중</h2>
+            <span>지역 정보 없음</span>
+          </div>
+        ) : (
+          <div className={styles.detailEmpty} role={workflow.loading ? 'status' : undefined}>
+            {workflow.loading ? '상세 정보를 불러오는 중…' : '상세 정보를 지금 확인할 수 없습니다.'}
+          </div>
+        )
       ) : (
         <>
           <div className={styles.detailHeading}>
@@ -53,17 +62,6 @@ export function PersonalPlaceDetail({
             </span>
           </div>
 
-          {personalState !== undefined && (
-            <PersonalLibraryPreferenceEditor workflow={workflow} />
-          )}
-          {personalState !== undefined && (
-            <nav aria-label="장소 상세 항목" className={styles.detailTabs}>
-              <a href="#place-facts">정보</a>
-              <a href="#place-organization">내 분류</a>
-              <a href="#place-visits">방문</a>
-              <a href="#place-notes">메모</a>
-            </nav>
-          )}
           <dl className={styles.placeFacts} id="place-facts">
             <div>
               <dt>정보 상태</dt>
@@ -77,8 +75,26 @@ export function PersonalPlaceDetail({
         </>
       )}
 
+      {personalState !== undefined && (
+        <PersonalLibraryPreferenceEditor workflow={workflow} />
+      )}
+      {personalState !== undefined && (
+        <nav aria-label="장소 상세 항목" className={styles.detailTabs}>
+          <a href="#place-facts">정보</a>
+          <a href="#place-organization">내 분류</a>
+          <a href="#place-visits">방문</a>
+          <a href="#place-notes">메모</a>
+        </nav>
+      )}
+
       {workflow.loading && selectedPlace !== undefined && (
         <p className={styles.detailStatus} role="status">내 장소 기능을 불러오는 중…</p>
+      )}
+      {workflow.detail?.status === 'pending' && (
+        <section className={styles.accessNotice} role="status">
+          <strong>기본 정보 대기</strong>
+          <span>장소 기본 정보는 동기화 중입니다. 내 분류, 방문, 메모는 지금 사용할 수 있습니다.</span>
+        </section>
       )}
       {loginRequired && (
         <section className={styles.accessNotice}>

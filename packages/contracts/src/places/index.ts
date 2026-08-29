@@ -45,14 +45,26 @@ const placeSummaryFields = {
 
 export const placeSummarySchema = z.object(placeSummaryFields).strict()
 
-export const placeDetailResponseSchema = z.object({
+const placeDetailIdentityFields = {
   schemaVersion: z.literal('place-detail.v1'),
-  status: z.enum(['available', 'redirected']),
   requestedPlaceId: uuidSchema,
+  placeId: uuidSchema,
   redirectedFrom: z.array(uuidSchema).max(32),
-  ...placeSummaryFields,
-  personalState: placeDetailPersonalStateSchema.optional(),
-}).strict()
+}
+
+export const placeDetailResponseSchema = z.discriminatedUnion('status', [
+  z.object({
+    ...placeDetailIdentityFields,
+    status: z.enum(['available', 'redirected']),
+    ...placeSummaryFields,
+    personalState: placeDetailPersonalStateSchema.optional(),
+  }).strict(),
+  z.object({
+    ...placeDetailIdentityFields,
+    status: z.literal('pending'),
+    personalState: placeDetailPersonalStateSchema,
+  }).strict(),
+])
 
 export type PlaceSummary = z.infer<typeof placeSummarySchema>
 export type PlaceDetailPersonalState = z.infer<typeof placeDetailPersonalStateSchema>

@@ -101,7 +101,9 @@ policy-versioned Match Assessment와 review hint일 뿐 Canonical Place를 생�
 Stage 7.5의 첫 수직 조각은 `GET /v1/places/{placeId}`를 제공한다. 익명 요청에는 Canonical Place의
 이름·지역·좌표·Taxonomy·evidence freshness만 반환하고, 검증된 optional bearer 요청에는 Library의
 저장/가고 싶음/개인 평점과 Visits의 반복 방문 요약을 추가한다. redirect는 active Canonical Place로
-해석하고 retired는 `410`, 아직 공개 검색 문서가 투영되지 않은 Place는 retryable `503`이다. 이
+해석하고 retired는 `410`이다. 아직 공개 검색 문서가 투영되지 않은 Place는 익명 요청에 retryable
+`503`을 유지하지만, 인증된 회원 요청에는 공개 사실을 꾸미지 않는 `pending`과 권위 있는 개인 상태를
+반환해 저장·분류·방문·메모를 계속 사용할 수 있다. 이
 조립은 module Interface에서만 이뤄지고 Product Tier나 token은 feature module로 전달되지 않는다.
 두 번째 조각은 `GET /v1/library/places`, `/collections`, `/collections/{collectionId}`, `/tags`로
 회원 Library를 bounded cursor page로 제공한다. saved/wanted/rated 상태는 권위 있는 Library row에서

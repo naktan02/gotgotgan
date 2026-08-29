@@ -63,6 +63,12 @@ endpoint, API key, field mask는 server-side composition이 결정한다. respon
 `GET /api/search/taxonomy` BFF만 browser에 노출하고
 두 방향 payload를 공유 계약으로 다시 검증한다.
 
+`GET /v1/places/{placeId}`는 익명에게 공개 Place detail만 반환하고 optional bearer가 유효하면
+Library preference와 Visits summary를 결합한다. 공개 Search 문서가 아직 없으면 익명 요청은
+retryable `PLACE_DETAIL_UNAVAILABLE` 503이다. 같은 Canonical Place를 인증된 회원이 읽으면
+`place-detail.v1`의 `pending` 200으로 canonical identity와 개인 상태만 반환한다. `pending`에는 이름,
+좌표, Taxonomy, evidence를 넣지 않으며 Web은 기본 정보 대기와 개인 controls를 함께 표시한다.
+
 `POST /v1/library/commands`, `POST /v1/visits`, `POST /v1/writing/commands`는 strict bearer
 인증을 요구하는 Backend operation이다. member, role, grade, tier 입력을 거부하고 Access
 composition에서 member를 파생한다. Library와 Writing command ID는 멱등이고 Writing 수정에는
