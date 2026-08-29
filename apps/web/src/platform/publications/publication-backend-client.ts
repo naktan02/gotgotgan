@@ -5,11 +5,20 @@ import {
   publishedCollectionSchema,
   publishedWritingSchema,
 } from '@place/contracts/http'
+import { publicPlaceDetailResponseSchema } from '@place/contracts/places'
 
 import { requestFixedBackend } from '../backend-http/fixed-backend'
 
 export class PublicationNotFoundError extends Error {
   override readonly name = 'PublicationNotFoundError'
+}
+
+export class PublicPlaceNotFoundError extends Error {
+  override readonly name = 'PublicPlaceNotFoundError'
+}
+
+export class PublicPlaceRetiredError extends Error {
+  override readonly name = 'PublicPlaceRetiredError'
 }
 
 async function requestProjection(pathname: string, environment: Readonly<Record<string, string | undefined>>): Promise<unknown> {
@@ -68,5 +77,22 @@ export async function getPublicWriting(
     await requestProjection(`/v1/public/writing/${encodeURIComponent(publicationId)}`, environment),
   )
   if (!parsed.success) throw new Error('Backend returned invalid writing')
+  return parsed.data
+}
+
+export async function getPublicPlaceDetail(
+  placeId: string,
+  environment: Readonly<Record<string, string | undefined>> = process.env,
+) {
+  const response = await requestFixedBackend(`/v1/places/${encodeURIComponent(placeId)}`, {
+    signal: AbortSignal.timeout(5_000),
+  }, environment)
+  if (response.status === 404) throw new PublicPlaceNotFoundError('Place not found')
+  if (response.status === 410) throw new PublicPlaceRetiredError('Place retired')
+  if (!response.ok || response.headers.get('content-type')?.includes('application/json') !== true) {
+    throw new Error('Public Place detail backend is unavailable')
+  }
+  const parsed = publicPlaceDetailResponseSchema.safeParse(await response.json())
+  if (!parsed.success) throw new Error('Backend returned invalid public Place detail')
   return parsed.data
 }

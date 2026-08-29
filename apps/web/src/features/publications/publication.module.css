@@ -20,3 +20,19 @@
 .loadMore button { min-height: 40px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--ink); padding: 9px 14px; font: inherit; }
 .loadMore button:disabled { cursor: wait; opacity: .6; }
 .listError { color: var(--danger, #b42318); font-size: 13px; text-align: center; }
+.placeDetail { display: grid; gap: 14px; margin-top: 20px; padding: 18px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); }
+.placeDetail p { margin: 0; color: var(--muted); }
+.placeDetailBar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.placeDetailBar button, .placeDetailError button { min-height: 34px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--ink); padding: 7px 11px; font: inherit; }
+.placeDetailContent { display: grid; gap: 6px; }
+.placeDetailContent h2 { margin: 0; font-size: 22px; }
+.placeDetailContent > span { color: var(--muted); font-size: 13px; }
+.placeDetailContent dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 10px 0 0; }
+.placeDetailContent dl div { display: grid; gap: 4px; padding: 10px; border-radius: 8px; background: var(--accent-soft); }
+.placeDetailContent dt { color: var(--muted); font-size: 12px; }
+.placeDetailContent dd { margin: 0; overflow-wrap: anywhere; font-size: 13px; }
+.placeDetailError { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--danger, #b42318); }
+
+@media (max-width: 520px) {
+  .placeDetailContent dl { grid-template-columns: 1fr; }
+}

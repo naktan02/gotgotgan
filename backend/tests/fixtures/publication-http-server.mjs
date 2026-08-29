@@ -331,6 +331,27 @@ const server = createServer(async (request, response) => {
   }
   if (
     request.method === 'GET' &&
+    [placeId, secondPagePlaceId].includes(requestUrl.pathname.replace('/v1/places/', '')) &&
+    requestUrl.pathname.startsWith('/v1/places/')
+  ) {
+    if (request.headers.authorization !== undefined) {
+      sendJson(response, 400, { code: 'PLACE_PUBLIC_DETAIL_AUTHORITY_FORBIDDEN' }, 'application/problem+json')
+      return
+    }
+    const selectedPlaceId = requestUrl.pathname.replace('/v1/places/', '')
+    const selected = publicCollectionPlaces.find((item) => item.placeId === selectedPlaceId)?.place
+    sendJson(response, 200, {
+      schemaVersion: 'place-detail.v1',
+      status: 'available',
+      requestedPlaceId: selectedPlaceId,
+      placeId: selectedPlaceId,
+      redirectedFrom: [],
+      ...selected,
+    })
+    return
+  }
+  if (
+    request.method === 'GET' &&
     requestUrl.pathname === `/v1/public/collections/${collectionPublicationId}/map`
   ) {
     const bounds = {

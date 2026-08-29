@@ -23,6 +23,11 @@ Tag, Visit, Writing, Import provenance는 읽거나 복사하지 않는다.
 별도 cache purge가 없는 현재 단계의 공개 Collection/map/Writing 응답은 `no-store`로 전달해 해제 전
 projection이 browser나 중간 cache에 남는 시간을 허용하지 않는다.
 
+공개 Collection에서 선택한 장소 상세은 `GET /api/public/places/{placeId}`로 지연 조회한다. Web 서버는
+Backend에 bearer evidence를 보내지 않으며 `PublicPlaceDetailResponse`가 이름·지역·좌표·Taxonomy·공개
+evidence와 redirect identity 외의 field를 거부한다. 특히 optional-member Backend route가
+`personalState`를 반환하면 이를 제거해 전달하는 대신 전체 성공 응답을 fail closed한다.
+
 Stage 5 익명 검색은 공개 Place projection만 반환한다. 저장·가고 싶음·방문·Personal Rating
 filter는 verified membership과 `search.read` 권한이 있을 때만 실행하며 membership ID를 browser
 입력으로 받지 않는다. 회원별 signal은 Search 소유 별도 table에서 membership으로 격리하고,

@@ -1,12 +1,16 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { createBrowserPublicationHttp } from './browser-publication-http'
-import { PublicationNotFoundError } from './publication-backend-client'
+import {
+  PublicationNotFoundError,
+  PublicPlaceRetiredError,
+} from './publication-backend-client'
 
 function dependencies() {
   return {
     getCollection: vi.fn(async () => ({ publicationId: 'collection-1', name: '공개 목록' })),
     getCollectionMap: vi.fn(async () => ({ publicationId: 'collection-1', features: [] })),
+    getPlace: vi.fn(async () => ({ placeId: 'place-1', name: '공개 장소' })),
     getWriting: vi.fn(async () => ({ publicationId: 'writing-1', body: '공개 글' })),
     createCorrelationRef: () => 'publication-ref',
   }
@@ -64,5 +68,21 @@ describe('browser publication HTTP', () => {
 
     expect(response.status).toBe(400)
     expect(configured.getCollectionMap).not.toHaveBeenCalled()
+  })
+
+  it('validates public Place identity and preserves retired semantics', async () => {
+    const configured = dependencies()
+    const http = createBrowserPublicationHttp(configured)
+    const invalid = await http.place('not-a-place')
+
+    expect(invalid.status).toBe(404)
+    expect(configured.getPlace).not.toHaveBeenCalled()
+
+    configured.getPlace.mockRejectedValueOnce(new PublicPlaceRetiredError('private lifecycle'))
+    const retired = await http.place('01992d20-0000-7000-8000-000000000003')
+    expect(retired.status).toBe(410)
+    expect(await retired.json()).toMatchObject({
+      code: 'PLACE_RETIRED', retryable: false,
+    })
   })
 })

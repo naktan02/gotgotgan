@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   getPublicCollection,
   getPublicCollectionMap,
+  getPublicPlaceDetail,
   getPublicWriting,
   PublicationNotFoundError,
 } from './publication-backend-client'
@@ -76,6 +77,35 @@ describe('publication backend client', () => {
     const request = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('private row exists', { status: 404 }))
     await expect(getPublicCollection('private', { limit: 50 }, environment))
       .rejects.toBeInstanceOf(PublicationNotFoundError)
+    request.mockRestore()
+  })
+
+  it('reads public Place detail without bearer evidence and rejects a personal overlay', async () => {
+    const placeId = '01992d20-0000-7000-8000-000000000003'
+    const detail = {
+      schemaVersion: 'place-detail.v1', status: 'available', requestedPlaceId: placeId,
+      placeId, redirectedFrom: [], name: '조용한 라멘 연구소', areaLabel: '서울 성동구 성수동',
+      location: { latitude: 37.5445, longitude: 127.056 },
+      primaryTaxonomy: { key: 'food.noodle.ramen', label: '라멘' },
+      taxonomyKeys: ['food.noodle.ramen'],
+      evidence: { status: 'verified', projectedAt: '2026-08-26T10:00:00.000Z' },
+    }
+    const request = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify(detail), {
+        status: 200, headers: { 'content-type': 'application/json' },
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        ...detail,
+        personalState: {
+          saved: true, wanted: false, personalRating: 4.9,
+          preferencesUpdatedAt: '2026-08-26T10:00:00.000Z',
+          visits: { visited: false, count: 0 },
+        },
+      }), { status: 200, headers: { 'content-type': 'application/json' } }))
+
+    await expect(getPublicPlaceDetail(placeId, environment)).resolves.toMatchObject({ placeId })
+    expect(new Headers(request.mock.calls[0]?.[1]?.headers).has('authorization')).toBe(false)
+    await expect(getPublicPlaceDetail(placeId, environment)).rejects.toThrow('invalid public Place detail')
     request.mockRestore()
   })
 })

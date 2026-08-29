@@ -14,3 +14,7 @@ Taxonomy를 표시하고 `place: null`은 준비 중 상태로 표현하며, rou
 중복을 막는 cursor 이어 읽기, 독립 viewport map 요청, list/marker 선택만 내부에서 조정한다. 목록과
 지도는 서로의 결과를 입력으로 쓰지 않으며 renderer 구현은 받기만 한다. route는 publication ID를
 검증하고 초기 데이터를 주입하고, app wrapper가 platform map Adapter를 선택한다.
+
+`PublishedPlaceDetail`은 선택한 Canonical Place의 익명 공개 상세만 지연 조회한다. loading, lifecycle,
+retry와 공개 사실 표현을 한 Interface 뒤에 숨기고 개인 Library 상세나 인증 workflow를 import하지
+않는다. 목록 제목과 marker는 같은 `placeId`를 전달하지만 상세 구현을 알지 못한다.

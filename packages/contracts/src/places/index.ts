@@ -30,11 +30,17 @@ const placeDetailIdentityFields = {
   redirectedFrom: z.array(uuidSchema).max(32),
 }
 
+const publicPlaceDetailFields = {
+  ...placeDetailIdentityFields,
+  status: z.enum(['available', 'redirected']),
+  ...placeSummaryFields,
+}
+
+export const publicPlaceDetailResponseSchema = z.object(publicPlaceDetailFields).strict()
+
 export const placeDetailResponseSchema = z.discriminatedUnion('status', [
   z.object({
-    ...placeDetailIdentityFields,
-    status: z.enum(['available', 'redirected']),
-    ...placeSummaryFields,
+    ...publicPlaceDetailFields,
     personalState: placeDetailPersonalStateSchema.optional(),
   }).strict(),
   z.object({
@@ -46,3 +52,4 @@ export const placeDetailResponseSchema = z.discriminatedUnion('status', [
 
 export type PlaceDetailPersonalState = z.infer<typeof placeDetailPersonalStateSchema>
 export type PlaceDetailResponse = z.infer<typeof placeDetailResponseSchema>
+export type PublicPlaceDetailResponse = z.infer<typeof publicPlaceDetailResponseSchema>

@@ -69,6 +69,11 @@ retryable `PLACE_DETAIL_UNAVAILABLE` 503이다. 같은 Canonical Place를 인증
 `place-detail.v1`의 `pending` 200으로 canonical identity와 개인 상태만 반환한다. `pending`에는 이름,
 좌표, Taxonomy, evidence를 넣지 않으며 Web은 기본 정보 대기와 개인 controls를 함께 표시한다.
 
+공개 Collection의 선택 상세는 Web `GET /api/public/places/{placeId}`를 사용한다. 이 BFF는 같은 Backend
+route를 bearer 없이 호출하고 `PublicPlaceDetailResponse`로 다시 검증한다. 따라서 available/redirected
+공개 사실만 200으로 전달하며 `personalState`나 member 전용 pending이 섞인 Backend 응답은 503으로
+fail closed한다. unknown은 404, retired는 410, projection 지연은 retryable 503 의미를 보존한다.
+
 `POST /v1/library/commands`, `POST /v1/visits`, `POST /v1/writing/commands`는 strict bearer
 인증을 요구하는 Backend operation이다. member, role, grade, tier 입력을 거부하고 Access
 composition에서 member를 파생한다. Library와 Writing command ID는 멱등이고 Writing 수정에는
@@ -166,7 +171,7 @@ command로 제출하거나 덮어쓸 수 없다.
 
 `GET /v1/public/collections/{publicationId}`, 그 하위 `/map`,
 `GET /v1/public/writing/{publicationId}`는
-Stage 4에서 유일한 anonymous Backend projection이다. Web은 고정된 내부 Backend origin을 통해
+공유 콘텐츠를 위한 anonymous Backend projection이다. Web은 고정된 내부 Backend origin을 통해
 대응하는 `/api/public/...` BFF 조회와 `/share/...` page를 제공한다. 알 수 없는 identifier와
 private identifier는 동일하고 안전한 not-found 응답을 반환한다. public projection에는
 membership, Rating, Visit, Tag, provenance, revision history가 포함되지 않는다.

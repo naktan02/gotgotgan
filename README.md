@@ -6,7 +6,7 @@ Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed doc
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **source-only; Stages 6.5, 7.5–7.17, and 11A–11C complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
+Current delivery state: **source-only; Stages 6.5, 7.5–7.17, and 11A–11D complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
@@ -217,6 +217,14 @@ page를 marker 원천으로 사용하지 않는다. 공개 화면의 지도는 �
 표현하고 projection 지연 수를 명시한다. Search·Personal Library·공개 Collection은 모두 앱 조립
 계층에서 주입되는 하나의 provider-neutral renderer Interface만 의존하므로 향후 NAVER·Google·Kakao
 지도 Adapter 교체가 feature 내부 변경을 요구하지 않는다. live 지도 SDK와 credential은 비활성이다.
+
+Stage 11D는 공개 Collection의 목록 제목이나 marker를 선택할 때만 Canonical Place의 공개 상세를
+불러온다. Web의 익명 `GET /api/public/places/{placeId}`는 기존 Backend
+`GET /v1/places/{placeId}`를 bearer 없이 호출하고 `PublicPlaceDetailResponse`로 다시 검증한다.
+이 좁은 계약은 이름·지역·좌표·Taxonomy·공개 evidence와 redirect identity만 허용하므로 Backend가
+실수로 Personal Rating, 저장 상태, Visit 같은 `personalState`를 포함하면 전체 응답을 거부한다.
+공개 상세 feature는 개인용 `PersonalPlaceDetail`을 재사용하지 않아 로그인·분류·방문·메모 workflow가
+익명 화면에 섞이지 않는다.
 
 ## Repository boundaries
 

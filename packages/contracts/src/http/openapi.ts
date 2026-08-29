@@ -72,7 +72,10 @@ import {
   libraryPlaceListResponseSchema,
   libraryTagListResponseSchema,
 } from '../library/index.js'
-import { placeDetailResponseSchema } from '../places/index.js'
+import {
+  placeDetailResponseSchema,
+  publicPlaceDetailResponseSchema,
+} from '../places/index.js'
 import {
   visitHistoryResponseSchema,
   visitRecordResultSchema,
@@ -346,6 +349,15 @@ const paths = {
       '404': ref('responses', 'ProductNotFound'),
       '503': ref('responses', 'BrowserBackendUnavailable'),
     }, { security: browserSession }),
+  },
+  '/api/public/places/{placeId}': {
+    parameters: [pathParameters.placeId],
+    get: operation('getPublicPlaceDetailForBrowser', {
+      '200': described('Return allowlisted anonymous Place detail', 'PublicPlaceDetailResponse'),
+      '404': ref('responses', 'ProductNotFound'),
+      '410': ref('responses', 'PlaceRetired'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, { security: anonymous }),
   },
   '/api/places/{placeId}/visits': {
     parameters: [pathParameters.placeId],
@@ -1075,6 +1087,7 @@ const schemas: Readonly<Record<string, ZodType>> = {
   WritingListResponse: writingListResponseSchema,
   WritingDetailResponse: writingDetailResponseSchema,
   PlaceDetail: placeDetailResponseSchema,
+  PublicPlaceDetailResponse: publicPlaceDetailResponseSchema,
   PlaceSearchRequest: placeSearchRequestSchema,
   PlaceSearchResponse: placeSearchResponseSchema,
   PlaceSuggestionsRequest: placeSuggestionsRequestSchema,

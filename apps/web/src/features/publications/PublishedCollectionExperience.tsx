@@ -15,6 +15,7 @@ import { publishedCollectionHttp } from '@/platform/publications/published-colle
 
 import { PublishedCollectionActions } from './PublishedCollectionActions'
 import { PublishedCollectionPlaces } from './PublishedCollectionPlaces'
+import { PublishedPlaceDetail } from './PublishedPlaceDetail'
 import styles from './publication.module.css'
 
 function initialViewport(collection: PublishedCollection): PlaceMapViewport {
@@ -190,6 +191,12 @@ export function PublishedCollectionExperience({
           zoom={viewport.zoom}
         />
       </section>
+      {selectedPlaceId !== undefined && (
+        <PublishedPlaceDetail
+          onClose={() => setSelectedPlaceId(undefined)}
+          placeId={selectedPlaceId}
+        />
+      )}
       <p className={styles.count}>
         전체 {initialCollection.placeCount}개 · {places.length}개 불러옴
       </p>

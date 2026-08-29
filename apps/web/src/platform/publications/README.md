@@ -5,7 +5,8 @@ Web 서버는 고정된 내부 Backend 주소에서 허용 목록으로 정의�
 membership, 비공개 Collection, Personal Rating, Visit, revision 데이터는 이 경계를 넘지
 않는다.
 
-`browser-publication-http.ts`가 collection/writing 응답, collection map query, 404·503 변환,
+`browser-publication-http.ts`가 collection/writing 응답, collection map query, 선택된 public Place 상세,
+404·410·503 변환,
 공개 cache와 problem 보안 header를 함께 소유한다. 동적 Next route는 path parameter와 strict query를
 읽고 이 interface에 위임한다.
 
@@ -13,3 +14,8 @@ Collection 응답은 `place-published-collection.v3`을 엄격히 검증한다. 
 summary 또는 projection 지연을 뜻하는 `null`만 허용하고, 전체 수·50개 page·opaque cursor도 다시
 검증한다. 별도 `place-published-collection-map.v1`은 bounds/zoom과 point/cluster coverage만 허용한다.
 Personal Rating·Tag·Visit 같은 예상하지 않은 field가 섞이면 page에 전달하지 않는다.
+
+`GET /api/public/places/{placeId}`는 Backend의 optional-member Place route를 bearer 없이 호출한다.
+`PublicPlaceDetailResponse`는 available/redirected 공개 사실만 허용하고 `personalState`와 pending을
+거부한다. 이 route는 공개 Collection 선택 상세의 Adapter이며 새로운 Place 공개 정책이나 discovery
+index를 만들지 않는다.

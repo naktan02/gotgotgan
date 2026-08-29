@@ -3,6 +3,7 @@ import {
   publishedCollectionMapSchema,
   publishedCollectionSchema,
 } from '@place/contracts/http'
+import { publicPlaceDetailResponseSchema } from '@place/contracts/places'
 
 export class PublishedCollectionHttpProblem extends Error {
   override readonly name = 'PublishedCollectionHttpProblem'
@@ -42,6 +43,15 @@ export const publishedCollectionHttp = {
     })
     const parsed = publishedCollectionMapSchema.safeParse(await readJson(await fetch(
       `/api/public/collections/${encodeURIComponent(publicationId)}/map?${parameters}`,
+      { cache: 'no-store', signal },
+    )))
+    if (!parsed.success) throw new PublishedCollectionHttpProblem(503)
+    return parsed.data
+  },
+
+  async place(placeId: string, signal?: AbortSignal) {
+    const parsed = publicPlaceDetailResponseSchema.safeParse(await readJson(await fetch(
+      `/api/public/places/${encodeURIComponent(placeId)}`,
       { cache: 'no-store', signal },
     )))
     if (!parsed.success) throw new PublishedCollectionHttpProblem(503)

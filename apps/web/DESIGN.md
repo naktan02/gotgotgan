@@ -118,3 +118,14 @@ Interface를 검증하며 NAVER live SDK와 credential은 아직 연결하지 �
 `PublishedCollectionPlaces`는 행 표현만 소유한다. route는 초기 데이터, app wrapper는 map Adapter를
 주입한다. Search·Personal Library·publication 어느 feature도 `DeterministicPlaceMap`을 직접 import하지
 않으므로 live Provider map은 platform renderer 하나로 교체할 수 있다.
+
+## Stage 11D Selected public Place detail
+
+공개 Collection은 목록 제목 또는 marker를 선택하기 전에는 Place 상세를 요청하지 않는다. 선택하면
+`PublishedPlaceDetail`이 loading/available/not-found/retired/unavailable 상태와 retry를 내부에 숨기고
+이름·지역·분류·좌표·공개 evidence만 표시한다. 개인용 `PersonalPlaceDetail`을 재사용하지 않으므로
+로그인, 저장·내 평점, 내 분류, Visit, Note workflow가 공개 화면에 우연히 포함되지 않는다.
+
+platform publication Adapter도 Backend의 optional-member Place route를 bearer 없이 호출하고 공개 전용
+schema로 응답을 좁힌다. 이 분리는 공개 화면의 시각 배치를 바꿔도 개인 상세 module이나 Backend 계약을
+함께 수정하지 않게 한다.

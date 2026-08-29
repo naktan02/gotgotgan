@@ -15,6 +15,7 @@ import {
   libraryCommandResultSchema,
   libraryPlacePreferencesResponseSchema,
 } from '../src/library/index.js'
+import { publicPlaceDetailResponseSchema } from '../src/places/index.js'
 import {
   visitRecordResultSchema,
   visitSummaryResponseSchema,
@@ -124,6 +125,23 @@ describe('versioned product HTTP results', () => {
       visibility: 'public', body: '좋아요', placeIds: [placeId],
       updatedAt: '2026-08-28T00:00:00.000Z',
       memberId: '01992d20-0000-7000-8000-000000000001',
+    }).success).toBe(false)
+    const publicDetail = {
+      schemaVersion: 'place-detail.v1' as const,
+      status: 'available' as const,
+      requestedPlaceId: placeId,
+      placeId,
+      redirectedFrom: [],
+      ...collection.places[0].place,
+    }
+    expect(publicPlaceDetailResponseSchema.parse(publicDetail).placeId).toBe(placeId)
+    expect(publicPlaceDetailResponseSchema.safeParse({
+      ...publicDetail,
+      personalState: {
+        saved: true, wanted: false, personalRating: 4.9,
+        preferencesUpdatedAt: '2026-08-28T00:00:00.000Z',
+        visits: { visited: false, count: 0 },
+      },
     }).success).toBe(false)
   })
 })
