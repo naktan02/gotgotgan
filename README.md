@@ -234,6 +234,11 @@ Stage 11E1은 전역 사람 검색이나 외부 검색엔진 노출 없이 소�
 공개 프로필 Backend/BFF 응답은 `X-Robots-Tag`를 사용한다. 내부 discovery index, 팔로우·댓글·신고,
 tier별 제한은 구체적 정책이 정해질 때까지 추가하지 않는다.
 
+Stage 11E2A는 Public Handle namespace를 Profile row와 분리한다. Profile이나 Membership이 삭제되면
+공개 projection과 회원 연결은 없어지지만 Handle 예약은 retired 상태로 남아 다른 회원이 과거 공개
+URL을 가져갈 수 없다. retired Handle은 unknown과 같은 404이며 self-service rename/recovery는 아직
+없다. 외부 색인 금지와 내부 사람 discovery 보류 정책은 그대로다.
+
 ## Repository boundaries
 
 ```text

@@ -29,6 +29,11 @@ Public Profile 설정은 `library.share` 권한을 통과하고 browser가 membe
 시각만 허용한다. owner membership ID, private/unlisted Collection, preference, Rating, Tag, Visit,
 Writing, provenance는 선택하거나 직렬화하지 않는다. hidden과 unknown Handle은 같은 404다.
 
+Profile 또는 Membership 삭제는 공개 projection과 Membership 연결을 제거하지만 Public Handle
+reservation은 retired 상태로 보존한다. retired Handle도 unknown과 같은 404이며 다른 Membership claim과
+재활성화를 DB에서 거부한다. 따라서 과거 공개 URL이 새 회원 identity로 넘어가지 않는다. 원 소유자
+복구는 Identity 증거와 운영 절차가 정해지기 전까지 지원하지 않는다.
+
 현재 공개 프로필과 모든 `/share/...` HTML은 `noindex, nofollow` robots metadata를 사용한다. 공개
 프로필 Backend/BFF JSON도 `X-Robots-Tag: noindex, nofollow`를 반환한다. 이는 외부 검색엔진 색인을
 허용하지 않는 제품 정책이며 sitemap이나 discovery feed를 만들지 않는다. 공개 URL 자체의 직접 접근을

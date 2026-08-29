@@ -18,8 +18,9 @@ Collection 소유자는 private, unlisted, public을 바꿀 수 있다. 공유 �
 
 Public Profile은 로그인 principal이나 membership ID와 분리된 고정 Public Handle, 표시 이름,
 hidden/public 상태만 소유한다. Handle은 첫 생성 뒤 변경하지 않아 기존 링크를 다른 identity로
-재지정하지 않는다. 공개 projection은 owner의 `public` Collection directory만 bounded cursor로
-조합한다. hidden, 알 수 없는 Handle, 잘못된 Handle은 private identity를 드러내지 않는 동일한
+재지정하지 않는다. Profile/Membership 삭제는 Handle을 retired reservation으로 바꾸고 다른 회원에게
+재배정하지 않는다. 공개 projection은 owner의 `public` Collection directory만 bounded cursor로
+조합한다. hidden, retired, 알 수 없는 Handle, 잘못된 Handle은 private identity를 드러내지 않는 동일한
 not-found 경계로 처리한다. 사람 검색·팔로우·댓글·신고·추천은 이 identity record의 책임이 아니다.
 
 향후 추천 기능은 privacy 검토를 통과한 projection을 입력으로 받고 versioned interface로

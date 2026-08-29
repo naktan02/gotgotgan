@@ -123,3 +123,9 @@ hidden/public 상태를 constraint로 제한하고 예약 Handle을 DB에서도 
 설정과 익명 published lookup에 필요한 bounded DML만 받으며 `PUBLIC`은 schema/table 권한을 받지 않는다.
 공개 Collection은 이 schema에 복제하거나 외래키로 결합하지 않고 Library-owned directory Interface로
 조합한다.
+
+`000031`은 Public Profile 행과 분리된 `profiles.public_handle_reservations` namespace를 만들고 기존
+Handle을 backfill한다. Profile 생성은 같은 transaction에서 회원당 하나의 예약을 claim해야 하며,
+Profile 또는 Membership 삭제는 예약을 retired 상태로 바꾼다. runtime role은 예약 insert와 반환
+Handle column select만 할 수 있고 retired 예약의 Membership 재연결은 trigger가 거부하므로 기존 공개
+URL을 다른 회원에게 재배정할 수 없다.

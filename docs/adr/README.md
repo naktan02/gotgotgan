@@ -3,8 +3,9 @@
 ADRs record durable repository-local decisions. Copy `template.md`, assign the next number, state the
 status and date, link evidence, name consequences and supersession conditions, and update routed docs.
 
-현재 최신 결정은 [`0016-conservative-shadow-cluster-proposals.md`](0016-conservative-shadow-cluster-proposals.md)이며,
-cross-provider 군집이 불완전한 전이 연결로 합쳐지지 않도록 모든 구성원 쌍의 근거를 요구한다.
+현재 최신 결정은
+[`0017-retire-public-handles-without-reassignment.md`](0017-retire-public-handles-without-reassignment.md)이며,
+삭제된 공개 링크가 다른 회원에게 넘어가지 않도록 Public Handle을 은퇴 뒤 재배정하지 않는다.
 
 Stage 7 결정은 `0011-connected-import-pipeline-and-provider-isolation.md`에 기록한다. 연결 계정
 작업, Provider parser 격리, 암호화 캡처, 명시적 검토와 Library 반영 경계를 정의한다.
@@ -38,3 +39,5 @@ Stage 7 결정은 `0011-connected-import-pipeline-and-provider-isolation.md`에 
   Match Assessment를 도입하고 측정 전 자동 link/merge를 금지한다.
 - `0016-conservative-shadow-cluster-proposals.md`: immutable normalized shadow proposal을 저장하고
   connected-component 전이 병합 대신 모든 구성원 쌍의 `likely-same` 근거를 요구한다.
+- `0017-retire-public-handles-without-reassignment.md`: Profile/Membership 삭제 뒤 Public Handle의
+  Membership 연결은 제거하되 namespace 예약은 보존하고 다른 회원 재배정을 금지한다.

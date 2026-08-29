@@ -5,6 +5,8 @@ import { startPreparedPlaceDatabase } from './support/prepared-place-database.mj
 
 const memberA = '01992d20-4000-7000-8000-000000000101'
 const memberB = '01992d20-4000-7000-8000-000000000102'
+const memberC = '01992d20-4000-7000-8000-000000000103'
+const memberD = '01992d20-4000-7000-8000-000000000104'
 const at = '2026-08-29T10:00:00.000Z'
 
 test('Public Profiles keep handles stable and list only owner public Collections', { timeout: 120_000 }, async () => {
@@ -107,6 +109,80 @@ test('Public Profiles keep handles stable and list only owner public Collections
       }),
       profiles.PublicProfileHandleImmutableError,
     )
+
+    await database.administratorClient.query(
+      `DELETE FROM profiles.public_profiles WHERE membership_id = $1::uuid`,
+      [memberA],
+    )
+    assert.equal(await store.getPublished('ramen-log'), undefined)
+    const retired = await database.administratorClient.query(
+      `SELECT membership_id, retired_at
+         FROM profiles.public_handle_reservations
+        WHERE handle = 'ramen-log'`,
+    )
+    assert.equal(retired.rows[0].membership_id, null)
+    assert.ok(retired.rows[0].retired_at instanceof Date)
+    await assert.rejects(
+      database.pool.query(
+        `INSERT INTO profiles.public_handle_reservations
+          (handle, membership_id, reserved_at, retired_at)
+         VALUES ('squatted-log', NULL, $1::timestamptz, $1::timestamptz)`,
+        [at],
+      ),
+      (error) => error?.code === '23514',
+    )
+
+    await database.pool.query(
+      `INSERT INTO access.memberships
+        (id, issuer, subject, status, authority_role, product_tier, user_grade, created_at, updated_at)
+       VALUES ($1,'https://identity.example.test','profile-c','active','member','standard','unclassified',$2,$2)`,
+      [memberC, at],
+    )
+    await assert.rejects(
+      profiles.setPublicProfile({
+        commandId: '01992d20-4000-7000-8000-000000000405',
+        memberId: memberC,
+        command: { handle: 'ramen-log', displayName: '새 사람', visibility: 'public', expectedUpdatedAt: null },
+        occurredAt: '2026-08-29T10:00:04.000Z',
+        store,
+      }),
+      profiles.PublicProfileHandleUnavailableError,
+    )
+    await assert.rejects(
+      database.administratorClient.query(
+        `UPDATE profiles.public_handle_reservations
+            SET membership_id = $1::uuid, retired_at = NULL
+          WHERE handle = 'ramen-log'`,
+        [memberC],
+      ),
+      (error) => error?.code === '23514',
+    )
+
+    await database.pool.query(
+      `INSERT INTO access.memberships
+        (id, issuer, subject, status, authority_role, product_tier, user_grade, created_at, updated_at)
+       VALUES ($1,'https://identity.example.test','profile-d','active','member','standard','unclassified',$2,$2)`,
+      [memberD, at],
+    )
+    await profiles.setPublicProfile({
+      commandId: '01992d20-4000-7000-8000-000000000406',
+      memberId: memberD,
+      command: { handle: 'coffee-log', displayName: '커피 기록', visibility: 'public', expectedUpdatedAt: null },
+      occurredAt: '2026-08-29T10:00:05.000Z',
+      store,
+    })
+    await database.administratorClient.query(
+      `DELETE FROM access.memberships WHERE id = $1::uuid`,
+      [memberD],
+    )
+    assert.equal(await store.getPublished('coffee-log'), undefined)
+    const membershipRetired = await database.administratorClient.query(
+      `SELECT membership_id, retired_at
+         FROM profiles.public_handle_reservations
+        WHERE handle = 'coffee-log'`,
+    )
+    assert.equal(membershipRetired.rows[0].membership_id, null)
+    assert.ok(membershipRetired.rows[0].retired_at instanceof Date)
   } finally {
     await database.close()
   }

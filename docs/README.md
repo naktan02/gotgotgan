@@ -129,6 +129,10 @@ Stage 11E1은 immutable Public Handle과 hidden/public 프로필을 추가한다
 색인은 공개 프로필과 기존 공유 HTML 모두 금지한다. 전역 사람 검색, 내부 discovery index, 소셜 action,
 신고 workflow, tier별 제한은 이 최소 공개 링크 단계에 포함하지 않는다.
 
+Stage 11E2A는 ADR 0017과 Migration `000031`로 Public Handle 예약을 Profile lifecycle에서 분리한다.
+Profile/Membership 삭제 뒤 Handle은 retired 상태로 남아 재배정되지 않고 unknown과 같은 not-found로
+조회된다. Identity-backed recovery와 abuse/moderation 운영은 아직 추가하지 않는다.
+
 Stage 5는 data-defined Taxonomy와 Search 소유 projection을 추가했다. 로컬 text·taxonomy·bounds·
 회원 signal 검색, cursor pagination, source-neutral partial 결과, responsive 목록/지도 UI를 실제
 PostGIS와 Playwright로 검증했다. 결정적 지도 renderer와 test-owned 검색 fixture는 live 지도,

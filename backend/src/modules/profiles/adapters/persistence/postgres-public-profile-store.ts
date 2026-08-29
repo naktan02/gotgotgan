@@ -63,6 +63,25 @@ async function applyInTransaction(client: PoolClient, attempt: PublicProfileAtte
 
   const changedAt = nextTimestamp(attempt.occurredAt, current?.updated_at)
   if (current === undefined) {
+    const reservation = await client.query<{ handle: string }>(
+      `
+        INSERT INTO profiles.public_handle_reservations (
+          handle, membership_id, reserved_at, retired_at
+        ) VALUES ($1, $2::uuid, $3::timestamptz, NULL)
+        ON CONFLICT DO NOTHING
+        RETURNING handle
+      `,
+      [attempt.command.handle, attempt.memberId, changedAt],
+    )
+    if (reservation.rows.length === 0) {
+      const raced = await client.query<{ membership_id: string }>(
+        `SELECT membership_id FROM profiles.public_profiles WHERE membership_id = $1::uuid`,
+        [attempt.memberId],
+      )
+      return raced.rows.length === 0
+        ? { status: 'handle-unavailable' as const }
+        : { status: 'version-conflict' as const }
+    }
     const inserted = await client.query<{ membership_id: string }>(
       `
         INSERT INTO profiles.public_profiles (

@@ -44,7 +44,8 @@ domain meaning rather than storage or framework structure.
 | Entry | Long-form Place-owned writing that may reference multiple places and has explicit visibility. | Note or diary-service content. |
 | Unlisted Projection | An allowlisted anonymous projection reachable only through its opaque publication identifier and excluded from discovery. | Private data or an authenticated resource grant. |
 | Public Profile | A member-controlled public identity that discloses a Public Handle, display name, and only that member's public Collections while published. | External Principal, Membership, every shared or unlisted item, or a social account. |
-| Public Handle | A unique, stable, member-chosen identifier used in a Public Profile URL. It is normalized independently of the changeable display name. | Real name, email address, External Principal subject, or display name. |
+| Public Handle | A unique, stable, member-chosen identifier used in a Public Profile URL. It is claimed once, normalized independently of the changeable display name, and never reassigned after retirement. | Real name, email address, External Principal subject, or display name. |
+| Retired Public Handle | A Public Handle reservation detached from its former Membership after Profile or Membership deletion. It remains unavailable and resolves like an unknown Handle. | A hidden Public Profile, a recoverable login name, or an identity proof. |
 | Collection Copy | A new member-owned collection populated from a disclosed projection with source provenance. | Shared mutable ownership or copying private metadata. |
 | Place Reference | An opaque, versioned cross-product reference resolved through a Place contract. | Foreign-key or direct database access. |
 | Taxonomy Node | A versioned provider-neutral category or attribute used to classify Canonical Places. | Provider category text or a fixed restaurant/cafe/travel top-level enum. |

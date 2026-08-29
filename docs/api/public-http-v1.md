@@ -198,6 +198,11 @@ nullable `expectedUpdatedAt`만 받는다. Handle은 소문자 영문·숫자·�
 첫 생성 뒤 바꿀 수 없다. 브라우저는 같은 origin의 `/api/profile`만 호출하고 member, role, tier나
 access token을 제출하지 않는다.
 
+Handle claim은 Public Profile row와 별도 reservation에 같은 transaction으로 기록한다. Profile 또는
+Membership 삭제 뒤 reservation은 retired 상태로 남고 다른 회원의 동일 Handle 요청은 기존 활성 Handle과
+같은 conflict다. retired Handle의 익명 조회는 unknown Handle과 같은 404이며 현재 API에는 rename이나
+recovery operation이 없다.
+
 `GET /v1/public/profiles/{handle}`과 Web `/api/public/profiles/{handle}`는 bearer 없는 익명 route다.
 hidden과 unknown Handle은 같은 404이며 성공은 Handle, 표시 이름, owner의 `public` Collection만 최대
 50개 opaque cursor page로 반환한다. `unlisted`와 private Collection, owner membership ID, 개인 field는
