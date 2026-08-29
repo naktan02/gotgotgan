@@ -243,18 +243,22 @@ test('captures the reviewed search workspace sizes', async ({ page }, testInfo) 
   await page.goto('/search')
   await expect(page.getByRole('list', { name: '장소 검색 결과' }).getByRole('button')).toHaveCount(3)
 
-  if (testInfo.project.name === 'desktop-chromium') {
-    const visualFailures: unknown[] = []
-    const capture = async (name: string, maxDiffPixelRatio?: number) => {
-      try {
-        await expect(page).toHaveScreenshot(name, {
-          fullPage: true,
-          ...(maxDiffPixelRatio === undefined ? {} : { maxDiffPixelRatio }),
-        })
-      } catch (error) {
-        visualFailures.push(error)
-      }
+  const visualFailures: unknown[] = []
+  const capture = async (name: string, maxDiffPixelRatio?: number) => {
+    try {
+      await expect(page).toHaveScreenshot(name, {
+        fullPage: true,
+        ...(maxDiffPixelRatio === undefined ? {} : { maxDiffPixelRatio }),
+      })
+    } catch (error) {
+      visualFailures.push(error)
     }
+  }
+
+  if (testInfo.project.name === 'desktop-chromium') {
+    await expect(page.getByRole('alert').filter({
+      hasText: '내 장소 기능을 불러오지 못했습니다.',
+    })).toBeVisible()
     await page.setViewportSize({ width: 1440, height: 900 })
     await capture('place-search-1440x900.png')
     await page.setViewportSize({ width: 1280, height: 800 })
@@ -271,26 +275,25 @@ test('captures the reviewed search workspace sizes', async ({ page }, testInfo) 
     await submitSearch(page, '오류')
     await expect(page.getByRole('alert').filter({ hasText: '검색 결과를 불러오지 못했습니다.' })).toBeVisible()
     await capture('place-search-error-1280x800.png', 0.01)
-    if (visualFailures.length > 0) {
-      throw new AggregateError(visualFailures, `${visualFailures.length} visual baselines differ`)
-    }
   } else {
     await page.setViewportSize({ width: 390, height: 844 })
-    await expect(page).toHaveScreenshot('place-search-390x844.png', { fullPage: true })
+    await capture('place-search-390x844.png')
     await page.setViewportSize({ width: 360, height: 800 })
-    await expect(page).toHaveScreenshot('place-search-360x800.png', { fullPage: true })
+    await capture('place-search-360x800.png')
 
     await submitSearch(page, '없음')
     await expect(page.getByText('조건에 맞는 장소가 없습니다.')).toBeVisible()
-    await expect(page).toHaveScreenshot('place-search-empty-360x800.png', {
-      fullPage: true, maxDiffPixelRatio: 0.01,
-    })
+    await capture('place-search-empty-360x800.png', 0.01)
 
     await submitSearch(page, '')
     await expect(page.getByRole('list', { name: '장소 검색 결과' }).getByRole('button')).toHaveCount(3)
     await page.getByRole('button', { name: '지도', exact: true }).click()
     await expect(page.getByRole('region', { name: '검색 결과 지도' })).toBeVisible()
-    await expect(page).toHaveScreenshot('place-search-map-360x800.png', { fullPage: true })
+    await capture('place-search-map-360x800.png')
+  }
+
+  if (visualFailures.length > 0) {
+    throw new AggregateError(visualFailures, `${visualFailures.length} visual baselines differ`)
   }
 })
 
