@@ -183,6 +183,8 @@ export function usePersonalLibraryNoteWorkflow(input: NoteWorkflowInput) {
       items,
       nextCursor,
       selectedDocumentId: selectedDocument?.documentId,
+      selectedCreatedAt: selectedDocument?.createdAt,
+      selectedUpdatedAt: selectedDocument?.updatedAt,
       draft,
       dirty,
       bodyValid,

@@ -482,7 +482,7 @@ async function installLibraryFixture(
       ? cursor === null ? placeNotes.slice(0, 1) : placeNotes.slice(1)
       : placeNotes
     return json(route, {
-      schemaVersion: 'writing-list.v1',
+      schemaVersion: 'writing-list.v2',
       filter: { kind: 'note', placeId },
       items: items.map((note) => ({
         documentId: note.documentId,
@@ -494,6 +494,7 @@ async function installLibraryFixture(
         publicationId: null,
         version: note.version,
         placeIds: [note.placeId],
+        createdAt: note.createdAt,
         updatedAt: note.updatedAt,
       })),
       ...(options.paginatedNotes && cursor === null && placeNotes.length > 1
@@ -859,6 +860,7 @@ test('creates and edits private Place Notes through bounded Writing pages', asyn
   await notes.getByRole('button', { name: /국물이 깔끔하고/ }).click()
   const editor = notes.getByLabel('메모 편집')
   await expect(editor).toHaveValue('국물이 깔끔하고 면 익힘이 좋았다.')
+  await expect(notes.getByText(/작성 2026\. 8\. 27\..*수정 2026\. 8\. 29\./)).toBeVisible()
   await editor.fill('국물이 깔끔하고 면 익힘이 아주 좋았다.')
   await notes.getByRole('button', { name: '메모 저장' }).click()
   await expect(notes.getByRole('status')).toHaveText('메모를 저장했습니다.')

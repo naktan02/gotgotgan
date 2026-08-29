@@ -75,6 +75,10 @@ Stage 7.12는 Place-filtered bounded Writing query와 private Note 생성·수�
 version conflict의 초안 보존을 desktop/mobile에서 검증한다. Migration `000028`은 기존 정규화 link
 table의 Place-first 조회만 보강한다.
 
+Stage 7.13은 `writing-list.v2`로 서버 작성일과 마지막 수정일을 함께 전달하고 일반 메모 패널에서 두
+시각을 구분한다. 기존 Writing 저장·revision 경계를 재사용하며 제목, 사진 첨부, Entry 작성 UI는 이
+범위에 포함하지 않는다.
+
 Stage 5는 data-defined Taxonomy와 Search 소유 projection을 추가했다. 로컬 text·taxonomy·bounds·
 회원 signal 검색, cursor pagination, source-neutral partial 결과, responsive 목록/지도 UI를 실제
 PostGIS와 Playwright로 검증했다. 결정적 지도 renderer와 test-owned 검색 fixture는 live 지도,

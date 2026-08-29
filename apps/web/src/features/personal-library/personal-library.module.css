@@ -96,6 +96,7 @@
 .noteHeading button, .noteActions button, .noteError button, .noteList > button { min-height: 34px; border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); padding: 0 10px; font-size: 11px; }
 .noteForm { display: grid; gap: 7px; margin-top: 14px; }
 .noteForm label { color: var(--muted); font-size: 11px; font-weight: 700; }
+.noteDates { margin: 0; color: var(--muted); font-size: 10px; }
 .noteForm textarea { width: 100%; resize: vertical; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); padding: 10px; font: inherit; font-size: 12px; line-height: 1.6; }
 .noteActions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
 .noteActions span { margin-right: auto; color: var(--muted); font-size: 10px; }

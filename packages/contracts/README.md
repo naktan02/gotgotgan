@@ -62,8 +62,9 @@ nullable `expectedUpdatedAt`을 요구하며 offset timestamp를 UTC로 정규�
 
 `@place/contracts/visits`는 `visit-record-result.v1`, `visit-summary.v1`과 회원·fingerprint·임의 evidence를 노출하지 않는 bounded
 `visit-history.v1`을 소유한다. `@place/contracts/writing`은 `writing-command-result.v1`과 본문을 최대 280자 preview로 제한한
-`writing-list.v1`과 소유자 단건 전체 본문용 `writing-detail.v1`을 분리한다. 두 목록 모두 page
-limit 1~50과 용도에 묶인 불투명 cursor를 사용한다.
+`writing-list.v2`와 소유자 단건 전체 본문용 `writing-detail.v1`을 분리한다. 목록과 상세는 서버가
+처음 저장한 불변 `createdAt`과 마지막 저장 시각 `updatedAt`을 함께 반환한다. 목록은 page limit
+1~50과 용도에 묶인 불투명 cursor를 사용한다.
 
 Connector 계약은 Place page command, extension event, operation-bound upload grant, bounded capture
 batch와 receipt를 정의한다. cookie, 비밀번호, 임의 upload URL, 내부 Backend 주소는 schema가 허용하지

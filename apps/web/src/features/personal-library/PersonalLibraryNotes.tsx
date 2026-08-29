@@ -33,6 +33,14 @@ export function PersonalLibraryNotes({
         <label htmlFor="personal-note-body">
           {notes.selectedDocumentId === undefined ? '새 비공개 메모' : '메모 편집'}
         </label>
+        {notes.selectedCreatedAt !== undefined && (
+          <p className={styles.noteDates}>
+            작성 {noteDateFormatter.format(new Date(notes.selectedCreatedAt))}
+            {notes.selectedUpdatedAt !== notes.selectedCreatedAt && notes.selectedUpdatedAt !== undefined
+              ? ` · 수정 ${noteDateFormatter.format(new Date(notes.selectedUpdatedAt))}`
+              : ''}
+          </p>
+        )}
         <textarea
           disabled={notes.detailLoading || notes.saving}
           id="personal-note-body"
@@ -87,7 +95,10 @@ export function PersonalLibraryNotes({
                   type="button"
                 >
                   <span>{item.bodyPreview}{item.bodyTruncated ? '…' : ''}</span>
-                  <small>비공개 · {noteDateFormatter.format(new Date(item.updatedAt))}</small>
+                  <small>
+                    비공개 · 작성 {noteDateFormatter.format(new Date(item.createdAt))}
+                    {item.updatedAt !== item.createdAt ? ' · 수정됨' : ''}
+                  </small>
                 </button>
               </li>
             ))}

@@ -7,6 +7,7 @@ Writing은 짧은 Note와 긴 Entry를 소유한다. Note는 정확히 하나의
 
 Command/publication Store와 회원 조회용 `WritingQueries`는 분리한다. 목록은 kind와 optional Place filter,
 `(updated_at DESC, id)` keyset cursor로 최대 50개만 반환하고 본문은 280자 preview와 truncation
-표시만 제공한다. 전체 본문·생성 시각·현재 version·정렬된 Place link는 owner-scoped 단건 상세에서
-반환한다. cursor는 kind와 Place ID에 묶이며 HTTP transport는 lifecycle이나 optimistic conflict 규칙을
-재구현하지 않는다.
+표시만 제공한다. 목록과 owner-scoped 단건 상세는 서버가 처음 저장한 불변 생성 시각과 마지막 수정
+시각을 함께 반환하고, 상세는 전체 본문·현재 version·정렬된 Place link도 반환한다. 매 저장 시각은
+revision의 `changed_at`에도 보존된다. cursor는 kind와 Place ID에 묶이며 HTTP transport는 lifecycle이나
+optimistic conflict 규칙을 재구현하지 않는다.

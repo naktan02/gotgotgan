@@ -134,7 +134,9 @@ Web Writing은 `GET /api/writing`, `GET /api/writing/{documentId}`와
 `POST /api/writing/commands`로 owner 목록·상세와 private Note mutation을 노출한다. Browser command는
 create/update Note의 ID, Place, body, expected version만 허용한다. Entry, visibility, publication ID는
 거부하고 server Adapter가 Backend command에 `visibility: private`을 추가한다. 적용은 `201`, 동일
-command replay는 `200`, stale expected version은 retryable `409`로 보존한다.
+command replay는 `200`, stale expected version은 retryable `409`로 보존한다. `writing-list.v2`는
+서버가 정한 불변 `createdAt`과 마지막 저장 시각 `updatedAt`을 모두 반환하며, 브라우저가 두 시각을
+command로 제출하거나 덮어쓸 수 없다.
 
 `GET /v1/public/collections/{publicationId}`와 `GET /v1/public/writing/{publicationId}`는
 Stage 4에서 유일한 anonymous Backend projection이다. Web은 고정된 내부 Backend origin을 통해

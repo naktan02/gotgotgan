@@ -41,7 +41,7 @@ describe('bounded Visit and Writing query contracts', () => {
 
   it('bounds Writing list bodies and reserves full content for detail', () => {
     const list = writingListResponseSchema.parse({
-      schemaVersion: 'writing-list.v1',
+      schemaVersion: 'writing-list.v2',
       filter: { kind: 'all', placeId },
       items: [{
         documentId,
@@ -53,6 +53,7 @@ describe('bounded Visit and Writing query contracts', () => {
         publicationId: null,
         version: 1,
         placeIds: [placeId],
+        createdAt: at,
         updatedAt: at,
       }],
     })

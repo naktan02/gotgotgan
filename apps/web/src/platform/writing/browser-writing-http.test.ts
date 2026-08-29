@@ -67,12 +67,12 @@ describe('browser Writing HTTP', () => {
           })
         }
         return Response.json({
-          schemaVersion: 'writing-list.v1',
+          schemaVersion: 'writing-list.v2',
           filter: { kind: 'note', placeId },
           items: [{
             documentId, kind: 'note', title: null, bodyPreview: '짧은 메모',
             bodyTruncated: false, visibility: 'private', publicationId: null,
-            version: 1, placeIds: [placeId], updatedAt: at,
+            version: 1, placeIds: [placeId], createdAt: at, updatedAt: at,
           }],
         })
       }),
@@ -99,7 +99,7 @@ describe('browser Writing HTTP', () => {
     const http = createBrowserWritingHttp({
       resolveAuthRuntime: sessionRuntime,
       backend: backend(async () => Response.json({
-        schemaVersion: 'writing-list.v1',
+        schemaVersion: 'writing-list.v2',
         filter: { kind: 'note' },
         items: [],
       })),

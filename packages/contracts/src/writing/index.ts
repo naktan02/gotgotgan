@@ -26,6 +26,7 @@ const writingSummaryCommon = {
   publicationId: uuidSchema.nullable(),
   version: z.number().int().positive(),
   placeIds: z.array(uuidSchema).min(1).max(32),
+  createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
 }
 
@@ -43,7 +44,7 @@ export const writingSummarySchema = z.discriminatedUnion('kind', [
 ])
 
 export const writingListResponseSchema = z.object({
-  schemaVersion: z.literal('writing-list.v1'),
+  schemaVersion: z.literal('writing-list.v2'),
   filter: z.object({
     kind: writingKindFilterSchema,
     placeId: uuidSchema.optional(),

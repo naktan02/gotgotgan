@@ -101,7 +101,7 @@ export class PostgresWritingQueries implements WritingQueries {
     const rows = hasMore ? result.rows.slice(0, input.limit) : result.rows
     const last = rows.at(-1)
     return {
-      schemaVersion: 'writing-list.v1' as const,
+      schemaVersion: 'writing-list.v2' as const,
       filter,
       items: rows.map((row) => {
         const common = {
@@ -112,6 +112,7 @@ export class PostgresWritingQueries implements WritingQueries {
           publicationId: row.publication_id,
           version: Number(row.version),
           placeIds: row.place_ids,
+          createdAt: row.created_at.toISOString(),
           updatedAt: row.updated_at.toISOString(),
         }
         return row.kind === 'entry'

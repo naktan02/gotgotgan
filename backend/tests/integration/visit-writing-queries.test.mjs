@@ -15,6 +15,8 @@ const entryId = '01992d21-1000-7000-8000-000000000402'
 const otherMemberDocumentId = '01992d21-1000-7000-8000-000000000403'
 const publicationId = '01992d21-1000-7000-8000-000000000404'
 const at = '2026-08-28T06:00:00.000Z'
+const noteCreatedAt = '2026-08-28T05:00:00.000Z'
+const noteUpdatedAt = '2026-08-28T05:30:00.000Z'
 
 test('Visit and Writing queries stay bounded, cursor-safe, and member-isolated', { timeout: 120_000 }, async () => {
   const database = await startPreparedPlaceDatabase('place-visit-writing-queries')
@@ -74,10 +76,11 @@ test('Visit and Writing queries stay bounded, cursor-safe, and member-isolated',
     )
 
     const longBody = '가'.repeat(300)
+    const revisedLongBody = `${longBody} 수정`
     const apply = (commandId, memberId, occurredAt, command) => writing.applyWritingCommand({
       commandId, memberId, occurredAt, command, store: writingStore,
     })
-    await apply('01992d21-1000-7000-8000-000000000501', memberA, '2026-08-28T05:00:00.000Z', {
+    await apply('01992d21-1000-7000-8000-000000000501', memberA, noteCreatedAt, {
       kind: 'create-note', documentId: noteId, body: longBody, placeId: placeA,
       visibility: 'private',
     })
@@ -89,11 +92,18 @@ test('Visit and Writing queries stay bounded, cursor-safe, and member-isolated',
       kind: 'create-note', documentId: otherMemberDocumentId, body: '다른 회원',
       placeId: placeA, visibility: 'private',
     })
+    await apply('01992d21-1000-7000-8000-000000000504', memberA, noteUpdatedAt, {
+      kind: 'update-note', documentId: noteId, expectedVersion: 1,
+      body: revisedLongBody, placeId: placeA, visibility: 'private',
+    })
 
     const writingFirst = await writingQueries.list({ memberId: memberA, kind: 'all', limit: 1 })
     assert.equal(writingFirst.items[0].documentId, noteId)
+    assert.equal(writingFirst.schemaVersion, 'writing-list.v2')
     assert.equal(writingFirst.items[0].bodyPreview.length, 280)
     assert.equal(writingFirst.items[0].bodyTruncated, true)
+    assert.equal(writingFirst.items[0].createdAt, noteCreatedAt)
+    assert.equal(writingFirst.items[0].updatedAt, noteUpdatedAt)
     assert.equal('body' in writingFirst.items[0], false)
     assert.ok(writingFirst.nextCursor)
     const writingSecond = await writingQueries.list({
@@ -131,8 +141,15 @@ test('Visit and Writing queries stay bounded, cursor-safe, and member-isolated',
     )
 
     const detail = await writingQueries.get({ memberId: memberA, documentId: noteId })
-    assert.equal(detail.document.body, longBody)
+    assert.equal(detail.document.body, revisedLongBody)
     assert.equal(detail.document.visibility, 'private')
+    assert.equal(detail.document.createdAt, noteCreatedAt)
+    assert.equal(detail.document.updatedAt, noteUpdatedAt)
+    assert.deepEqual((await database.pool.query(
+      `SELECT changed_at FROM writing.document_revisions
+       WHERE document_id = $1 ORDER BY version`,
+      [noteId],
+    )).rows.map((row) => row.changed_at.toISOString()), [noteCreatedAt, noteUpdatedAt])
     assert.equal(
       await writingQueries.get({ memberId: memberB, documentId: noteId }),
       undefined,

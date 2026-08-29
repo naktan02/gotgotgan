@@ -9,6 +9,7 @@ type WritingSummaryCommon = Readonly<{
   publicationId: string | null
   version: number
   placeIds: readonly string[]
+  createdAt: string
   updatedAt: string
 }>
 
@@ -17,7 +18,7 @@ export type WritingSummary =
   | (WritingSummaryCommon & Readonly<{ kind: 'entry'; title: string }>)
 
 export type WritingListPage = Readonly<{
-  schemaVersion: 'writing-list.v1'
+  schemaVersion: 'writing-list.v2'
   filter: Readonly<{ kind: WritingKindFilter; placeId?: string }>
   items: readonly WritingSummary[]
   nextCursor?: string

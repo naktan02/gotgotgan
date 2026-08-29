@@ -162,6 +162,10 @@ optional `placeId` filter와 filter-bound cursor를 지원하고 Migration `0000
 서버 Adapter가 private을 고정한다. 응답 유실은 동일 command로 재시도하며 version conflict에서는
 사용자 초안을 보존한 채 명시적으로 최신 내용을 불러온다.
 
+Stage 7.13은 일반 메모의 서버 작성일과 마지막 수정일을 목록·선택 패널에서 구분한다. 기존 Writing
+table과 revision 이력을 그대로 사용하므로 새 migration이나 미디어 저장소는 없다. 일반 메모에는
+제목·사진 첨부·블로그형 편집기를 추가하지 않는다.
+
 ## Repository boundaries
 
 ```text

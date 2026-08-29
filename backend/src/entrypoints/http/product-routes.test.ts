@@ -82,7 +82,7 @@ function fixtureApplication(
   }
   const writingQueries: WritingQueries = {
     list: async (input) => ({
-      schemaVersion: 'writing-list.v1',
+      schemaVersion: 'writing-list.v2',
       filter: { kind: input.kind },
       items: [],
     }),

@@ -21,7 +21,7 @@ const store: WritingStore = {
 function fixture(overrides: Partial<WritingQueries> = {}) {
   const queries: WritingQueries = {
     list: async (input) => ({
-      schemaVersion: 'writing-list.v1',
+      schemaVersion: 'writing-list.v2',
       filter: { kind: input.kind },
       items: [{
         documentId,
@@ -33,6 +33,7 @@ function fixture(overrides: Partial<WritingQueries> = {}) {
         publicationId: null,
         version: 1,
         placeIds: [placeId],
+        createdAt: at,
         updatedAt: at,
       }],
     }),
@@ -68,7 +69,7 @@ function fixture(overrides: Partial<WritingQueries> = {}) {
 describe('bounded Writing HTTP queries', () => {
   it('requires a member and applies all/20 defaults', async () => {
     const list = vi.fn<WritingQueries['list']>(async (input) => ({
-      schemaVersion: 'writing-list.v1', filter: { kind: input.kind }, items: [],
+      schemaVersion: 'writing-list.v2', filter: { kind: input.kind }, items: [],
     }))
     const app = fixture({ list })
 
@@ -82,7 +83,7 @@ describe('bounded Writing HTTP queries', () => {
 
   it('passes one canonical Place filter to the Writing query Interface', async () => {
     const list = vi.fn<WritingQueries['list']>(async (input) => ({
-      schemaVersion: 'writing-list.v1',
+      schemaVersion: 'writing-list.v2',
       filter: { kind: input.kind, placeId: input.placeId! },
       items: [],
     }))
@@ -105,7 +106,7 @@ describe('bounded Writing HTTP queries', () => {
     const headers = { authorization: 'Bearer good' }
     const list = await app.inject({ method: 'GET', url: '/v1/writing?kind=note', headers })
     expect(list.json()).toMatchObject({
-      schemaVersion: 'writing-list.v1',
+      schemaVersion: 'writing-list.v2',
       filter: { kind: 'note' },
       items: [{ documentId, bodyPreview: '짧은 메모' }],
     })
