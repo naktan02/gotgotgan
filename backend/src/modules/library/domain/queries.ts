@@ -19,11 +19,13 @@ export type PublishedCollection = Readonly<{
   visibility: 'unlisted' | 'public'
   name: string
   description: string | null
+  placeCount: number
   places: readonly Readonly<{
     placeId: string
     position: number
     place: LibraryPlaceSummary | null
   }>[]
+  nextCursor?: string
   updatedAt: string
 }>
 
@@ -66,6 +68,21 @@ export type LibraryMapFeature =
 export type LibraryMapProjection = Readonly<{
   schemaVersion: 'library-map-projection.v1'
   scope: LibraryMapScope
+  viewport: Readonly<{
+    bounds: LibraryMapBounds
+    zoom: number
+  }>
+  features: readonly LibraryMapFeature[]
+  coverage: Readonly<{
+    representedPlaceCount: number
+    unprojectedPlaceCount: number
+    complete: boolean
+  }>
+}>
+
+export type PublishedCollectionMap = Readonly<{
+  schemaVersion: 'place-published-collection-map.v1'
+  publicationId: string
   viewport: Readonly<{
     bounds: LibraryMapBounds
     zoom: number

@@ -10,6 +10,13 @@
 .list { margin: 28px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
 .item { display: grid; grid-template-columns: 28px 1fr; gap: 10px; padding: 16px 0; border-bottom: 1px solid var(--line); }
 .position { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; line-height: 1.6; }
-.placeSummary { display: grid; gap: 4px; min-width: 0; }
+.placeSummary { display: grid; gap: 4px; min-width: 0; width: 100%; border: 0; background: transparent; color: inherit; padding: 0; text-align: left; font: inherit; cursor: pointer; }
 .placeSummary strong { overflow-wrap: anywhere; font-size: 15px; }
 .placeSummary span, .pending { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.selectedItem { background: var(--accent-soft); }
+.mapSection { margin-top: 28px; }
+.count { margin: 24px 0 0; color: var(--muted); font-size: 13px; }
+.loadMore { display: grid; place-items: center; min-height: 72px; }
+.loadMore button { min-height: 40px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--ink); padding: 9px 14px; font: inherit; }
+.loadMore button:disabled { cursor: wait; opacity: .6; }
+.listError { color: var(--danger, #b42318); font-size: 13px; text-align: center; }

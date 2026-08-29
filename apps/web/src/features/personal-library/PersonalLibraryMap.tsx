@@ -1,8 +1,8 @@
 import type { LibraryMapResponse } from '@place/contracts/library'
 
-import { DeterministicPlaceMap } from '@/platform/maps/DeterministicPlaceMap'
 import type {
   PlaceMapCluster,
+  PlaceMapRenderer,
   PlaceMapViewport,
 } from '@/platform/maps/place-map-interface'
 
@@ -15,6 +15,7 @@ export function PersonalLibraryMap({
   onRetry,
   onSelect,
   onViewportChange,
+  mapRenderer: MapRenderer,
 }: Readonly<{
   error?: string
   loading: boolean
@@ -24,6 +25,7 @@ export function PersonalLibraryMap({
   onRetry: () => void
   onSelect: (placeId: string) => void
   onViewportChange: (viewport: PlaceMapViewport) => void
+  mapRenderer: PlaceMapRenderer
 }>) {
   const markers = projection?.features.flatMap((feature) => feature.kind === 'place' ? [{
     id: feature.placeId,
@@ -47,7 +49,7 @@ export function PersonalLibraryMap({
       : `현재 지도 영역의 저장 장소 ${represented}개를 모두 표현했습니다.`)
 
   return (
-    <DeterministicPlaceMap
+    <MapRenderer
       ariaLabel="내 장소 지도"
       bounds={viewport.bounds}
       clusters={clusters}

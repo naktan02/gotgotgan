@@ -4,10 +4,12 @@ import styles from './personal-library.module.css'
 import { PersonalLibraryBrowseView } from './PersonalLibraryBrowseView'
 import { PersonalLibraryManagementView } from './PersonalLibraryManagementView'
 import type { PersonalLibraryWorkflow } from './personal-library-workflow'
+import type { PlaceMapRenderer } from '@/platform/maps/place-map-interface'
 
 export function PersonalLibraryView({
+  mapRenderer,
   workflow,
-}: Readonly<{ workflow: PersonalLibraryWorkflow }>) {
+}: Readonly<{ workflow: PersonalLibraryWorkflow; mapRenderer: PlaceMapRenderer }>) {
   const {
     mode,
     authenticationRequired,
@@ -47,7 +49,7 @@ export function PersonalLibraryView({
 
       {mode === 'manage'
         ? <PersonalLibraryManagementView management={management} />
-        : <PersonalLibraryBrowseView workflow={workflow} />}
+        : <PersonalLibraryBrowseView mapRenderer={mapRenderer} workflow={workflow} />}
     </section>
   )
 }

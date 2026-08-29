@@ -217,9 +217,18 @@ test('bounded Library queries paginate, hydrate public Place facts, and isolate 
     })).collection.publicationId
     assert.ok(publishedCollectionId)
     summaryBatches.length = 0
-    const publishedCollection = await queries.getPublishedCollection(publishedCollectionId)
-    assert.deepEqual(summaryBatches, [[places[0], places[1], places[2]]])
-    assert.deepEqual(publishedCollection.places.map((item) => [
+    const publishedFirst = await queries.getPublishedCollection({
+      publicationId: publishedCollectionId, limit: 1,
+    })
+    assert.equal(publishedFirst.placeCount, 3)
+    assert.ok(publishedFirst.nextCursor)
+    assert.deepEqual(summaryBatches, [[places[0]]])
+    const publishedSecond = await queries.getPublishedCollection({
+      publicationId: publishedCollectionId, limit: 2, cursor: publishedFirst.nextCursor,
+    })
+    assert.deepEqual(summaryBatches, [[places[0]], [places[1], places[2]]])
+    const publishedPlaces = [...publishedFirst.places, ...publishedSecond.places]
+    assert.deepEqual(publishedPlaces.map((item) => [
       item.placeId,
       item.position,
       item.place?.name ?? null,
@@ -228,7 +237,18 @@ test('bounded Library queries paginate, hydrate public Place facts, and isolate 
       [places[1], 1, '성수 장소 2'],
       [places[2], 2, null],
     ])
-    assert.equal(await queries.getPublishedCollection(collectionB), undefined)
+    assert.equal(publishedSecond.nextCursor, undefined)
+    const publishedMap = await queries.getPublishedCollectionMap({
+      publicationId: publishedCollectionId,
+      bounds: { west: 126.9, south: 37.5, east: 127.1, north: 37.6 },
+      zoom: 12,
+    })
+    assert.deepEqual(publishedMap.coverage, {
+      representedPlaceCount: 2, unprojectedPlaceCount: 1, complete: false,
+    })
+    assert.equal(await queries.getPublishedCollection({
+      publicationId: collectionB, limit: 50,
+    }), undefined)
 
     const collectionsFirst = await queries.listCollections({ memberId: memberA, limit: 1 })
     assert.deepEqual(collectionsFirst.items.map((item) => item.collectionId), [collectionA])

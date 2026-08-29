@@ -15,3 +15,10 @@ cluster는 현재 viewport의 모든 projected Place를 대표하고, 넓은 영
 제한한다. cluster count의 합과 개별 point 수의 합은 `representedPlaceCount`와 같아야 한다. Library는
 Search schema를 join하지 않으며 Search-owned PostGIS reader가 scoped Place ID의 bounds 조회를 수행한다.
 CI의 deterministic renderer는 확대·축소·pan·cluster 확대를 검증하고 live NAVER Adapter는 후속이다.
+
+공개 Collection map도 같은 provider-neutral 시각 계약을 사용하지만 인증 Library scope가 아니라 유효한
+publication membership을 기준으로 한다. `GET /v1/public/collections/{publicationId}/map`은 공개 목록
+cursor와 독립된 bounds/zoom query이며, 아직 읽지 않은 목록 page의 Place도 marker/cluster에 포함한다.
+Search, Personal Library, publication feature는 `PlaceMapRenderer` 구현을 직접 선택하지 않고 각 app
+composition에서 주입받는다. 따라서 live 지도를 붙일 때 SDK lifecycle·key·attribution은 새 platform
+Adapter 안에 격리되고 feature query/state는 유지된다.

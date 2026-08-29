@@ -15,6 +15,10 @@ type PlaceOrganizationCursor = Readonly<{
   sortName: string
   resourceId: string
 }>
+type PublishedCollectionCursor = Readonly<{
+  position: number
+  placeId: string
+}>
 type PlaceFilter = Readonly<{
   state: LibraryPlaceState
   tagIds: readonly string[]
@@ -110,6 +114,36 @@ export function encodeCollectionPlaceCursor(
   cursor: CollectionPlaceCursor,
 ): string {
   return encode({ v: 1, kind: 'collection-places', collectionId, ...cursor })
+}
+
+export function decodePublishedCollectionCursor(
+  value: string | undefined,
+  publicationId: string,
+  collectionUpdatedAt: string,
+): PublishedCollectionCursor | undefined {
+  const payload = readPayload(value)
+  if (payload === undefined) return undefined
+  if (
+    payload.v !== 1 || payload.kind !== 'published-collection-places' ||
+    payload.publicationId !== publicationId || payload.collectionUpdatedAt !== collectionUpdatedAt ||
+    typeof payload.position !== 'number' || !Number.isInteger(payload.position) ||
+    payload.position < 0 || !validUuid(payload.placeId)
+  ) throw new InvalidLibraryCursorError('Published Collection cursor is invalid.')
+  return { position: payload.position, placeId: payload.placeId }
+}
+
+export function encodePublishedCollectionCursor(
+  publicationId: string,
+  collectionUpdatedAt: string,
+  cursor: PublishedCollectionCursor,
+): string {
+  return encode({
+    v: 1,
+    kind: 'published-collection-places',
+    publicationId,
+    collectionUpdatedAt,
+    ...cursor,
+  })
 }
 
 export function decodeTagCursor(value: string | undefined): TagCursor | undefined {

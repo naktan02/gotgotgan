@@ -35,6 +35,7 @@ import {
   deleteTagCommandSchema,
   libraryCommandRequestSchema,
   moveCollectionPlaceCommandSchema,
+  publishedCollectionMapSchema,
   publishedCollectionSchema,
   publishedWritingSchema,
   removeCollectionPlaceCommandSchema,
@@ -184,6 +185,11 @@ const boundedCursorParameter = {
 const boundedLimitParameter = {
   name: 'limit', in: 'query', required: false,
   schema: { type: 'integer', minimum: 1, maximum: 50, default: 20 },
+}
+
+const publishedCollectionLimitParameter = {
+  name: 'limit', in: 'query', required: false,
+  schema: { type: 'integer', minimum: 1, maximum: 50, default: 50 },
 }
 
 const libraryPlaceStateParameter = {
@@ -602,7 +608,20 @@ const paths = {
       '200': described('Return a validated public collection', 'PublishedCollection'),
       '404': ref('responses', 'ProductNotFound'),
       '503': ref('responses', 'BrowserBackendUnavailable'),
-    }, { security: anonymous }),
+      '400': ref('responses', 'ProductRequestInvalid'),
+    }, {
+      security: anonymous,
+      parameters: [boundedCursorParameter, publishedCollectionLimitParameter],
+    }),
+  },
+  '/api/public/collections/{publicationId}/map': {
+    parameters: [pathParameters.publicationId],
+    get: operation('getPublishedPlaceCollectionMapForBrowser', {
+      '200': described('Return a validated public collection map projection', 'PublishedCollectionMap'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, { security: anonymous, parameters: [...libraryMapViewportParameters] }),
   },
   '/api/public/writing/{publicationId}': {
     parameters: [pathParameters.publicationId],
@@ -835,7 +854,19 @@ const paths = {
     get: operation('getPublishedPlaceCollection', {
       '200': described('Return an allowlisted public collection', 'PublishedCollection'),
       '404': ref('responses', 'ProductNotFound'),
-    }, { security: anonymous }),
+      '400': ref('responses', 'ProductRequestInvalid'),
+    }, {
+      security: anonymous,
+      parameters: [boundedCursorParameter, publishedCollectionLimitParameter],
+    }),
+  },
+  '/v1/public/collections/{publicationId}/map': {
+    parameters: [pathParameters.publicationId],
+    get: operation('getPublishedPlaceCollectionMap', {
+      '200': described('Return an allowlisted public collection map projection', 'PublishedCollectionMap'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '404': ref('responses', 'ProductNotFound'),
+    }, { security: anonymous, parameters: [...libraryMapViewportParameters] }),
   },
   '/v1/visits': { post: operation('recordPlaceVisit', {
     '201': described('Record an immutable visit occurrence', 'VisitRecordResult'),
@@ -1031,6 +1062,7 @@ const schemas: Readonly<Record<string, ZodType>> = {
   AuthorityRoleChangeRequest: authorityRoleChangeRequestSchema,
   AuthorityRoleChangeResult: authorityRoleChangeResultSchema,
   PublishedCollection: publishedCollectionSchema,
+  PublishedCollectionMap: publishedCollectionMapSchema,
   PublishedWriting: publishedWritingSchema,
   LibraryPlaceListResponse: libraryPlaceListResponseSchema,
   LibraryPlaceFacetsResponse: libraryPlaceFacetsResponseSchema,

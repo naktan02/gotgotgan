@@ -21,6 +21,7 @@ const store: LibraryStore = {
 function fixture(overrides: Partial<LibraryQueries> = {}) {
   const queries: LibraryQueries = {
     getPublishedCollection: async () => undefined,
+    getPublishedCollectionMap: async () => undefined,
     getMapProjection: async (input) => ({
       schemaVersion: 'library-map-projection.v1',
       scope: input.scope,
@@ -117,6 +118,75 @@ function fixture(overrides: Partial<LibraryQueries> = {}) {
 }
 
 describe('bounded Library HTTP queries', () => {
+  it('paginates public rows separately from the viewport map', async () => {
+    const publicationId = '01992d20-3000-7000-8000-000000000901'
+    const getPublishedCollection = vi.fn<LibraryQueries['getPublishedCollection']>(async (input) => ({
+      publicationId,
+      visibility: 'unlisted',
+      name: '공유 목록',
+      description: null,
+      placeCount: 120,
+      places: [{ placeId, position: 0, place: null }],
+      nextCursor: 'next-public-page',
+      updatedAt: at,
+    }))
+    const getPublishedCollectionMap = vi.fn<LibraryQueries['getPublishedCollectionMap']>(async (input) => ({
+      schemaVersion: 'place-published-collection-map.v1',
+      publicationId,
+      viewport: { bounds: input.bounds, zoom: input.zoom },
+      features: [{
+        kind: 'cluster', clusterId: 'z12-x1-y1', count: 120,
+        location: { latitude: 37.55, longitude: 127 },
+        bounds: { west: 126.9, south: 37.5, east: 127.1, north: 37.6 },
+      }],
+      coverage: { representedPlaceCount: 120, unprojectedPlaceCount: 0, complete: true },
+    }))
+    const { app } = fixture({ getPublishedCollection, getPublishedCollectionMap })
+
+    const page = await app.inject({
+      method: 'GET', url: `/v1/public/collections/${publicationId}`,
+    })
+    expect(page.statusCode).toBe(200)
+    expect(page.json()).toMatchObject({
+      schemaVersion: 'place-published-collection.v3', placeCount: 120,
+      nextCursor: 'next-public-page',
+    })
+    expect(getPublishedCollection).toHaveBeenCalledWith({ publicationId, limit: 50 })
+
+    const map = await app.inject({
+      method: 'GET',
+      url: `/v1/public/collections/${publicationId}/map?west=126.9&south=37.5&east=127.1&north=37.6&zoom=12`,
+    })
+    expect(map.statusCode).toBe(200)
+    expect(map.json()).toHaveProperty('coverage.representedPlaceCount', 120)
+    expect(getPublishedCollectionMap).toHaveBeenCalledWith({
+      publicationId,
+      bounds: { west: 126.9, south: 37.5, east: 127.1, north: 37.6 },
+      zoom: 12,
+    })
+    expect((await app.inject({
+      method: 'GET',
+      url: `/v1/public/collections/${publicationId}/map?west=127.1&south=37.5&east=126.9&north=37.6&zoom=12`,
+    })).statusCode).toBe(400)
+    await app.close()
+  })
+
+  it('rejects stale public collection cursors without exposing publication state', async () => {
+    const publicationId = '01992d20-3000-7000-8000-000000000901'
+    const { app } = fixture({
+      getPublishedCollection: async () => {
+        throw new InvalidLibraryCursorError('changed publication')
+      },
+    })
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/public/collections/${publicationId}?cursor=stale`,
+    })
+    expect(response.statusCode).toBe(400)
+    expect(JSON.stringify(response.json())).not.toContain('changed publication')
+    await app.close()
+  })
+
   it('requires a member and applies saved/20 defaults', async () => {
     const listPlaces = vi.fn<LibraryQueries['listPlaces']>(async (input) => ({
       schemaVersion: 'library-place-list.v3',

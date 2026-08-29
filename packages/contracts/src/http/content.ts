@@ -233,19 +233,100 @@ export const publicationIdentifierParamsSchema = z.object({
 
 export const placeIdentifierParamsSchema = z.object({ placeId: uuidSchema }).strict()
 
+const publicationCursorSchema = z.string().min(1).max(2_048)
+const longitudeSchema = z.coerce.number().finite().min(-180).max(180)
+const latitudeSchema = z.coerce.number().finite().min(-90).max(90)
+const validMapBounds = (bounds: Readonly<{
+  west: number
+  south: number
+  east: number
+  north: number
+}>) => bounds.west < bounds.east && bounds.south < bounds.north
+
+export const publishedCollectionQuerySchema = z.object({
+  cursor: publicationCursorSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(50),
+}).strict()
+
+export const publishedCollectionMapQuerySchema = z.object({
+  west: longitudeSchema,
+  south: latitudeSchema,
+  east: longitudeSchema,
+  north: latitudeSchema,
+  zoom: z.coerce.number().int().min(0).max(22),
+}).strict().refine(validMapBounds, 'map bounds must have positive width and height')
+
 export const publishedCollectionSchema = z.object({
-  schemaVersion: z.literal('place-published-collection.v2'),
+  schemaVersion: z.literal('place-published-collection.v3'),
   publicationId: uuidSchema,
   visibility: sharedVisibilitySchema,
   name: z.string().min(1).max(120),
   description: z.string().max(2_000).nullable(),
+  placeCount: z.number().int().nonnegative(),
   places: z.array(z.object({
     placeId: uuidSchema,
     position: z.number().int().nonnegative(),
     place: placeSummarySchema.nullable(),
-  }).strict()),
+  }).strict()).max(50),
+  nextCursor: publicationCursorSchema.optional(),
   updatedAt: z.iso.datetime(),
 }).strict()
+
+const publishedCollectionMapBoundsSchema = z.object({
+  west: longitudeSchema,
+  south: latitudeSchema,
+  east: longitudeSchema,
+  north: latitudeSchema,
+}).strict().refine(validMapBounds, 'map bounds must have positive width and height')
+
+const publishedCollectionMapFeatureSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('place'),
+    placeId: uuidSchema,
+    label: z.string().min(1).max(300),
+    location: z.object({ latitude: latitudeSchema, longitude: longitudeSchema }).strict(),
+  }).strict(),
+  z.object({
+    kind: z.literal('cluster'),
+    clusterId: z.string().min(1).max(160),
+    count: z.number().int().min(2),
+    location: z.object({ latitude: latitudeSchema, longitude: longitudeSchema }).strict(),
+    bounds: publishedCollectionMapBoundsSchema,
+  }).strict(),
+])
+
+export const publishedCollectionMapSchema = z.object({
+  schemaVersion: z.literal('place-published-collection-map.v1'),
+  publicationId: uuidSchema,
+  viewport: z.object({
+    bounds: publishedCollectionMapBoundsSchema,
+    zoom: z.number().int().min(0).max(22),
+  }).strict(),
+  features: z.array(publishedCollectionMapFeatureSchema).max(500),
+  coverage: z.object({
+    representedPlaceCount: z.number().int().nonnegative(),
+    unprojectedPlaceCount: z.number().int().nonnegative(),
+    complete: z.boolean(),
+  }).strict(),
+}).strict().superRefine((projection, context) => {
+  const represented = projection.features.reduce((count, feature) => (
+    count + (feature.kind === 'place' ? 1 : feature.count)
+  ), 0)
+  if (represented !== projection.coverage.representedPlaceCount) {
+    context.addIssue({
+      code: 'custom',
+      path: ['coverage', 'representedPlaceCount'],
+      message: 'representedPlaceCount must equal the places represented by all features',
+    })
+  }
+  if (projection.coverage.complete !== (projection.coverage.unprojectedPlaceCount === 0)) {
+    context.addIssue({
+      code: 'custom',
+      path: ['coverage', 'complete'],
+      message: 'complete must reflect whether the publication has unprojected places',
+    })
+  }
+})
 
 export const publishedWritingSchema = z.discriminatedUnion('kind', [
   z.object({
@@ -276,4 +357,7 @@ export type BrowserVisitRecordRequest = z.infer<typeof browserVisitRecordRequest
 export type BrowserPrivateNoteCommandRequest = z.infer<typeof browserPrivateNoteCommandRequestSchema>
 export type WritingCommandRequest = z.infer<typeof writingCommandRequestSchema>
 export type PublishedCollection = z.infer<typeof publishedCollectionSchema>
+export type PublishedCollectionQuery = z.infer<typeof publishedCollectionQuerySchema>
+export type PublishedCollectionMapQuery = z.infer<typeof publishedCollectionMapQuerySchema>
+export type PublishedCollectionMap = z.infer<typeof publishedCollectionMapSchema>
 export type PublishedWriting = z.infer<typeof publishedWritingSchema>

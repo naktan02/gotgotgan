@@ -1,6 +1,7 @@
-import { PersonalLibrary } from '@/features/personal-library/public'
 import { readFamilyNavigation } from '@/platform/family-navigation/family-navigation'
 import { PlaceWorkspaceShell } from '@/shells/place-workspace/PlaceWorkspaceShell'
+
+import { PlaceLibraryWorkspace } from './PlaceLibraryWorkspace'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,7 +13,7 @@ export default function LibraryPage() {
       familyNavigation={familyNavigation}
       stageLabel="개인 라이브러리"
     >
-      <PersonalLibrary />
+      <PlaceLibraryWorkspace />
     </PlaceWorkspaceShell>
   )
 }

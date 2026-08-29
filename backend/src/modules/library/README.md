@@ -46,9 +46,11 @@ Place reference만 새 회원 소유 private Collection으로 복사하고 prove
 
 회원 목록 카드와 공개 Collection의 이름·위치·Taxonomy는 entrypoint가 주입한
 `LibraryPlaceSummaryReader`로 요청당 한 번에 조회한다. `PostgresLibraryQueries`는 Library schema만
-읽으며 Search table을 join하지 않는다. `place-published-collection.v2`는 각 Place ID·순서와 공개
-summary를 반환하고, 공개 Place projection이 아직 없더라도 preference나 Collection membership을
-삭제하지 않고 `place: null`로 반환한다.
+읽으며 Search table을 join하지 않는다. `place-published-collection.v3`는 전체 Place 수와 기본·최대
+50개의 정렬 page, 다음 opaque cursor를 반환한다. cursor는 publication ID와 Collection `updatedAt`,
+마지막 순서·Place ID에 묶여 다른 공개본 또는 변경된 공개본에서 재사용할 수 없다. 각 row는 Place
+ID·순서와 공개 summary만 포함하며 공개 Place projection이 아직 없더라도 preference나 Collection
+membership을 삭제하지 않고 `place: null`로 반환한다.
 
 `getMapProjection`은 bounded 목록 page와 독립된 지도 read다. 회원의 authoritative state/Tag 또는
 소유 Collection에서 Place ID scope를 만든 뒤, 주입된 `LibraryMapPlaceReader`가 Search-owned 좌표를
@@ -56,6 +58,11 @@ summary를 반환하고, 공개 Place projection이 아직 없더라도 preferen
 filter는 같은 summary 의미를 재사용하고 zoom별 grid가 모든 projected Place를 최대 500개의 point 또는
 count-bearing cluster로 표현한다. 따라서 feature 수는 제한해도 대표되는 Place 수를 자르지 않는다.
 scope에 좌표 projection이 없는 Place 수는 `unprojectedPlaceCount`로 드러낸다.
+
+`getPublishedCollectionMap`도 공개 목록 cursor와 독립된 read다. 유효한 publication membership만
+Place ID scope로 만들고 같은 주입 reader와 clustering policy를 사용해 요청 bounds/zoom의 point 또는
+cluster를 반환한다. private/revoked publication은 목록과 지도 모두 같은 not-found 의미이며, 공개
+지도에도 membership, Rating, Tag, Visit, Writing, provenance를 투영하지 않는다.
 
 facet 집계도 같은 public Place summary reader만 사용한다. 최근 saved Place 최대 2,000개와 지역·
 primary Taxonomy 상위 50개씩으로 제한하고 saved/sample/projected coverage를 반환한다. facet-filtered

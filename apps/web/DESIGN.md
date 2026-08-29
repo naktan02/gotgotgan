@@ -106,3 +106,15 @@ viewport의 모든 projected Place는 개별 marker 또는 count-bearing cluster
 임의 row limit으로 일부 장소를 숨기지 않는다. cluster 선택은 해당 bounds로 확대하고 marker 선택은
 목록 page에 없어도 기존 canonical detail을 지연 조회한다. deterministic renderer가 pan/zoom/cluster
 Interface를 검증하며 NAVER live SDK와 credential은 아직 연결하지 않는다.
+
+## Stage 11C Public Collection list/map composition
+
+공개 Collection도 목록과 지도를 하나의 큰 payload로 결합하지 않는다. server route는 첫 50개 공개
+목록 page만 읽고, client experience가 opaque cursor 이어 읽기와 bounds/zoom 지도 요청을 독립적으로
+조정한다. 그래서 다음 목록 page를 읽기 전에도 현재 viewport의 공개 Place가 marker/cluster에
+나타난다. list row와 marker는 Place ID 선택만 공유하며 private 상세 workflow를 끌어오지 않는다.
+
+`PublishedCollectionExperience`는 목록 pagination·viewport request·선택을 숨기는 깊은 module이고,
+`PublishedCollectionPlaces`는 행 표현만 소유한다. route는 초기 데이터, app wrapper는 map Adapter를
+주입한다. Search·Personal Library·publication 어느 feature도 `DeterministicPlaceMap`을 직접 import하지
+않으므로 live Provider map은 platform renderer 하나로 교체할 수 있다.

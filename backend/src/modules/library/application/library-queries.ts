@@ -11,10 +11,21 @@ import type {
   LibraryTagMatch,
   LibraryTagListPage,
   PublishedCollection,
+  PublishedCollectionMap,
 } from '../domain/queries.js'
 
 export interface LibraryQueries {
-  getPublishedCollection(publicationId: string): Promise<PublishedCollection | undefined>
+  getPublishedCollection(input: Readonly<{
+    publicationId: string
+    cursor?: string
+    limit: number
+  }>): Promise<PublishedCollection | undefined>
+
+  getPublishedCollectionMap(input: Readonly<{
+    publicationId: string
+    bounds: LibraryMapBounds
+    zoom: number
+  }>): Promise<PublishedCollectionMap | undefined>
 
   getMapProjection(input: Readonly<{
     memberId: string

@@ -2,6 +2,9 @@ import type { FastifyInstance } from 'fastify'
 import {
   libraryCommandRequestSchema,
   placeIdentifierParamsSchema,
+  publishedCollectionMapQuerySchema,
+  publishedCollectionMapSchema,
+  publishedCollectionQuerySchema,
   publishedCollectionSchema,
   publicationIdentifierParamsSchema,
 } from '@place/contracts/http'
@@ -19,6 +22,7 @@ import {
   LibraryPreferenceVersionConflictError,
 } from '../../domain/model.js'
 import type { LibraryQueries } from '../../application/library-queries.js'
+import { InvalidLibraryCursorError, InvalidLibraryQueryError } from '../../domain/queries.js'
 import { registerLibraryQueryHttpRoutes } from './register-library-query-http.js'
 
 export type LibraryHttpDependencies = Readonly<{
@@ -81,14 +85,56 @@ export function registerLibraryHttpRoutes(application: FastifyInstance, dependen
   application.get('/v1/public/collections/:publicationId', async (request, reply) => {
     const parsed = publicationIdentifierParamsSchema.safeParse(request.params)
     if (!parsed.success) return sendProductProblem(request, reply, 404, 'PLACE_PUBLICATION_NOT_FOUND', 'Publication not found')
-    const result = await dependencies.queries.getPublishedCollection(parsed.data.publicationId)
-    return result === undefined
-      ? sendProductProblem(request, reply, 404, 'PLACE_PUBLICATION_NOT_FOUND', 'Publication not found')
-      : reply.header('cache-control', 'no-store').status(200).send(
-          publishedCollectionSchema.parse({
-            schemaVersion: 'place-published-collection.v2',
-            ...result,
-          }),
-        )
+    const query = publishedCollectionQuerySchema.safeParse(request.query)
+    if (!query.success) return sendProductProblem(request, reply, 400, 'PLACE_PUBLICATION_QUERY_INVALID', 'Publication query is invalid')
+    try {
+      const result = await dependencies.queries.getPublishedCollection({
+        publicationId: parsed.data.publicationId,
+        limit: query.data.limit,
+        ...(query.data.cursor === undefined ? {} : { cursor: query.data.cursor }),
+      })
+      return result === undefined
+        ? sendProductProblem(request, reply, 404, 'PLACE_PUBLICATION_NOT_FOUND', 'Publication not found')
+        : reply.header('cache-control', 'no-store').status(200).send(
+            publishedCollectionSchema.parse({
+              schemaVersion: 'place-published-collection.v3',
+              ...result,
+            }),
+          )
+    } catch (error) {
+      if (error instanceof InvalidLibraryCursorError || error instanceof InvalidLibraryQueryError) {
+        return sendProductProblem(request, reply, 400, 'PLACE_PUBLICATION_QUERY_INVALID', 'Publication query is invalid')
+      }
+      throw error
+    }
+  })
+
+  application.get('/v1/public/collections/:publicationId/map', async (request, reply) => {
+    const parsed = publicationIdentifierParamsSchema.safeParse(request.params)
+    if (!parsed.success) return sendProductProblem(request, reply, 404, 'PLACE_PUBLICATION_NOT_FOUND', 'Publication not found')
+    const query = publishedCollectionMapQuerySchema.safeParse(request.query)
+    if (!query.success) return sendProductProblem(request, reply, 400, 'PLACE_PUBLICATION_QUERY_INVALID', 'Publication query is invalid')
+    try {
+      const result = await dependencies.queries.getPublishedCollectionMap({
+        publicationId: parsed.data.publicationId,
+        bounds: {
+          west: query.data.west,
+          south: query.data.south,
+          east: query.data.east,
+          north: query.data.north,
+        },
+        zoom: query.data.zoom,
+      })
+      return result === undefined
+        ? sendProductProblem(request, reply, 404, 'PLACE_PUBLICATION_NOT_FOUND', 'Publication not found')
+        : reply.header('cache-control', 'no-store').status(200).send(
+            publishedCollectionMapSchema.parse(result),
+          )
+    } catch (error) {
+      if (error instanceof InvalidLibraryQueryError) {
+        return sendProductProblem(request, reply, 400, 'PLACE_PUBLICATION_QUERY_INVALID', 'Publication query is invalid')
+      }
+      throw error
+    }
   })
 }

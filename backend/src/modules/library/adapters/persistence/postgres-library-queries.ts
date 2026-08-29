@@ -22,6 +22,10 @@ import {
   getPostgresLibraryPlaceFacets,
   listPostgresLibraryPlaces,
 } from './postgres-library-place-queries.js'
+import {
+  getPostgresPublishedCollection,
+  getPostgresPublishedCollectionMap,
+} from './postgres-published-collection-queries.js'
 
 type CollectionRow = Readonly<{
   id: string
@@ -37,14 +41,6 @@ type CollectionPlaceRow = Readonly<{
   canonical_place_id: string
   position: number
   added_at: Date
-}>
-
-type PublishedCollectionRow = Readonly<{
-  name: string
-  description: string | null
-  visibility: 'unlisted' | 'public'
-  updated_at: Date
-  places: readonly Readonly<{ placeId: string; position: number }>[]
 }>
 
 type TagRow = Readonly<{
@@ -90,42 +86,12 @@ export class PostgresLibraryQueries implements LibraryQueries {
     )
   }
 
-  async getPublishedCollection(publicationId: string) {
-    const result = await this.pool.query<PublishedCollectionRow>(
-      `
-        SELECT
-          collection.name,
-          collection.description,
-          collection.visibility,
-          collection.updated_at,
-          coalesce(jsonb_agg(jsonb_build_object(
-            'placeId', place.canonical_place_id,
-            'position', place.position
-          ) ORDER BY place.position, place.canonical_place_id)
-            FILTER (WHERE place.canonical_place_id IS NOT NULL), '[]') AS places
-        FROM library.collections AS collection
-        LEFT JOIN library.collection_places AS place
-          ON place.collection_id = collection.id
-        WHERE collection.publication_id = $1::uuid
-          AND collection.visibility IN ('unlisted', 'public')
-        GROUP BY collection.id
-      `,
-      [publicationId],
-    )
-    const row = result.rows[0]
-    if (row === undefined) return undefined
-    const summaries = await this.summariesById(row.places.map((place) => place.placeId))
-    return {
-      publicationId,
-      visibility: row.visibility,
-      name: row.name,
-      description: row.description,
-      places: row.places.map((place) => ({
-        ...place,
-        place: summaries.get(place.placeId) ?? null,
-      })),
-      updatedAt: row.updated_at.toISOString(),
-    }
+  async getPublishedCollection(input: Parameters<LibraryQueries['getPublishedCollection']>[0]) {
+    return getPostgresPublishedCollection(this.pool, this.readPlaceSummaries, input)
+  }
+
+  async getPublishedCollectionMap(input: Parameters<LibraryQueries['getPublishedCollectionMap']>[0]) {
+    return getPostgresPublishedCollectionMap(this.pool, this.readMapPlaces, input)
   }
 
   async getMapProjection(input: Parameters<LibraryQueries['getMapProjection']>[0]) {

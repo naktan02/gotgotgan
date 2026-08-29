@@ -39,6 +39,7 @@ export {
   type LibraryTagMatch,
   type LibraryTagListPage,
   type PublishedCollection,
+  type PublishedCollectionMap,
 } from './domain/queries.js'
 export {
   registerLibraryHttpRoutes,

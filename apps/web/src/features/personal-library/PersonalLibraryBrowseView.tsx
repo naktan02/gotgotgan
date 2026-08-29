@@ -5,10 +5,12 @@ import { PersonalLibraryListPane } from './PersonalLibraryListPane'
 import { PersonalLibraryMap } from './PersonalLibraryMap'
 import styles from './personal-library-browse.module.css'
 import type { PersonalLibraryWorkflow } from './personal-library-workflow'
+import type { PlaceMapRenderer } from '@/platform/maps/place-map-interface'
 
 export function PersonalLibraryBrowseView({
+  mapRenderer,
   workflow,
-}: Readonly<{ workflow: PersonalLibraryWorkflow }>) {
+}: Readonly<{ workflow: PersonalLibraryWorkflow; mapRenderer: PlaceMapRenderer }>) {
   const { error, mobileSurface, selectedPlaceId } = workflow
   const mobileClass = mobileSurface === 'map'
     ? styles.mobileMap
@@ -54,6 +56,7 @@ export function PersonalLibraryBrowseView({
             projection={workflow.mapProjection}
             selectedPlaceId={selectedPlaceId}
             viewport={workflow.mapViewport}
+            mapRenderer={mapRenderer}
           />
         </div>
       </div>

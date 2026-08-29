@@ -6,7 +6,7 @@ Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed doc
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **source-only; Stages 6.5, 7.5–7.17, and 11A–11B complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
+Current delivery state: **source-only; Stages 6.5, 7.5–7.17, and 11A–11C complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
@@ -208,6 +208,15 @@ Stage 11B는 공개 Collection의 정렬된 Place reference에 `place-published-
 `LibraryPlaceSummaryReader` Interface를 한 번 호출하며, Search projection이 늦은 Place는 순서를
 잃지 않고 `place: null`로 남긴다. 공개 화면은 이름·지역·primary Taxonomy를 표시하되 UUID나
 Personal Rating, Tag, Visit, Writing, ownership을 표시하지 않는다.
+
+Stage 11C는 현재 공개 Collection 계약을 `place-published-collection.v3`으로 확장한다. 정렬 목록은
+기본·최대 50개와 publication·수정 버전에 묶인 opaque cursor, 전체 `placeCount`를 반환하고 Web은
+접근 가능한 더 보기와 자동 이어 읽기를 제공한다. 별도 `GET /v1/public/collections/{publicationId}/map`
+조회는 publication membership과 `bounds + zoom`으로 point 또는 count-bearing cluster를 만들며 목록
+page를 marker 원천으로 사용하지 않는다. 공개 화면의 지도는 아직 읽지 않은 다음 목록 page의 Place도
+표현하고 projection 지연 수를 명시한다. Search·Personal Library·공개 Collection은 모두 앱 조립
+계층에서 주입되는 하나의 provider-neutral renderer Interface만 의존하므로 향후 NAVER·Google·Kakao
+지도 Adapter 교체가 feature 내부 변경을 요구하지 않는다. live 지도 SDK와 credential은 비활성이다.
 
 ## Repository boundaries
 

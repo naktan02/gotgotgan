@@ -1,9 +1,9 @@
 import { notFound } from 'next/navigation'
 
 import styles from '@/features/publications/publication.module.css'
-import { PublishedCollectionActions } from '@/features/publications/PublishedCollectionActions'
-import { PublishedCollectionPlaces } from '@/features/publications/PublishedCollectionPlaces'
 import { getPublicCollection, PublicationNotFoundError } from '@/platform/publications/publication-backend-client'
+
+import { PublishedCollectionWorkspace } from './PublishedCollectionWorkspace'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,7 +20,6 @@ export default async function PublishedCollectionPage({ params }: { params: Prom
     <p className={styles.eyebrow}>Shared collection</p>
     <h1 className={styles.title}>{collection.name}</h1>
     {collection.description && <p className={styles.description}>{collection.description}</p>}
-    <PublishedCollectionActions name={collection.name} publicationId={collection.publicationId} />
-    <PublishedCollectionPlaces places={collection.places} />
+    <PublishedCollectionWorkspace collection={collection} />
   </article></main>
 }

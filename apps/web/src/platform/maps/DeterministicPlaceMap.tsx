@@ -1,10 +1,7 @@
 import styles from './deterministic-place-map.module.css'
 
 import type {
-  PlaceMapBounds,
-  PlaceMapCluster,
-  PlaceMapMarker,
-  PlaceMapViewport,
+  PlaceMapRendererProperties,
 } from './place-map-interface'
 
 function percent(value: number, minimum: number, maximum: number): string {
@@ -26,21 +23,7 @@ export function DeterministicPlaceMap({
   onSelect,
   onMove,
   onViewportChange,
-}: Readonly<{
-  ariaLabel?: string
-  bounds: PlaceMapBounds
-  clusters?: readonly PlaceMapCluster[]
-  description?: string
-  markers: readonly PlaceMapMarker[]
-  moveLabel?: string
-  selectedMarkerId?: string
-  title?: string
-  zoom?: number
-  onClusterSelect?: (cluster: PlaceMapCluster) => void
-  onSelect: (markerId: string) => void
-  onMove?: () => void
-  onViewportChange?: (viewport: PlaceMapViewport) => void
-}>) {
+}: PlaceMapRendererProperties) {
   const longitudeSpan = bounds.east - bounds.west
   const latitudeSpan = bounds.north - bounds.south
   const changeZoom = (factor: number, nextZoom: number) => onViewportChange?.({

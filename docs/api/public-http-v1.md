@@ -164,16 +164,25 @@ command replay는 `200`, stale expected version은 retryable `409`로 보존한�
 서버가 정한 불변 `createdAt`과 마지막 저장 시각 `updatedAt`을 모두 반환하며, 브라우저가 두 시각을
 command로 제출하거나 덮어쓸 수 없다.
 
-`GET /v1/public/collections/{publicationId}`와 `GET /v1/public/writing/{publicationId}`는
+`GET /v1/public/collections/{publicationId}`, 그 하위 `/map`,
+`GET /v1/public/writing/{publicationId}`는
 Stage 4에서 유일한 anonymous Backend projection이다. Web은 고정된 내부 Backend origin을 통해
 대응하는 `/api/public/...` BFF 조회와 `/share/...` page를 제공한다. 알 수 없는 identifier와
 private identifier는 동일하고 안전한 not-found 응답을 반환한다. public projection에는
 membership, Rating, Visit, Tag, provenance, revision history가 포함되지 않는다.
-`place-published-collection.v2`의 각 정렬 행은 `placeId`, `position`, 공개 `place` summary만 가진다.
+`place-published-collection.v3`은 `placeCount`, 최대 50개의 정렬 행과 `nextCursor`를 반환한다. cursor는
+publication ID와 Collection 수정 버전, 마지막 위치·Place ID에 묶이므로 다른 공개본이나 수정된
+공개본에 재사용하면 400이다. 각 행은 `placeId`, `position`, 공개 `place` summary만 가진다.
 summary 허용 목록은 이름, 지역 표시, 좌표, Taxonomy, 공개 evidence이며 Search projection이 아직
 준비되지 않았으면 `place`는 `null`이다. Library query는 Search schema를 join하지 않고 조립된 batch
 reader Interface를 한 번 사용한다. Web도 같은 strict schema를 검증해 개인 field가 섞인 응답을
 거부한다.
+
+`GET /v1/public/collections/{publicationId}/map`은 list cursor를 받지 않고 필수
+`west/south/east/north/zoom`을 받는다. `place-published-collection-map.v1`은 publication membership 중
+현재 bounds에 projected된 Place를 최대 500개의 point 또는 count-bearing cluster로 표현하며 feature
+count 합을 `representedPlaceCount`로 보존한다. `unprojectedPlaceCount`는 publication에는 있지만 공개
+좌표 projection이 준비되지 않은 Place 수다. Web 지도 요청과 목록 이어 읽기는 서로 독립이다.
 공개 Collection 화면은 인증된 viewer가 이 projection의 Place ID·순서만 자기 private Collection으로
 복사할 수 있는 동작을 제공한다. 공유가 해제된 ID는 공개 조회와 후속 복사 모두 동일한 404가 된다.
 현재 공개 projection 응답은 별도 purge infrastructure 없이 revocation을 보장하기 위해 `no-store`다.

@@ -4,7 +4,13 @@ import styles from './publication.module.css'
 
 export function PublishedCollectionPlaces({
   places,
-}: Readonly<{ places: PublishedCollection['places'] }>) {
+  selectedPlaceId,
+  onSelect,
+}: Readonly<{
+  places: PublishedCollection['places']
+  selectedPlaceId?: string
+  onSelect: (placeId: string) => void
+}>) {
   return (
     <ol aria-label="공유된 장소" className={styles.list}>
       {places.map((item) => {
@@ -13,15 +19,24 @@ export function PublishedCollectionPlaces({
           : [item.place.primaryTaxonomy?.label, item.place.areaLabel]
             .filter((value): value is string => value !== null && value !== undefined)
         return (
-          <li className={styles.item} key={item.placeId}>
+          <li
+            className={item.placeId === selectedPlaceId
+              ? `${styles.item} ${styles.selectedItem}`
+              : styles.item}
+            key={item.placeId}
+          >
             <span className={styles.position}>{item.position + 1}</span>
             {item.place === null ? (
               <span className={styles.pending}>장소 정보를 준비 중입니다.</span>
             ) : (
-              <div className={styles.placeSummary}>
+              <button
+                className={styles.placeSummary}
+                onClick={() => onSelect(item.placeId)}
+                type="button"
+              >
                 <strong>{item.place.name}</strong>
                 {metadata.length > 0 && <span>{metadata.join(' · ')}</span>}
-              </div>
+              </button>
             )}
           </li>
         )

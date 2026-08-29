@@ -1,4 +1,7 @@
 import {
+  type PublishedCollectionMapQuery,
+  type PublishedCollectionQuery,
+  publishedCollectionMapSchema,
   publishedCollectionSchema,
   publishedWritingSchema,
 } from '@place/contracts/http'
@@ -22,12 +25,38 @@ async function requestProjection(pathname: string, environment: Readonly<Record<
 
 export async function getPublicCollection(
   publicationId: string,
+  query: PublishedCollectionQuery = { limit: 50 },
   environment: Readonly<Record<string, string | undefined>> = process.env,
 ) {
+  const parameters = new URLSearchParams({ limit: String(query.limit) })
+  if (query.cursor !== undefined) parameters.set('cursor', query.cursor)
   const parsed = publishedCollectionSchema.safeParse(
-    await requestProjection(`/v1/public/collections/${encodeURIComponent(publicationId)}`, environment),
+    await requestProjection(
+      `/v1/public/collections/${encodeURIComponent(publicationId)}?${parameters}`,
+      environment,
+    ),
   )
   if (!parsed.success) throw new Error('Backend returned invalid collection')
+  return parsed.data
+}
+
+export async function getPublicCollectionMap(
+  publicationId: string,
+  query: PublishedCollectionMapQuery,
+  environment: Readonly<Record<string, string | undefined>> = process.env,
+) {
+  const parameters = new URLSearchParams({
+    west: String(query.west),
+    south: String(query.south),
+    east: String(query.east),
+    north: String(query.north),
+    zoom: String(query.zoom),
+  })
+  const parsed = publishedCollectionMapSchema.safeParse(await requestProjection(
+    `/v1/public/collections/${encodeURIComponent(publicationId)}/map?${parameters}`,
+    environment,
+  ))
+  if (!parsed.success) throw new Error('Backend returned invalid collection map')
   return parsed.data
 }
 

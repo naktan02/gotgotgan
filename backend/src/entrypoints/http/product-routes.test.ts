@@ -32,11 +32,12 @@ function fixtureApplication(
     getPlacePreferences: async () => ({ memberId, placeId, saved: true, wanted: false, personalRating: 4.4, updatedAt: now().toISOString() }),
   }
   const libraryQueries: LibraryQueries = {
-    getPublishedCollection: async (id): Promise<PublishedCollection | undefined> => id === publicationId ? {
+    getPublishedCollection: async (input): Promise<PublishedCollection | undefined> => input.publicationId === publicationId ? {
       publicationId,
       visibility: 'unlisted',
       name: 'Shared places',
       description: null,
+      placeCount: 1,
       places: [{
         placeId,
         position: 0,
@@ -51,6 +52,16 @@ function fixtureApplication(
         },
       }],
       updatedAt: now().toISOString(),
+    } : undefined,
+    getPublishedCollectionMap: async (input) => input.publicationId === publicationId ? {
+      schemaVersion: 'place-published-collection-map.v1',
+      publicationId,
+      viewport: { bounds: input.bounds, zoom: input.zoom },
+      features: [{
+        kind: 'place', placeId, label: '조용한 라멘 연구소',
+        location: { latitude: 37.5445, longitude: 127.056 },
+      }],
+      coverage: { representedPlaceCount: 1, unprojectedPlaceCount: 0, complete: true },
     } : undefined,
     getMapProjection: async (input) => ({
       schemaVersion: 'library-map-projection.v1',
@@ -224,11 +235,12 @@ describe('Stage 4 product HTTP boundary', () => {
     expect(collection.statusCode).toBe(200)
     expect(collection.headers['cache-control']).toBe('no-store')
     expect(collection.json()).toEqual({
-      schemaVersion: 'place-published-collection.v2',
+      schemaVersion: 'place-published-collection.v3',
       publicationId,
       visibility: 'unlisted',
       name: 'Shared places',
       description: null,
+      placeCount: 1,
       places: [{
         placeId,
         position: 0,
@@ -243,6 +255,16 @@ describe('Stage 4 product HTTP boundary', () => {
         },
       }],
       updatedAt: now().toISOString(),
+    })
+    const map = await application.inject({
+      method: 'GET',
+      url: `/v1/public/collections/${publicationId}/map?west=126.9&south=37.5&east=127.1&north=37.6&zoom=12`,
+    })
+    expect(map.statusCode).toBe(200)
+    expect(map.json()).toMatchObject({
+      schemaVersion: 'place-published-collection-map.v1',
+      publicationId,
+      coverage: { representedPlaceCount: 1, complete: true },
     })
     const absent = await application.inject({ method: 'GET', url: '/v1/public/collections/01992d04-0000-7000-8000-000000000099' })
     expect(absent.statusCode).toBe(404)

@@ -10,32 +10,39 @@ const collectionPublicationId = '01992d20-0000-7000-8000-000000000001'
 const writingPublicationId = '01992d20-0000-7000-8000-000000000002'
 const placeId = '01992d20-0000-7000-8000-000000000003'
 const pendingPlaceId = '01992d20-0000-7000-8000-000000000004'
+const secondPagePlaceId = '01992d20-0000-7000-8000-000000000055'
+const publicCollectionPlaces = [{
+  placeId,
+  position: 0,
+  place: {
+    placeId,
+    name: '조용한 라멘 연구소',
+    areaLabel: '서울 성동구 성수동',
+    location: { latitude: 37.5445, longitude: 127.056 },
+    primaryTaxonomy: { key: 'food.noodle.ramen', label: '라멘' },
+    taxonomyKeys: ['food.noodle.ramen'],
+    evidence: { status: 'verified', projectedAt: '2026-08-26T10:00:00.000Z' },
+  },
+}, ...Array.from({ length: 49 }, (_, index) => ({
+  placeId: index === 0
+    ? pendingPlaceId
+    : `01992d20-0000-7000-8000-${String(index + 4).padStart(12, '0')}`,
+  position: index + 1,
+  place: null,
+})), {
+  placeId: secondPagePlaceId,
+  position: 50,
+  place: {
+    placeId: secondPagePlaceId,
+    name: '두 번째 페이지 카페',
+    areaLabel: '서울 성동구 서울숲',
+    location: { latitude: 37.548, longitude: 127.05 },
+    primaryTaxonomy: { key: 'drink.coffee', label: '카페' },
+    taxonomyKeys: ['drink.coffee'],
+    evidence: { status: 'verified', projectedAt: '2026-08-26T10:00:00.000Z' },
+  },
+}]
 const projections = new Map([
-  [`/v1/public/collections/${collectionPublicationId}`, {
-    schemaVersion: 'place-published-collection.v2',
-    publicationId: collectionPublicationId,
-    visibility: 'unlisted',
-    name: '성수에서 다시 갈 곳',
-    description: '링크를 받은 사람에게만 보이는 컬렉션',
-    places: [{
-      placeId,
-      position: 0,
-      place: {
-        placeId,
-        name: '조용한 라멘 연구소',
-        areaLabel: '서울 성동구 성수동',
-        location: { latitude: 37.5445, longitude: 127.056 },
-        primaryTaxonomy: { key: 'food.noodle.ramen', label: '라멘' },
-        taxonomyKeys: ['food.noodle.ramen'],
-        evidence: { status: 'verified', projectedAt: '2026-08-26T10:00:00.000Z' },
-      },
-    }, {
-      placeId: pendingPlaceId,
-      position: 1,
-      place: null,
-    }],
-    updatedAt: '2026-08-26T10:00:00.000Z',
-  }],
   [`/v1/public/writing/${writingPublicationId}`, {
     schemaVersion: 'place-published-writing.v1',
     kind: 'entry',
@@ -273,6 +280,7 @@ async function suggest(request, response) {
 }
 
 const server = createServer(async (request, response) => {
+  const requestUrl = new URL(request.url ?? '/', `http://${host}:${port}`)
   if (request.method === 'POST' && request.url === '/v1/search/places') {
     await search(request, response)
     return
@@ -319,6 +327,58 @@ const server = createServer(async (request, response) => {
   }
   if (request.method === 'GET' && request.url === '/__test/suggestion-observations') {
     sendJson(response, 200, { requests: suggestionObservations, selections: suggestionSelections })
+    return
+  }
+  if (
+    request.method === 'GET' &&
+    requestUrl.pathname === `/v1/public/collections/${collectionPublicationId}/map`
+  ) {
+    const bounds = {
+      west: Number(requestUrl.searchParams.get('west')),
+      south: Number(requestUrl.searchParams.get('south')),
+      east: Number(requestUrl.searchParams.get('east')),
+      north: Number(requestUrl.searchParams.get('north')),
+    }
+    const features = [{
+      kind: 'place', placeId, label: '조용한 라멘 연구소',
+      location: { latitude: 37.5445, longitude: 127.056 },
+    }, {
+      kind: 'place', placeId: secondPagePlaceId, label: '두 번째 페이지 카페',
+      location: { latitude: 37.548, longitude: 127.05 },
+    }].filter((feature) => (
+      feature.location.longitude >= bounds.west && feature.location.longitude <= bounds.east &&
+      feature.location.latitude >= bounds.south && feature.location.latitude <= bounds.north
+    ))
+    sendJson(response, 200, {
+      schemaVersion: 'place-published-collection-map.v1',
+      publicationId: collectionPublicationId,
+      viewport: {
+        bounds,
+        zoom: Number(requestUrl.searchParams.get('zoom')),
+      },
+      features,
+      coverage: {
+        representedPlaceCount: features.length, unprojectedPlaceCount: 49, complete: false,
+      },
+    })
+    return
+  }
+  if (
+    request.method === 'GET' &&
+    requestUrl.pathname === `/v1/public/collections/${collectionPublicationId}`
+  ) {
+    const secondPage = requestUrl.searchParams.get('cursor') === 'public-page-2'
+    sendJson(response, 200, {
+      schemaVersion: 'place-published-collection.v3',
+      publicationId: collectionPublicationId,
+      visibility: 'unlisted',
+      name: '성수에서 다시 갈 곳',
+      description: '링크를 받은 사람에게만 보이는 컬렉션',
+      placeCount: publicCollectionPlaces.length,
+      places: secondPage ? publicCollectionPlaces.slice(50) : publicCollectionPlaces.slice(0, 50),
+      ...(secondPage ? {} : { nextCursor: 'public-page-2' }),
+      updatedAt: '2026-08-26T10:00:00.000Z',
+    })
     return
   }
   const projection = request.method === 'GET' ? projections.get(request.url ?? '') : undefined

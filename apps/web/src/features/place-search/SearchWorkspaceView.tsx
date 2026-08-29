@@ -1,6 +1,6 @@
 'use client'
 
-import { DeterministicPlaceMap } from '@/platform/maps/DeterministicPlaceMap'
+import type { PlaceMapRenderer } from '@/platform/maps/place-map-interface'
 
 import { SearchControls } from './SearchControls'
 import { SearchResultDetailPane } from './SearchResultDetailPane'
@@ -13,9 +13,11 @@ import type {
 
 export function SearchWorkspaceView({
   workflow,
+  mapRenderer: MapRenderer,
   renderCanonicalPlaceDetail,
 }: Readonly<{
   workflow: SearchWorkspaceWorkflow
+  mapRenderer: PlaceMapRenderer
   renderCanonicalPlaceDetail?: SearchCanonicalPlaceDetailRenderer
 }>) {
   const { layout, map } = workflow
@@ -55,7 +57,7 @@ export function SearchWorkspaceView({
           />
         </div>
         <div className={styles.mapPane}>
-          <DeterministicPlaceMap
+          <MapRenderer
             ariaLabel="검색 결과 지도"
             bounds={map.bounds}
             markers={map.markers}

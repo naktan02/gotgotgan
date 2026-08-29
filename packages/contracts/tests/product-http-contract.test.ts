@@ -6,6 +6,8 @@ import {
   currentMembershipSchema,
   membershipOnboardingResultSchema,
   processStatusSchema,
+  publishedCollectionMapQuerySchema,
+  publishedCollectionMapSchema,
   publishedCollectionSchema,
   publishedWritingSchema,
 } from '../src/http/index.js'
@@ -76,8 +78,9 @@ describe('versioned product HTTP results', () => {
 
   it('versions both public content projections without exposing owner evidence', () => {
     const collection = {
-      schemaVersion: 'place-published-collection.v2' as const, publicationId,
+      schemaVersion: 'place-published-collection.v3' as const, publicationId,
       visibility: 'public' as const, name: '서울', description: null,
+      placeCount: 1,
       places: [{
         placeId,
         position: 0,
@@ -94,7 +97,7 @@ describe('versioned product HTTP results', () => {
       updatedAt: '2026-08-28T00:00:00.000Z',
     }
     expect(publishedCollectionSchema.parse(collection).schemaVersion)
-      .toBe('place-published-collection.v2')
+      .toBe('place-published-collection.v3')
     expect(publishedCollectionSchema.safeParse({
       ...collection,
       places: [{
@@ -102,6 +105,20 @@ describe('versioned product HTTP results', () => {
         place: { ...collection.places[0].place, personalRating: 4.9 },
       }],
     }).success).toBe(false)
+    expect(publishedCollectionMapQuerySchema.parse({
+      west: '126.9', south: '37.5', east: '127.1', north: '37.6', zoom: '12',
+    })).toEqual({ west: 126.9, south: 37.5, east: 127.1, north: 37.6, zoom: 12 })
+    expect(publishedCollectionMapSchema.parse({
+      schemaVersion: 'place-published-collection-map.v1', publicationId,
+      viewport: {
+        bounds: { west: 126.9, south: 37.5, east: 127.1, north: 37.6 }, zoom: 12,
+      },
+      features: [{
+        kind: 'place', placeId, label: '조용한 라멘 연구소',
+        location: { latitude: 37.5445, longitude: 127.056 },
+      }],
+      coverage: { representedPlaceCount: 1, unprojectedPlaceCount: 0, complete: true },
+    }).coverage.representedPlaceCount).toBe(1)
     expect(publishedWritingSchema.safeParse({
       schemaVersion: 'place-published-writing.v1', kind: 'note', publicationId,
       visibility: 'public', body: '좋아요', placeIds: [placeId],

@@ -79,6 +79,11 @@ Stage 11B 공개 화면 E2E는 장소명·지역·primary Taxonomy와 projection
 내부 UUID가 장소 표시값으로 렌더링되지 않는지 확인한다. 이 보강은 기존 publication lifecycle/copy
 case 수를 늘리지 않고 같은 desktop/mobile 흐름의 공개 페이지 assertion을 강화한다.
 
+Stage 11C 공개 화면 E2E는 전체 51개 중 첫 50개 목록만 server render된 상태에서 51번째 Place가
+목록에는 없지만 독립 지도 marker에는 나타나는지 검증한다. 이어 읽기 뒤에는 `51개 불러옴`과 마지막
+Place row가 보이고, private Rating·Tag·Visit·Writing은 계속 나타나지 않아야 한다. 이 fixture와
+deterministic renderer는 live 지도 연결 증거가 아니다.
+
 Visit E2E는 같은 Place의 반복 방문이 서로 다른 불변 occurrence로 쌓이고 bounded history와 Place
 summary가 갱신되는지 desktop/mobile에서 검증한다. 첫 기록 응답을 유실시킨 경우에는 새 ID를 만들지
 않고 동일 Visit ID와 payload를 재전송한다. focused Personal Library suite는 두 browser project에서
