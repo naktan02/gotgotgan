@@ -20,7 +20,11 @@ test('browser membership fails closed while the server runtime is inactive', asy
 }) => {
   const readiness = await request.get('/readyz')
   expect(readiness.status()).toBe(200)
-  expect(await readiness.json()).toEqual({ service: 'place-web', state: 'ok' })
+  expect(await readiness.json()).toEqual({
+    schemaVersion: 'place-process-status.v1',
+    service: 'place-web',
+    state: 'ok',
+  })
 
   await expectUnavailable(await request.get('/api/membership-consents/current'))
   await expectUnavailable(

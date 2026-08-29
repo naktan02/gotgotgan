@@ -11,6 +11,7 @@ const writingPublicationId = '01992d20-0000-7000-8000-000000000002'
 const placeId = '01992d20-0000-7000-8000-000000000003'
 const projections = new Map([
   [`/v1/public/collections/${collectionPublicationId}`, {
+    schemaVersion: 'place-published-collection.v1',
     publicationId: collectionPublicationId,
     visibility: 'unlisted',
     name: '성수에서 다시 갈 곳',
@@ -19,6 +20,7 @@ const projections = new Map([
     updatedAt: '2026-08-26T10:00:00.000Z',
   }],
   [`/v1/public/writing/${writingPublicationId}`, {
+    schemaVersion: 'place-published-writing.v1',
     kind: 'entry',
     publicationId: writingPublicationId,
     visibility: 'public',
