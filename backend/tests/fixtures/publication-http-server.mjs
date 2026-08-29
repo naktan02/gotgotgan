@@ -11,6 +11,8 @@ const writingPublicationId = '01992d20-0000-7000-8000-000000000002'
 const placeId = '01992d20-0000-7000-8000-000000000003'
 const pendingPlaceId = '01992d20-0000-7000-8000-000000000004'
 const secondPagePlaceId = '01992d20-0000-7000-8000-000000000055'
+const publicProfileCollectionId = '01992d20-0000-7000-8000-000000000005'
+const secondPublicProfileCollectionId = '01992d20-0000-7000-8000-000000000006'
 const publicCollectionPlaces = [{
   placeId,
   position: 0,
@@ -306,6 +308,36 @@ const server = createServer(async (request, response) => {
   }
   if (request.method === 'GET' && request.url === '/v1/taxonomy/nodes') {
     sendJson(response, 200, taxonomy)
+    return
+  }
+  if (
+    request.method === 'GET' &&
+    requestUrl.pathname === '/v1/public/profiles/ramen-log'
+  ) {
+    if (request.headers.authorization !== undefined) {
+      sendJson(response, 400, { code: 'PLACE_PUBLIC_PROFILE_AUTHORITY_FORBIDDEN' }, 'application/problem+json')
+      return
+    }
+    const secondPage = requestUrl.searchParams.get('cursor') === 'profile-page-2'
+    sendJson(response, 200, {
+      schemaVersion: 'public-profile.v1',
+      handle: 'ramen-log',
+      displayName: '라멘 기록',
+      collections: secondPage ? [{
+        publicationId: secondPublicProfileCollectionId,
+        name: '동네 카페 공개 목록',
+        description: null,
+        placeCount: 4,
+        updatedAt: '2026-08-29T09:00:00.000Z',
+      }] : [{
+        publicationId: publicProfileCollectionId,
+        name: '서울 라멘 공개 목록',
+        description: '누구나 볼 수 있도록 공개한 목록',
+        placeCount: 12,
+        updatedAt: '2026-08-29T10:00:00.000Z',
+      }],
+      ...(secondPage ? {} : { nextCursor: 'profile-page-2' }),
+    })
     return
   }
   if (request.method === 'POST' && request.url === '/v1/providers/place-details') {

@@ -17,7 +17,7 @@ Read only the routes required by the task, after repository `AGENTS.md` and `REA
 - Local execution, worker lifecycle, deployment, backup, or incidents: `operations/README.md`.
 - A durable decision or supersession: `adr/README.md`.
 
-Delivery state is **source-only; Stages 6.5, 7.5–7.17, and 11A–11D complete, with Stages 2, 7, and 11 in progress and Stage 8 paused after 8B**. A Place-owned physical PostGIS runtime is
+Delivery state is **source-only; Stages 6.5, 7.5–7.17, and 11A–11E1 complete, with Stages 2, 7, and 11 in progress and Stage 8 paused after 8B**. A Place-owned physical PostGIS runtime is
 implemented and tested in disposable environments but not deployed or active. No provider account, browser profile, map credential, Identity
 client, Gateway route, family composer, or AI connection is active.
 
@@ -123,6 +123,11 @@ Stage 11D는 공개 Collection의 선택된 Place만 익명 상세로 지연 조
 전송하지 않고 공개 전용 strict schema로 Backend 응답을 다시 검증해 `personalState`가 섞이면
 fail closed한다. 목록 제목과 map marker는 같은 선택 identity를 사용하지만 공개 detail module은
 개인 preference·Collection/Tag·Visit·Note module을 import하지 않는다.
+
+Stage 11E1은 immutable Public Handle과 hidden/public 프로필을 추가한다. 익명 프로필은 owner identity를
+제외하고 `public` Collection만 bounded cursor로 조합하며 `unlisted`는 포함하지 않는다. 외부 검색엔진
+색인은 공개 프로필과 기존 공유 HTML 모두 금지한다. 전역 사람 검색, 내부 discovery index, 소셜 action,
+신고 workflow, tier별 제한은 이 최소 공개 링크 단계에 포함하지 않는다.
 
 Stage 5는 data-defined Taxonomy와 Search 소유 projection을 추가했다. 로컬 text·taxonomy·bounds·
 회원 signal 검색, cursor pagination, source-neutral partial 결과, responsive 목록/지도 UI를 실제

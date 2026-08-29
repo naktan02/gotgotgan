@@ -12,6 +12,7 @@ import type {
   LibraryTagListPage,
   PublishedCollection,
   PublishedCollectionMap,
+  PublicCollectionDirectoryPage,
 } from '../domain/queries.js'
 
 export interface LibraryQueries {
@@ -26,6 +27,12 @@ export interface LibraryQueries {
     bounds: LibraryMapBounds
     zoom: number
   }>): Promise<PublishedCollectionMap | undefined>
+
+  listPublicCollectionsByOwner(input: Readonly<{
+    ownerMemberId: string
+    cursor?: string
+    limit: number
+  }>): Promise<PublicCollectionDirectoryPage>
 
   getMapProjection(input: Readonly<{
     memberId: string

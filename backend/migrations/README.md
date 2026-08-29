@@ -117,3 +117,9 @@ Collection/Tag command가 자기 row와 Library-owned copy/import provenance를 
 `library.share` 권한만 추가한다. Product Tier 이름은 Collection 모듈로 전달하지 않고 Product
 Authorizer가 이 권한을 현재 역할·향후 tier 정책에 따라 판정한다. rollback은 활성 share resource
 grant가 있으면 삭제하지 않고 fail closed한다.
+
+`000030`은 `profiles.public_profiles`와 멱등 command receipt를 만든다. 회원당 하나의 고정 Handle과
+hidden/public 상태를 constraint로 제한하고 예약 Handle을 DB에서도 거부한다. runtime role은 Profile
+설정과 익명 published lookup에 필요한 bounded DML만 받으며 `PUBLIC`은 schema/table 권한을 받지 않는다.
+공개 Collection은 이 schema에 복제하거나 외래키로 결합하지 않고 Library-owned directory Interface로
+조합한다.

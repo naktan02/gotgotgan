@@ -89,6 +89,12 @@ Stage 11D 공개 화면 E2E는 목록 제목 선택 전에는 상세 요청이 �
 같은 화면에는 Personal Rating·저장·Visit·Note가 나타나지 않아야 하며 Web 단위 테스트는 Backend가
 `personalState`를 섞은 200 응답을 보내도 공개 상세 계약이 거부하는지 확인한다.
 
+Stage 11E1 E2E는 desktop/mobile에서 프로필 최초 생성, 고정 Handle, 공개 프로필 링크를 검증한다.
+익명 `/people/{handle}`은 첫 public Collection과 cursor 다음 page를 표시하지만 기존 unlisted
+Collection과 membership identifier는 표시하지 않는다. 공개 프로필 BFF의 `X-Robots-Tag`와 프로필,
+Collection, Writing HTML의 robots noindex도 함께 검사한다. test Backend는 익명 Profile 요청에
+Authorization header가 있으면 실패하도록 해 server-side bearer 누출을 탐지한다.
+
 Visit E2E는 같은 Place의 반복 방문이 서로 다른 불변 occurrence로 쌓이고 bounded history와 Place
 summary가 갱신되는지 desktop/mobile에서 검증한다. 첫 기록 응답을 유실시킨 경우에는 새 ID를 만들지
 않고 동일 Visit ID와 payload를 재전송한다. focused Personal Library suite는 두 browser project에서

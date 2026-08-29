@@ -192,6 +192,20 @@ count 합을 `representedPlaceCount`로 보존한다. `unprojectedPlaceCount`는
 복사할 수 있는 동작을 제공한다. 공유가 해제된 ID는 공개 조회와 후속 복사 모두 동일한 404가 된다.
 현재 공개 projection 응답은 별도 purge infrastructure 없이 revocation을 보장하기 위해 `no-store`다.
 
+`GET`과 `PUT /v1/profiles/current`는 bearer 인증과 `library.share` 권한으로 현재 회원의 Public Profile을
+읽고 설정한다. request는 command UUID와 Public Handle, 표시 이름, hidden/public 상태,
+nullable `expectedUpdatedAt`만 받는다. Handle은 소문자 영문·숫자·하이픈 3~30자이고 예약어를 거부하며
+첫 생성 뒤 바꿀 수 없다. 브라우저는 같은 origin의 `/api/profile`만 호출하고 member, role, tier나
+access token을 제출하지 않는다.
+
+`GET /v1/public/profiles/{handle}`과 Web `/api/public/profiles/{handle}`는 bearer 없는 익명 route다.
+hidden과 unknown Handle은 같은 404이며 성공은 Handle, 표시 이름, owner의 `public` Collection만 최대
+50개 opaque cursor page로 반환한다. `unlisted`와 private Collection, owner membership ID, 개인 field는
+계약에 없다. Profiles module은 Library table을 조회하지 않고 주입된 public Collection directory를
+사용하며 cursor는 owner에 묶인다. JSON 응답은 `X-Robots-Tag: noindex, nofollow`, HTML
+`/people/{handle}`과 `/share/...`는 robots noindex/nofollow를 사용한다. 이 API는 외부·내부 사람 검색
+index가 아니며 직접 링크 접근만 제공한다.
+
 `GET /healthz` reports process liveness and does not depend on PostgreSQL, Identity, or another
 process. `GET /readyz` reports 503 with a bounded `unavailable` projection when an explicitly required
 dependency cannot serve traffic. Backend production readiness checks its Pool; Web production

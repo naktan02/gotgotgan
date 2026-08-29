@@ -95,6 +95,17 @@ export type PublishedCollectionMap = Readonly<{
   }>
 }>
 
+export type PublicCollectionDirectoryPage = Readonly<{
+  items: readonly Readonly<{
+    publicationId: string
+    name: string
+    description: string | null
+    placeCount: number
+    updatedAt: string
+  }>[]
+  nextCursor?: string
+}>
+
 export type LibraryPlaceListPage = Readonly<{
   schemaVersion: 'library-place-list.v3'
   filter: Readonly<{

@@ -23,6 +23,18 @@ Tag, Visit, Writing, Import provenance는 읽거나 복사하지 않는다.
 별도 cache purge가 없는 현재 단계의 공개 Collection/map/Writing 응답은 `no-store`로 전달해 해제 전
 projection이 browser나 중간 cache에 남는 시간을 허용하지 않는다.
 
+Public Profile 설정은 `library.share` 권한을 통과하고 browser가 member, role, tier를 제출하지 않는다.
+첫 Public Handle은 고정되며 표시 이름과 hidden/public 상태만 optimistic `updatedAt`으로 바꿀 수 있다.
+익명 projection은 Handle, 표시 이름, `public` Collection의 publication ID·이름·설명·Place 수·갱신
+시각만 허용한다. owner membership ID, private/unlisted Collection, preference, Rating, Tag, Visit,
+Writing, provenance는 선택하거나 직렬화하지 않는다. hidden과 unknown Handle은 같은 404다.
+
+현재 공개 프로필과 모든 `/share/...` HTML은 `noindex, nofollow` robots metadata를 사용한다. 공개
+프로필 Backend/BFF JSON도 `X-Robots-Tag: noindex, nofollow`를 반환한다. 이는 외부 검색엔진 색인을
+허용하지 않는 제품 정책이며 sitemap이나 discovery feed를 만들지 않는다. 공개 URL 자체의 직접 접근을
+인증으로 막는다는 뜻은 아니다. 전역 사람 검색·팔로우·댓글이 없으므로 이 단계는 별도 abuse queue나
+tier quota를 발명하지 않고, 그러한 노출 면을 추가하기 전에 정책과 운영 owner를 먼저 정한다.
+
 공개 Collection에서 선택한 장소 상세은 `GET /api/public/places/{placeId}`로 지연 조회한다. Web 서버는
 Backend에 bearer evidence를 보내지 않으며 `PublicPlaceDetailResponse`가 이름·지역·좌표·Taxonomy·공개
 evidence와 redirect identity 외의 field를 거부한다. 특히 optional-member Backend route가

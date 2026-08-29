@@ -1,7 +1,7 @@
 # Backend modules
 
 Each direct child is a business-capability module. Initial owners are `access`, `places`, `taxonomy`, `library`,
-`visits`, `writing`, `search`, `providers`, `ingestion`, `resolution`, `sync`, `sharing`, and `administration`.
+`visits`, `writing`, `profiles`, `search`, `providers`, `ingestion`, `resolution`, `sync`, `sharing`, and `administration`.
 Create a module directory only when its first behavior is implemented.
 
 ```text
@@ -31,6 +31,10 @@ source and neither a candidate nor a Match Assessment becomes canonical merely b
 `writing`은 versioned Note, Entry, Place link, 공개 projection을 소유한다. 어느 모듈도 다른
 모듈을 import하거나 table을 조회하지 않는다. HTTP entrypoint composition이 각 public
 interface와 공통 authorization 결과를 주입한다.
+
+`profiles`는 고정 Public Handle, 표시 이름, hidden/public 상태와 command replay를 소유한다. 공개
+프로필에 표시할 Collection은 `library`의 좁은 owner-scoped public directory Interface를 entrypoint가
+주입한다. Profiles Adapter가 Library schema를 join하거나 owner membership ID를 익명 계약에 넣지 않는다.
 
 회원 콘텐츠 목록은 command Store의 무제한 메서드가 아니라 owner별 query Interface로 제공한다.
 Library, Visits, Writing의 PostgreSQL query Adapter는 자기 schema만 읽고 bounded keyset cursor와

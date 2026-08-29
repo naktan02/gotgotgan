@@ -6,7 +6,7 @@ Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed doc
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **source-only; Stages 6.5, 7.5–7.17, and 11A–11D complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
+Current delivery state: **source-only; Stages 6.5, 7.5–7.17, and 11A–11E1 complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
@@ -225,6 +225,14 @@ Stage 11D는 공개 Collection의 목록 제목이나 marker를 선택할 때만
 실수로 Personal Rating, 저장 상태, Visit 같은 `personalState`를 포함하면 전체 응답을 거부한다.
 공개 상세 feature는 개인용 `PersonalPlaceDetail`을 재사용하지 않아 로그인·분류·방문·메모 workflow가
 익명 화면에 섞이지 않는다.
+
+Stage 11E1은 전역 사람 검색이나 외부 검색엔진 노출 없이 소유자 공개 프로필의 최소 경계를 추가한다.
+회원은 `library.share` 권한으로 소문자 영문·숫자·하이픈의 고정 Public Handle, 표시 이름, hidden/public
+상태를 관리한다. 익명 프로필은 owner/member ID를 반환하지 않고 그 소유자의 `public` Collection만
+최대 50개 opaque cursor page로 보여준다. `unlisted` Collection은 기존 불투명 공유 링크로만 접근하며
+프로필에 나타나지 않는다. `/people/{handle}`과 기존 `/share/...` 공개 HTML은 robots noindex/nofollow,
+공개 프로필 Backend/BFF 응답은 `X-Robots-Tag`를 사용한다. 내부 discovery index, 팔로우·댓글·신고,
+tier별 제한은 구체적 정책이 정해질 때까지 추가하지 않는다.
 
 ## Repository boundaries
 

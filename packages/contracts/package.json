@@ -28,6 +28,10 @@
       "types": "./dist/places/index.d.ts",
       "default": "./dist/places/index.js"
     },
+    "./profiles": {
+      "types": "./dist/profiles/index.d.ts",
+      "default": "./dist/profiles/index.js"
+    },
     "./search": {
       "types": "./dist/search/index.d.ts",
       "default": "./dist/search/index.js"

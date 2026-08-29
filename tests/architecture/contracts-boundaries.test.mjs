@@ -32,6 +32,7 @@ test('accepts contract owners depending on primitive, provider, and Place summar
     'imports/index.ts': "import '../primitives.js'; import '../providers/index.js'",
     'connector/index.ts': "import '../primitives.js'; import '../providers/index.js'",
     'places/index.ts': "import '../primitives.js'; import '../place-summary/index.js'",
+    'profiles/index.ts': "import '../primitives.js'",
     'library/index.ts': "import '../primitives.js'; import '../places/index.js'",
     'visits/index.ts': "import '../primitives.js'",
     'writing/index.ts': "import '../primitives.js'",

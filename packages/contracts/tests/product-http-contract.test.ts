@@ -17,6 +17,11 @@ import {
 } from '../src/library/index.js'
 import { publicPlaceDetailResponseSchema } from '../src/places/index.js'
 import {
+  publicProfileHandleSchema,
+  publicProfileProjectionSchema,
+  setPublicProfileRequestSchema,
+} from '../src/profiles/index.js'
+import {
   visitRecordResultSchema,
   visitSummaryResponseSchema,
 } from '../src/visits/index.js'
@@ -142,6 +147,28 @@ describe('versioned product HTTP results', () => {
         preferencesUpdatedAt: '2026-08-28T00:00:00.000Z',
         visits: { visited: false, count: 0 },
       },
+    }).success).toBe(false)
+    expect(publicProfileHandleSchema.safeParse('ramen-log').success).toBe(true)
+    expect(publicProfileHandleSchema.safeParse('search').success).toBe(false)
+    expect(setPublicProfileRequestSchema.safeParse({
+      commandId: placeId,
+      profile: {
+        handle: 'ramen-log', displayName: '라멘 기록', visibility: 'public',
+        expectedUpdatedAt: null,
+      },
+    }).success).toBe(true)
+    expect(publicProfileProjectionSchema.safeParse({
+      schemaVersion: 'public-profile.v1',
+      handle: 'ramen-log',
+      displayName: '라멘 기록',
+      collections: [{
+        publicationId: placeId,
+        name: '성수 라멘',
+        description: null,
+        placeCount: 3,
+        updatedAt: '2026-08-28T00:00:00.000Z',
+        visibility: 'unlisted',
+      }],
     }).success).toBe(false)
   })
 })

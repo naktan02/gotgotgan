@@ -19,6 +19,7 @@ type PublishedCollectionCursor = Readonly<{
   position: number
   placeId: string
 }>
+type PublicCollectionDirectoryCursor = CollectionCursor
 type PlaceFilter = Readonly<{
   state: LibraryPlaceState
   tagIds: readonly string[]
@@ -54,6 +55,10 @@ function encode(payload: Readonly<Record<string, unknown>>): string {
 
 function placeFilterFingerprint(filter: PlaceFilter): string {
   return createHash('sha256').update(JSON.stringify(filter)).digest('base64url')
+}
+
+function ownerFingerprint(ownerMemberId: string): string {
+  return createHash('sha256').update(ownerMemberId).digest('base64url')
 }
 
 export function decodePlaceCursor(
@@ -142,6 +147,32 @@ export function encodePublishedCollectionCursor(
     kind: 'published-collection-places',
     publicationId,
     collectionUpdatedAt,
+    ...cursor,
+  })
+}
+
+export function decodePublicCollectionDirectoryCursor(
+  value: string | undefined,
+  ownerMemberId: string,
+): PublicCollectionDirectoryCursor | undefined {
+  const payload = readPayload(value)
+  if (payload === undefined) return undefined
+  if (
+    payload.v !== 1 || payload.kind !== 'public-collection-directory' ||
+    payload.ownerFingerprint !== ownerFingerprint(ownerMemberId) ||
+    !validTimestamp(payload.updatedAt) || !validUuid(payload.collectionId)
+  ) throw new InvalidLibraryCursorError('Public Collection directory cursor is invalid.')
+  return { updatedAt: payload.updatedAt, collectionId: payload.collectionId }
+}
+
+export function encodePublicCollectionDirectoryCursor(
+  ownerMemberId: string,
+  cursor: PublicCollectionDirectoryCursor,
+): string {
+  return encode({
+    v: 1,
+    kind: 'public-collection-directory',
+    ownerFingerprint: ownerFingerprint(ownerMemberId),
     ...cursor,
   })
 }

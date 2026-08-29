@@ -107,6 +107,11 @@ Library query suite는 공개 Collection의 모든 Place ID가 기존 public sum
 batch로 전달되는지, 반환된 이름·위치·Taxonomy가 원래 순서에 결합되는지, 누락 projection이
 `place: null`로 유지되는지도 별도 disposable PostGIS에서 검증한다.
 
+Public Profile suite는 Migration `000030`을 포함한 disposable PostGIS에서 hidden 프로필의 익명
+비노출, Handle 유일성·불변성, optimistic 변경을 검증한다. Library public directory를 주입해 owner의
+`public` Collection만 opaque cursor로 읽고 `unlisted`와 다른 회원 Collection을 제외하며, 다른 owner의
+cursor 재사용과 익명 projection의 membership ID 노출도 거부한다.
+
 로컬 검색 suite도 독립적인 disposable PostGIS runtime에 전체 migration을 적용한다. data-defined
 Taxonomy의 publish/replay/conflict, 공개 Place 문서와 회원별 signal projection, text·taxonomy·bounds
 filter, 불투명 cursor pagination, 익명 결과의 개인 상태 비노출과 회원 간 격리를 검증한다. 대표

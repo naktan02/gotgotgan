@@ -63,6 +63,7 @@ function fixtureApplication(
       }],
       coverage: { representedPlaceCount: 1, unprojectedPlaceCount: 0, complete: true },
     } : undefined,
+    listPublicCollectionsByOwner: async () => ({ items: [] }),
     getMapProjection: async (input) => ({
       schemaVersion: 'library-map-projection.v1',
       scope: input.scope,

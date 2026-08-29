@@ -2042,6 +2042,161 @@
         }
       }
     },
+    "/api/profile": {
+      "get": {
+        "operationId": "getCurrentPublicProfileForBrowser",
+        "summary": "getCurrentPublicProfileForBrowser",
+        "security": [
+          {
+            "placeBrowserSession": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return the current member public profile settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileRecord"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
+          }
+        }
+      },
+      "put": {
+        "operationId": "setCurrentPublicProfileForBrowser",
+        "summary": "setCurrentPublicProfileForBrowser",
+        "security": [
+          {
+            "placeBrowserSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPublicProfileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Replay a public profile command",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileCommandResult"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Apply a public profile command",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "409": {
+            "$ref": "#/components/responses/ProductConflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
+          }
+        }
+      }
+    },
+    "/api/public/profiles/{handle}": {
+      "parameters": [
+        {
+          "name": "handle",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$",
+            "minLength": 3,
+            "maxLength": 30
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getPublicProfileForBrowser",
+        "summary": "getPublicProfileForBrowser",
+        "security": [],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return a published profile and only its public Collections",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileProjection"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
+          }
+        }
+      }
+    },
     "/v1/library/commands": {
       "post": {
         "operationId": "applyPlaceLibraryCommand",
@@ -2096,6 +2251,161 @@
           },
           "409": {
             "$ref": "#/components/responses/ProductConflict"
+          }
+        }
+      }
+    },
+    "/v1/profiles/current": {
+      "get": {
+        "operationId": "getCurrentPublicProfile",
+        "summary": "getCurrentPublicProfile",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return the current member public profile settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileRecord"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/ProductUnavailable"
+          }
+        }
+      },
+      "put": {
+        "operationId": "setCurrentPublicProfile",
+        "summary": "setCurrentPublicProfile",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPublicProfileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Replay a public profile command",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileCommandResult"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Apply a public profile command",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "409": {
+            "$ref": "#/components/responses/ProductConflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/ProductUnavailable"
+          }
+        }
+      }
+    },
+    "/v1/public/profiles/{handle}": {
+      "parameters": [
+        {
+          "name": "handle",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$",
+            "minLength": 3,
+            "maxLength": 30
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getPublicProfile",
+        "summary": "getPublicProfile",
+        "security": [],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return a published profile and only its public Collections",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileProjection"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/ProductUnavailable"
           }
         }
       }
@@ -10506,6 +10816,210 @@
           "primaryTaxonomy",
           "taxonomyKeys",
           "evidence"
+        ],
+        "additionalProperties": false
+      },
+      "PublicProfileRecord": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "public-profile-record.v1"
+          },
+          "handle": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 30,
+            "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "hidden",
+              "public"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "handle",
+          "displayName",
+          "visibility",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "SetPublicProfileRequest": {
+        "type": "object",
+        "properties": {
+          "commandId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "profile": {
+            "type": "object",
+            "properties": {
+              "handle": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 30,
+                "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$"
+              },
+              "displayName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 50
+              },
+              "visibility": {
+                "type": "string",
+                "enum": [
+                  "hidden",
+                  "public"
+                ]
+              },
+              "expectedUpdatedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "handle",
+              "displayName",
+              "visibility",
+              "expectedUpdatedAt"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "commandId",
+          "profile"
+        ],
+        "additionalProperties": false
+      },
+      "PublicProfileCommandResult": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "public-profile-command-result.v1"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "applied",
+              "replayed"
+            ]
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "PublicProfileProjection": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "public-profile.v1"
+          },
+          "handle": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 30,
+            "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "collections": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "publicationId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "description": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "placeCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                }
+              },
+              "required": [
+                "publicationId",
+                "name",
+                "description",
+                "placeCount",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "handle",
+          "displayName",
+          "collections"
         ],
         "additionalProperties": false
       },

@@ -129,3 +129,16 @@ Interface를 검증하며 NAVER live SDK와 credential은 아직 연결하지 �
 platform publication Adapter도 Backend의 optional-member Place route를 bearer 없이 호출하고 공개 전용
 schema로 응답을 좁힌다. 이 분리는 공개 화면의 시각 배치를 바꿔도 개인 상세 module이나 Backend 계약을
 함께 수정하지 않게 한다.
+
+## Stage 11E1 Public Profile composition
+
+`PublicProfileSettings`는 인증된 설정 workflow만 소유하고 browser session이나 Backend token을 직접
+다루지 않는다. platform Profile Adapter가 opaque session을 해석하고 고정 Backend route로 bearer를
+전달한다. Public Handle은 첫 생성 뒤 고정되며 표시 이름과 hidden/public 상태만 optimistic version으로
+바꾼다.
+
+`PublishedProfile`은 익명 projection과 Collection cursor continuation만 소유한다. Backend Profiles
+module은 owner를 찾고 Library가 제공하는 좁은 public Collection directory Interface를 조합하므로
+Profiles가 Library table을 읽지 않는다. 공개 HTML은 noindex/nofollow이고 `unlisted` Collection은
+렌더링 입력에 들어오지 않는다. 이 panel은 향후 화면 재배치와 무관하게 전역 discovery, 팔로우, 댓글,
+신고를 암묵적으로 소유하지 않는다.

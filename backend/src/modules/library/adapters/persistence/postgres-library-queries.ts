@@ -4,9 +4,11 @@ import type { LibraryQueries } from '../../application/library-queries.js'
 import {
   decodeCollectionCursor,
   decodeCollectionPlaceCursor,
+  decodePublicCollectionDirectoryCursor,
   decodeTagCursor,
   encodeCollectionCursor,
   encodeCollectionPlaceCursor,
+  encodePublicCollectionDirectoryCursor,
   encodeTagCursor,
 } from '../../application/library-cursor.js'
 import type { LibraryPlaceSummaryReader } from '../../application/ports/library-place-summary-reader.js'
@@ -92,6 +94,55 @@ export class PostgresLibraryQueries implements LibraryQueries {
 
   async getPublishedCollectionMap(input: Parameters<LibraryQueries['getPublishedCollectionMap']>[0]) {
     return getPostgresPublishedCollectionMap(this.pool, this.readMapPlaces, input)
+  }
+
+  async listPublicCollectionsByOwner(input: Parameters<LibraryQueries['listPublicCollectionsByOwner']>[0]) {
+    requireBoundedLimit(input.limit)
+    const cursor = decodePublicCollectionDirectoryCursor(input.cursor, input.ownerMemberId)
+    const result = await this.pool.query<CollectionRow>(
+      `
+        SELECT
+          collection.id,
+          collection.name,
+          collection.description,
+          collection.visibility,
+          collection.publication_id,
+          count(place.canonical_place_id)::int AS place_count,
+          collection.updated_at
+        FROM library.collections AS collection
+        LEFT JOIN library.collection_places AS place ON place.collection_id = collection.id
+        WHERE collection.owner_membership_id = $1::uuid
+          AND collection.visibility = 'public'
+          AND collection.publication_id IS NOT NULL
+          AND (
+            $2::timestamptz IS NULL
+            OR collection.updated_at < $2::timestamptz
+            OR (collection.updated_at = $2::timestamptz AND collection.id > $3::uuid)
+          )
+        GROUP BY collection.id
+        ORDER BY collection.updated_at DESC, collection.id ASC
+        LIMIT $4
+      `,
+      [input.ownerMemberId, cursor?.updatedAt ?? null, cursor?.collectionId ?? null, input.limit + 1],
+    )
+    const hasMore = result.rows.length > input.limit
+    const rows = result.rows.slice(0, input.limit)
+    const last = rows.at(-1)
+    return {
+      items: rows.map((row) => ({
+        publicationId: row.publication_id!,
+        name: row.name,
+        description: row.description,
+        placeCount: row.place_count,
+        updatedAt: row.updated_at.toISOString(),
+      })),
+      ...(hasMore && last !== undefined ? {
+        nextCursor: encodePublicCollectionDirectoryCursor(input.ownerMemberId, {
+          updatedAt: last.updated_at.toISOString(),
+          collectionId: last.id,
+        }),
+      } : {}),
+    }
   }
 
   async getMapProjection(input: Parameters<LibraryQueries['getMapProjection']>[0]) {

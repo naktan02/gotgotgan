@@ -77,6 +77,12 @@ import {
   publicPlaceDetailResponseSchema,
 } from '../places/index.js'
 import {
+  publicProfileCommandResultSchema,
+  publicProfileProjectionSchema,
+  publicProfileRecordSchema,
+  setPublicProfileRequestSchema,
+} from '../profiles/index.js'
+import {
   visitHistoryResponseSchema,
   visitRecordResultSchema,
   visitSummaryResponseSchema,
@@ -170,6 +176,10 @@ const pathParameters = {
   collectionId: {
     name: 'collectionId', in: 'path', required: true,
     schema: { type: 'string', format: 'uuid' },
+  },
+  handle: {
+    name: 'handle', in: 'path', required: true,
+    schema: { type: 'string', pattern: '^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$', minLength: 3, maxLength: 30 },
   },
 }
 
@@ -643,6 +653,36 @@ const paths = {
       '503': ref('responses', 'BrowserBackendUnavailable'),
     }, { security: anonymous }),
   },
+  '/api/profile': {
+    get: operation('getCurrentPublicProfileForBrowser', {
+      '200': described('Return the current member public profile settings', 'PublicProfileRecord'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, { security: browserSession }),
+    put: operation('setCurrentPublicProfileForBrowser', {
+      '200': described('Replay a public profile command', 'PublicProfileCommandResult'),
+      '201': described('Apply a public profile command', 'PublicProfileCommandResult'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '409': ref('responses', 'ProductConflict'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, { security: browserSession, requestSchema: 'SetPublicProfileRequest' }),
+  },
+  '/api/public/profiles/{handle}': {
+    parameters: [pathParameters.handle],
+    get: operation('getPublicProfileForBrowser', {
+      '200': described('Return a published profile and only its public Collections', 'PublicProfileProjection'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, {
+      security: anonymous,
+      parameters: [boundedCursorParameter, boundedLimitParameter],
+    }),
+  },
   '/v1/library/commands': { post: operation('applyPlaceLibraryCommand', {
     '200': described('Return an idempotently replayed command result', 'LibraryCommandResult'),
     '201': described('Return an applied command result', 'LibraryCommandResult'),
@@ -652,6 +692,36 @@ const paths = {
     '404': ref('responses', 'ProductNotFound'),
     '409': ref('responses', 'ProductConflict'),
   }, { security: bearer, requestSchema: 'LibraryCommandRequest' }) },
+  '/v1/profiles/current': {
+    get: operation('getCurrentPublicProfile', {
+      '200': described('Return the current member public profile settings', 'PublicProfileRecord'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer }),
+    put: operation('setCurrentPublicProfile', {
+      '200': described('Replay a public profile command', 'PublicProfileCommandResult'),
+      '201': described('Apply a public profile command', 'PublicProfileCommandResult'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '409': ref('responses', 'ProductConflict'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer, requestSchema: 'SetPublicProfileRequest' }),
+  },
+  '/v1/public/profiles/{handle}': {
+    parameters: [pathParameters.handle],
+    get: operation('getPublicProfile', {
+      '200': described('Return a published profile and only its public Collections', 'PublicProfileProjection'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, {
+      security: anonymous,
+      parameters: [boundedCursorParameter, boundedLimitParameter],
+    }),
+  },
   '/v1/provider-connections': { get: operation('listPlaceProviderConnections', {
     '200': described('Return sanitized provider connection metadata', 'ProviderConnectionList'),
     '401': ref('responses', 'AuthenticationRequired'),
@@ -1088,6 +1158,10 @@ const schemas: Readonly<Record<string, ZodType>> = {
   WritingDetailResponse: writingDetailResponseSchema,
   PlaceDetail: placeDetailResponseSchema,
   PublicPlaceDetailResponse: publicPlaceDetailResponseSchema,
+  PublicProfileRecord: publicProfileRecordSchema,
+  SetPublicProfileRequest: setPublicProfileRequestSchema,
+  PublicProfileCommandResult: publicProfileCommandResultSchema,
+  PublicProfileProjection: publicProfileProjectionSchema,
   PlaceSearchRequest: placeSearchRequestSchema,
   PlaceSearchResponse: placeSearchResponseSchema,
   PlaceSuggestionsRequest: placeSuggestionsRequestSchema,

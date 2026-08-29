@@ -1,9 +1,13 @@
 import { notFound } from 'next/navigation'
+import type { Metadata } from 'next'
 
 import styles from '@/features/publications/publication.module.css'
 import { getPublicWriting, PublicationNotFoundError } from '@/platform/publications/publication-backend-client'
 
 export const dynamic = 'force-dynamic'
+export const metadata: Metadata = {
+  robots: { index: false, follow: false, nocache: true },
+}
 
 export default async function PublishedWritingPage({ params }: { params: Promise<{ publicationId: string }> }) {
   const { publicationId } = await params

@@ -14,6 +14,7 @@ import {
   type PrincipalVerifier,
 } from '../../modules/access/index.js'
 import {
+  InvalidLibraryCursorError,
   PostgresLibraryQueries,
   PostgresLibraryStore,
   saveImportedPlace,
@@ -49,6 +50,10 @@ import {
   type ProviderPlaceSearch,
   type ProviderPlaceSuggestions,
 } from '../../modules/providers/index.js'
+import {
+  InvalidPublicProfileCursorError,
+  PostgresPublicProfileStore,
+} from '../../modules/profiles/index.js'
 import {
   createPlaceSearch,
   createPlaceSuggestionMaterialization,
@@ -156,6 +161,7 @@ export async function createProductionHttpRuntime(
         }
       },
     )
+    const publicProfileStore = new PostgresPublicProfileStore(pool)
     const placeSuggestions = new PostgresPlaceSuggestions(pool)
     const ingestionStore = new PostgresIngestionStore(pool)
     const connectorImports = new PostgresConnectorImports(pool)
@@ -338,6 +344,21 @@ export async function createProductionHttpRuntime(
       places: {
         authorizer: productAuthorizer,
         read: readPlaceDetail,
+      },
+      profiles: {
+        authorizer: productAuthorizer,
+        store: publicProfileStore,
+        collections: async (input) => {
+          try {
+            return await libraryQueries.listPublicCollectionsByOwner(input)
+          } catch (error) {
+            if (error instanceof InvalidLibraryCursorError) {
+              throw new InvalidPublicProfileCursorError('Public Profile cursor is invalid')
+            }
+            throw error
+          }
+        },
+        now,
       },
       search: {
         authorizer: productAuthorizer,

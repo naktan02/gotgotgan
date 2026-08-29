@@ -12,6 +12,7 @@ export const frontendArchitecturePolicy = defineFrontendArchitecturePolicy({
       membership: ['auth'],
       'process-readiness': ['auth', 'imports', 'membership'],
       publications: ['backend-http'],
+      profiles: ['auth', 'backend-http'],
       search: ['backend-http'],
       visits: ['auth', 'backend-http'],
       writing: ['auth', 'backend-http'],

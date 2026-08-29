@@ -22,6 +22,7 @@ function fixture(overrides: Partial<LibraryQueries> = {}) {
   const queries: LibraryQueries = {
     getPublishedCollection: async () => undefined,
     getPublishedCollectionMap: async () => undefined,
+    listPublicCollectionsByOwner: async () => ({ items: [] }),
     getMapProjection: async (input) => ({
       schemaVersion: 'library-map-projection.v1',
       scope: input.scope,

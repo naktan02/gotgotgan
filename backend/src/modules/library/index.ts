@@ -40,6 +40,7 @@ export {
   type LibraryTagListPage,
   type PublishedCollection,
   type PublishedCollectionMap,
+  type PublicCollectionDirectoryPage,
 } from './domain/queries.js'
 export {
   registerLibraryHttpRoutes,
