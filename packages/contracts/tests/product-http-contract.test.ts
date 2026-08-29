@@ -18,7 +18,10 @@ import {
 import { publicPlaceDetailResponseSchema } from '../src/places/index.js'
 import {
   publicProfileHandleSchema,
+  publicProfileModerationRequestSchema,
   publicProfileProjectionSchema,
+  publicProfileReportQueueSchema,
+  publicProfileReportRequestSchema,
   setPublicProfileRequestSchema,
 } from '../src/profiles/index.js'
 import {
@@ -168,6 +171,22 @@ describe('versioned product HTTP results', () => {
         placeCount: 3,
         updatedAt: '2026-08-28T00:00:00.000Z',
         visibility: 'unlisted',
+      }],
+    }).success).toBe(false)
+    expect(publicProfileReportRequestSchema.safeParse({
+      reportId: documentId, reason: 'spam', details: 'free-form text',
+    }).success).toBe(false)
+    expect(publicProfileModerationRequestSchema.safeParse({
+      decisionId: documentId,
+      moderation: { state: 'allowed', reason: 'spam', expectedUpdatedAt: null },
+    }).success).toBe(false)
+    expect(publicProfileReportQueueSchema.safeParse({
+      schemaVersion: 'public-profile-report-queue.v1',
+      reports: [{
+        reportId: documentId, handle: 'ramen-log', reason: 'spam',
+        reportedAt: '2026-08-28T00:00:00.000Z',
+        expiresAt: '2027-02-24T00:00:00.000Z',
+        reporterMembershipId: membershipId,
       }],
     }).success).toBe(false)
   })

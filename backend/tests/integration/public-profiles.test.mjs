@@ -7,6 +7,7 @@ const memberA = '01992d20-4000-7000-8000-000000000101'
 const memberB = '01992d20-4000-7000-8000-000000000102'
 const memberC = '01992d20-4000-7000-8000-000000000103'
 const memberD = '01992d20-4000-7000-8000-000000000104'
+const memberReviewer = '01992d20-4000-7000-8000-000000000105'
 const at = '2026-08-29T10:00:00.000Z'
 
 test('Public Profiles keep handles stable and list only owner public Collections', { timeout: 120_000 }, async () => {
@@ -15,6 +16,7 @@ test('Public Profiles keep handles stable and list only owner public Collections
     const profiles = await import('../../dist/modules/profiles/index.js')
     const library = await import('../../dist/modules/library/index.js')
     const store = new profiles.PostgresPublicProfileStore(database.pool)
+    const safety = new profiles.PostgresPublicProfileSafetyStore(database.pool)
     const queries = new library.PostgresLibraryQueries(
       database.pool,
       async () => [],
@@ -26,8 +28,9 @@ test('Public Profiles keep handles stable and list only owner public Collections
         (id, issuer, subject, status, authority_role, product_tier, user_grade, created_at, updated_at)
        VALUES
         ($1,'https://identity.example.test','profile-a','active','member','standard','unclassified',$3,$3),
-        ($2,'https://identity.example.test','profile-b','active','member','standard','unclassified',$3,$3)`,
-      [memberA, memberB, at],
+        ($2,'https://identity.example.test','profile-b','active','member','standard','unclassified',$3,$3),
+        ($4,'https://identity.example.test','profile-reviewer','active','reviewer','standard','unclassified',$3,$3)`,
+      [memberA, memberB, at, memberReviewer],
     )
     await database.pool.query(
       `INSERT INTO library.collections
@@ -82,6 +85,114 @@ test('Public Profiles keep handles stable and list only owner public Collections
     assert.deepEqual(second.collections.map((collection) => collection.name), ['두 번째 공개 목록'])
     assert.equal(second.nextCursor, undefined)
 
+    const report = await profiles.reportPublicProfile({
+      reportId: '01992d20-4000-7000-8000-000000000501',
+      reporterMemberId: memberB,
+      handle: 'ramen-log',
+      reason: 'spam',
+      occurredAt: '2026-08-29T10:05:00.000Z',
+      store: safety,
+    })
+    assert.equal(report.status, 'recorded')
+    assert.equal((await profiles.reportPublicProfile({
+      reportId: '01992d20-4000-7000-8000-000000000501',
+      reporterMemberId: memberB,
+      handle: 'ramen-log',
+      reason: 'spam',
+      occurredAt: '2026-08-29T10:05:01.000Z',
+      store: safety,
+    })).status, 'replayed')
+    assert.equal((await profiles.reportPublicProfile({
+      reportId: '01992d20-4000-7000-8000-000000000502',
+      reporterMemberId: memberB,
+      handle: 'ramen-log',
+      reason: 'privacy',
+      occurredAt: '2026-08-29T10:05:02.000Z',
+      store: safety,
+    })).status, 'already-reported')
+    await assert.rejects(
+      profiles.reportPublicProfile({
+        reportId: '01992d20-4000-7000-8000-000000000503',
+        reporterMemberId: memberA,
+        handle: 'ramen-log',
+        reason: 'spam',
+        occurredAt: '2026-08-29T10:05:03.000Z',
+        store: safety,
+      }),
+      profiles.PublicProfileSelfReportError,
+    )
+    const pending = await profiles.listPendingPublicProfileReports({
+      limit: 20,
+      now: '2026-08-29T10:05:04.000Z',
+      store: safety,
+    })
+    assert.deepEqual(pending.reports.map((item) => ({ handle: item.handle, reason: item.reason })), [
+      { handle: 'ramen-log', reason: 'spam' },
+    ])
+    assert.equal(JSON.stringify(pending).includes(memberB), false)
+    assert.deepEqual(await profiles.readPublicProfileModeration({ handle: 'ramen-log', store: safety }), {
+      schemaVersion: 'public-profile-moderation.v1',
+      handle: 'ramen-log',
+      state: 'allowed',
+      reason: null,
+      updatedAt: null,
+    })
+
+    const withheld = await profiles.moderatePublicProfile({
+      decisionId: '01992d20-4000-7000-8000-000000000601',
+      actorMemberId: memberReviewer,
+      handle: 'ramen-log',
+      command: { state: 'withheld', reason: 'spam', expectedUpdatedAt: null },
+      occurredAt: '2026-08-29T10:06:00.000Z',
+      store: safety,
+    })
+    assert.equal(withheld.status, 'applied')
+    assert.equal(await store.getPublished('ramen-log'), undefined)
+    assert.deepEqual((await profiles.listPendingPublicProfileReports({
+      limit: 20,
+      now: '2026-08-29T10:06:01.000Z',
+      store: safety,
+    })).reports, [])
+    assert.equal((await profiles.moderatePublicProfile({
+      decisionId: '01992d20-4000-7000-8000-000000000601',
+      actorMemberId: memberReviewer,
+      handle: 'ramen-log',
+      command: { state: 'withheld', reason: 'spam', expectedUpdatedAt: null },
+      occurredAt: '2026-08-29T10:06:01.000Z',
+      store: safety,
+    })).status, 'replayed')
+    await assert.rejects(
+      database.pool.query(
+        `UPDATE profiles.public_profile_moderation_decisions
+            SET reason = 'privacy'
+          WHERE decision_id = '01992d20-4000-7000-8000-000000000601'`,
+      ),
+      (error) => error?.code === '42501',
+    )
+    const withheldRecord = await profiles.readPublicProfileModeration({
+      handle: 'ramen-log', store: safety,
+    })
+    assert.equal((await profiles.moderatePublicProfile({
+      decisionId: '01992d20-4000-7000-8000-000000000602',
+      actorMemberId: memberReviewer,
+      handle: 'ramen-log',
+      command: {
+        state: 'allowed', reason: 'insufficient-evidence',
+        expectedUpdatedAt: withheldRecord.updatedAt,
+      },
+      occurredAt: '2026-08-29T10:07:00.000Z',
+      store: safety,
+    })).status, 'applied')
+    assert.equal((await store.getPublished('ramen-log')).handle, 'ramen-log')
+    assert.equal((await profiles.reportPublicProfile({
+      reportId: '01992d20-4000-7000-8000-000000000504',
+      reporterMemberId: memberReviewer,
+      handle: 'ramen-log',
+      reason: 'privacy',
+      occurredAt: '2026-08-29T10:08:00.000Z',
+      store: safety,
+    })).status, 'recorded')
+
     await assert.rejects(
       queries.listPublicCollectionsByOwner({ ownerMemberId: memberB, limit: 1, cursor: first.nextCursor }),
       library.InvalidLibraryCursorError,
@@ -115,6 +226,13 @@ test('Public Profiles keep handles stable and list only owner public Collections
       [memberA],
     )
     assert.equal(await store.getPublished('ramen-log'), undefined)
+    const closedReports = await database.administratorClient.query(
+      `SELECT reviewed_at
+         FROM profiles.public_profile_reports
+        WHERE handle = 'ramen-log'`,
+    )
+    assert.ok(closedReports.rows.length >= 2)
+    assert.ok(closedReports.rows.every((row) => row.reviewed_at instanceof Date))
     const retired = await database.administratorClient.query(
       `SELECT membership_id, retired_at
          FROM profiles.public_handle_reservations
@@ -183,6 +301,10 @@ test('Public Profiles keep handles stable and list only owner public Collections
     )
     assert.equal(membershipRetired.rows[0].membership_id, null)
     assert.ok(membershipRetired.rows[0].retired_at instanceof Date)
+    assert.ok((await safety.deleteExpiredReports({
+      now: '2027-03-01T00:00:00.000Z',
+      limit: 100,
+    })) >= 2)
   } finally {
     await database.close()
   }

@@ -22,6 +22,8 @@ export type GrantablePermission = (typeof grantablePermissions)[number]
 export const placePermissions = [
   'place.public.read',
   ...grantablePermissions,
+  'profiles.report',
+  'profiles.moderate',
   'administration.read',
   'administration.manage',
   'ownership.manage',

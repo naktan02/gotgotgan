@@ -37,8 +37,14 @@ reservation은 retired 상태로 보존한다. retired Handle도 unknown과 같�
 현재 공개 프로필과 모든 `/share/...` HTML은 `noindex, nofollow` robots metadata를 사용한다. 공개
 프로필 Backend/BFF JSON도 `X-Robots-Tag: noindex, nofollow`를 반환한다. 이는 외부 검색엔진 색인을
 허용하지 않는 제품 정책이며 sitemap이나 discovery feed를 만들지 않는다. 공개 URL 자체의 직접 접근을
-인증으로 막는다는 뜻은 아니다. 전역 사람 검색·팔로우·댓글이 없으므로 이 단계는 별도 abuse queue나
-tier quota를 발명하지 않고, 그러한 노출 면을 추가하기 전에 정책과 운영 owner를 먼저 정한다.
+인증으로 막는다는 뜻은 아니다. 전역 사람 검색·팔로우·댓글은 계속 없다.
+
+인증 회원은 Public Profile에 사칭·괴롭힘·개인정보·스팸·위험 콘텐츠 중 하나만 신고할 수 있으며
+자유 서술은 받지 않는다. 같은 reporter/Handle은 180일 동안 하나로 제한하고 만료 row는 시작 시와
+매시간 최대 500개씩 삭제한다. 신고 하나는 공개 상태를 자동 변경하지 않는다. reviewer 이상만
+`profiles.moderate`로 owner visibility와 독립된 moderation을 바꾸며 판정 receipt는 immutable이다.
+대기열과 익명 projection은 reporter membership ID를 반환하지 않고 withheld와 unknown은 같은 404다.
+내부 discovery 증폭은 owner 알림·appeal 운영 책임이 정해질 때까지 금지한다.
 
 공개 Collection에서 선택한 장소 상세은 `GET /api/public/places/{placeId}`로 지연 조회한다. Web 서버는
 Backend에 bearer evidence를 보내지 않으며 `PublicPlaceDetailResponse`가 이름·지역·좌표·Taxonomy·공개

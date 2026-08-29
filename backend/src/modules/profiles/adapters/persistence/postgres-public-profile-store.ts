@@ -147,8 +147,14 @@ export class PostgresPublicProfileStore implements PublicProfileStore {
 
   async getPublished(handle: string): Promise<PublishedProfileOwner | undefined> {
     const result = await this.pool.query<ProfileRow>(
-      `SELECT membership_id, handle, display_name, visibility, created_at, updated_at
-         FROM profiles.public_profiles WHERE handle = $1 AND visibility = 'public'`,
+      `SELECT profile.membership_id, profile.handle, profile.display_name, profile.visibility,
+              profile.created_at, profile.updated_at
+         FROM profiles.public_profiles profile
+         LEFT JOIN profiles.public_profile_moderation moderation
+           ON moderation.handle = profile.handle
+        WHERE profile.handle = $1
+          AND profile.visibility = 'public'
+          AND COALESCE(moderation.state, 'allowed') = 'allowed'`,
       [handle],
     )
     const row = result.rows[0]

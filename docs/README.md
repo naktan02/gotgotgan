@@ -17,7 +17,7 @@ Read only the routes required by the task, after repository `AGENTS.md` and `REA
 - Local execution, worker lifecycle, deployment, backup, or incidents: `operations/README.md`.
 - A durable decision or supersession: `adr/README.md`.
 
-Delivery state is **source-only; Stages 6.5, 7.5–7.17, and 11A–11E1 complete, with Stages 2, 7, and 11 in progress and Stage 8 paused after 8B**. A Place-owned physical PostGIS runtime is
+Delivery state is **source-only; Stages 6.5, 7.5–7.17, and 11A–11E2B1 complete, with Stages 2, 7, and 11 in progress and Stage 8 paused after 8B**. A Place-owned physical PostGIS runtime is
 implemented and tested in disposable environments but not deployed or active. No provider account, browser profile, map credential, Identity
 client, Gateway route, family composer, or AI connection is active.
 
@@ -132,6 +132,11 @@ Stage 11E1은 immutable Public Handle과 hidden/public 프로필을 추가한다
 Stage 11E2A는 ADR 0017과 Migration `000031`로 Public Handle 예약을 Profile lifecycle에서 분리한다.
 Profile/Membership 삭제 뒤 Handle은 retired 상태로 남아 재배정되지 않고 unknown과 같은 not-found로
 조회된다. Identity-backed recovery와 abuse/moderation 운영은 아직 추가하지 않는다.
+
+Stage 11E2B1은 ADR 0018과 Migration `000032`로 categorized report와 운영 moderation을 분리한다.
+신고는 자동 차단하지 않고 180일 bounded 보존하며, reviewer 이상 판정만 owner visibility와 독립된
+withheld 상태를 바꾼다. 신고자 identity는 공개·검토 projection에서 제외하고 판정 이력은 immutable로
+보존한다. 외부 색인과 내부 사람 discovery는 계속 금지하며 owner 알림·appeal은 후속 gate다.
 
 Stage 5는 data-defined Taxonomy와 Search 소유 projection을 추가했다. 로컬 text·taxonomy·bounds·
 회원 signal 검색, cursor pagination, source-neutral partial 결과, responsive 목록/지도 UI를 실제

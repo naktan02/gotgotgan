@@ -107,12 +107,16 @@ Library query suite는 공개 Collection의 모든 Place ID가 기존 public sum
 batch로 전달되는지, 반환된 이름·위치·Taxonomy가 원래 순서에 결합되는지, 누락 projection이
 `place: null`로 유지되는지도 별도 disposable PostGIS에서 검증한다.
 
-Public Profile suite는 Migration `000030`/`000031`을 포함한 disposable PostGIS에서 hidden 프로필의
+Public Profile suite는 Migration `000030`–`000032`를 포함한 disposable PostGIS에서 hidden 프로필의
 익명 비노출, Handle 유일성·불변성, optimistic 변경을 검증한다. Profile 삭제와 다른 콘텐츠가 없는
 Membership 삭제 연쇄는 Handle 예약을 retired 상태로 남기며, 다른 회원 claim과 관리자 직접
 재활성화를 모두 거부한다. Library public directory를 주입해 owner의 `public` Collection만 opaque
 cursor로 읽고 `unlisted`와 다른 회원 Collection을 제외하며, 다른 owner의 cursor 재사용과 익명
 projection의 membership ID 노출도 거부한다.
+같은 suite는 인증 report의 replay·동일 reporter/Handle 제한·self-report 거부, 신고자 비노출 queue,
+implicit allowed 상태, reviewer의 withheld/allowed optimistic 판정, withheld 익명 비노출, 판정 후 queue
+종료, immutable decision의 runtime UPDATE 거부를 검증한다. Profile 삭제 trigger가 남은 신고를 종료하고
+180일 이후 bounded cleanup이 row를 삭제하는 것도 실제 runtime/migration 권한으로 확인한다.
 
 로컬 검색 suite도 독립적인 disposable PostGIS runtime에 전체 migration을 적용한다. data-defined
 Taxonomy의 publish/replay/conflict, 공개 Place 문서와 회원별 signal projection, text·taxonomy·bounds

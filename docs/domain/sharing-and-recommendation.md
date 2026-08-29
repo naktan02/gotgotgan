@@ -21,7 +21,11 @@ hidden/public 상태만 소유한다. Handle은 첫 생성 뒤 변경하지 않�
 재지정하지 않는다. Profile/Membership 삭제는 Handle을 retired reservation으로 바꾸고 다른 회원에게
 재배정하지 않는다. 공개 projection은 owner의 `public` Collection directory만 bounded cursor로
 조합한다. hidden, retired, 알 수 없는 Handle, 잘못된 Handle은 private identity를 드러내지 않는 동일한
-not-found 경계로 처리한다. 사람 검색·팔로우·댓글·신고·추천은 이 identity record의 책임이 아니다.
+not-found 경계로 처리한다. Public Profile Report는 인증된 회원의 categorized signal이고 자동 차단
+결정이 아니다. Public Profile Moderation은 owner visibility와 독립된 allowed/withheld 운영 판정이며
+immutable decision을 남긴다. 두 책임은 Profile identity Store와 분리된 Safety Interface에 있다.
+withheld도 익명에게 같은 not-found이고 reporter identity는 공개·검토 projection에 없다. 사람 검색·
+팔로우·댓글·추천과 owner 알림·appeal은 아직 이 단계의 책임이 아니다.
 
 향후 추천 기능은 privacy 검토를 통과한 projection을 입력으로 받고 versioned interface로
 설명 또는 후보를 반환한다. 추천 infrastructure는 충분한 데이터와 별도 단계가 준비되기

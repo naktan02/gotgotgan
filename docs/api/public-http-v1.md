@@ -211,6 +211,19 @@ hidden과 unknown Handle은 같은 404이며 성공은 Handle, 표시 이름, ow
 `/people/{handle}`과 `/share/...`는 robots noindex/nofollow를 사용한다. 이 API는 외부·내부 사람 검색
 index가 아니며 직접 링크 접근만 제공한다.
 
+`POST /v1/public/profiles/{handle}/reports`는 bearer와 `profiles.report`를 요구하고 UUID `reportId`와
+categorical `reason`만 받는다. 자유 서술·member·role은 거부한다. 최초 기록은 201, 동일 receipt replay나
+같은 reporter/Handle의 기존 신고는 200이며 self-report와 receipt conflict는 409다. 응답에는 reporter
+identity가 없다.
+
+`GET /v1/administration/public-profile-reports`와
+`GET|PUT /v1/administration/public-profiles/{handle}/moderation`은 `profiles.moderate`를 요구한다.
+대기열은 최대 50개의 opaque cursor page이고 reporter identity를 포함하지 않는다. 현재 moderation이
+없으면 `allowed`, null reason/version으로 읽는다. PUT은 decision UUID와 state에 맞는 categorical reason,
+nullable `expectedUpdatedAt`을 요구하고 판정 후 해당 Handle의 pending 신고를 종료한다. `withheld`인
+Handle은 owner가 public이어도 익명 Profile route에서 unknown과 같은 404다. owner 알림·appeal이나
+내부 people search를 제공하는 API는 아직 없다.
+
 `GET /healthz` reports process liveness and does not depend on PostgreSQL, Identity, or another
 process. `GET /readyz` reports 503 with a bounded `unavailable` projection when an explicitly required
 dependency cannot serve traffic. Backend production readiness checks its Pool; Web production

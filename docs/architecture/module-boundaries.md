@@ -65,6 +65,12 @@ Visits는 Rating이나 Writing을 저장하지 않으며, Writing은 Canonical P
 각 transport는 platform 수준 product-authorization 결과에 의존한다. entrypoint는 제품
 모듈이 Access source를 import하지 않도록 검증된 Access membership과 permission을 변환한다.
 
+Profiles도 identity/publication과 abuse operations를 한 Store로 합치지 않는다. `PublicProfileStore`는
+Handle·표시 이름·owner visibility와 익명 projection만 숨기고, `PublicProfileSafetyStore`는 report
+receipt·보존·moderation 현재 상태·immutable decision·redacted queue를 숨긴다. HTTP는 두 깊은
+Interface만 조립하고 moderation persistence를 직접 만지지 않는다. Library public Collection directory는
+계속 주입 port이며 Profiles Adapter가 Library table을 join하지 않는다.
+
 Stage 7.5 read surface도 이 경계를 유지한다. Visits와 Writing은 command Store의 raw/unbounded list를
 확장하지 않고 각각 작은 query Interface와 자기 schema만 읽는 PostgreSQL Adapter를 둔다. Ingestion도
 `ImportQueries`, `ImportManagementStore`, `ImportReviewStore`를 분리해 bounded read, cancel/resume,

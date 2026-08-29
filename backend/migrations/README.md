@@ -129,3 +129,9 @@ Handle을 backfill한다. Profile 생성은 같은 transaction에서 회원당 �
 Profile 또는 Membership 삭제는 예약을 retired 상태로 바꾼다. runtime role은 예약 insert와 반환
 Handle column select만 할 수 있고 retired 예약의 Membership 재연결은 trigger가 거부하므로 기존 공개
 URL을 다른 회원에게 재배정할 수 없다.
+
+`000032`는 `profiles.public_profile_reports`, 현재 moderation, immutable decision ledger를 분리한다.
+신고 사유와 moderation state/reason 조합은 DB constraint로 제한하며 reporter/Handle unique index가
+180일 retention 중 반복 신고를 막는다. Profile 삭제 trigger는 pending report를 종료한다. runtime은
+report의 bounded DML, 현재 moderation의 제한된 column update, decision insert/select만 받고 decision
+UPDATE/DELETE 권한은 없다.

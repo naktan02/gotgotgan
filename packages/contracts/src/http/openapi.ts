@@ -78,8 +78,14 @@ import {
 } from '../places/index.js'
 import {
   publicProfileCommandResultSchema,
+  publicProfileModerationRecordSchema,
+  publicProfileModerationRequestSchema,
+  publicProfileModerationResultSchema,
   publicProfileProjectionSchema,
   publicProfileRecordSchema,
+  publicProfileReportQueueSchema,
+  publicProfileReportRequestSchema,
+  publicProfileReportResultSchema,
   setPublicProfileRequestSchema,
 } from '../profiles/index.js'
 import {
@@ -722,6 +728,52 @@ const paths = {
       parameters: [boundedCursorParameter, boundedLimitParameter],
     }),
   },
+  '/v1/public/profiles/{handle}/reports': {
+    parameters: [pathParameters.handle],
+    post: operation('reportPublicProfile', {
+      '200': described('Return an existing Public Profile report outcome', 'PublicProfileReportResult'),
+      '201': described('Record a categorized Public Profile report', 'PublicProfileReportResult'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '409': ref('responses', 'ProductConflict'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer, requestSchema: 'PublicProfileReportRequest' }),
+  },
+  '/v1/administration/public-profile-reports': {
+    get: operation('listPendingPublicProfileReports', {
+      '200': described('Return a bounded reporter-redacted moderation queue', 'PublicProfileReportQueue'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, {
+      security: bearer,
+      parameters: [boundedCursorParameter, boundedLimitParameter],
+    }),
+  },
+  '/v1/administration/public-profiles/{handle}/moderation': {
+    parameters: [pathParameters.handle],
+    get: operation('getPublicProfileModeration', {
+      '200': described('Return current Public Profile moderation state', 'PublicProfileModerationRecord'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer }),
+    put: operation('moderatePublicProfile', {
+      '200': described('Replay a Public Profile moderation decision', 'PublicProfileModerationResult'),
+      '201': described('Apply a Public Profile moderation decision', 'PublicProfileModerationResult'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '409': ref('responses', 'ProductConflict'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer, requestSchema: 'PublicProfileModerationRequest' }),
+  },
   '/v1/provider-connections': { get: operation('listPlaceProviderConnections', {
     '200': described('Return sanitized provider connection metadata', 'ProviderConnectionList'),
     '401': ref('responses', 'AuthenticationRequired'),
@@ -1162,6 +1214,12 @@ const schemas: Readonly<Record<string, ZodType>> = {
   SetPublicProfileRequest: setPublicProfileRequestSchema,
   PublicProfileCommandResult: publicProfileCommandResultSchema,
   PublicProfileProjection: publicProfileProjectionSchema,
+  PublicProfileReportRequest: publicProfileReportRequestSchema,
+  PublicProfileReportResult: publicProfileReportResultSchema,
+  PublicProfileReportQueue: publicProfileReportQueueSchema,
+  PublicProfileModerationRequest: publicProfileModerationRequestSchema,
+  PublicProfileModerationRecord: publicProfileModerationRecordSchema,
+  PublicProfileModerationResult: publicProfileModerationResultSchema,
   PlaceSearchRequest: placeSearchRequestSchema,
   PlaceSearchResponse: placeSearchResponseSchema,
   PlaceSuggestionsRequest: placeSuggestionsRequestSchema,

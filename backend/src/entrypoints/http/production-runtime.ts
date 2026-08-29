@@ -52,6 +52,7 @@ import {
 } from '../../modules/providers/index.js'
 import {
   InvalidPublicProfileCursorError,
+  PostgresPublicProfileSafetyStore,
   PostgresPublicProfileStore,
 } from '../../modules/profiles/index.js'
 import {
@@ -91,6 +92,7 @@ export async function createProductionHttpRuntime(
     allowExitOnIdle: false,
   })
   let closePromise: Promise<void> | undefined
+  let profileReportCleanupTimer: NodeJS.Timeout | undefined
 
   try {
     await pool.query('SELECT 1')
@@ -162,6 +164,7 @@ export async function createProductionHttpRuntime(
       },
     )
     const publicProfileStore = new PostgresPublicProfileStore(pool)
+    const publicProfileSafetyStore = new PostgresPublicProfileSafetyStore(pool)
     const placeSuggestions = new PostgresPlaceSuggestions(pool)
     const ingestionStore = new PostgresIngestionStore(pool)
     const connectorImports = new PostgresConnectorImports(pool)
@@ -348,6 +351,7 @@ export async function createProductionHttpRuntime(
       profiles: {
         authorizer: productAuthorizer,
         store: publicProfileStore,
+        safety: publicProfileSafetyStore,
         collections: async (input) => {
           try {
             return await libraryQueries.listPublicCollectionsByOwner(input)
@@ -388,8 +392,24 @@ export async function createProductionHttpRuntime(
       },
     })
 
+    const cleanupExpiredProfileReports = async () => {
+      await publicProfileSafetyStore.deleteExpiredReports({
+        now: now().toISOString(),
+        limit: 500,
+      })
+    }
+    await cleanupExpiredProfileReports()
+    profileReportCleanupTimer = setInterval(() => {
+      void cleanupExpiredProfileReports().catch(() => undefined)
+    }, 60 * 60 * 1_000)
+    profileReportCleanupTimer.unref()
+
     const close = (): Promise<void> => {
       closePromise ??= (async () => {
+        if (profileReportCleanupTimer !== undefined) {
+          clearInterval(profileReportCleanupTimer)
+          profileReportCleanupTimer = undefined
+        }
         await application.close()
         await pool.end()
       })()
@@ -402,6 +422,7 @@ export async function createProductionHttpRuntime(
       close,
     }
   } catch (error) {
+    if (profileReportCleanupTimer !== undefined) clearInterval(profileReportCleanupTimer)
     await pool.end().catch(() => undefined)
     throw error
   }

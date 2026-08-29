@@ -66,3 +66,8 @@ remain outside this authority path.
 The optional administration HTTP transport performs authentication and actor membership resolution
 before the use case can inspect a target, preventing unauthorized membership enumeration. It exposes
 only the requested role outcome and stable sanitized failures.
+
+Public Profile 신고는 모든 활성 Authority Role의 `profiles.report` 권한을 요구한다. 운영 대기열 조회와
+allowed/withheld 판정은 `reviewer`, `administrator`, `owner`에만 있는 `profiles.moderate`를 요구한다.
+이 권한들은 Profile/Report persistence에 검증된 membership ID만 전달하며 browser가 role이나 reporter를
+제출할 수 없다. `member`는 moderation route에서 target을 조회하기 전에 403으로 거부된다.

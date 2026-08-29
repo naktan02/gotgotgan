@@ -6,7 +6,7 @@ Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed doc
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **source-only; Stages 6.5, 7.5–7.17, and 11A–11E1 complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
+Current delivery state: **source-only; Stages 6.5, 7.5–7.17, and 11A–11E2B1 complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
@@ -238,6 +238,12 @@ Stage 11E2A는 Public Handle namespace를 Profile row와 분리한다. Profile�
 공개 projection과 회원 연결은 없어지지만 Handle 예약은 retired 상태로 남아 다른 회원이 과거 공개
 URL을 가져갈 수 없다. retired Handle은 unknown과 같은 404이며 self-service rename/recovery는 아직
 없다. 외부 색인 금지와 내부 사람 discovery 보류 정책은 그대로다.
+
+Stage 11E2B1은 직접 링크 프로필을 증폭하지 않은 채 안전 기반만 추가한다. 인증 회원은 자유 서술 없이
+정해진 사유로 신고하고, 같은 회원·Handle 신고는 180일 보존 기간 동안 하나로 제한된다. 신고 자체는
+공개를 중단하지 않는다. `reviewer` 이상만 owner의 hidden/public과 독립된 allowed/withheld 판정을
+내리며, immutable decision 이력을 남긴다. 익명 응답과 검토 대기열에는 신고자 ID가 없고 withheld는
+unknown과 같은 404다. owner 알림·appeal과 내부 사람 discovery는 다음 운영 gate로 남는다.
 
 ## Repository boundaries
 
