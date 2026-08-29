@@ -116,6 +116,11 @@ docker compose --env-file .runtime/local/compose.env `
 `http://localhost:3001/readyz`에서 수행한다. Web만 브라우저 진입점이며 Backend의 공개 포트는
 로컬 진단용이다. 운영 구성은 Backend를 Gateway나 브라우저에 노출하지 않는다.
 
+Docker Desktop 재시작처럼 Web과 PostgreSQL이 동시에 시작되면 Web의 OIDC 수명주기는
+`compose.env`의 bounded startup retry 정책 안에서 데이터베이스 연결을 다시 시도한다. 그동안
+healthcheck는 준비 완료를 주장하지 않으며, PostgreSQL이 복구되면 Web 컨테이너를 수동 재시작하지
+않고 `/readyz`가 회복되어야 한다. 재시도 횟수와 간격의 곱은 구성 로더가 최대 5분으로 제한한다.
+
 ### 6. Connector 설치 전 확인
 
 Web 로그인, Place 동의·membership 생성, 가져오기 페이지의 grant 발급까지 확인한 뒤에만

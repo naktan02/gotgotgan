@@ -19,6 +19,10 @@ export type LoadedOidcProcessRuntimeConfig = Readonly<{
   providerConfig: OidcProviderConfig
   bffConfig: OidcBffConfig
   cleanupBatchSize: number
+  startupRetry: Readonly<{
+    attempts: number
+    delayMilliseconds: number
+  }>
 }>
 
 function configurationError(): Error {
@@ -148,6 +152,20 @@ export async function loadOidcProcessRuntimeConfig(
   ])
   const cleanupBatchSize = positiveInteger(environment, 'PLACE_OIDC_CLEANUP_BATCH_SIZE')
   if (cleanupBatchSize > 1_000) throw configurationError()
+  const startupRetry = {
+    attempts: positiveInteger(environment, 'PLACE_OIDC_STARTUP_RETRY_ATTEMPTS'),
+    delayMilliseconds: positiveInteger(
+      environment,
+      'PLACE_OIDC_STARTUP_RETRY_DELAY_MILLISECONDS',
+    ),
+  }
+  if (
+    startupRetry.attempts > 300 ||
+    startupRetry.delayMilliseconds > 60_000 ||
+    startupRetry.attempts * startupRetry.delayMilliseconds > 300_000
+  ) {
+    throw configurationError()
+  }
   return {
     database: {
       connectionString,
@@ -180,5 +198,6 @@ export async function loadOidcProcessRuntimeConfig(
       ...(allowInsecureLocalHttp ? { allowInsecureLocalHttp: true } : {}),
     },
     cleanupBatchSize,
+    startupRetry,
   }
 }

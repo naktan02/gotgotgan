@@ -34,6 +34,7 @@ type LifecycleDependencies = Readonly<{
   scheduleInterval?: (task: () => void, milliseconds: number) => IntervalHandle
   cancelInterval?: (handle: IntervalHandle) => void
   now?: () => Date
+  waitForRetry?: (milliseconds: number) => Promise<void>
   reportCleanupFailure?: () => void
   reportShutdownFailure?: () => void
   shutdownSignals?: ShutdownSignals
@@ -59,6 +60,8 @@ function cleanupIntervalMilliseconds(environment: Environment): number {
 
 export function createNextOidcLifecycle(dependencies: LifecycleDependencies) {
   const now = dependencies.now ?? (() => new Date())
+  const waitForRetry = dependencies.waitForRetry ??
+    ((milliseconds: number) => new Promise<void>((resolve) => setTimeout(resolve, milliseconds)))
   const scheduleInterval = dependencies.scheduleInterval ?? ((task, milliseconds) => {
     const handle = setInterval(task, milliseconds)
     return handle
@@ -111,14 +114,24 @@ export function createNextOidcLifecycle(dependencies: LifecycleDependencies) {
       ...config.providerConfig,
       now,
     })
-    runtime = await dependencies.createRuntime({
+    const runtimeConfig = {
       database: config.database,
       encryption: config.encryption,
       bffConfig: config.bffConfig,
       cleanupBatchSize: config.cleanupBatchSize,
       provider,
       now,
-    })
+    }
+    for (let attempt = 1; attempt <= config.startupRetry.attempts; attempt += 1) {
+      try {
+        runtime = await dependencies.createRuntime(runtimeConfig)
+        break
+      } catch (error) {
+        if (attempt === config.startupRetry.attempts) throw error
+        await waitForRetry(config.startupRetry.delayMilliseconds)
+      }
+    }
+    if (runtime === undefined) throw new Error('OIDC process runtime startup failed')
     intervalHandle = scheduleInterval(requestCleanup, cleanupMilliseconds)
     intervalHandle.unref?.()
     for (const signal of supportedShutdownSignals) {

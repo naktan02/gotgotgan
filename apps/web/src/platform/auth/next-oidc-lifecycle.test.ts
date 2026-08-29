@@ -53,6 +53,8 @@ async function activeEnvironment(directory: string): Promise<Readonly<Record<str
     PLACE_OIDC_DATABASE_MAX_CONNECTIONS: '4',
     PLACE_OIDC_DATABASE_IDLE_TIMEOUT_MILLISECONDS: '30000',
     PLACE_OIDC_DATABASE_CONNECTION_TIMEOUT_MILLISECONDS: '5000',
+    PLACE_OIDC_STARTUP_RETRY_ATTEMPTS: '3',
+    PLACE_OIDC_STARTUP_RETRY_DELAY_MILLISECONDS: '2000',
     PLACE_OIDC_CLEANUP_BATCH_SIZE: '250',
     PLACE_OIDC_CLEANUP_INTERVAL_SECONDS: '60',
   }
@@ -176,6 +178,48 @@ describe('Next OIDC process lifecycle', () => {
     expect(cancelled).toBe(true)
     expect(closeCalls).toBe(1)
     expect(lifecycle.current()).toBeUndefined()
+  })
+
+  it('retries installation after a transient runtime startup failure', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'place-next-oidc-lifecycle-'))
+    temporaryDirectories.push(directory)
+    const environment = await activeEnvironment(directory)
+    let runtimeCreations = 0
+    const retryDelays: number[] = []
+    const runtime = {
+      ready: async () => undefined,
+      bff: {
+        start: async () => new Response(null),
+        callback: async () => new Response(null),
+        logout: async () => new Response(null),
+        resolveSession: async () => undefined,
+      },
+      cleanupExpired: async () => ({ transactionsDeleted: 0, sessionsDeleted: 0 }),
+      close: async () => undefined,
+    }
+    const lifecycle = createNextOidcLifecycle({
+      createProvider: async () => ({
+        ready: async () => undefined,
+        buildAuthorizationUrl: async () => 'https://identity.example/authorize',
+        exchangeAuthorizationCode: async () => ({
+          accessToken: 'server-side-token',
+          expiresAt: '2026-08-26T01:00:00.000Z',
+        }),
+      }),
+      createRuntime: async () => {
+        runtimeCreations += 1
+        if (runtimeCreations === 1) throw new Error('database is starting')
+        return runtime
+      },
+      scheduleInterval: () => ({ unref: () => undefined }),
+      waitForRetry: async (milliseconds) => void retryDelays.push(milliseconds),
+    })
+
+    await expect(lifecycle.install(environment)).resolves.toEqual({ state: 'ready' })
+    expect(runtimeCreations).toBe(2)
+    expect(retryDelays).toEqual([2_000])
+    expect(lifecycle.current()).toBe(runtime)
+    await lifecycle.close()
   })
 
   it('closes the runtime when the Next process receives a shutdown signal', async () => {

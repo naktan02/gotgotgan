@@ -39,6 +39,8 @@ also requires these non-secret settings:
 - `PLACE_OIDC_DATABASE_MAX_CONNECTIONS`;
 - `PLACE_OIDC_DATABASE_IDLE_TIMEOUT_MILLISECONDS`;
 - `PLACE_OIDC_DATABASE_CONNECTION_TIMEOUT_MILLISECONDS`;
+- `PLACE_OIDC_STARTUP_RETRY_ATTEMPTS` and
+  `PLACE_OIDC_STARTUP_RETRY_DELAY_MILLISECONDS`, whose product is capped at five minutes;
 - `PLACE_OIDC_CLEANUP_BATCH_SIZE`; and
 - `PLACE_OIDC_CLEANUP_INTERVAL_SECONDS`;
 - `PLACE_MEMBERSHIP_RUNTIME_ENABLED`, exactly `true` to install the backend bridge or `false`/unset
@@ -48,6 +50,7 @@ also requires these non-secret settings:
 
 Cleanup is rejected above 1,000 rows per table per call. The actual Next process calls this
 loader only through its Node instrumentation lifecycle, which installs once before readiness,
+retries transient database startup failures within the bounded deployment policy,
 registers signal close, schedules non-overlapping retryable cleanup, and shares the runtime with
 reviewed auth route bundles through a process-global symbol. A separate membership lifecycle owns
 only the stateless backend client and has an independent fail-closed activation switch. It uses fixed

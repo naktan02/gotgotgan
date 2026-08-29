@@ -56,6 +56,8 @@ async function validEnvironment(
     PLACE_OIDC_DATABASE_MAX_CONNECTIONS: '4',
     PLACE_OIDC_DATABASE_IDLE_TIMEOUT_MILLISECONDS: '30000',
     PLACE_OIDC_DATABASE_CONNECTION_TIMEOUT_MILLISECONDS: '5000',
+    PLACE_OIDC_STARTUP_RETRY_ATTEMPTS: '3',
+    PLACE_OIDC_STARTUP_RETRY_DELAY_MILLISECONDS: '2000',
     PLACE_OIDC_CLEANUP_BATCH_SIZE: '250',
     ...overrides,
   }
@@ -101,6 +103,7 @@ describe('OIDC process runtime configuration', () => {
         sessionTtlSeconds: 3600,
       },
       cleanupBatchSize: 250,
+      startupRetry: { attempts: 3, delayMilliseconds: 2_000 },
       encryption: {
         activeKey: { id: 'key-v2' },
         decryptionKeys: [{ id: 'key-v1' }],
@@ -117,6 +120,19 @@ describe('OIDC process runtime configuration', () => {
     temporaryDirectories.push(directory)
     const environment = await validEnvironment(directory, {
       PLACE_OIDC_CLEANUP_BATCH_SIZE: '1001',
+    })
+
+    await expect(loadOidcProcessRuntimeConfig(environment)).rejects.toThrow(
+      'OIDC process runtime configuration is invalid',
+    )
+  })
+
+  it('rejects an unbounded startup retry window', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'place-oidc-config-'))
+    temporaryDirectories.push(directory)
+    const environment = await validEnvironment(directory, {
+      PLACE_OIDC_STARTUP_RETRY_ATTEMPTS: '300',
+      PLACE_OIDC_STARTUP_RETRY_DELAY_MILLISECONDS: '2000',
     })
 
     await expect(loadOidcProcessRuntimeConfig(environment)).rejects.toThrow(

@@ -14,8 +14,9 @@ This folder owns the confidential browser OIDC boundary for the Place Web proces
   rotatable encryption keyring only from deployment-referenced one-line secret files. It rejects
   insecure issuers, malformed 32-byte base64url keys, duplicate key IDs, and unbounded cleanup.
 - `next-oidc-lifecycle.ts` is the explicit Node process owner selected by Next instrumentation. It
-  defaults to disabled, rejects ambiguous activation, installs one runtime, schedules non-overlapping
-  bounded cleanup, shares it safely across Next server bundles, and owns signal-triggered close.
+  defaults to disabled, rejects ambiguous activation, retries transient database startup inside a
+  bounded deployment policy, installs one runtime, schedules non-overlapping bounded cleanup, shares
+  it safely across Next server bundles, and owns signal-triggered close.
 - `browser-auth-http.ts` is the reviewed HTTP boundary. It delegates to the BFF, applies no-store and
   browser hardening headers, correlates safe problems, and sanitizes unexpected provider failures.
 
