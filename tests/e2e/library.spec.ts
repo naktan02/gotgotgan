@@ -617,16 +617,27 @@ async function installLibraryFixture(
   return { commands, visitRequests, writingRequests }
 }
 
+async function openLibraryFilters(page: Page) {
+  const mobileFilterButton = page.getByRole('button', { name: '필터 열기' })
+  if (await mobileFilterButton.isVisible()) await mobileFilterButton.click()
+}
+
+async function openRamenDetail(page: Page) {
+  await page.getByRole('region', { name: '장소 목록' })
+    .getByRole('button', { name: /멘야 하루/ })
+    .click()
+}
+
 test('browses saved Places by tags and Collection without leaking the Backend boundary', async ({ page }) => {
   await installLibraryFixture(page)
   await page.goto('/library')
+  await openLibraryFilters(page)
 
   const tagFilters = page.getByLabel('태그 필터')
   await expect(page.getByRole('heading', { name: '내 장소' })).toBeVisible()
   await expect(page.getByRole('link', { name: '내 장소' })).toHaveAttribute('aria-current', 'page')
   await expect(tagFilters.getByRole('button', { name: /^라면/ })).toBeVisible()
   await expect(page.getByText('멘야 하루', { exact: true }).first()).toBeVisible()
-  await expect(page.getByLabel('내 평점')).toHaveValue('4.5')
 
   const areaFilters = page.getByLabel('저장 장소 지역 필터')
   await areaFilters.getByRole('button', { name: /^서울 성동구 성수동/ }).click()
@@ -651,6 +662,39 @@ test('browses saved Places by tags and Collection without leaking the Backend bo
   await page.getByRole('button', { name: '성수동 2' }).click()
   await expect(page.getByText('서울숲 로스터스', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: '성수동 2' })).toHaveAttribute('aria-current', 'page')
+  await openRamenDetail(page)
+  await expect(page.getByLabel('내 평점')).toHaveValue('4.5')
+})
+
+test('keeps list, detail, and map coordinated across desktop and mobile surfaces', async ({ page }) => {
+  await installLibraryFixture(page)
+  await page.goto('/library')
+
+  const list = page.getByRole('region', { name: '장소 목록' })
+  const detail = page.getByRole('complementary', { name: '선택한 장소 상세' })
+  const map = page.getByRole('region', { name: '내 장소 지도' })
+
+  if ((page.viewportSize()?.width ?? 0) > 720) {
+    await expect(list).toBeVisible()
+    await expect(detail).toBeVisible()
+    await expect(map).toBeVisible()
+    await map.getByRole('button', { name: '서울숲 로스터스 지도에서 선택' }).click()
+    await expect(detail.getByRole('heading', { name: '서울숲 로스터스' })).toBeVisible()
+    return
+  }
+
+  await expect(list).toBeVisible()
+  await expect(detail).toBeHidden()
+  await expect(map).toBeHidden()
+  await page.getByRole('button', { name: '지도', exact: true }).click()
+  await expect(map).toBeVisible()
+  await expect(list).toBeHidden()
+  await map.getByRole('button', { name: '멘야 하루 지도에서 선택' }).click()
+  await expect(detail).toBeVisible()
+  await expect(detail.getByRole('button', { name: '목록으로' })).toBeFocused()
+  await detail.getByRole('button', { name: '목록으로' }).click()
+  await expect(list).toBeVisible()
+  await expect(list.getByRole('button', { name: /멘야 하루/ })).toBeFocused()
 })
 
 test('shows a login action when the opaque browser session is absent', async ({ page }) => {
@@ -672,6 +716,7 @@ test('shows a login action when the opaque browser session is absent', async ({ 
 test('updates saved, wanted, and Personal Rating with observed preference versions', async ({ page }) => {
   const { commands } = await installLibraryFixture(page)
   await page.goto('/library')
+  await openRamenDetail(page)
 
   const preferences = page.getByRole('region', { name: '내 상태' })
   const wanted = preferences.getByRole('button', { name: /가고 싶음/ })
@@ -710,6 +755,7 @@ test('updates saved, wanted, and Personal Rating with observed preference versio
 test('refreshes a stale Place preference instead of overwriting it', async ({ page }) => {
   await installLibraryFixture(page, { preferenceConflictOnce: true })
   await page.goto('/library')
+  await openRamenDetail(page)
 
   const preferences = page.getByRole('region', { name: '내 상태' })
   const wanted = preferences.getByRole('button', { name: /가고 싶음/ })
@@ -724,6 +770,7 @@ test('refreshes a stale Place preference instead of overwriting it', async ({ pa
 test('retries a response-lost preference command with the same command ID', async ({ page }) => {
   const { commands } = await installLibraryFixture(page, { preferenceFailureOnce: true })
   await page.goto('/library')
+  await openRamenDetail(page)
 
   const preferences = page.getByRole('region', { name: '내 상태' })
   const wanted = preferences.getByRole('button', { name: /가고 싶음/ })
@@ -814,6 +861,7 @@ test('retries a response-lost management command with the same command ID', asyn
 test('records repeated immutable Visits and reads bounded history', async ({ page }) => {
   const { visitRequests } = await installLibraryFixture(page, { paginatedVisits: true })
   await page.goto('/library')
+  await openRamenDetail(page)
 
   const visitRegion = page.getByRole('region', { name: '방문 기록' })
   await expect(visitRegion.getByText(/총 2회/)).toBeVisible()
@@ -835,6 +883,7 @@ test('records repeated immutable Visits and reads bounded history', async ({ pag
 test('retries a response-lost Visit with the same immutable request', async ({ page }) => {
   const { visitRequests } = await installLibraryFixture(page, { visitFailureOnce: true })
   await page.goto('/library')
+  await openRamenDetail(page)
 
   const visitRegion = page.getByRole('region', { name: '방문 기록' })
   await visitRegion.getByLabel('방문한 시각').fill('2026-08-26T19:10')
@@ -851,6 +900,7 @@ test('retries a response-lost Visit with the same immutable request', async ({ p
 test('creates and edits private Place Notes through bounded Writing pages', async ({ page }) => {
   const { writingRequests } = await installLibraryFixture(page, { paginatedNotes: true })
   await page.goto('/library')
+  await openRamenDetail(page)
 
   const notes = page.getByRole('region', { name: '내 메모' })
   await expect(notes.locator('ol > li')).toHaveCount(1)
@@ -883,6 +933,7 @@ test('creates and edits private Place Notes through bounded Writing pages', asyn
 test('retries a response-lost private Note with the exact command', async ({ page }) => {
   const { writingRequests } = await installLibraryFixture(page, { writingFailureOnce: true })
   await page.goto('/library')
+  await openRamenDetail(page)
 
   const notes = page.getByRole('region', { name: '내 메모' })
   await notes.getByLabel('새 비공개 메모').fill('응답 유실에도 한 번만 저장할 메모')
@@ -898,6 +949,7 @@ test('retries a response-lost private Note with the exact command', async ({ pag
 test('preserves a Note draft on optimistic version conflict', async ({ page }) => {
   const { writingRequests } = await installLibraryFixture(page, { writingConflictOnce: true })
   await page.goto('/library')
+  await openRamenDetail(page)
 
   const notes = page.getByRole('region', { name: '내 메모' })
   await notes.getByRole('button', { name: /국물이 깔끔하고/ }).click()
@@ -915,6 +967,7 @@ test('preserves a Note draft on optimistic version conflict', async ({ page }) =
 test('organizes a Place with only the member saved Collections and Tags', async ({ page }) => {
   const { commands } = await installLibraryFixture(page)
   await page.goto('/library')
+  await openRamenDetail(page)
 
   const organization = page.getByRole('region', { name: '내 분류' })
   await expect(organization.getByText('내가 저장하거나 가져온 컬렉션과 태그만 표시됩니다.')).toBeVisible()

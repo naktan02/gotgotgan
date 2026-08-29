@@ -1,6 +1,11 @@
-import type { PlaceSearchResult, SearchBounds } from '@place/contracts/search'
-
 import styles from './deterministic-place-map.module.css'
+
+export type DeterministicMapBounds = Readonly<{
+  north: number
+  east: number
+  south: number
+  west: number
+}>
 
 function percent(value: number, minimum: number, maximum: number): string {
   const normalized = Math.min(1, Math.max(0, (value - minimum) / (maximum - minimum)))
@@ -8,36 +13,48 @@ function percent(value: number, minimum: number, maximum: number): string {
 }
 
 export function DeterministicPlaceMap({
+  ariaLabel = '장소 지도',
   bounds,
-  results,
-  selectedResultId,
+  description = '실제 지도 Provider 연결 전의 결정적 좌표 화면',
+  markers,
+  moveLabel = '동쪽으로 이동',
+  selectedMarkerId,
+  title = '로컬 공간 보기',
   onSelect,
-  onPan,
+  onMove,
 }: Readonly<{
-  bounds: SearchBounds
-  results: readonly PlaceSearchResult[]
-  selectedResultId?: string
-  onSelect: (resultId: string) => void
-  onPan: () => void
+  ariaLabel?: string
+  bounds: DeterministicMapBounds
+  description?: string
+  markers: ReadonlyArray<Readonly<{
+    id: string
+    label: string
+    location: Readonly<{ latitude: number; longitude: number }>
+  }>>
+  moveLabel?: string
+  selectedMarkerId?: string
+  title?: string
+  onSelect: (markerId: string) => void
+  onMove?: () => void
 }>) {
   return (
-    <section aria-label="검색 결과 지도" className={styles.map}>
+    <section aria-label={ariaLabel} className={styles.map}>
       <div aria-hidden="true" className={styles.grid} />
       <div className={styles.mapHeader}>
-        <span>로컬 공간 보기</span>
-        <button onClick={onPan} type="button">동쪽으로 이동</button>
+        <span>{title}</span>
+        {onMove !== undefined && <button onClick={onMove} type="button">{moveLabel}</button>}
       </div>
-      <p className={styles.mapNote}>실제 지도 Provider 연결 전의 결정적 좌표 화면</p>
-      {results.map((result, index) => (
+      <p className={styles.mapNote}>{description}</p>
+      {markers.map((marker, index) => (
         <button
-          aria-label={`${result.name} 지도에서 선택`}
-          aria-pressed={result.resultId === selectedResultId}
-          className={result.resultId === selectedResultId ? `${styles.marker} ${styles.selected}` : styles.marker}
-          key={result.resultId}
-          onClick={() => onSelect(result.resultId)}
+          aria-label={`${marker.label} 지도에서 선택`}
+          aria-pressed={marker.id === selectedMarkerId}
+          className={marker.id === selectedMarkerId ? `${styles.marker} ${styles.selected}` : styles.marker}
+          key={marker.id}
+          onClick={() => onSelect(marker.id)}
           style={{
-            left: percent(result.location.longitude, bounds.west, bounds.east),
-            top: percent(bounds.north - result.location.latitude, 0, bounds.north - bounds.south),
+            left: percent(marker.location.longitude, bounds.west, bounds.east),
+            top: percent(bounds.north - marker.location.latitude, 0, bounds.north - bounds.south),
           }}
           type="button"
         >

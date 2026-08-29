@@ -29,6 +29,7 @@ type LibrarySurface =
 
 export function usePersonalLibraryWorkflow() {
   const [mode, setMode] = useState<'browse' | 'manage'>('browse')
+  const [mobileSurface, setMobileSurface] = useState<'list' | 'map' | 'detail'>('list')
   const [surface, setSurface] = useState<LibrarySurface>({ kind: 'state', state: 'saved' })
   const [selectedTagIds, setSelectedTagIds] = useState<readonly string[]>([])
   const [tagMatch, setTagMatch] = useState<LibraryTagMatch>('all')
@@ -197,10 +198,12 @@ export function usePersonalLibraryWorkflow() {
   const selectedRow = rows.find((row) => row.placeId === selectedPlaceId)
 
   function chooseState(state: LibraryPlaceState) {
+    setMobileSurface('list')
     setSurface({ kind: 'state', state })
   }
 
   function chooseCollection(collectionId: string) {
+    setMobileSurface('list')
     setSelectedTagIds([])
     setTagMatch('all')
     setSelectedAreaKeys([])
@@ -209,6 +212,7 @@ export function usePersonalLibraryWorkflow() {
   }
 
   function toggleTag(tagId: string) {
+    setMobileSurface('list')
     setSelectedTagIds((current) => (
       current.includes(tagId)
         ? current.filter((candidate) => candidate !== tagId)
@@ -218,6 +222,7 @@ export function usePersonalLibraryWorkflow() {
   }
 
   function toggleArea(areaKey: string) {
+    setMobileSurface('list')
     setSelectedAreaKeys((current) => (
       current.includes(areaKey)
         ? current.filter((candidate) => candidate !== areaKey)
@@ -227,6 +232,7 @@ export function usePersonalLibraryWorkflow() {
   }
 
   function toggleTaxonomy(taxonomyKey: string) {
+    setMobileSurface('list')
     setSelectedTaxonomyKeys((current) => (
       current.includes(taxonomyKey)
         ? current.filter((candidate) => candidate !== taxonomyKey)
@@ -316,6 +322,7 @@ export function usePersonalLibraryWorkflow() {
 
   return {
     mode,
+    mobileSurface,
     surface,
     selectedTagIds,
     tagMatch,
@@ -345,6 +352,7 @@ export function usePersonalLibraryWorkflow() {
     error,
     showBrowse: () => {
       setMode('browse')
+      setMobileSurface('list')
       void Promise.all([
         refreshLibrary(),
         refreshSelectedOrganization(),
@@ -357,7 +365,15 @@ export function usePersonalLibraryWorkflow() {
     toggleArea,
     toggleTaxonomy,
     setTagMatch,
-    selectPlace: setSelectedPlaceId,
+    showMobileSurface: (nextSurface: 'list' | 'map') => setMobileSurface(nextSurface),
+    selectPlace: (placeId: string) => {
+      setSelectedPlaceId(placeId)
+      setMobileSurface('detail')
+    },
+    dismissDetail: () => {
+      setMobileSurface('list')
+      setSelectedPlaceId(undefined)
+    },
     loadMore,
     retry: () => Promise.all([
       loadFacets(),

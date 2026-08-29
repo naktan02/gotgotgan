@@ -48,3 +48,17 @@ NAVER/Kakao에 없는 상세나 사진을 꾸며내지 않으며 외부 결과�
 향후 live map adapter는 feature state나 search contract를 역참조하게 만들지 않고 `platform/maps`
 경계에서 교체한다. 4개 viewport와 상태별 screenshot을 검토했으며 세부 visual polish는 이
 동작·privacy 기준을 보존하는 범위에서 계속 변경할 수 있다.
+
+## Stage 7.14 Library workspace review
+
+2026-08-29에 Google Maps와 NAVER Map의 현재 desktop/mobile 검색·목록·상세 흐름을 Playwright로
+재검토했다. Library browse는 desktop의 `목록 -> 선택 상세 -> 지도` pane 연속성과 mobile의
+`목록 | 지도` 단일 surface 및 Place 선택 후 전체 폭 상세를 채택한다. Collection은 네 번째 열이
+아니라 목록 pane의 안정된 selector이며 지역·분류·Tag는 같은 pane의 filter로 남는다.
+
+`PersonalLibraryBrowseView`는 panel transition과 focus continuity를 소유하고 기존 preference,
+organization, Visit, Note workflow를 조립한다. `PersonalLibraryMap`은 Library row를 provider-neutral
+marker projection으로 바꾸며, `DeterministicPlaceMap`은 더 이상 Search result 계약을 요구하지 않는다.
+따라서 live NAVER map SDK는 이 구조나 feature state를 바꾸지 않고 platform renderer에서 교체할 수
+있다. 모바일에서 상세 뒤로 가기는 선택 행에 초점을 돌려주며 desktop, mobile Playwright가 이를
+검증한다.

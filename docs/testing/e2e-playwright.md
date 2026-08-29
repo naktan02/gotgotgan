@@ -79,6 +79,12 @@ command 재전송, optimistic version conflict에서 초안 보존과 명시적 
 검증한다. Entry·visibility·publication·member authority는 browser command에 없으며 Note 추가 후 focused
 Personal Library suite는 26개 case다.
 
+Stage 7.14는 focused Personal Library suite를 28개 desktop/mobile case로 확장한다. desktop은 Place
+목록·선택 상세·결정적 지도가 함께 보이고 marker 선택이 같은 상세 state를 바꾸는지 검증한다.
+mobile은 목록과 지도가 동시에 축소되지 않고, marker 선택이 전체 폭 상세로 전환되며 목록 복귀 시
+선택 행에 keyboard focus가 돌아오는지 검증한다. 기존 preference, management, Visit, Note,
+organization case도 새 panel 전환을 통해 계속 실행한다.
+
 Stage 5 Playwright는 같은 공개 경계에 결정적인 Taxonomy/Search fixture를 연결한다. 입력
 debounce와 교체 요청의 실제 upstream 취소, 목록·마커 선택 동기화, 명시적 bounds 재검색,
 Taxonomy filter, cursor pagination, mobile 목록/지도 전환, partial·loading·empty·error·retry와

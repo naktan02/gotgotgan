@@ -17,7 +17,7 @@ Read only the routes required by the task, after repository `AGENTS.md` and `REA
 - Local execution, worker lifecycle, deployment, backup, or incidents: `operations/README.md`.
 - A durable decision or supersession: `adr/README.md`.
 
-Delivery state is **source-only; Stages 6.5 and 7.5–7.12 complete, with Stages 2 and 7 in progress and Stage 8 paused after 8B**. A Place-owned physical PostGIS runtime is
+Delivery state is **source-only; Stages 6.5 and 7.5–7.14 complete, with Stages 2 and 7 in progress and Stage 8 paused after 8B**. A Place-owned physical PostGIS runtime is
 implemented and tested in disposable environments but not deployed or active. No provider account, browser profile, map credential, Identity
 client, Gateway route, family composer, or AI connection is active.
 
@@ -78,6 +78,12 @@ table의 Place-first 조회만 보강한다.
 Stage 7.13은 `writing-list.v2`로 서버 작성일과 마지막 수정일을 함께 전달하고 일반 메모 패널에서 두
 시각을 구분한다. 기존 Writing 저장·revision 경계를 재사용하며 제목, 사진 첨부, Entry 작성 UI는 이
 범위에 포함하지 않는다.
+
+Stage 7.14는 2026-08-29 Google Maps와 NAVER Map의 desktop/mobile 목록·지도·상세 흐름을 다시
+관찰한 뒤 Personal Library를 목록, 독립 상세, 결정적 지도 pane으로 조립했다. mobile은 목록/지도를
+한 surface씩 표시하고 Place 선택 시 전체 폭 상세로 이동하며 목록 복귀 초점을 보존한다. 기존
+preference, Collection/Tag, Visit, body-only private Note 계약은 그대로이며 live map SDK나 Provider
+호출은 추가하지 않았다.
 
 Stage 5는 data-defined Taxonomy와 Search 소유 projection을 추가했다. 로컬 text·taxonomy·bounds·
 회원 signal 검색, cursor pagination, source-neutral partial 결과, responsive 목록/지도 UI를 실제

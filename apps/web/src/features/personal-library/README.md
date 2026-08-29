@@ -29,8 +29,15 @@ version conflict에서는 작성 중인 초안을 유지하고 사용자가 최�
 지역·분류 선택지는 `library-place-facets.v1`만 표시하며 count와 불완전 표본 상태도 그대로 전달한다.
 화면은 지역명을 번역·병합하거나 Taxonomy를 새로 추론하지 않는다.
 
+Browse 화면은 desktop에서 Place 목록, 선택 상세, 지도 pane을 독립적으로 조정한다. Collection은
+목록 pane 안의 selector이고 지역·분류·Tag filter와 함께 현재 목록을 만든다. mobile은 목록과 지도를
+명시적으로 전환하며 Place 행이나 marker를 선택하면 전체 폭 상세로 이동한다. 목록으로 돌아갈 때
+선택과 filter를 유지하고 선택 행으로 초점을 복귀시킨다. 지도에는 `PersonalLibraryMap`이 만든 최소
+marker projection만 전달하며 Library workflow가 지도 SDK나 Search result 계약을 알지 않는다.
+
 `personal-library-http.ts`는 versioned browser payload 해석을, 기본 workflow는 목록·상세 조정을,
 preference workflow는 버전 기반 상태 변경과 안전한 재시도를, organization workflow는 선택 장소의
-분류 변경을, management workflow는 Collection·Tag 수명주기와 순서를 맡는다. visit workflow는 불변
+분류 변경을, management workflow는 Collection·Tag 수명주기와 순서를 맡는다. Browse View는 이 깊은
+workflow들을 panel grammar 뒤에서 조립한다. visit workflow는 불변
 기록·동일 요청 재시도·history pagination을 하나의 좁은 Interface 뒤에 두고, 각 View는 접근 가능한
 표현만 맡는다. note workflow도 목록·상세·optimistic mutation을 하나의 Interface 뒤에 숨긴다.

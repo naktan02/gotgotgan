@@ -254,11 +254,16 @@ export function SearchWorkspaceView({
 
         <div className={`${styles.mapPane} ${mobileSurface === 'list' ? styles.mobileHidden : ''}`}>
           <DeterministicPlaceMap
+            ariaLabel="검색 결과 지도"
             bounds={viewportBounds}
-            onPan={() => panViewport()}
+            markers={items.map((item) => ({
+              id: item.resultId,
+              label: item.name,
+              location: item.location,
+            }))}
+            onMove={() => panViewport()}
             onSelect={selectResult}
-            results={items}
-            selectedResultId={selectedResultId}
+            selectedMarkerId={selectedResultId}
           />
         </div>
       </div>
