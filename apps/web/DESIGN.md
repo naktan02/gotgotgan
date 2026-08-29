@@ -75,3 +75,13 @@ mobile은 목록과 지도를 명시적으로 전환하고 결과나 marker 선�
 뒤로 가기는 query, Taxonomy, bounds, pagination, 선택을 유지하고 선택 행으로 focus를 복원한다.
 desktop close만 선택을 해제해 지도 공간을 다시 넓힌다. 1180px 이하 desktop은 상세가 열릴 때 map을
 숨기며, live map SDK, Provider credential 또는 새로운 Backend 계약은 추가하지 않는다.
+
+후속 구조 보강에서 workflow의 넓은 반환값을 모든 panel에 전달하던 결합을 제거했다.
+`search-workspace-interface.ts`가 controls/results/detail/map/layout Interface를 명시하고 각 panel은
+자기 Interface만 받는다. 검색 세션 상태는 한 깊은 workflow에 남아 있으므로 일관성을 잃지 않으며,
+CSS는 workspace 배치와 controls/results/detail 표현 소유로 분리됐다. provider-neutral 지도 타입도
+`platform/maps/place-map-interface.ts`에 있어 deterministic renderer를 live renderer로 교체해도
+Search와 Library projection은 바뀌지 않는다. 이 보강은 화면 픽셀과 동작을 변경하지 않았다.
+
+frontend architecture guards, 114 Web tests, typecheck, production build와 14개 Search
+desktop/mobile Playwright case 및 기존 screenshot baseline이 모두 통과했다.

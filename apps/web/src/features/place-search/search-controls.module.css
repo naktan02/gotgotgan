@@ -1,0 +1,25 @@
+.controls { display: grid; grid-template-columns: minmax(220px, 1fr) 180px auto; align-items: end; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--canvas); }
+.queryField, .filterField { display: grid; gap: 5px; color: var(--muted); font-size: 12px; }
+.queryField input, .filterField select { width: 100%; min-height: 38px; border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); padding: 0 11px; font: inherit; }
+.queryField input:focus, .filterField select:focus, .boundsButton:focus-visible, .searchButton:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+.boundsButton, .searchButton { min-height: 38px; border: 1px solid var(--accent); border-radius: var(--radius-control); background: var(--accent); color: white; padding: 0 14px; font-weight: 650; }
+.boundsButton:disabled { border-color: var(--line); background: var(--surface); color: var(--muted); }
+.searchButton { display: none; }
+.combobox { position: relative; }
+.suggestionPanel { position: absolute; z-index: 20; top: calc(100% + 5px); right: 0; left: 0; overflow: hidden; border: 1px solid var(--line-strong); border-radius: var(--radius-surface); background: var(--surface); box-shadow: var(--shadow-overlay); color: var(--ink); }
+.suggestionPanel p { margin: 0; padding: 14px; color: var(--muted); font-size: 13px; }
+.suggestionPanel ul { max-height: 360px; margin: 0; padding: 5px; overflow: auto; list-style: none; }
+.suggestionPanel li { display: grid; gap: 3px; padding: 10px; border-radius: var(--radius-control); cursor: pointer; }
+.suggestionPanel li[aria-selected="true"], .suggestionPanel li:hover { background: var(--accent-soft); }
+.suggestionPanel li strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.suggestionPanel li span { color: var(--muted); font-size: 12px; }
+.suggestionPanel li small { color: #4e665d; font-size: 11px; }
+.suggestionPanel .suggestionNotice { border-top: 1px solid var(--line); padding: 8px 14px; background: #fff8e9; color: #73511e; font-size: 11px; }
+.notice, .error { margin: 0; padding: 9px 16px; border-bottom: 1px solid #e8d7b5; background: #fff8e9; color: #73511e; font-size: 13px; }
+.error { display: flex; justify-content: space-between; align-items: center; gap: 16px; border-color: #ecd0d0; background: #fff2f2; color: var(--danger); }
+.error button { border: 0; background: transparent; color: inherit; text-decoration: underline; }
+
+@media (max-width: 720px) {
+  .controls { grid-template-columns: minmax(0, 1fr) 116px; padding: 10px 12px; }
+  .boundsButton { grid-column: 1 / -1; min-height: 36px; }
+}

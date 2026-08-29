@@ -1,18 +1,16 @@
-import {
-  DeterministicPlaceMap,
-  type DeterministicMapBounds,
-} from '@/platform/maps/DeterministicPlaceMap'
+import { DeterministicPlaceMap } from '@/platform/maps/DeterministicPlaceMap'
+import type { PlaceMapBounds } from '@/platform/maps/place-map-interface'
 
 import type { PersonalLibraryRow } from './personal-library-http'
 
-const fallbackBounds: DeterministicMapBounds = {
+const fallbackBounds: PlaceMapBounds = {
   north: 37.60,
   east: 127.10,
   south: 37.50,
   west: 126.90,
 }
 
-function fitBounds(rows: readonly PersonalLibraryRow[]): DeterministicMapBounds {
+function fitBounds(rows: readonly PersonalLibraryRow[]): PlaceMapBounds {
   const locations = rows.flatMap((row) => row.place === null ? [] : [row.place.location])
   if (locations.length === 0) return fallbackBounds
 

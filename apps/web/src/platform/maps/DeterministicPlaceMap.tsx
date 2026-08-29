@@ -1,11 +1,6 @@
 import styles from './deterministic-place-map.module.css'
 
-export type DeterministicMapBounds = Readonly<{
-  north: number
-  east: number
-  south: number
-  west: number
-}>
+import type { PlaceMapBounds, PlaceMapMarker } from './place-map-interface'
 
 function percent(value: number, minimum: number, maximum: number): string {
   const normalized = Math.min(1, Math.max(0, (value - minimum) / (maximum - minimum)))
@@ -24,13 +19,9 @@ export function DeterministicPlaceMap({
   onMove,
 }: Readonly<{
   ariaLabel?: string
-  bounds: DeterministicMapBounds
+  bounds: PlaceMapBounds
   description?: string
-  markers: ReadonlyArray<Readonly<{
-    id: string
-    label: string
-    location: Readonly<{ latitude: number; longitude: number }>
-  }>>
+  markers: readonly PlaceMapMarker[]
   moveLabel?: string
   selectedMarkerId?: string
   title?: string

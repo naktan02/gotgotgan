@@ -2,12 +2,12 @@
 
 import { useEffect, useRef } from 'react'
 
-import styles from './search-workspace.module.css'
-import type { SearchWorkspaceWorkflow } from './search-workspace-workflow'
+import styles from './search-results.module.css'
+import type { SearchResultsInterface } from './search-workspace-interface'
 
 export function SearchResultListPane({
-  workflow,
-}: Readonly<{ workflow: SearchWorkspaceWorkflow }>) {
+  results,
+}: Readonly<{ results: SearchResultsInterface }>) {
   const {
     items,
     nextCursor,
@@ -15,11 +15,11 @@ export function SearchResultListPane({
     loading,
     loadingMore,
     error,
-    searchBounds,
+    boundsApplied,
     mobileSurface,
     loadMore,
     selectResult,
-  } = workflow
+  } = results
   const previousMobileSurface = useRef(mobileSurface)
   const selectedRowButton = useRef<HTMLButtonElement>(null)
 
@@ -35,7 +35,7 @@ export function SearchResultListPane({
     <section aria-label="검색 결과 목록" className={styles.results}>
       <div className={styles.resultMeta}>
         <span>{loading ? '검색 중…' : `${items.length}개 결과`}</span>
-        {searchBounds !== undefined && <span>지도 영역 적용됨</span>}
+        {boundsApplied && <span>지도 영역 적용됨</span>}
       </div>
       {!loading && error === undefined && items.length === 0 && (
         <div className={styles.empty}>

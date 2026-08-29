@@ -15,6 +15,8 @@ import {
 } from '@place/contracts/search'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import type { SearchWorkspaceWorkflow } from './search-workspace-interface'
+
 const initialBounds: SearchBounds = {
   west: 126.96, south: 37.48, east: 127.15, north: 37.61,
 }
@@ -35,7 +37,7 @@ type ProviderDetailState =
   | Readonly<{ kind: 'idle' | 'loading' | 'unavailable' }>
   | Readonly<{ kind: 'available'; detail: ProviderPlaceDetail }>
 
-export function usePlaceSearchWorkflow() {
+export function usePlaceSearchWorkflow(): SearchWorkspaceWorkflow {
   const [draftQuery, setDraftQuery] = useState('')
   const [submittedQuery, setSubmittedQuery] = useState('')
   const [taxonomyKey, setTaxonomyKey] = useState('')
@@ -279,53 +281,80 @@ export function usePlaceSearchWorkflow() {
     ) % suggestions.length)
   }
 
+  const showList = () => setMobileSurface('list')
+  const showMap = () => setMobileSurface('map')
+  const selectResult = (resultId: string) => {
+    setSelectedResultId(resultId)
+    setMobileSurface('detail')
+  }
+
   return {
-    draftQuery,
-    submittedQuery,
-    taxonomyKey,
-    taxonomy,
-    viewportBounds,
-    searchBounds,
-    items,
-    sources,
-    nextCursor,
-    selectedResultId,
-    providerDetail,
-    detailState,
-    loading,
-    loadingMore,
-    error,
-    mobileSurface,
-    suggestions,
-    suggestionState,
-    suggestionOpen,
-    activeSuggestionIndex,
-    partial,
-    suggestionPartial,
-    selected,
-    submitQuery,
-    chooseSuggestion,
-    changeDraftQuery,
-    closeSuggestions: () => setSuggestionOpen(false),
-    openSuggestions,
-    moveSuggestion,
-    showMobileSurface: (nextSurface: 'list' | 'map') => setMobileSurface(nextSurface),
-    selectTaxonomy: setTaxonomyKey,
-    searchViewport: () => setSearchBounds(viewportBounds),
-    retrySearch: () => executeSearch(baseRequest, false),
-    loadMore: () => {
-      if (nextCursor !== undefined) void executeSearch({ ...baseRequest, cursor: nextCursor }, true)
+    controls: {
+      draftQuery,
+      taxonomyKey,
+      taxonomy,
+      suggestions,
+      suggestionState,
+      suggestionOpen,
+      activeSuggestionIndex,
+      partial,
+      suggestionPartial,
+      error,
+      searchViewportDisabled: searchBounds !== undefined &&
+        JSON.stringify(searchBounds) === JSON.stringify(viewportBounds),
+      submitQuery,
+      chooseSuggestion,
+      changeDraftQuery,
+      closeSuggestions: () => setSuggestionOpen(false),
+      openSuggestions,
+      moveSuggestion,
+      selectTaxonomy: setTaxonomyKey,
+      searchViewport: () => setSearchBounds(viewportBounds),
+      retrySearch: () => executeSearch(baseRequest, false),
     },
-    selectResult: (resultId: string) => {
-      setSelectedResultId(resultId)
-      setMobileSurface('detail')
+    results: {
+      items,
+      nextCursor,
+      selectedResultId,
+      loading,
+      loadingMore,
+      error,
+      boundsApplied: searchBounds !== undefined,
+      mobileSurface,
+      loadMore: () => {
+        if (nextCursor !== undefined) {
+          void executeSearch({ ...baseRequest, cursor: nextCursor }, true)
+        }
+      },
+      selectResult,
     },
-    dismissDetail: () => {
-      setMobileSurface('list')
-      setSelectedResultId(undefined)
+    detail: {
+      selected,
+      providerDetail,
+      detailState,
+      mobileSurface,
+      dismissDetail: () => {
+        setMobileSurface('list')
+        setSelectedResultId(undefined)
+      },
+      showList,
     },
-    panViewport: () => setViewportBounds((current) => movedEast(current)),
+    map: {
+      bounds: viewportBounds,
+      markers: items.map((item) => ({
+        id: item.resultId,
+        label: item.name,
+        location: item.location,
+      })),
+      selectedMarkerId: selectedResultId,
+      selectMarker: selectResult,
+      panViewport: () => setViewportBounds((current) => movedEast(current)),
+    },
+    layout: {
+      mobileSurface,
+      hasSelection: selected !== undefined,
+      showList,
+      showMap,
+    },
   }
 }
-
-export type SearchWorkspaceWorkflow = ReturnType<typeof usePlaceSearchWorkflow>

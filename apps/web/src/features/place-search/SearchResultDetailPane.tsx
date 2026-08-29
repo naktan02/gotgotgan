@@ -2,20 +2,20 @@
 
 import { useEffect, useRef } from 'react'
 
-import styles from './search-workspace.module.css'
-import type { SearchWorkspaceWorkflow } from './search-workspace-workflow'
+import styles from './search-detail.module.css'
+import type { SearchDetailInterface } from './search-workspace-interface'
 
 export function SearchResultDetailPane({
-  workflow,
-}: Readonly<{ workflow: SearchWorkspaceWorkflow }>) {
+  detail,
+}: Readonly<{ detail: SearchDetailInterface }>) {
   const {
     selected,
     providerDetail,
     detailState,
     mobileSurface,
     dismissDetail,
-    showMobileSurface,
-  } = workflow
+    showList,
+  } = detail
   const previousMobileSurface = useRef(mobileSurface)
   const mobileBackButton = useRef<HTMLButtonElement>(null)
 
@@ -28,11 +28,11 @@ export function SearchResultDetailPane({
   }, [mobileSurface])
 
   return (
-    <aside aria-label="선택한 검색 결과 상세" className={styles.detailPane}>
+    <aside aria-label="선택한 검색 결과 상세" className={styles.detail}>
       <div className={styles.detailActions}>
         <button
           className={styles.mobileBack}
-          onClick={() => showMobileSurface('list')}
+          onClick={showList}
           ref={mobileBackButton}
           type="button"
         >← 목록으로</button>

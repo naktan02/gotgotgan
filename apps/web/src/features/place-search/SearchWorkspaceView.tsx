@@ -6,27 +6,19 @@ import { SearchControls } from './SearchControls'
 import { SearchResultDetailPane } from './SearchResultDetailPane'
 import { SearchResultListPane } from './SearchResultListPane'
 import styles from './search-workspace.module.css'
-import type { SearchWorkspaceWorkflow } from './search-workspace-workflow'
+import type { SearchWorkspaceWorkflow } from './search-workspace-interface'
 
 export function SearchWorkspaceView({
   workflow,
 }: Readonly<{ workflow: SearchWorkspaceWorkflow }>) {
-  const {
-    viewportBounds,
-    items,
-    selectedResultId,
-    selected,
-    mobileSurface,
-    showMobileSurface,
-    selectResult,
-    panViewport,
-  } = workflow
+  const { layout, map } = workflow
+  const { mobileSurface } = layout
   const mobileClass = mobileSurface === 'map'
     ? styles.mobileMap
     : mobileSurface === 'detail'
       ? styles.mobileDetail
       : styles.mobileList
-  const workspaceClass = selected === undefined
+  const workspaceClass = !layout.hasSelection
     ? `${styles.content} ${styles.withoutDetail} ${mobileClass}`
     : `${styles.content} ${styles.withDetail} ${mobileClass}`
 
@@ -38,28 +30,28 @@ export function SearchWorkspaceView({
           <h1 id="place-search-title">장소 찾기</h1>
         </div>
         <div aria-label="모바일 보기 선택" className={styles.mobileToggle}>
-          <button aria-pressed={mobileSurface === 'list'} onClick={() => showMobileSurface('list')} type="button">목록</button>
-          <button aria-pressed={mobileSurface === 'map'} onClick={() => showMobileSurface('map')} type="button">지도</button>
+          <button aria-pressed={mobileSurface === 'list'} onClick={layout.showList} type="button">목록</button>
+          <button aria-pressed={mobileSurface === 'map'} onClick={layout.showMap} type="button">지도</button>
         </div>
       </header>
 
-      <SearchControls workflow={workflow} />
+      <SearchControls controls={workflow.controls} />
 
       <div className={workspaceClass}>
-        <SearchResultListPane workflow={workflow} />
-        <SearchResultDetailPane workflow={workflow} />
+        <div className={styles.resultsPane}>
+          <SearchResultListPane results={workflow.results} />
+        </div>
+        <div className={styles.detailPane}>
+          <SearchResultDetailPane detail={workflow.detail} />
+        </div>
         <div className={styles.mapPane}>
           <DeterministicPlaceMap
             ariaLabel="검색 결과 지도"
-            bounds={viewportBounds}
-            markers={items.map((item) => ({
-              id: item.resultId,
-              label: item.name,
-              location: item.location,
-            }))}
-            onMove={panViewport}
-            onSelect={selectResult}
-            selectedMarkerId={selectedResultId}
+            bounds={map.bounds}
+            markers={map.markers}
+            onMove={map.panViewport}
+            onSelect={map.selectMarker}
+            selectedMarkerId={map.selectedMarkerId}
           />
         </div>
       </div>

@@ -1,17 +1,15 @@
 'use client'
 
-import styles from './search-workspace.module.css'
-import type { SearchWorkspaceWorkflow } from './search-workspace-workflow'
+import styles from './search-controls.module.css'
+import type { SearchControlsInterface } from './search-workspace-interface'
 
 export function SearchControls({
-  workflow,
-}: Readonly<{ workflow: SearchWorkspaceWorkflow }>) {
+  controls,
+}: Readonly<{ controls: SearchControlsInterface }>) {
   const {
     draftQuery,
     taxonomyKey,
     taxonomy,
-    viewportBounds,
-    searchBounds,
     suggestions,
     suggestionState,
     suggestionOpen,
@@ -19,6 +17,7 @@ export function SearchControls({
     partial,
     suggestionPartial,
     error,
+    searchViewportDisabled,
     submitQuery,
     chooseSuggestion,
     changeDraftQuery,
@@ -28,7 +27,7 @@ export function SearchControls({
     selectTaxonomy,
     searchViewport,
     retrySearch,
-  } = workflow
+  } = controls
 
   return (
     <>
@@ -117,7 +116,7 @@ export function SearchControls({
         <button className={styles.searchButton} type="submit">검색</button>
         <button
           className={styles.boundsButton}
-          disabled={searchBounds !== undefined && JSON.stringify(searchBounds) === JSON.stringify(viewportBounds)}
+          disabled={searchViewportDisabled}
           onClick={searchViewport}
           type="button"
         >

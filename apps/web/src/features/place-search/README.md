@@ -2,12 +2,18 @@
 
 `search-workspace-workflow.ts`는 검색 입력과 debounce/cancellation, Taxonomy filter, cursor
 pagination, suggestion session, 목록·지도 선택, bounds 재검색, Provider 상세 상태를 소유한다.
-`SearchControls.tsx`, `SearchResultListPane.tsx`, `SearchResultDetailPane.tsx`는 각각 입력·후보,
-결과/pagination/focus 복원, source-neutral 선택 상세를 숨기고 `SearchWorkspaceView.tsx`는 이 module과
-provider-neutral map만 조립한다. Provider 상세는
+`search-workspace-interface.ts`는 이 깊은 module의 외부 Interface를 controls, results, detail, map,
+layout으로 나눈다. `SearchControls.tsx`, `SearchResultListPane.tsx`, `SearchResultDetailPane.tsx`는 각각
+자기 Interface만 받아 입력·후보, 결과/pagination/focus 복원, source-neutral 선택 상세를 숨기고
+`SearchWorkspaceView.tsx`는 이 module과 provider-neutral map만 조립한다. 따라서 한 panel을 바꿀 때
+다른 panel의 내부 상태나 동작에 의존하지 않는다. Provider 상세는
 `idle/loading/available/unavailable` 판별 상태로 관리해 상세 데이터와 실패 상태가 동시에 존재하지
 않는다. Backend 주소나 지도 Provider SDK는 소유하지 않고 `platform/search`, `platform/maps`의
 공개 seam을 사용한다.
+
+스타일도 `search-workspace.module.css`가 panel 배치와 mobile surface 전환만, controls/results/detail
+각 CSS module이 자기 화면만 소유한다. 화면 배치를 바꿔도 검색 상태 로직을 옮기지 않고, panel
+표현을 바꿔도 workspace layout 규칙을 함께 수정하지 않는 것이 이 분리의 기준이다.
 
 `public.ts`만 상위 shell/app의 진입점이다. 내부 component를 다른 feature가 직접 import하지
 않는다. 개인 filter를 추가할 때 browser가 membership ID나 authority를 만들게 하지 않는다.
