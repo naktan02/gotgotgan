@@ -62,3 +62,16 @@ marker projection으로 바꾸며, `DeterministicPlaceMap`은 더 이상 Search 
 따라서 live NAVER map SDK는 이 구조나 feature state를 바꾸지 않고 platform renderer에서 교체할 수
 있다. 모바일에서 상세 뒤로 가기는 선택 행에 초점을 돌려주며 desktop, mobile Playwright가 이를
 검증한다.
+
+## Stage 7.15 Search workspace alignment
+
+Search는 Library와 같은 desktop `목록 -> 선택 상세 -> 지도` 흐름을 사용하되 검색 고유 상태를
+유지한다. 검색 입력/자동완성, 결과 목록, 선택 상세는 각각 깊은 module이고 `SearchWorkspaceView`는
+이들과 provider-neutral map renderer만 조립한다. 선택 상세는 더 이상 목록 안의 floating card가
+아니며 source identity, evidence, coordinates, Provider 원문 링크와 선택 시 지연 조회된 상세·사진
+attribution을 한 연속 surface에서 보여준다.
+
+mobile은 목록과 지도를 명시적으로 전환하고 결과나 marker 선택 시 전체 폭 상세로 이동한다. 상세
+뒤로 가기는 query, Taxonomy, bounds, pagination, 선택을 유지하고 선택 행으로 focus를 복원한다.
+desktop close만 선택을 해제해 지도 공간을 다시 넓힌다. 1180px 이하 desktop은 상세가 열릴 때 map을
+숨기며, live map SDK, Provider credential 또는 새로운 Backend 계약은 추가하지 않는다.

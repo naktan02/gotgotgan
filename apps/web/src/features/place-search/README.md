@@ -2,7 +2,9 @@
 
 `search-workspace-workflow.ts`는 검색 입력과 debounce/cancellation, Taxonomy filter, cursor
 pagination, suggestion session, 목록·지도 선택, bounds 재검색, Provider 상세 상태를 소유한다.
-`SearchWorkspaceView.tsx`는 controller가 제공한 상태와 동작만 표시한다. Provider 상세는
+`SearchControls.tsx`, `SearchResultListPane.tsx`, `SearchResultDetailPane.tsx`는 각각 입력·후보,
+결과/pagination/focus 복원, source-neutral 선택 상세를 숨기고 `SearchWorkspaceView.tsx`는 이 module과
+provider-neutral map만 조립한다. Provider 상세는
 `idle/loading/available/unavailable` 판별 상태로 관리해 상세 데이터와 실패 상태가 동시에 존재하지
 않는다. Backend 주소나 지도 Provider SDK는 소유하지 않고 `platform/search`, `platform/maps`의
 공개 seam을 사용한다.
@@ -15,3 +17,8 @@ Stage 6부터 결과 선택은 canonical Place ID가 아니라 source-neutral `r
 `detailsAvailable`인 Google 결과만 선택 시 `/api/search/provider-details`를 호출한다. Provider
 Rating은 Personal Rating과 섞지 않고 사진 작성자 attribution을 상세 영역에 보존한다.
 Provider credential, endpoint, raw response는 feature state나 browser request에 존재하지 않는다.
+
+Stage 7.15부터 desktop은 목록·독립 상세·지도를 조정하며 좁은 desktop은 상세이 열리면 지도를
+숨긴다. mobile은 목록·지도·상세 중 하나만 보이고 상세에서 목록으로 돌아올 때 선택 행 focus를
+복원한다. query, filter, bounds, pagination과 선택은 전환 중 유지되며 live SDK/Provider traffic은
+활성화하지 않는다.

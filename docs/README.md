@@ -17,7 +17,7 @@ Read only the routes required by the task, after repository `AGENTS.md` and `REA
 - Local execution, worker lifecycle, deployment, backup, or incidents: `operations/README.md`.
 - A durable decision or supersession: `adr/README.md`.
 
-Delivery state is **source-only; Stages 6.5 and 7.5–7.14 complete, with Stages 2 and 7 in progress and Stage 8 paused after 8B**. A Place-owned physical PostGIS runtime is
+Delivery state is **source-only; Stages 6.5 and 7.5–7.15 complete, with Stages 2 and 7 in progress and Stage 8 paused after 8B**. A Place-owned physical PostGIS runtime is
 implemented and tested in disposable environments but not deployed or active. No provider account, browser profile, map credential, Identity
 client, Gateway route, family composer, or AI connection is active.
 
@@ -84,6 +84,12 @@ Stage 7.14는 2026-08-29 Google Maps와 NAVER Map의 desktop/mobile 목록·지�
 한 surface씩 표시하고 Place 선택 시 전체 폭 상세로 이동하며 목록 복귀 초점을 보존한다. 기존
 preference, Collection/Tag, Visit, body-only private Note 계약은 그대로이며 live map SDK나 Provider
 호출은 추가하지 않았다.
+
+Stage 7.15는 Search의 debounce/cancellation, suggestion, Taxonomy, bounds, pagination, partial source,
+Provider detail 계약을 바꾸지 않고 렌더링을 검색 입력, 결과 목록, 선택 상세, 지도 조립 module로
+분리한다. desktop은 목록·상세·지도를 함께 조정하고 좁은 desktop은 상세 우선, mobile은 목록/지도/
+상세 단일 surface와 선택 행 focus 복원을 사용한다. Provider 원문 링크, rating, 사진·정보 attribution은
+선택 상세에 남으며 live map SDK와 live Provider 호출은 여전히 비활성이다.
 
 Stage 5는 data-defined Taxonomy와 Search 소유 projection을 추가했다. 로컬 text·taxonomy·bounds·
 회원 signal 검색, cursor pagination, source-neutral partial 결과, responsive 목록/지도 UI를 실제

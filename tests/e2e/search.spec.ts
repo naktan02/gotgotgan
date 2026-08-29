@@ -98,6 +98,9 @@ test('labels official provider results and lazily loads attributed details', asy
   const result = page.getByRole('list', { name: '장소 검색 결과' }).getByRole('button')
   await expect(result).toHaveCount(1)
   await expect(result).toContainText('Google Maps')
+  if (await page.getByRole('button', { name: '목록', exact: true }).isVisible()) {
+    await result.click()
+  }
   await expect(page.getByRole('link', { name: 'Google Maps에서 열기' })).toHaveAttribute(
     'href', 'https://maps.example.invalid/place/100',
   )
@@ -112,6 +115,30 @@ test('labels official provider results and lazily loads attributed details', asy
   })
   expect(response.status()).toBe(200)
   expect(JSON.stringify(await response.json())).not.toContain('apiKey')
+})
+
+test('uses an independent detail pane and restores the selected mobile row', async ({ page }, testInfo) => {
+  await page.goto('/search')
+  const results = page.getByRole('list', { name: '장소 검색 결과' }).getByRole('button')
+  await expect(results).toHaveCount(3)
+
+  const selectedRow = results.nth(1)
+  await selectedRow.click()
+  await expect(page.getByRole('complementary', { name: '선택한 검색 결과 상세' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /긴 이름으로/ })).toBeVisible()
+
+  if (testInfo.project.name === 'desktop-chromium') {
+    await expect(page.getByRole('region', { name: '검색 결과 지도' })).toBeVisible()
+    await page.getByRole('button', { name: '검색 결과 상세 닫기' }).click()
+    await expect(page.getByRole('complementary', { name: '선택한 검색 결과 상세' })).not.toBeVisible()
+    await expect(selectedRow).toHaveAttribute('aria-pressed', 'false')
+  } else {
+    await expect(page.getByRole('list', { name: '장소 검색 결과' })).not.toBeVisible()
+    await page.getByRole('button', { name: '목록으로' }).click()
+    await expect(page.getByRole('list', { name: '장소 검색 결과' })).toBeVisible()
+    await expect(selectedRow).toBeFocused()
+    await expect(selectedRow).toHaveAttribute('aria-pressed', 'true')
+  }
 })
 
 test('captures the reviewed search workspace sizes', async ({ page }, testInfo) => {

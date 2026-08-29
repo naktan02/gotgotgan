@@ -6,7 +6,7 @@ Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed doc
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **source-only; Stages 6.5 and 7.5–7.14 complete, Stages 2 and 7 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
+Current delivery state: **source-only; Stages 6.5 and 7.5–7.15 complete, Stages 2 and 7 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
@@ -171,6 +171,13 @@ Stage 7.14는 Personal Library의 기존 상태·Collection·Tag filter, prefere
 지도를 명시적으로 전환한 뒤 Place 선택 시 전체 폭 상세로 이동한다. 선택과 filter를 보존하고 목록
 복귀 시 선택 행으로 초점을 돌린다. 지도 platform Interface는 최소 marker projection만 받아 Search와
 Library 계약에서 분리됐으며 live SDK나 Provider traffic은 활성화하지 않는다.
+
+Stage 7.15는 같은 panel grammar를 로컬 Search에 적용한다. 기존 query draft/submission, suggestion
+session, Taxonomy filter, bounds 재검색, pagination, source partial 상태와 선택 시 Provider 상세 지연
+조회는 그대로 유지한다. desktop은 결과 목록·독립 상세·지도를 조정하고 좁은 desktop은 상세이 열린
+동안 지도를 숨긴다. mobile은 목록·지도·상세 중 한 surface만 보여주며 상세에서 돌아오면 선택 행으로
+초점을 복원한다. Provider attribution과 원문 링크는 상세 pane에 남고 live SDK나 Provider traffic은
+활성화하지 않는다.
 
 ## Repository boundaries
 

@@ -50,7 +50,7 @@ export function usePlaceSearchWorkflow() {
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | undefined>()
-  const [mobileSurface, setMobileSurface] = useState<'list' | 'map'>('list')
+  const [mobileSurface, setMobileSurface] = useState<'list' | 'map' | 'detail'>('list')
   const [suggestions, setSuggestions] = useState<readonly PlaceSuggestion[]>([])
   const [suggestionSources, setSuggestionSources] = useState<readonly { status: 'complete' | 'partial' | 'unavailable' }[]>([])
   const [suggestionState, setSuggestionState] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
@@ -309,14 +309,21 @@ export function usePlaceSearchWorkflow() {
     closeSuggestions: () => setSuggestionOpen(false),
     openSuggestions,
     moveSuggestion,
-    showMobileSurface: setMobileSurface,
+    showMobileSurface: (nextSurface: 'list' | 'map') => setMobileSurface(nextSurface),
     selectTaxonomy: setTaxonomyKey,
     searchViewport: () => setSearchBounds(viewportBounds),
     retrySearch: () => executeSearch(baseRequest, false),
     loadMore: () => {
       if (nextCursor !== undefined) void executeSearch({ ...baseRequest, cursor: nextCursor }, true)
     },
-    selectResult: setSelectedResultId,
+    selectResult: (resultId: string) => {
+      setSelectedResultId(resultId)
+      setMobileSurface('detail')
+    },
+    dismissDetail: () => {
+      setMobileSurface('list')
+      setSelectedResultId(undefined)
+    },
     panViewport: () => setViewportBounds((current) => movedEast(current)),
   }
 }
