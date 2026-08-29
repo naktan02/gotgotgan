@@ -37,8 +37,11 @@ version conflict에서는 작성 중인 초안을 유지하고 사용자가 최�
 Browse 화면은 desktop에서 Place 목록, 선택 상세, 지도 pane을 독립적으로 조정한다. Collection은
 목록 pane 안의 selector이고 지역·분류·Tag filter와 함께 현재 목록을 만든다. mobile은 목록과 지도를
 명시적으로 전환하며 Place 행이나 marker를 선택하면 전체 폭 상세로 이동한다. 목록으로 돌아갈 때
-선택과 filter를 유지하고 선택 행으로 초점을 복귀시킨다. 지도에는 `PersonalLibraryMap`이 만든 최소
-marker projection만 전달하며 Library workflow가 지도 SDK나 Search result 계약을 알지 않는다.
+선택과 filter를 유지하고 선택 행으로 초점을 복귀시킨다. 지도는 현재 목록 row에서 marker를 만들지
+않고 별도 `library-map-projection.v1`을 읽는다. state/Collection과 현재 filter는 목록과 공유하지만
+map query는 bounds·zoom에 맞는 모든 projected Place를 point 또는 cluster로 표현하며 list cursor를
+소비하지 않는다. `PersonalLibraryMap`은 이 projection을 provider-neutral renderer Interface로 바꾸고
+Library workflow는 지도 SDK나 Search result 계약을 알지 않는다.
 
 `PersonalPlaceDetail`은 canonical `placeId`와 선택적으로 즉시 표시할 summary만 받는 작은 외부
 Interface다. 내부 workflow가 Place detail 요청, 교체 선택 취소, 로그인/등급/재시도 상태와 기존

@@ -52,6 +52,13 @@ function fixtureApplication(
       }],
       updatedAt: now().toISOString(),
     } : undefined,
+    getMapProjection: async (input) => ({
+      schemaVersion: 'library-map-projection.v1',
+      scope: input.scope,
+      viewport: { bounds: input.bounds, zoom: input.zoom },
+      features: [],
+      coverage: { representedPlaceCount: 0, unprojectedPlaceCount: 0, complete: true },
+    }),
     listPlaces: async (input) => ({
       schemaVersion: 'library-place-list.v3',
       filter: {

@@ -6,12 +6,16 @@ import {
   libraryCommandResultSchema,
   libraryCollectionDetailResponseSchema,
   libraryCollectionListResponseSchema,
+  libraryMapQuerySchema,
+  libraryMapResponseSchema,
   libraryPlaceFacetsResponseSchema,
   libraryPlaceListResponseSchema,
   libraryPlaceOrganizationResponseSchema,
   libraryTagListResponseSchema,
   type LibraryCollectionDetailResponse,
   type LibraryCollectionListResponse,
+  type LibraryMapQuery,
+  type LibraryMapResponse,
   type LibraryPlaceFacetsResponse,
   type LibraryPlaceState,
   type LibraryPlaceOrganizationResponse,
@@ -76,6 +80,33 @@ export function createPersonalLibraryHttp(fetcher: typeof fetch = fetch) {
   }).then(payload)
 
   return {
+    async map(query: LibraryMapQuery, signal?: AbortSignal): Promise<LibraryMapResponse> {
+      const parsed = libraryMapQuerySchema.parse(query)
+      return libraryMapResponseSchema.parse(await read(pathWithQuery(
+        '/api/library/map',
+        parsed.scope === 'collection' ? {
+          scope: parsed.scope,
+          collectionId: parsed.collectionId,
+          west: String(parsed.west),
+          south: String(parsed.south),
+          east: String(parsed.east),
+          north: String(parsed.north),
+          zoom: String(parsed.zoom),
+        } : {
+          scope: parsed.scope,
+          state: parsed.state,
+          tagMatch: parsed.tagMatch,
+          tagIds: [...parsed.tagIds].sort(),
+          areaKeys: [...parsed.areaKeys].sort(),
+          taxonomyKeys: [...parsed.taxonomyKeys].sort(),
+          west: String(parsed.west),
+          south: String(parsed.south),
+          east: String(parsed.east),
+          north: String(parsed.north),
+          zoom: String(parsed.zoom),
+        },
+      ), signal))
+    },
     async facets(signal?: AbortSignal): Promise<LibraryPlaceFacetsResponse> {
       return libraryPlaceFacetsResponseSchema.parse(await read(
         '/api/library/place-facets',

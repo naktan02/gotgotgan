@@ -1,6 +1,9 @@
 import type {
   LibraryCollectionDetail,
   LibraryCollectionListPage,
+  LibraryMapBounds,
+  LibraryMapProjection,
+  LibraryMapScope,
   LibraryPlaceFacetsPage,
   LibraryPlaceListPage,
   LibraryPlaceOrganizationPage,
@@ -12,6 +15,13 @@ import type {
 
 export interface LibraryQueries {
   getPublishedCollection(publicationId: string): Promise<PublishedCollection | undefined>
+
+  getMapProjection(input: Readonly<{
+    memberId: string
+    scope: LibraryMapScope
+    bounds: LibraryMapBounds
+    zoom: number
+  }>): Promise<LibraryMapProjection | undefined>
 
   listPlaces(input: Readonly<{
     memberId: string

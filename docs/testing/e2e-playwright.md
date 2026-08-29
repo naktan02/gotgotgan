@@ -103,6 +103,11 @@ Stage 7.16은 focused Search suite를 16개 desktop/mobile case로 확장한다.
 운영체제의 Windows/Linux Chromium에서 다시 생성하고 검토한다. Library의 28개 case도 같은 공유
 상세 module을 통해 계속 통과해야 한다.
 
+Stage 7.17은 focused Personal Library suite에 desktop/mobile viewport-completeness case를 추가한다.
+목록 fixture가 첫 Place page만 반환해 두 번째 Place row가 없더라도 별도 map projection의 두 번째
+marker가 보이고 전체 represented count가 유지되는지 검증한다. PostGIS Library query test는 member
+격리, bounds, list limit과 무관한 represented count, projection 지연 count를 검증한다.
+
 가져온 Place의 공개 detail projection이 아직 `pending`이어도 desktop/mobile Library는 일반 오류로
 바꾸지 않는다. 기본 정보 대기를 표시하면서 내 상태, 내 분류, 반복 방문, private Note controls가
 모두 남는지 별도 fixture로 검증한다. 이 follow-up을 포함한 focused Library suite는 30개

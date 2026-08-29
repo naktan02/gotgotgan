@@ -1,60 +1,69 @@
+import type { LibraryMapResponse } from '@place/contracts/library'
+
 import { DeterministicPlaceMap } from '@/platform/maps/DeterministicPlaceMap'
-import type { PlaceMapBounds } from '@/platform/maps/place-map-interface'
-
-import type { PersonalLibraryRow } from './personal-library-http'
-
-const fallbackBounds: PlaceMapBounds = {
-  north: 37.60,
-  east: 127.10,
-  south: 37.50,
-  west: 126.90,
-}
-
-function fitBounds(rows: readonly PersonalLibraryRow[]): PlaceMapBounds {
-  const locations = rows.flatMap((row) => row.place === null ? [] : [row.place.location])
-  if (locations.length === 0) return fallbackBounds
-
-  const latitudes = locations.map((location) => location.latitude)
-  const longitudes = locations.map((location) => location.longitude)
-  const north = Math.max(...latitudes)
-  const east = Math.max(...longitudes)
-  const south = Math.min(...latitudes)
-  const west = Math.min(...longitudes)
-  const latitudePadding = Math.max((north - south) * 0.22, 0.008)
-  const longitudePadding = Math.max((east - west) * 0.22, 0.008)
-
-  return {
-    north: north + latitudePadding,
-    east: east + longitudePadding,
-    south: south - latitudePadding,
-    west: west - longitudePadding,
-  }
-}
+import type {
+  PlaceMapCluster,
+  PlaceMapViewport,
+} from '@/platform/maps/place-map-interface'
 
 export function PersonalLibraryMap({
-  rows,
+  error,
+  loading,
+  projection,
   selectedPlaceId,
+  viewport,
+  onRetry,
   onSelect,
+  onViewportChange,
 }: Readonly<{
-  rows: readonly PersonalLibraryRow[]
+  error?: string
+  loading: boolean
+  projection?: LibraryMapResponse
   selectedPlaceId?: string
+  viewport: PlaceMapViewport
+  onRetry: () => void
   onSelect: (placeId: string) => void
+  onViewportChange: (viewport: PlaceMapViewport) => void
 }>) {
-  const markers = rows.flatMap((row) => row.place === null ? [] : [{
-    id: row.placeId,
-    label: row.place.name,
-    location: row.place.location,
-  }])
+  const markers = projection?.features.flatMap((feature) => feature.kind === 'place' ? [{
+    id: feature.placeId,
+    label: feature.label,
+    location: feature.location,
+  }] : []) ?? []
+  const clusters: readonly PlaceMapCluster[] = projection?.features.flatMap((feature) => (
+    feature.kind === 'cluster' ? [{
+      id: feature.clusterId,
+      count: feature.count,
+      location: feature.location,
+      bounds: feature.bounds,
+    }] : []
+  )) ?? []
+  const represented = projection?.coverage.representedPlaceCount ?? 0
+  const unprojected = projection?.coverage.unprojectedPlaceCount ?? 0
+  const description = error ?? (loading
+    ? '현재 지도 영역의 저장 장소를 불러오는 중입니다.'
+    : unprojected > 0
+      ? `현재 영역 ${represented}개를 표시했습니다. 위치 투영 대기 ${unprojected}개가 있습니다.`
+      : `현재 지도 영역의 저장 장소 ${represented}개를 모두 표현했습니다.`)
 
   return (
     <DeterministicPlaceMap
       ariaLabel="내 장소 지도"
-      bounds={fitBounds(rows)}
-      description="현재 목록의 좌표입니다. 실제 지도는 연결 전입니다."
+      bounds={viewport.bounds}
+      clusters={clusters}
+      description={description}
       markers={markers}
+      moveLabel="지도 다시 불러오기"
+      onClusterSelect={(cluster) => onViewportChange({
+        bounds: cluster.bounds,
+        zoom: Math.min(22, viewport.zoom + 2),
+      })}
+      onMove={error === undefined ? undefined : onRetry}
       onSelect={onSelect}
+      onViewportChange={onViewportChange}
       selectedMarkerId={selectedPlaceId}
-      title={`내 장소 ${markers.length}개`}
+      title={`내 장소 ${represented}개`}
+      zoom={viewport.zoom}
     />
   )
 }

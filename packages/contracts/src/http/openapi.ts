@@ -66,6 +66,7 @@ import {
   libraryCollectionListResponseSchema,
   libraryPlacePreferencesResponseSchema,
   libraryPlaceFacetsResponseSchema,
+  libraryMapResponseSchema,
   libraryPlaceOrganizationResponseSchema,
   libraryPlaceListResponseSchema,
   libraryTagListResponseSchema,
@@ -218,6 +219,24 @@ const libraryTaxonomyKeysParameter = {
     items: { type: 'string', minLength: 1, maxLength: 128 },
   },
 }
+
+const libraryMapScopeParameter = {
+  name: 'scope', in: 'query', required: true,
+  schema: { type: 'string', enum: ['state', 'collection'] },
+}
+
+const libraryMapCollectionIdParameter = {
+  name: 'collectionId', in: 'query', required: false,
+  schema: { type: 'string', format: 'uuid' },
+}
+
+const libraryMapViewportParameters = [
+  { name: 'west', in: 'query', required: true, schema: { type: 'number', minimum: -180, maximum: 180 } },
+  { name: 'south', in: 'query', required: true, schema: { type: 'number', minimum: -90, maximum: 90 } },
+  { name: 'east', in: 'query', required: true, schema: { type: 'number', minimum: -180, maximum: 180 } },
+  { name: 'north', in: 'query', required: true, schema: { type: 'number', minimum: -90, maximum: 90 } },
+  { name: 'zoom', in: 'query', required: true, schema: { type: 'integer', minimum: 0, maximum: 22 } },
+] as const
 
 const writingKindParameter = {
   name: 'kind', in: 'query', required: false,
@@ -392,6 +411,26 @@ const paths = {
       libraryTaxonomyKeysParameter,
       boundedCursorParameter,
       boundedLimitParameter,
+    ],
+  }) },
+  '/api/library/map': { get: operation('getPlaceLibraryMapForBrowser', {
+    '200': described('Represent every projected member Place in the current viewport as a point or cluster', 'LibraryMapResponse'),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '401': ref('responses', 'AuthenticationRequired'),
+    '403': ref('responses', 'AccessDenied'),
+    '404': ref('responses', 'ProductNotFound'),
+    '503': ref('responses', 'BrowserBackendUnavailable'),
+  }, {
+    security: browserSession,
+    parameters: [
+      libraryMapScopeParameter,
+      libraryMapCollectionIdParameter,
+      libraryPlaceStateParameter,
+      libraryTagIdsParameter,
+      libraryTagMatchParameter,
+      libraryAreaKeysParameter,
+      libraryTaxonomyKeysParameter,
+      ...libraryMapViewportParameters,
     ],
   }) },
   '/api/library/place-facets': { get: operation('getPlaceLibraryFacetsForBrowser', {
@@ -703,6 +742,28 @@ const paths = {
       ],
     }),
   },
+  '/v1/library/map': {
+    get: operation('getLibraryMap', {
+      '200': described('Represent every projected member Place in the current viewport as a point or cluster', 'LibraryMapResponse'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'LibraryQueryUnavailable'),
+    }, {
+      security: bearer,
+      parameters: [
+        libraryMapScopeParameter,
+        libraryMapCollectionIdParameter,
+        libraryPlaceStateParameter,
+        libraryTagIdsParameter,
+        libraryTagMatchParameter,
+        libraryAreaKeysParameter,
+        libraryTaxonomyKeysParameter,
+        ...libraryMapViewportParameters,
+      ],
+    }),
+  },
   '/v1/library/place-facets': {
     get: operation('getLibraryPlaceFacets', {
       '200': described('Return bounded area and taxonomy facets derived only from current-member saved Places', 'LibraryPlaceFacetsResponse'),
@@ -973,6 +1034,7 @@ const schemas: Readonly<Record<string, ZodType>> = {
   PublishedWriting: publishedWritingSchema,
   LibraryPlaceListResponse: libraryPlaceListResponseSchema,
   LibraryPlaceFacetsResponse: libraryPlaceFacetsResponseSchema,
+  LibraryMapResponse: libraryMapResponseSchema,
   LibraryPlaceOrganizationResponse: libraryPlaceOrganizationResponseSchema,
   LibraryCollectionListResponse: libraryCollectionListResponseSchema,
   LibraryCollectionDetailResponse: libraryCollectionDetailResponseSchema,

@@ -50,6 +50,13 @@ Place reference만 새 회원 소유 private Collection으로 복사하고 prove
 summary를 반환하고, 공개 Place projection이 아직 없더라도 preference나 Collection membership을
 삭제하지 않고 `place: null`로 반환한다.
 
+`getMapProjection`은 bounded 목록 page와 독립된 지도 read다. 회원의 authoritative state/Tag 또는
+소유 Collection에서 Place ID scope를 만든 뒤, 주입된 `LibraryMapPlaceReader`가 Search-owned 좌표를
+현재 bounds 안에서만 읽는다. Library Adapter는 Search schema를 join하지 않는다. 지역·Taxonomy
+filter는 같은 summary 의미를 재사용하고 zoom별 grid가 모든 projected Place를 최대 500개의 point 또는
+count-bearing cluster로 표현한다. 따라서 feature 수는 제한해도 대표되는 Place 수를 자르지 않는다.
+scope에 좌표 projection이 없는 Place 수는 `unprojectedPlaceCount`로 드러낸다.
+
 facet 집계도 같은 public Place summary reader만 사용한다. 최근 saved Place 최대 2,000개와 지역·
 primary Taxonomy 상위 50개씩으로 제한하고 saved/sample/projected coverage를 반환한다. facet-filtered
 목록은 요청당 최대 500개 preference만 검사하며 남은 후보는 purpose-bound cursor로 이어 간다.

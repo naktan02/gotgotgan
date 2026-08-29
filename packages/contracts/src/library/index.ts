@@ -29,6 +29,23 @@ const taxonomyKeysSchema = z.preprocess(
   ).transform((keys) => [...keys].sort()),
 )
 
+const longitudeSchema = z.coerce.number().finite().min(-180).max(180)
+const latitudeSchema = z.coerce.number().finite().min(-90).max(90)
+const libraryMapViewportFields = {
+  west: longitudeSchema,
+  south: latitudeSchema,
+  east: longitudeSchema,
+  north: latitudeSchema,
+  zoom: z.coerce.number().int().min(0).max(22),
+}
+
+const validMapBounds = (bounds: Readonly<{
+  west: number
+  south: number
+  east: number
+  north: number
+}>) => bounds.west < bounds.east && bounds.south < bounds.north
+
 export const libraryPlaceStateSchema = z.enum(['saved', 'wanted', 'rated'])
 export const libraryTagMatchSchema = z.enum(['all', 'any'])
 
@@ -63,6 +80,23 @@ export const libraryPlaceOrganizationQuerySchema = z.object({
 }).strict()
 
 export const libraryPlaceFacetsQuerySchema = z.object({}).strict()
+
+export const libraryMapQuerySchema = z.discriminatedUnion('scope', [
+  z.object({
+    scope: z.literal('state'),
+    state: libraryPlaceStateSchema.default('saved'),
+    tagIds: tagIdsSchema,
+    tagMatch: libraryTagMatchSchema.default('all'),
+    areaKeys: areaKeysSchema,
+    taxonomyKeys: taxonomyKeysSchema,
+    ...libraryMapViewportFields,
+  }).strict(),
+  z.object({
+    scope: z.literal('collection'),
+    collectionId: uuidSchema,
+    ...libraryMapViewportFields,
+  }).strict(),
+]).refine(validMapBounds, 'map bounds must have positive width and height')
 
 export const libraryCollectionIdentifierParamsSchema = z.object({
   collectionId: uuidSchema,
@@ -132,6 +166,83 @@ export const libraryPlaceFacetsResponseSchema = z.object({
     label: z.string().min(1).max(160),
   })).max(50),
 }).strict()
+
+const libraryMapBoundsSchema = z.object({
+  west: longitudeSchema,
+  south: latitudeSchema,
+  east: longitudeSchema,
+  north: latitudeSchema,
+}).strict().refine(validMapBounds, 'map bounds must have positive width and height')
+
+const libraryMapScopeSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('state'),
+    state: libraryPlaceStateSchema,
+    tagIds: z.array(uuidSchema).max(20),
+    tagMatch: libraryTagMatchSchema,
+    areaKeys: z.array(areaFacetKeySchema).max(10),
+    taxonomyKeys: z.array(taxonomyFacetKeySchema).max(10),
+  }).strict(),
+  z.object({
+    kind: z.literal('collection'),
+    collectionId: uuidSchema,
+  }).strict(),
+])
+
+const libraryMapFeatureSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('place'),
+    placeId: uuidSchema,
+    label: z.string().min(1).max(300),
+    location: z.object({
+      latitude: latitudeSchema,
+      longitude: longitudeSchema,
+    }).strict(),
+  }).strict(),
+  z.object({
+    kind: z.literal('cluster'),
+    clusterId: z.string().min(1).max(160),
+    count: z.number().int().min(2),
+    location: z.object({
+      latitude: latitudeSchema,
+      longitude: longitudeSchema,
+    }).strict(),
+    bounds: libraryMapBoundsSchema,
+  }).strict(),
+])
+
+export const libraryMapResponseSchema = z.object({
+  schemaVersion: z.literal('library-map-projection.v1'),
+  scope: libraryMapScopeSchema,
+  viewport: z.object({
+    bounds: libraryMapBoundsSchema,
+    zoom: z.number().int().min(0).max(22),
+  }).strict(),
+  features: z.array(libraryMapFeatureSchema).max(500),
+  coverage: z.object({
+    representedPlaceCount: z.number().int().nonnegative(),
+    unprojectedPlaceCount: z.number().int().nonnegative(),
+    complete: z.boolean(),
+  }).strict(),
+}).strict().superRefine((projection, context) => {
+  const represented = projection.features.reduce((count, feature) => (
+    count + (feature.kind === 'place' ? 1 : feature.count)
+  ), 0)
+  if (represented !== projection.coverage.representedPlaceCount) {
+    context.addIssue({
+      code: 'custom',
+      path: ['coverage', 'representedPlaceCount'],
+      message: 'representedPlaceCount must equal the places represented by all features',
+    })
+  }
+  if (projection.coverage.complete !== (projection.coverage.unprojectedPlaceCount === 0)) {
+    context.addIssue({
+      code: 'custom',
+      path: ['coverage', 'complete'],
+      message: 'complete must reflect whether the active scope has unprojected places',
+    })
+  }
+})
 
 const collectionSummarySchema = z.object({
   collectionId: uuidSchema,
@@ -204,6 +315,8 @@ export type LibraryPlaceListQuery = z.infer<typeof libraryPlaceListQuerySchema>
 export type LibraryPlaceListResponse = z.infer<typeof libraryPlaceListResponseSchema>
 export type LibraryPlaceFacetsResponse = z.infer<typeof libraryPlaceFacetsResponseSchema>
 export type LibraryPlaceFacetsQuery = z.infer<typeof libraryPlaceFacetsQuerySchema>
+export type LibraryMapQuery = z.infer<typeof libraryMapQuerySchema>
+export type LibraryMapResponse = z.infer<typeof libraryMapResponseSchema>
 export type LibraryCollectionListQuery = z.infer<typeof libraryCollectionListQuerySchema>
 export type LibraryCollectionListResponse = z.infer<typeof libraryCollectionListResponseSchema>
 export type LibraryCollectionDetailQuery = z.infer<typeof libraryCollectionDetailQuerySchema>

@@ -2,6 +2,8 @@
 
 import {
   type LibraryCollectionListResponse,
+  type LibraryMapQuery,
+  type LibraryMapResponse,
   type LibraryPlaceFacetsResponse,
   type LibraryPlaceState,
   type LibraryTagListResponse,
@@ -20,6 +22,11 @@ type LibrarySurface =
   | Readonly<{ kind: 'state'; state: LibraryPlaceState }>
   | Readonly<{ kind: 'collection'; collectionId: string }>
 
+const initialMapViewport: LibraryMapResponse['viewport'] = {
+  bounds: { west: 126.90, south: 37.50, east: 127.10, north: 37.60 },
+  zoom: 12,
+}
+
 export function usePersonalLibraryWorkflow() {
   const [mode, setMode] = useState<'browse' | 'manage'>('browse')
   const [mobileSurface, setMobileSurface] = useState<'list' | 'map' | 'detail'>('list')
@@ -37,12 +44,18 @@ export function usePersonalLibraryWorkflow() {
   const [nextCursor, setNextCursor] = useState<string | undefined>()
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | undefined>()
   const [collectionName, setCollectionName] = useState<string | undefined>()
+  const [mapViewport, setMapViewport] = useState(initialMapViewport)
+  const [mapProjection, setMapProjection] = useState<LibraryMapResponse | undefined>()
+  const [mapLoading, setMapLoading] = useState(true)
+  const [mapError, setMapError] = useState<string | undefined>()
+  const [mapRevision, setMapRevision] = useState(0)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [metadataLoading, setMetadataLoading] = useState(true)
   const [authenticationRequired, setAuthenticationRequired] = useState(false)
   const [error, setError] = useState<string | undefined>()
   const requestSequence = useRef(0)
+  const mapRequestSequence = useRef(0)
 
   const handleFailure = useCallback((reason: unknown) => {
     if (reason instanceof DOMException && reason.name === 'AbortError') return
@@ -152,6 +165,63 @@ export function usePersonalLibraryWorkflow() {
     return () => controller.abort()
   }, [loadRows])
 
+  const loadMap = useCallback(async (signal?: AbortSignal) => {
+    const sequence = ++mapRequestSequence.current
+    setMapLoading(true)
+    setMapError(undefined)
+    setMapProjection(undefined)
+    try {
+      const viewport = {
+        west: mapViewport.bounds.west,
+        south: mapViewport.bounds.south,
+        east: mapViewport.bounds.east,
+        north: mapViewport.bounds.north,
+        zoom: mapViewport.zoom,
+      }
+      const query: LibraryMapQuery = surface.kind === 'collection'
+        ? { scope: 'collection', collectionId: surface.collectionId, ...viewport }
+        : {
+            scope: 'state',
+            state: surface.state,
+            tagIds: [...selectedTagIds],
+            tagMatch,
+            areaKeys: [...selectedAreaKeys],
+            taxonomyKeys: [...selectedTaxonomyKeys],
+            ...viewport,
+          }
+      const projection = await personalLibraryHttp.map(query, signal)
+      if (sequence !== mapRequestSequence.current) return
+      setMapProjection(projection)
+    } catch (reason) {
+      if (
+        sequence !== mapRequestSequence.current ||
+        (reason instanceof DOMException && reason.name === 'AbortError')
+      ) return
+      setMapError('현재 지도 영역의 저장 장소를 불러오지 못했습니다.')
+      if (reason instanceof BrowserLibraryProblem && reason.status === 401) {
+        setAuthenticationRequired(true)
+      }
+    } finally {
+      if (sequence === mapRequestSequence.current) setMapLoading(false)
+    }
+  }, [
+    mapViewport,
+    selectedAreaKeys,
+    selectedTagIds,
+    selectedTaxonomyKeys,
+    surface,
+    tagMatch,
+  ])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => void loadMap(controller.signal), 150)
+    return () => {
+      window.clearTimeout(timeout)
+      controller.abort()
+    }
+  }, [loadMap, mapRevision])
+
   const selectedRow = rows.find((row) => row.placeId === selectedPlaceId)
 
   function chooseState(state: LibraryPlaceState) {
@@ -210,6 +280,7 @@ export function usePersonalLibraryWorkflow() {
       loadCollections(),
       loadRows(undefined, false),
     ])
+    setMapRevision((current) => current + 1)
   }, [loadCollections, loadFacets, loadRows, loadTags])
 
   const refreshMetadata = useCallback(async () => {
@@ -267,6 +338,10 @@ export function usePersonalLibraryWorkflow() {
     selectedRow,
     ...managementWorkflow,
     collectionName,
+    mapViewport,
+    mapProjection,
+    mapLoading,
+    mapError,
     loading,
     loadingMore,
     metadataLoading,
@@ -295,12 +370,14 @@ export function usePersonalLibraryWorkflow() {
       setSelectedPlaceId(undefined)
     },
     loadMore,
+    changeMapViewport: setMapViewport,
+    retryMap: () => setMapRevision((current) => current + 1),
     retry: () => Promise.all([
       loadFacets(),
       loadTags(),
       loadCollections(),
       loadRows(undefined, false),
-    ]).catch(handleFailure),
+    ]).then(() => setMapRevision((current) => current + 1)).catch(handleFailure),
     loadMoreTags,
     loadMoreCollections,
   }

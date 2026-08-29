@@ -20,6 +20,11 @@ describe('library backend client', () => {
     })
     const signal = new AbortController().signal
 
+    await client.map('server-token', {
+      scope: 'state', state: 'saved', tagIds: [tagA, tagB], tagMatch: 'any',
+      areaKeys: [areaKey], taxonomyKeys: ['food.noodle.ramen'],
+      west: 126.9, south: 37.5, east: 127.1, north: 37.6, zoom: 12,
+    }, signal)
     await client.places('server-token', {
       state: 'wanted', tagIds: [tagA, tagB], tagMatch: 'any',
       areaKeys: [areaKey], taxonomyKeys: ['food.noodle.ramen'],
@@ -34,6 +39,7 @@ describe('library backend client', () => {
     await client.place('server-token', placeId, signal)
 
     expect(calls.map((call) => call.url)).toEqual([
+      `https://place-backend.example/v1/library/map?scope=state&west=126.9&south=37.5&east=127.1&north=37.6&zoom=12&state=saved&tagMatch=any&tagIds=${tagA}&tagIds=${tagB}&areaKeys=${areaKey}&taxonomyKeys=food.noodle.ramen`,
       `https://place-backend.example/v1/library/places?limit=25&cursor=next%2F%2B&state=wanted&tagMatch=any&tagIds=${tagA}&tagIds=${tagB}&areaKeys=${areaKey}&taxonomyKeys=food.noodle.ramen`,
       'https://place-backend.example/v1/library/place-facets',
       `https://place-backend.example/v1/library/places/${placeId}/organization?limit=50&cursor=organization-2`,

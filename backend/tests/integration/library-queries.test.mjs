@@ -24,17 +24,24 @@ test('bounded Library queries paginate, hydrate public Place facts, and isolate 
     const libraryStore = new library.PostgresLibraryStore(database.pool)
     const localSearch = new search.PostgresLocalSearch(database.pool)
     const summaryBatches = []
+    const toSummary = (document) => ({
+      placeId: document.placeId,
+      name: document.name,
+      areaLabel: document.areaLabel,
+      location: { latitude: document.latitude, longitude: document.longitude },
+      primaryTaxonomy: document.primaryTaxonomy,
+      taxonomyKeys: document.taxonomyKeys,
+      evidence: { status: document.evidenceStatus, projectedAt: document.projectedAt },
+    })
     const queries = new library.PostgresLibraryQueries(database.pool, async (placeIds) => {
       summaryBatches.push([...placeIds])
-      return (await localSearch.getPlaceDocuments(placeIds)).map((document) => ({
-        placeId: document.placeId,
-        name: document.name,
-        areaLabel: document.areaLabel,
-        location: { latitude: document.latitude, longitude: document.longitude },
-        primaryTaxonomy: document.primaryTaxonomy,
-        taxonomyKeys: document.taxonomyKeys,
-        evidence: { status: document.evidenceStatus, projectedAt: document.projectedAt },
-      }))
+      return (await localSearch.getPlaceDocuments(placeIds)).map(toSummary)
+    }, async (input) => {
+      const read = await localSearch.getPlaceDocumentsInBounds(input.placeIds, input.bounds)
+      return {
+        places: read.documents.map(toSummary),
+        unprojectedPlaceCount: read.unprojectedPlaceCount,
+      }
     })
 
     await database.pool.query(
@@ -110,6 +117,32 @@ test('bounded Library queries paginate, hydrate public Place facts, and isolate 
     assert.deepEqual(savedFirst.items.map((item) => item.placeId), [places[0]])
     assert.equal(savedFirst.items[0].place.name, '성수 장소 1')
     assert.ok(savedFirst.nextCursor)
+    const savedMap = await queries.getMapProjection({
+      memberId: memberA,
+      scope: {
+        kind: 'state', state: 'saved', tagIds: [], tagMatch: 'all',
+        areaKeys: [], taxonomyKeys: [],
+      },
+      bounds: { west: 126.9, south: 37.5, east: 127.1, north: 37.6 },
+      zoom: 12,
+    })
+    assert.equal(savedMap.coverage.representedPlaceCount, 2)
+    assert.equal(savedMap.coverage.complete, true)
+    assert.equal(savedMap.features.reduce((count, feature) => (
+      count + (feature.kind === 'place' ? 1 : feature.count)
+    ), 0), 2)
+    const unprojectedMemberMap = await queries.getMapProjection({
+      memberId: memberB,
+      scope: {
+        kind: 'state', state: 'saved', tagIds: [], tagMatch: 'all',
+        areaKeys: [], taxonomyKeys: [],
+      },
+      bounds: { west: 126.9, south: 37.5, east: 127.1, north: 37.6 },
+      zoom: 12,
+    })
+    assert.deepEqual(unprojectedMemberMap.coverage, {
+      representedPlaceCount: 0, unprojectedPlaceCount: 1, complete: false,
+    })
     await assert.rejects(
       queries.listPlaces({
         memberId: memberA, state: 'saved', tagIds: [], tagMatch: 'all',

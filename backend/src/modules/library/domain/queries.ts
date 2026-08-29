@@ -27,6 +27,57 @@ export type PublishedCollection = Readonly<{
   updatedAt: string
 }>
 
+export type LibraryMapBounds = Readonly<{
+  west: number
+  south: number
+  east: number
+  north: number
+}>
+
+export type LibraryMapScope =
+  | Readonly<{
+      kind: 'state'
+      state: LibraryPlaceState
+      tagIds: readonly string[]
+      tagMatch: LibraryTagMatch
+      areaKeys: readonly string[]
+      taxonomyKeys: readonly string[]
+    }>
+  | Readonly<{
+      kind: 'collection'
+      collectionId: string
+    }>
+
+export type LibraryMapFeature =
+  | Readonly<{
+      kind: 'place'
+      placeId: string
+      label: string
+      location: Readonly<{ latitude: number; longitude: number }>
+    }>
+  | Readonly<{
+      kind: 'cluster'
+      clusterId: string
+      count: number
+      location: Readonly<{ latitude: number; longitude: number }>
+      bounds: LibraryMapBounds
+    }>
+
+export type LibraryMapProjection = Readonly<{
+  schemaVersion: 'library-map-projection.v1'
+  scope: LibraryMapScope
+  viewport: Readonly<{
+    bounds: LibraryMapBounds
+    zoom: number
+  }>
+  features: readonly LibraryMapFeature[]
+  coverage: Readonly<{
+    representedPlaceCount: number
+    unprojectedPlaceCount: number
+    complete: boolean
+  }>
+}>
+
 export type LibraryPlaceListPage = Readonly<{
   schemaVersion: 'library-place-list.v3'
   filter: Readonly<{

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   libraryCollectionDetailResponseSchema,
+  libraryMapQuerySchema,
+  libraryMapResponseSchema,
   libraryPlaceFacetsResponseSchema,
   libraryPlaceFacetsQuerySchema,
   libraryPlaceOrganizationQuerySchema,
@@ -40,6 +42,44 @@ describe('bounded library query contracts', () => {
       }],
     })
     expect(page.items[0]?.place).toBeNull()
+  })
+
+  it('separates a viewport map projection from bounded list pages', () => {
+    expect(libraryMapQuerySchema.parse({
+      scope: 'state', west: '126.9', south: '37.5', east: '127.1', north: '37.6', zoom: '12',
+    })).toEqual({
+      scope: 'state', state: 'saved', tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: [],
+      west: 126.9, south: 37.5, east: 127.1, north: 37.6, zoom: 12,
+    })
+    expect(libraryMapQuerySchema.safeParse({
+      scope: 'state', west: 127.1, south: 37.5, east: 126.9, north: 37.6, zoom: 12,
+    }).success).toBe(false)
+    expect(libraryMapQuerySchema.safeParse({
+      scope: 'collection', collectionId: placeId, tagIds: placeId,
+      west: 126.9, south: 37.5, east: 127.1, north: 37.6, zoom: 12,
+    }).success).toBe(false)
+
+    const projection = libraryMapResponseSchema.parse({
+      schemaVersion: 'library-map-projection.v1',
+      scope: {
+        kind: 'state', state: 'saved', tagIds: [], tagMatch: 'all',
+        areaKeys: [], taxonomyKeys: [],
+      },
+      viewport: {
+        bounds: { west: 126.9, south: 37.5, east: 127.1, north: 37.6 }, zoom: 12,
+      },
+      features: [{
+        kind: 'cluster', clusterId: 'z12-x1-y1', count: 3,
+        location: { latitude: 37.55, longitude: 126.95 },
+        bounds: { west: 126.94, south: 37.54, east: 126.96, north: 37.56 },
+      }],
+      coverage: { representedPlaceCount: 3, unprojectedPlaceCount: 0, complete: true },
+    })
+    expect(projection.features[0]).toMatchObject({ kind: 'cluster', count: 3 })
+    expect(libraryMapResponseSchema.safeParse({
+      ...projection,
+      coverage: { representedPlaceCount: 2, unprojectedPlaceCount: 0, complete: true },
+    }).success).toBe(false)
   })
 
   it('accepts only bounded saved-Place facet coverage and stable keys', () => {

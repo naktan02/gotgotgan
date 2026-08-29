@@ -21,6 +21,16 @@ const store: LibraryStore = {
 function fixture(overrides: Partial<LibraryQueries> = {}) {
   const queries: LibraryQueries = {
     getPublishedCollection: async () => undefined,
+    getMapProjection: async (input) => ({
+      schemaVersion: 'library-map-projection.v1',
+      scope: input.scope,
+      viewport: { bounds: input.bounds, zoom: input.zoom },
+      features: [{
+        kind: 'place', placeId, label: '성수 라멘',
+        location: { latitude: 37.5445, longitude: 127.056 },
+      }],
+      coverage: { representedPlaceCount: 1, unprojectedPlaceCount: 0, complete: true },
+    }),
     listPlaces: async (input) => ({
       schemaVersion: 'library-place-list.v3',
       filter: {
@@ -175,6 +185,61 @@ describe('bounded Library HTTP queries', () => {
         { kind: 'tag', selected: false },
       ],
     })
+    await app.close()
+  })
+
+  it('projects the complete viewport independently from list pagination', async () => {
+    const getMapProjection = vi.fn<LibraryQueries['getMapProjection']>(async (input) => ({
+      schemaVersion: 'library-map-projection.v1',
+      scope: input.scope,
+      viewport: { bounds: input.bounds, zoom: input.zoom },
+      features: [{
+        kind: 'cluster', clusterId: 'z12-x1-y1', count: 3,
+        location: { latitude: 37.55, longitude: 126.93 },
+        bounds: { west: 126.92, south: 37.54, east: 126.94, north: 37.56 },
+      }],
+      coverage: { representedPlaceCount: 3, unprojectedPlaceCount: 0, complete: true },
+    }))
+    const { app } = fixture({ getMapProjection })
+    const tagId = '01992d20-3000-7000-8000-000000000401'
+    const response = await app.inject({
+      method: 'GET',
+      url: `/v1/library/map?scope=state&state=saved&tagIds=${tagId}&tagMatch=any&west=126.9&south=37.5&east=127.1&north=37.6&zoom=12`,
+      headers: { authorization: 'Bearer good' },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({
+      schemaVersion: 'library-map-projection.v1',
+      coverage: { representedPlaceCount: 3 },
+      features: [{ kind: 'cluster', count: 3 }],
+    })
+    expect(getMapProjection).toHaveBeenCalledWith({
+      memberId,
+      scope: {
+        kind: 'state', state: 'saved', tagIds: [tagId], tagMatch: 'any',
+        areaKeys: [], taxonomyKeys: [],
+      },
+      bounds: { west: 126.9, south: 37.5, east: 127.1, north: 37.6 },
+      zoom: 12,
+    })
+    await app.close()
+  })
+
+  it('rejects malformed map viewports and hides foreign Collections', async () => {
+    const { app } = fixture({ getMapProjection: async () => undefined })
+    const headers = { authorization: 'Bearer good' }
+
+    expect((await app.inject({
+      method: 'GET',
+      url: '/v1/library/map?scope=state&west=127.1&south=37.5&east=126.9&north=37.6&zoom=12',
+      headers,
+    })).statusCode).toBe(400)
+    expect((await app.inject({
+      method: 'GET',
+      url: `/v1/library/map?scope=collection&collectionId=${collectionId}&west=126.9&south=37.5&east=127.1&north=37.6&zoom=12`,
+      headers,
+    })).statusCode).toBe(404)
     await app.close()
   })
 

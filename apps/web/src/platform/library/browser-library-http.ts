@@ -11,6 +11,8 @@ import {
   libraryCollectionIdentifierParamsSchema,
   libraryCollectionListQuerySchema,
   libraryCollectionListResponseSchema,
+  libraryMapQuerySchema,
+  libraryMapResponseSchema,
   libraryCommandResultSchema,
   libraryPlaceListQuerySchema,
   libraryPlaceListResponseSchema,
@@ -170,6 +172,19 @@ export function createBrowserLibraryHttp(dependencies: Dependencies) {
   }
 
   return {
+    map(request: Request): Promise<Response> {
+      const query = parseQuery(
+        request,
+        libraryMapQuerySchema,
+        ['tagIds', 'areaKeys', 'taxonomyKeys'],
+      )
+      if (query === undefined) return Promise.resolve(invalid())
+      return invoke(
+        request,
+        (accessToken) => dependencies.backend.map(accessToken, query, request.signal),
+        libraryMapResponseSchema,
+      )
+    },
     places(request: Request): Promise<Response> {
       const query = parseQuery(
         request,

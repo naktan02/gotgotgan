@@ -9,7 +9,7 @@ import type { PersonalLibraryWorkflow } from './personal-library-workflow'
 export function PersonalLibraryBrowseView({
   workflow,
 }: Readonly<{ workflow: PersonalLibraryWorkflow }>) {
-  const { error, mobileSurface, rows, selectedPlaceId } = workflow
+  const { error, mobileSurface, selectedPlaceId } = workflow
   const mobileClass = mobileSurface === 'map'
     ? styles.mobileMap
     : mobileSurface === 'detail'
@@ -46,9 +46,14 @@ export function PersonalLibraryBrowseView({
         <PersonalLibraryDetailPane workflow={workflow} />
         <div className={styles.mapPane}>
           <PersonalLibraryMap
+            error={workflow.mapError}
+            loading={workflow.mapLoading}
             onSelect={workflow.selectPlace}
-            rows={rows}
+            onRetry={workflow.retryMap}
+            onViewportChange={workflow.changeMapViewport}
+            projection={workflow.mapProjection}
             selectedPlaceId={selectedPlaceId}
+            viewport={workflow.mapViewport}
           />
         </div>
       </div>

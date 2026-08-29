@@ -17,7 +17,7 @@ Read only the routes required by the task, after repository `AGENTS.md` and `REA
 - Local execution, worker lifecycle, deployment, backup, or incidents: `operations/README.md`.
 - A durable decision or supersession: `adr/README.md`.
 
-Delivery state is **source-only; Stages 6.5, 7.5–7.16, and 11A–11B complete, with Stages 2, 7, and 11 in progress and Stage 8 paused after 8B**. A Place-owned physical PostGIS runtime is
+Delivery state is **source-only; Stages 6.5, 7.5–7.17, and 11A–11B complete, with Stages 2, 7, and 11 in progress and Stage 8 paused after 8B**. A Place-owned physical PostGIS runtime is
 implemented and tested in disposable environments but not deployed or active. No provider account, browser profile, map credential, Identity
 client, Gateway route, family composer, or AI connection is active.
 
@@ -95,6 +95,12 @@ Stage 7.16은 `PersonalPlaceDetail`에 canonical `placeId`만 전달해 Search�
 상세 기능을 공유한다. app 조립 계층이 Search의 renderer Interface와 Personal Library의 공개
 Interface를 연결하며 feature 내부 import는 없다. 외부 Provider 결과는 canonical identity가 아니므로
 이 흐름을 호출하지 않고 evidence-only로 남는다.
+
+Stage 7.17은 Personal Library의 현재 목록 row로 marker를 만드는 결합을 제거한다. 별도 인증 지도
+query가 state/Collection과 현재 Tag·지역·Taxonomy filter, bounds, zoom을 받아 viewport 안의 모든
+projected member Place를 point 또는 count-bearing cluster로 표현한다. 지도는 list cursor를 소비하지
+않으며, 위치 projection이 없는 scope Place 수를 명시한다. Web은 map 이동/확대 요청을 교체 취소하고
+cluster 선택 시 bounds를 좁힌다. live map SDK는 활성화하지 않는다.
 
 Stage 11A는 Stage 9·10의 Provider 작업을 기다리지 않아도 되는 Collection 공유를 먼저 연결한다.
 Library 관리 화면의 private/unlisted/public 전환과 해제, 별도 `library.share` 권한 seam, 서버 발급

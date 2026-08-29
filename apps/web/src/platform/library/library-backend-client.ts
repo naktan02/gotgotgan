@@ -1,6 +1,7 @@
 import type {
   LibraryCollectionDetailQuery,
   LibraryCollectionListQuery,
+  LibraryMapQuery,
   LibraryPlaceListQuery,
   LibraryPlaceOrganizationQuery,
   LibraryTagListQuery,
@@ -21,6 +22,27 @@ export type LibraryBackendClientConfig = Readonly<{
 function queryString(query: Readonly<{ cursor?: string; limit: number }>): URLSearchParams {
   const parameters = new URLSearchParams({ limit: String(query.limit) })
   if (query.cursor !== undefined) parameters.set('cursor', query.cursor)
+  return parameters
+}
+
+function mapQueryString(query: LibraryMapQuery): URLSearchParams {
+  const parameters = new URLSearchParams({
+    scope: query.scope,
+    west: String(query.west),
+    south: String(query.south),
+    east: String(query.east),
+    north: String(query.north),
+    zoom: String(query.zoom),
+  })
+  if (query.scope === 'collection') {
+    parameters.set('collectionId', query.collectionId)
+    return parameters
+  }
+  parameters.set('state', query.state)
+  parameters.set('tagMatch', query.tagMatch)
+  for (const tagId of query.tagIds) parameters.append('tagIds', tagId)
+  for (const areaKey of query.areaKeys) parameters.append('areaKeys', areaKey)
+  for (const taxonomyKey of query.taxonomyKeys) parameters.append('taxonomyKeys', taxonomyKey)
   return parameters
 }
 
@@ -51,6 +73,9 @@ export function createLibraryBackendClient(config: LibraryBackendClientConfig = 
   }
 
   return {
+    map(accessToken: string, query: LibraryMapQuery, signal: AbortSignal) {
+      return send(`/v1/library/map?${mapQueryString(query)}`, accessToken, signal)
+    },
     places(accessToken: string, query: LibraryPlaceListQuery, signal: AbortSignal) {
       const parameters = queryString(query)
       parameters.set('state', query.state)

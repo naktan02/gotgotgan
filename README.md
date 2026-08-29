@@ -6,7 +6,7 @@ Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed doc
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **source-only; Stages 6.5, 7.5–7.16, and 11A–11B complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
+Current delivery state: **source-only; Stages 6.5, 7.5–7.17, and 11A–11B complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
@@ -186,6 +186,13 @@ Stage 7.16은 canonical Search 선택과 Personal Library가 하나의 `Personal
 Collection/Tag, Visit, body-only private Note를 조립한다. 앱 계층이 Search의 canonical renderer seam에
 이를 주입하므로 두 feature는 서로의 내부를 알지 않는다. Provider 검색 결과는 materialization 전까지
 이 seam을 사용하지 않고 evidence와 원문 링크만 유지한다.
+
+Stage 7.17은 Personal Library 목록 pagination과 지도 projection을 분리한다. 목록은 계속 bounded
+cursor page이고 지도는 `scope/filter + bounds + zoom`으로 현재 viewport의 회원 소유 장소를 별도
+조회한다. 응답의 최대 500개 시각 feature는 개별 Place 또는 count-bearing cluster이며, feature가
+나타내는 장소 수를 보존하므로 임의의 Place row limit으로 마커를 누락하지 않는다. Search-owned
+좌표 projection이 없는 scope Place 수는 명시적으로 반환한다. Library PostgreSQL Adapter는 Search
+schema를 join하지 않고 주입된 map Place reader만 사용하며 live 지도 SDK는 여전히 비활성이다.
 
 Stage 11A는 Provider 추가·outbound sync와 독립적인 Collection 공유 수직 조각을 먼저 완성한다.
 소유자는 optimistic `updatedAt`으로 private/unlisted/public을 전환하고 공유를 해제한다. 첫 공유 ID는

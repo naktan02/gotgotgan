@@ -84,7 +84,7 @@ Library의 `set-place-preferences`는 saved/wanted/Personal Rating 전체 목표
 `PLACE_LIBRARY_PREFERENCE_VERSION_CONFLICT` 409를 반환한다. 클라이언트는 최신 Place detail을 다시
 읽고 사용자가 원하면 새 command ID로 재적용한다. 이는 부분 toggle 재전송이나 여러 기기의 lost
 update를 피한다.
-`GET /v1/library/places`, `/place-facets`, `/places/{placeId}/organization`, `/collections`,
+`GET /v1/library/places`, `/map`, `/place-facets`, `/places/{placeId}/organization`, `/collections`,
 `/collections/{collectionId}`, `/tags`,
 `GET /v1/writing`, `/v1/writing/{documentId}`, `GET /v1/places/{placeId}/visits`,
 `GET /v1/imports`, `/v1/imports/{batchId}`는 bounded 인증 owner view이며 동등한 anonymous route는
@@ -110,6 +110,13 @@ count와 함께 반환한다. `coverage`는 saved/sample/projected Place 수와 
 다른 한글/영문 지역명을 임의로 합치지는 않는다. Taxonomy는 provider-neutral key만 identity로 쓴다.
 이는 회원 데이터 기반 탐색 API이며 전역 master나 Provider/AI 자동 분류를 요구하지 않는다.
 
+`GET /v1/library/map`은 목록 cursor와 별개다. `scope=state`는 saved/wanted/rated 및 같은 Tag·지역·
+Taxonomy filter를, `scope=collection`은 회원 소유 Collection ID를 받는다. 두 scope 모두 필수
+`west/south/east/north/zoom` viewport를 받으며 현재 bounds 안의 projected Place를 point 또는 cluster로
+반환한다. 최대 500개 제한은 시각 feature에만 적용되고 cluster count가 모든 대표 Place를 보존한다.
+`representedPlaceCount`는 feature가 대표하는 현재 viewport Place 수이며, `unprojectedPlaceCount`는
+활성 scope 중 Search 좌표 projection이 없어 지도에 놓을 수 없는 수다. 다른 회원 Collection은 404다.
+
 `GET /v1/library/places/{placeId}/organization`은 전역 카테고리 목록이 아니라 현재 회원이
 직접 만들었거나 Provider 저장 목록에서 가져온 Collection과 Tag만 반환한다. 각 선택지는 해당
 Place의 `selected` 상태를 포함하고 최대 50개씩 opaque cursor로 페이지를 나눈다. 선택되지 않은
@@ -130,7 +137,7 @@ private 전환은 기존 ID를 폐기하며 재공개는 새 ID를 사용한다.
 `PLACE_LIBRARY_COLLECTION_VERSION_CONFLICT` 409다. `copy-published-collection`은 publication ID,
 새 private Collection ID와 이름만 받으며, 정렬된 Place reference와 copy provenance만 복사한다.
 
-Web은 동일한 계약을 `/api/library/places`, `/api/library/place-facets`, `/api/library/collections`,
+Web은 동일한 계약을 `/api/library/places`, `/api/library/map`, `/api/library/place-facets`, `/api/library/collections`,
 `/api/library/places/{placeId}/organization`, `/api/library/collections/{collectionId}`,
 `/api/library/tags`, `/api/library/commands`와
 `/api/places/{placeId}`에 다시 노출한다. 이 same-origin BFF는 opaque browser session을 서버에서

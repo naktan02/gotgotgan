@@ -13,6 +13,37 @@ const commandId = '01992d20-0000-7000-8000-000000000005'
 const areaKey = 'area_abcdefghijklmnopqrstuv'
 
 describe('personal library browser interface', () => {
+  it('reads the viewport projection separately from list pagination', async () => {
+    const calls: string[] = []
+    const http = createPersonalLibraryHttp(async (input) => {
+      calls.push(String(input))
+      return Response.json({
+        schemaVersion: 'library-map-projection.v1',
+        scope: {
+          kind: 'state', state: 'saved', tagIds: [tagA], tagMatch: 'all',
+          areaKeys: [], taxonomyKeys: [],
+        },
+        viewport: {
+          bounds: { west: 126.9, south: 37.5, east: 127.1, north: 37.6 }, zoom: 12,
+        },
+        features: [{
+          kind: 'place', placeId, label: '멘야 하루',
+          location: { latitude: 37.5447, longitude: 127.0557 },
+        }],
+        coverage: { representedPlaceCount: 1, unprojectedPlaceCount: 0, complete: true },
+      })
+    })
+
+    await expect(http.map({
+      scope: 'state', state: 'saved', tagIds: [tagA], tagMatch: 'all',
+      areaKeys: [], taxonomyKeys: [],
+      west: 126.9, south: 37.5, east: 127.1, north: 37.6, zoom: 12,
+    })).resolves.toMatchObject({ coverage: { representedPlaceCount: 1 } })
+    expect(calls).toEqual([
+      `/api/library/map?scope=state&state=saved&tagMatch=all&tagIds=${tagA}&west=126.9&south=37.5&east=127.1&north=37.6&zoom=12`,
+    ])
+  })
+
   it('serializes stable repeated Tag IDs and parses a versioned Place page', async () => {
     const calls: string[] = []
     const fetcher = async (input: RequestInfo | URL) => {

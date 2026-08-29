@@ -97,3 +97,12 @@ Search는 canonical detail renderer Interface만 공개하고 `app/search/PlaceS
 공개 Interface를 조립한다. Provider 결과는 이 seam을 통과하지 않아 evidence-only 상태를 유지한다.
 이 조립은 새 Backend 계약, live Provider/map 연결, Writing 범위를 추가하지 않는다. 114 Web tests,
 28개 Library 및 16개 Search desktop/mobile Playwright case가 이 분리와 Provider 격리를 검증한다.
+
+## Stage 7.17 Viewport-complete Personal Library map
+
+Personal Library의 목록과 지도는 같은 state/Collection/Tag/지역/Taxonomy filter를 공유하지만 서로의
+결과 row를 재사용하지 않는다. 목록은 cursor page, 지도는 `bounds + zoom` projection이다. 현재
+viewport의 모든 projected Place는 개별 marker 또는 count-bearing cluster로 표현되며, 넓은 화면에서도
+임의 row limit으로 일부 장소를 숨기지 않는다. cluster 선택은 해당 bounds로 확대하고 marker 선택은
+목록 page에 없어도 기존 canonical detail을 지연 조회한다. deterministic renderer가 pan/zoom/cluster
+Interface를 검증하며 NAVER live SDK와 credential은 아직 연결하지 않는다.

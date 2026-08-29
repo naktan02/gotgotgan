@@ -10,12 +10,14 @@ import {
   encodeTagCursor,
 } from '../../application/library-cursor.js'
 import type { LibraryPlaceSummaryReader } from '../../application/ports/library-place-summary-reader.js'
+import type { LibraryMapPlaceReader } from '../../application/ports/library-map-place-reader.js'
 import type {
   LibraryCollectionSummary,
   LibraryPlaceSummary,
 } from '../../domain/queries.js'
 import { InvalidLibraryQueryError } from '../../domain/queries.js'
 import { getPostgresLibraryPlaceOrganization } from './postgres-library-place-organization-query.js'
+import { getPostgresLibraryMapProjection } from './postgres-library-map-query.js'
 import {
   getPostgresLibraryPlaceFacets,
   listPostgresLibraryPlaces,
@@ -75,6 +77,7 @@ export class PostgresLibraryQueries implements LibraryQueries {
   constructor(
     private readonly pool: Pool,
     private readonly readPlaceSummaries: LibraryPlaceSummaryReader,
+    private readonly readMapPlaces: LibraryMapPlaceReader,
   ) {}
 
   private async summariesById(placeIds: readonly string[]): Promise<ReadonlyMap<string, LibraryPlaceSummary>> {
@@ -123,6 +126,10 @@ export class PostgresLibraryQueries implements LibraryQueries {
       })),
       updatedAt: row.updated_at.toISOString(),
     }
+  }
+
+  async getMapProjection(input: Parameters<LibraryQueries['getMapProjection']>[0]) {
+    return getPostgresLibraryMapProjection(this.pool, this.readMapPlaces, input)
   }
 
   async listPlaces(input: Parameters<LibraryQueries['listPlaces']>[0]) {

@@ -10,6 +10,7 @@ import {
   InvalidSearchCursorError,
   type LocalPlaceSearchDocument,
   type MemberSearchSignal,
+  type SearchBounds,
   type PlaceSearchQuery,
   type PlaceSearchResult,
 } from '../../domain/model.js'
@@ -47,6 +48,25 @@ type PlaceDocumentRow = Readonly<{
   evidence_status: PlaceSearchResult['evidenceStatus']
   projected_at: Date | string
 }>
+
+type ProjectedDocumentCountRow = Readonly<{ projected_place_count: number }>
+
+function rowToDocument(row: PlaceDocumentRow): LocalPlaceSearchDocument {
+  return {
+    placeId: row.place_id,
+    sourceVersion: row.source_version,
+    name: row.display_name,
+    areaLabel: row.area_label,
+    latitude: row.latitude,
+    longitude: row.longitude,
+    primaryTaxonomy: row.primary_taxonomy_key === null || row.primary_taxonomy_label === null
+      ? null
+      : { key: row.primary_taxonomy_key, label: row.primary_taxonomy_label },
+    taxonomyKeys: row.taxonomy_keys,
+    evidenceStatus: row.evidence_status,
+    projectedAt: new Date(row.projected_at).toISOString(),
+  }
+}
 
 function decodeLocalCursor(value: string | undefined): LocalCursor | undefined {
   if (value === undefined) return undefined
@@ -194,20 +214,46 @@ export class PostgresLocalSearch implements
       `,
       [placeIds],
     )
-    return result.rows.map((row) => ({
-      placeId: row.place_id,
-      sourceVersion: row.source_version,
-      name: row.display_name,
-      areaLabel: row.area_label,
-      latitude: row.latitude,
-      longitude: row.longitude,
-      primaryTaxonomy: row.primary_taxonomy_key === null || row.primary_taxonomy_label === null
-        ? null
-        : { key: row.primary_taxonomy_key, label: row.primary_taxonomy_label },
-      taxonomyKeys: row.taxonomy_keys,
-      evidenceStatus: row.evidence_status,
-      projectedAt: new Date(row.projected_at).toISOString(),
-    }))
+    return result.rows.map(rowToDocument)
+  }
+
+  async getPlaceDocumentsInBounds(placeIds: readonly string[], bounds: SearchBounds) {
+    const requested = [...new Set(placeIds)]
+    if (requested.length === 0) return { documents: [], unprojectedPlaceCount: 0 }
+    const [documents, coverage] = await Promise.all([
+      this.pool.query<PlaceDocumentRow>(
+        `
+          SELECT
+            place_id,
+            source_version,
+            display_name,
+            area_label,
+            ST_Y(location) AS latitude,
+            ST_X(location) AS longitude,
+            primary_taxonomy_key,
+            primary_taxonomy_label,
+            taxonomy_keys,
+            evidence_status,
+            projected_at
+          FROM search.place_documents
+          WHERE place_id = ANY($1::uuid[])
+            AND location && ST_MakeEnvelope($2, $3, $4, $5, 4326)
+        `,
+        [requested, bounds.west, bounds.south, bounds.east, bounds.north],
+      ),
+      this.pool.query<ProjectedDocumentCountRow>(
+        `
+          SELECT count(*)::int AS projected_place_count
+          FROM search.place_documents
+          WHERE place_id = ANY($1::uuid[])
+        `,
+        [requested],
+      ),
+    ])
+    return {
+      documents: documents.rows.map(rowToDocument),
+      unprojectedPlaceCount: requested.length - (coverage.rows[0]?.projected_place_count ?? 0),
+    }
   }
 
   async search(query: Omit<PlaceSearchQuery, 'cursor'> & Readonly<{ cursor?: string }>): Promise<SearchSourcePage> {

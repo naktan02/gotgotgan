@@ -83,6 +83,7 @@ async function installLibraryFixture(
     writingConflictOnce?: boolean
     paginatedNotes?: boolean
     pendingDetail?: boolean
+    listFirstPageOnly?: boolean
   }> = {},
 ) {
   let preferenceRevision = 0
@@ -212,6 +213,59 @@ async function installLibraryFixture(
       })),
     })
   })
+  await page.route('**/api/library/map?*', (route) => {
+    const url = new URL(route.request().url())
+    const scopeKind = url.searchParams.get('scope')
+    const selectedTags = url.searchParams.getAll('tagIds')
+    const selectedAreas = url.searchParams.getAll('areaKeys')
+    const selectedTaxonomies = url.searchParams.getAll('taxonomyKeys')
+    const state = url.searchParams.get('state') ?? 'saved'
+    const scopedPlaceIds = scopeKind === 'collection'
+      ? collections.get(url.searchParams.get('collectionId') ?? '')?.placeIds ?? []
+      : [ramenPlaceId, cafePlaceId].filter((placeId) => {
+          const preference = preferences[placeId]
+          return preference !== undefined &&
+            (state === 'saved' ? preference.saved : state === 'wanted'
+              ? preference.wanted : preference.personalRating !== null) &&
+            (selectedTags.length === 0 || (
+              selectedTags.some((tagId) => tags.get(tagId)?.placeIds.has(placeId))
+            )) &&
+            (selectedAreas.length === 0 || selectedAreas.includes(
+              placeId === ramenPlaceId ? seongsuAreaKey : seoulForestAreaKey,
+            )) &&
+            (selectedTaxonomies.length === 0 || selectedTaxonomies.includes(
+              placeId === ramenPlaceId ? '쇼유라멘' : '카페',
+            ))
+        })
+    const projected = scopedPlaceIds.flatMap((placeId) => {
+      if (options.pendingDetail && placeId === ramenPlaceId) return []
+      const summary = placeId === ramenPlaceId ? ramen : cafe
+      return [{
+        kind: 'place', placeId, label: summary.name, location: summary.location,
+      }]
+    })
+    const west = Number(url.searchParams.get('west'))
+    const south = Number(url.searchParams.get('south'))
+    const east = Number(url.searchParams.get('east'))
+    const north = Number(url.searchParams.get('north'))
+    return json(route, {
+      schemaVersion: 'library-map-projection.v1',
+      scope: scopeKind === 'collection'
+        ? { kind: 'collection', collectionId: url.searchParams.get('collectionId') }
+        : {
+            kind: 'state', state, tagIds: [...selectedTags].sort(),
+            tagMatch: url.searchParams.get('tagMatch') ?? 'all',
+            areaKeys: [...selectedAreas].sort(), taxonomyKeys: [...selectedTaxonomies].sort(),
+          },
+      viewport: { bounds: { west, south, east, north }, zoom: Number(url.searchParams.get('zoom')) },
+      features: projected,
+      coverage: {
+        representedPlaceCount: projected.length,
+        unprojectedPlaceCount: scopedPlaceIds.length - projected.length,
+        complete: scopedPlaceIds.length === projected.length,
+      },
+    })
+  })
   await page.route('**/api/library/places?*', (route) => {
     const url = new URL(route.request().url())
     const selectedTags = url.searchParams.getAll('tagIds')
@@ -248,7 +302,8 @@ async function installLibraryFixture(
         areaKeys: [...selectedAreas].sort(),
         taxonomyKeys: [...selectedTaxonomies].sort(),
       },
-      items,
+      items: options.listFirstPageOnly ? items.slice(0, 1) : items,
+      ...(options.listFirstPageOnly && items.length > 1 ? { nextCursor: 'list-page-2' } : {}),
     })
   })
   await page.route('**/api/library/places/*/organization?*', (route) => {
@@ -743,6 +798,20 @@ test('keeps list, detail, and map coordinated across desktop and mobile surfaces
   await detail.getByRole('button', { name: '목록으로' }).click()
   await expect(list).toBeVisible()
   await expect(list.getByRole('button', { name: /멘야 하루/ })).toBeFocused()
+})
+
+test('shows every saved Place in the viewport even when the list has only its first page', async ({ page }) => {
+  await installLibraryFixture(page, { listFirstPageOnly: true })
+  await page.goto('/library')
+
+  await expect(page.getByRole('region', { name: '장소 목록' })
+    .getByText('서울숲 로스터스', { exact: true })).toHaveCount(0)
+  if ((page.viewportSize()?.width ?? 0) <= 720) {
+    await page.getByRole('button', { name: '지도', exact: true }).click()
+  }
+  const map = page.getByRole('region', { name: '내 장소 지도' })
+  await expect(map.getByRole('button', { name: '서울숲 로스터스 지도에서 선택' })).toBeVisible()
+  await expect(map.getByText('현재 지도 영역의 저장 장소 2개를 모두 표현했습니다.')).toBeVisible()
 })
 
 test('keeps personal controls available while imported Place detail is pending', async ({ page }) => {

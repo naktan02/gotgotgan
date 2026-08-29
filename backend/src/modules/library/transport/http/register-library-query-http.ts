@@ -4,6 +4,8 @@ import {
   libraryCollectionIdentifierParamsSchema,
   libraryCollectionListQuerySchema,
   libraryCollectionListResponseSchema,
+  libraryMapQuerySchema,
+  libraryMapResponseSchema,
   libraryPlaceListQuerySchema,
   libraryPlaceListResponseSchema,
   libraryPlaceFacetsResponseSchema,
@@ -47,6 +49,53 @@ export function registerLibraryQueryHttpRoutes(
   application: FastifyInstance,
   dependencies: LibraryQueryHttpDependencies,
 ): void {
+  application.get('/v1/library/map', async (request, reply) => {
+    const memberId = await requireProductMember(
+      request, reply, dependencies.authorizer, 'library.read',
+    )
+    if (memberId === undefined) return
+    const parsed = libraryMapQuerySchema.safeParse(request.query)
+    if (!parsed.success) {
+      return sendProductProblem(
+        request, reply, 400, 'PLACE_LIBRARY_QUERY_INVALID', 'Library query is invalid',
+      )
+    }
+    const bounds = {
+      west: parsed.data.west,
+      south: parsed.data.south,
+      east: parsed.data.east,
+      north: parsed.data.north,
+    }
+    const scope = parsed.data.scope === 'collection'
+      ? { kind: 'collection' as const, collectionId: parsed.data.collectionId }
+      : {
+          kind: 'state' as const,
+          state: parsed.data.state,
+          tagIds: parsed.data.tagIds,
+          tagMatch: parsed.data.tagMatch,
+          areaKeys: parsed.data.areaKeys,
+          taxonomyKeys: parsed.data.taxonomyKeys,
+        }
+    try {
+      const projection = await dependencies.queries.getMapProjection({
+        memberId,
+        scope,
+        bounds,
+        zoom: parsed.data.zoom,
+      })
+      if (projection === undefined) {
+        return sendProductProblem(
+          request, reply, 404, 'PLACE_LIBRARY_RESOURCE_NOT_FOUND',
+          'Library resource not found',
+        )
+      }
+      const response = libraryMapResponseSchema.parse(projection)
+      return reply.header('cache-control', 'no-store').status(200).send(response)
+    } catch (error) {
+      return queryFailure(request, reply, error)
+    }
+  })
+
   application.get('/v1/library/place-facets', async (request, reply) => {
     const memberId = await requireProductMember(
       request, reply, dependencies.authorizer, 'library.read',

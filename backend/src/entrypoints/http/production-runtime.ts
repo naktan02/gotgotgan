@@ -133,9 +133,7 @@ export async function createProductionHttpRuntime(
     const writingStore = new PostgresWritingStore(pool)
     const writingQueries = new PostgresWritingQueries(pool)
     const localSearch = new PostgresLocalSearch(pool)
-    const libraryQueries = new PostgresLibraryQueries(pool, async (placeIds) => (
-      await localSearch.getPlaceDocuments(placeIds)
-    ).map((document) => ({
+    const toLibraryPlaceSummary = (document: Awaited<ReturnType<typeof localSearch.getPlaceDocuments>>[number]) => ({
       placeId: document.placeId,
       name: document.name,
       areaLabel: document.areaLabel,
@@ -146,7 +144,18 @@ export async function createProductionHttpRuntime(
         status: document.evidenceStatus,
         projectedAt: document.projectedAt,
       },
-    })))
+    })
+    const libraryQueries = new PostgresLibraryQueries(
+      pool,
+      async (placeIds) => (await localSearch.getPlaceDocuments(placeIds)).map(toLibraryPlaceSummary),
+      async (input) => {
+        const read = await localSearch.getPlaceDocumentsInBounds(input.placeIds, input.bounds)
+        return {
+          places: read.documents.map(toLibraryPlaceSummary),
+          unprojectedPlaceCount: read.unprojectedPlaceCount,
+        }
+      },
+    )
     const placeSuggestions = new PostgresPlaceSuggestions(pool)
     const ingestionStore = new PostgresIngestionStore(pool)
     const connectorImports = new PostgresConnectorImports(pool)

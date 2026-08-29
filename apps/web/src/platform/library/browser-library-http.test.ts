@@ -87,6 +87,44 @@ describe('browser library HTTP', () => {
     })
   })
 
+  it('forwards a strict viewport map query without list pagination', async () => {
+    const observed: string[] = []
+    const http = createBrowserLibraryHttp({
+      resolveAuthRuntime: sessionRuntime,
+      backend: backend(async (url) => {
+        observed.push(url.toString())
+        return Response.json({
+          schemaVersion: 'library-map-projection.v1',
+          scope: {
+            kind: 'state', state: 'saved', tagIds: [tagA], tagMatch: 'all',
+            areaKeys: [], taxonomyKeys: [],
+          },
+          viewport: {
+            bounds: { west: 126.9, south: 37.5, east: 127.1, north: 37.6 }, zoom: 12,
+          },
+          features: [{
+            kind: 'place', placeId, label: '멘야 하루',
+            location: { latitude: 37.5447, longitude: 127.0557 },
+          }],
+          coverage: { representedPlaceCount: 1, unprojectedPlaceCount: 0, complete: true },
+        })
+      }),
+      createCorrelationRef: () => 'unused',
+    })
+
+    const response = await http.map(new Request(
+      `https://place.example/api/library/map?scope=state&tagIds=${tagA}&west=126.9&south=37.5&east=127.1&north=37.6&zoom=12`,
+    ))
+
+    expect(response.status).toBe(200)
+    expect(observed).toEqual([
+      `https://place-backend.example/v1/library/map?scope=state&west=126.9&south=37.5&east=127.1&north=37.6&zoom=12&state=saved&tagMatch=all&tagIds=${tagA}`,
+    ])
+    expect(await response.json()).toMatchObject({
+      schemaVersion: 'library-map-projection.v1', coverage: { representedPlaceCount: 1 },
+    })
+  })
+
   it('forwards the member-scoped facet projection without query parameters', async () => {
     const observed: string[] = []
     const http = createBrowserLibraryHttp({
@@ -120,6 +158,9 @@ describe('browser library HTTP', () => {
       const response = await http.places(new Request(`https://place.example/api/library/places?${query}`))
       expect(response.status).toBe(400)
     }
+    expect((await http.map(new Request(
+      'https://place.example/api/library/map?scope=state&west=127.1&south=37.5&east=126.9&north=37.6&zoom=12',
+    ))).status).toBe(400)
     expect(resolveAuthRuntime).not.toHaveBeenCalled()
   })
 
