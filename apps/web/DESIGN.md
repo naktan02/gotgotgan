@@ -85,3 +85,15 @@ Search와 Library projection은 바뀌지 않는다. 이 보강은 화면 픽셀
 
 frontend architecture guards, 114 Web tests, typecheck, production build와 14개 Search
 desktop/mobile Playwright case 및 기존 screenshot baseline이 모두 통과했다.
+
+## Stage 7.16 Canonical Place detail composition
+
+선택한 canonical Search 결과와 Personal Library가 같은 개인 기능을 사용하되 feature끼리 내부
+component를 참조하지 않는다. `PersonalPlaceDetail`은 `placeId`, 선택적 즉시 summary, 변경 callback만
+받고 Place detail/auth/access/retry와 preference·organization·Visit·Note workflow를 내부에 숨긴다.
+Library의 상위 workflow는 목록·filter·선택·관리만 소유한다.
+
+Search는 canonical detail renderer Interface만 공개하고 `app/search/PlaceSearchWorkspace`가 두 feature의
+공개 Interface를 조립한다. Provider 결과는 이 seam을 통과하지 않아 evidence-only 상태를 유지한다.
+이 조립은 새 Backend 계약, live Provider/map 연결, Writing 범위를 추가하지 않는다. 114 Web tests,
+28개 Library 및 16개 Search desktop/mobile Playwright case가 이 분리와 Provider 격리를 검증한다.

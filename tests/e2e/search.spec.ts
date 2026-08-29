@@ -117,6 +117,104 @@ test('labels official provider results and lazily loads attributed details', asy
   expect(JSON.stringify(await response.json())).not.toContain('apiKey')
 })
 
+test('reuses personal Place capabilities only for canonical search results', async ({ page }) => {
+  let canonicalDetailRequests = 0
+  let memberOverlayAvailable = false
+  await page.route(/\/api\/places\/[^/?]+$/, async (route) => {
+    canonicalDetailRequests += 1
+    const selectedPlaceId = new URL(route.request().url()).pathname.split('/').at(-1)!
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        schemaVersion: 'place-detail.v1',
+        status: 'available',
+        requestedPlaceId: selectedPlaceId,
+        redirectedFrom: [],
+        placeId: selectedPlaceId,
+        name: '조용한 라멘 연구소',
+        areaLabel: '성수',
+        location: { latitude: 37.5445, longitude: 127.056 },
+        primaryTaxonomy: { key: 'food.noodle.ramen', label: '라멘' },
+        taxonomyKeys: ['food.noodle.ramen'],
+        evidence: { status: 'verified', projectedAt: '2026-08-29T00:00:00.000Z' },
+        ...(memberOverlayAvailable
+          ? {
+              personalState: {
+                saved: true,
+                wanted: false,
+                personalRating: 4.3,
+                preferencesUpdatedAt: '2026-08-29T00:00:00.000Z',
+                visits: { visited: false, count: 0 },
+              },
+            }
+          : {}),
+      }),
+    })
+  })
+  await page.route('**/api/library/places/*/organization?*', async (route) => {
+    const selectedPlaceId = new URL(route.request().url()).pathname.split('/').at(-2)!
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        schemaVersion: 'library-place-organization.v1',
+        placeId: selectedPlaceId,
+        items: [],
+      }),
+    })
+  })
+  await page.route('**/api/places/*/visits?*', async (route) => {
+    const selectedPlaceId = new URL(route.request().url()).pathname.split('/').at(-2)!
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        schemaVersion: 'visit-history.v1',
+        placeId: selectedPlaceId,
+        items: [],
+      }),
+    })
+  })
+  await page.route('**/api/writing?*', async (route) => {
+    const url = new URL(route.request().url())
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        schemaVersion: 'writing-list.v2',
+        filter: { kind: 'note', placeId: url.searchParams.get('placeId') },
+        items: [],
+      }),
+    })
+  })
+
+  await page.goto('/search')
+  const results = page.getByRole('list', { name: '장소 검색 결과' }).getByRole('button')
+  await expect(results).toHaveCount(3)
+  await results.first().click()
+  await expect(page.getByRole('link', { name: '로그인하고 계속' })).toBeVisible()
+
+  memberOverlayAvailable = true
+  if (await page.getByRole('button', { name: '목록으로' }).isVisible()) {
+    await page.getByRole('button', { name: '목록으로' }).click()
+  }
+  await results.nth(1).click()
+
+  await expect(page.getByRole('heading', { name: '내 상태' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '내 분류' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '방문 기록' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '내 메모' })).toBeVisible()
+  const requestsAfterCanonicalSelection = canonicalDetailRequests
+  expect(requestsAfterCanonicalSelection).toBeGreaterThan(0)
+
+  await submitSearch(page, '공식 결과')
+  if (await page.getByRole('button', { name: '목록', exact: true }).isVisible()) {
+    await page.getByRole('button', { name: '목록', exact: true }).click()
+  }
+  await expect(results).toHaveCount(1)
+  await results.first().click()
+  await expect(page.getByRole('link', { name: 'Google Maps에서 열기' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '내 상태' })).not.toBeVisible()
+  expect(canonicalDetailRequests).toBe(requestsAfterCanonicalSelection)
+})
+
 test('uses an independent detail pane and restores the selected mobile row', async ({ page }, testInfo) => {
   await page.goto('/search')
   const results = page.getByRole('list', { name: '장소 검색 결과' }).getByRole('button')

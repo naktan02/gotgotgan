@@ -6,11 +6,18 @@ import { SearchControls } from './SearchControls'
 import { SearchResultDetailPane } from './SearchResultDetailPane'
 import { SearchResultListPane } from './SearchResultListPane'
 import styles from './search-workspace.module.css'
-import type { SearchWorkspaceWorkflow } from './search-workspace-interface'
+import type {
+  SearchCanonicalPlaceDetailRenderer,
+  SearchWorkspaceWorkflow,
+} from './search-workspace-interface'
 
 export function SearchWorkspaceView({
   workflow,
-}: Readonly<{ workflow: SearchWorkspaceWorkflow }>) {
+  renderCanonicalPlaceDetail,
+}: Readonly<{
+  workflow: SearchWorkspaceWorkflow
+  renderCanonicalPlaceDetail?: SearchCanonicalPlaceDetailRenderer
+}>) {
   const { layout, map } = workflow
   const { mobileSurface } = layout
   const mobileClass = mobileSurface === 'map'
@@ -42,7 +49,10 @@ export function SearchWorkspaceView({
           <SearchResultListPane results={workflow.results} />
         </div>
         <div className={styles.detailPane}>
-          <SearchResultDetailPane detail={workflow.detail} />
+          <SearchResultDetailPane
+            detail={workflow.detail}
+            renderCanonicalPlaceDetail={renderCanonicalPlaceDetail}
+          />
         </div>
         <div className={styles.mapPane}>
           <DeterministicPlaceMap

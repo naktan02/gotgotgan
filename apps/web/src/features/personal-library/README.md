@@ -35,7 +35,14 @@ Browse 화면은 desktop에서 Place 목록, 선택 상세, 지도 pane을 독�
 선택과 filter를 유지하고 선택 행으로 초점을 복귀시킨다. 지도에는 `PersonalLibraryMap`이 만든 최소
 marker projection만 전달하며 Library workflow가 지도 SDK나 Search result 계약을 알지 않는다.
 
-`personal-library-http.ts`는 versioned browser payload 해석을, 기본 workflow는 목록·상세 조정을,
+`PersonalPlaceDetail`은 canonical `placeId`와 선택적으로 즉시 표시할 summary만 받는 작은 외부
+Interface다. 내부 workflow가 Place detail 요청, 교체 선택 취소, 로그인/등급/재시도 상태와 기존
+preference·organization·Visit·Note workflow 조립을 소유한다. 따라서 Library의 상위 workflow는
+목록·filter·선택·관리만 맡고, Search 같은 다른 app 흐름도 개인 기능을 복제하지 않고 이 Interface를
+사용할 수 있다. 공개 상세에 `personalState`가 없으면 canonical 사실은 유지한 채 로그인 동작을
+제시한다. 상세 내용과 하위 편집기 스타일도 별도 CSS module이 소유한다.
+
+`personal-library-http.ts`는 versioned browser payload 해석을, 기본 workflow는 목록 조정을,
 preference workflow는 버전 기반 상태 변경과 안전한 재시도를, organization workflow는 선택 장소의
 분류 변경을, management workflow는 Collection·Tag 수명주기와 순서를 맡는다. Browse View는 이 깊은
 workflow들을 panel grammar 뒤에서 조립한다. visit workflow는 불변

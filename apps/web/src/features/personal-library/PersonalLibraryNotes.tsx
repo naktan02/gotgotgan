@@ -1,7 +1,7 @@
 'use client'
 
 import type { PersonalLibraryNotes as PersonalLibraryNotesWorkflow } from './personal-library-note-workflow'
-import styles from './personal-library.module.css'
+import styles from './personal-place-detail.module.css'
 
 const noteDateFormatter = new Intl.DateTimeFormat('ko-KR', {
   dateStyle: 'medium',

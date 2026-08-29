@@ -85,6 +85,14 @@ mobile은 목록과 지도가 동시에 축소되지 않고, marker 선택이 �
 선택 행에 keyboard focus가 돌아오는지 검증한다. 기존 preference, management, Visit, Note,
 organization case도 새 panel 전환을 통해 계속 실행한다.
 
+Stage 7.16은 focused Search suite를 16개 desktop/mobile case로 확장한다. canonical 결과를 선택하면
+공유 `PersonalPlaceDetail`이 Place detail을 읽고 익명 공개 상세에는 로그인 동작을, 회원 overlay에는
+내 상태, 내 분류, Visit, private Note 기능을 표시한다.
+이어 Provider 결과를 선택하면 개인 기능이 사라지고 Provider 원문 링크만 남으며 canonical Place detail
+요청이 추가로 발생하지 않는지 검증한다. 기존 Search 상태 screenshot은 변경된 canonical 상세를 각
+운영체제의 Windows/Linux Chromium에서 다시 생성하고 검토한다. Library의 28개 case도 같은 공유
+상세 module을 통해 계속 통과해야 한다.
+
 Stage 5 Playwright는 같은 공개 경계에 결정적인 Taxonomy/Search fixture를 연결한다. 입력
 debounce와 교체 요청의 실제 upstream 취소, 목록·마커 선택 동기화, 명시적 bounds 재검색,
 Taxonomy filter, cursor pagination, mobile 목록/지도 전환, partial·loading·empty·error·retry와

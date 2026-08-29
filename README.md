@@ -6,7 +6,7 @@ Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed doc
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **source-only; Stages 6.5 and 7.5–7.15 complete, Stages 2 and 7 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
+Current delivery state: **source-only; Stages 6.5 and 7.5–7.16 complete, Stages 2 and 7 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
@@ -178,6 +178,12 @@ session, Taxonomy filter, bounds 재검색, pagination, source partial 상태와
 동안 지도를 숨긴다. mobile은 목록·지도·상세 중 한 surface만 보여주며 상세에서 돌아오면 선택 행으로
 초점을 복원한다. Provider attribution과 원문 링크는 상세 pane에 남고 live SDK나 Provider traffic은
 활성화하지 않는다.
+
+Stage 7.16은 canonical Search 선택과 Personal Library가 하나의 `PersonalPlaceDetail` Interface를
+공유하게 한다. 이 깊은 module이 Place detail, 로그인/등급/재시도와 저장·가고 싶음·개인 평점,
+Collection/Tag, Visit, body-only private Note를 조립한다. 앱 계층이 Search의 canonical renderer seam에
+이를 주입하므로 두 feature는 서로의 내부를 알지 않는다. Provider 검색 결과는 materialization 전까지
+이 seam을 사용하지 않고 evidence와 원문 링크만 유지한다.
 
 ## Repository boundaries
 

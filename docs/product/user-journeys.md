@@ -36,3 +36,8 @@ Stage 7.12에서 사용자는 선택한 Place의 private Note 목록을 더 불�
 사용자가 최신 내용을 불러온다. Stage 7.13은 목록과 선택 메모에 서버 작성일과 마지막 수정일을
 구분해 보여준다. 일반 메모에는 제목과 사진 첨부가 없으며, Entry·미디어 작성은 현재 journey의 후속
 작업으로 잡지 않는다.
+
+Stage 7.16에서 canonical Search 결과를 선택한 사용자는 Library로 이동하지 않아도 같은 상세 안에서
+저장·가고 싶음·개인 평점, 기존 Collection/Tag, Visit, private Note 기능을 사용한다. 로그인 부재와
+등급 거부는 상세 안에서 구분한다. Provider 검색 결과는 canonical Place로 materialize되기 전에는 이
+개인 기능을 표시하거나 호출하지 않고 출처와 원문 정보만 제공한다.

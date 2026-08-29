@@ -28,3 +28,10 @@ Stage 7.15부터 desktop은 목록·독립 상세·지도를 조정하며 좁은
 숨긴다. mobile은 목록·지도·상세 중 하나만 보이고 상세에서 목록으로 돌아올 때 선택 행 focus를
 복원한다. query, filter, bounds, pagination과 선택은 전환 중 유지되며 live SDK/Provider traffic은
 활성화하지 않는다.
+
+Stage 7.16부터 Search의 공개 Interface는 canonical 선택 상세를 그리는 renderer Interface를
+선택적으로 받는다. `app/search/PlaceSearchWorkspace`가 Search와 Personal Library의 공개 Interface를
+조립해 canonical `placeId`만 `PersonalPlaceDetail`에 넘긴다. Search는 Personal Library 내부 구현을
+import하지 않고, Library도 Search result 계약을 알지 않는다. Provider 결과는 이 renderer를 호출하지
+않고 기존 출처·원문 링크·지연 상세만 표시하므로 materialization 전에는 개인 기능으로 가장하지
+않는다.

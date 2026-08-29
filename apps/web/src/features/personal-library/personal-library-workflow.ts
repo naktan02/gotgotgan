@@ -7,7 +7,6 @@ import {
   type LibraryTagListResponse,
   type LibraryTagMatch,
 } from '@place/contracts/library'
-import type { PlaceDetailResponse } from '@place/contracts/places'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
@@ -16,12 +15,6 @@ import {
   type PersonalLibraryRow,
 } from './personal-library-http'
 import { usePersonalLibraryManagementWorkflow } from './personal-library-management'
-import { usePersonalLibraryNoteWorkflow } from './personal-library-note-workflow'
-import { BrowserWritingProblem } from './personal-library-notes-http'
-import { usePersonalLibraryOrganizationWorkflow } from './personal-library-organization-workflow'
-import { usePersonalLibraryPreferenceWorkflow } from './personal-library-preference-workflow'
-import { usePersonalLibraryVisitWorkflow } from './personal-library-visit-workflow'
-import { BrowserVisitProblem } from './personal-library-visits-http'
 
 type LibrarySurface =
   | Readonly<{ kind: 'state'; state: LibraryPlaceState }>
@@ -43,23 +36,17 @@ export function usePersonalLibraryWorkflow() {
   const [rows, setRows] = useState<readonly PersonalLibraryRow[]>([])
   const [nextCursor, setNextCursor] = useState<string | undefined>()
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | undefined>()
-  const [selectedDetail, setSelectedDetail] = useState<PlaceDetailResponse | undefined>()
   const [collectionName, setCollectionName] = useState<string | undefined>()
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [metadataLoading, setMetadataLoading] = useState(true)
-  const [detailLoading, setDetailLoading] = useState(false)
   const [authenticationRequired, setAuthenticationRequired] = useState(false)
   const [error, setError] = useState<string | undefined>()
   const requestSequence = useRef(0)
-  const detailSequence = useRef(0)
 
   const handleFailure = useCallback((reason: unknown) => {
     if (reason instanceof DOMException && reason.name === 'AbortError') return
-    const status = reason instanceof BrowserLibraryProblem ||
-      reason instanceof BrowserVisitProblem || reason instanceof BrowserWritingProblem
-      ? reason.status
-      : undefined
+    const status = reason instanceof BrowserLibraryProblem ? reason.status : undefined
     if (status === 401) {
       setAuthenticationRequired(true)
       setError(undefined)
@@ -165,36 +152,6 @@ export function usePersonalLibraryWorkflow() {
     return () => controller.abort()
   }, [loadRows])
 
-  const loadSelectedDetail = useCallback(async (
-    placeId: string,
-    signal?: AbortSignal,
-    background = false,
-  ) => {
-    const sequence = ++detailSequence.current
-    if (!background) {
-      setSelectedDetail(undefined)
-      setDetailLoading(true)
-    }
-    try {
-      const value = await personalLibraryHttp.place(placeId, signal)
-      if (sequence === detailSequence.current) setSelectedDetail(value)
-    } catch (reason) {
-      if (reason instanceof DOMException && reason.name === 'AbortError') return
-      if (sequence === detailSequence.current && !background) setSelectedDetail(undefined)
-      throw reason
-    } finally {
-      if (sequence === detailSequence.current && !background) setDetailLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    setSelectedDetail(undefined)
-    if (selectedPlaceId === undefined) return
-    const controller = new AbortController()
-    void loadSelectedDetail(selectedPlaceId, controller.signal).catch(() => undefined)
-    return () => controller.abort()
-  }, [loadSelectedDetail, selectedPlaceId])
-
   const selectedRow = rows.find((row) => row.placeId === selectedPlaceId)
 
   function chooseState(state: LibraryPlaceState) {
@@ -270,11 +227,6 @@ export function usePersonalLibraryWorkflow() {
       loadCollections,
     ])
 
-  const organization = usePersonalLibraryOrganizationWorkflow({
-    selectedPlaceId,
-    onAccessFailure: handleFailure,
-    refreshLibrary,
-  })
   const managementWorkflow = usePersonalLibraryManagementWorkflow({
     active: mode === 'manage',
     collections,
@@ -296,30 +248,6 @@ export function usePersonalLibraryWorkflow() {
       setSelectedTagIds((current) => current.filter((candidate) => candidate !== tagId))
     },
   })
-  const refreshSelectedPlace = useCallback(() => selectedPlaceId === undefined
-    ? Promise.resolve()
-    : loadSelectedDetail(selectedPlaceId, undefined, true), [loadSelectedDetail, selectedPlaceId])
-  const preferences = usePersonalLibraryPreferenceWorkflow({
-    selectedPlaceId,
-    personalState: selectedDetail?.personalState,
-    onAccessFailure: handleFailure,
-    refreshLibrary,
-    refreshPlace: refreshSelectedPlace,
-  })
-  const visitWorkflow = usePersonalLibraryVisitWorkflow({
-    active: mode === 'browse',
-    selectedPlaceId,
-    summary: selectedDetail?.personalState?.visits,
-    onAccessFailure: handleFailure,
-    refreshPlace: refreshSelectedPlace,
-  })
-  const noteWorkflow = usePersonalLibraryNoteWorkflow({
-    active: mode === 'browse',
-    selectedPlaceId,
-    onAccessFailure: handleFailure,
-  })
-  const { refreshSelectedOrganization, ...organizationView } = organization
-
   return {
     mode,
     mobileSurface,
@@ -337,26 +265,18 @@ export function usePersonalLibraryWorkflow() {
     nextCursor,
     selectedPlaceId,
     selectedRow,
-    selectedDetail,
     ...managementWorkflow,
-    ...preferences,
-    ...visitWorkflow,
-    ...noteWorkflow,
-    ...organizationView,
     collectionName,
     loading,
     loadingMore,
     metadataLoading,
-    detailLoading,
     authenticationRequired,
     error,
+    refreshAfterPlaceChange: refreshLibrary,
     showBrowse: () => {
       setMode('browse')
       setMobileSurface('list')
-      void Promise.all([
-        refreshLibrary(),
-        refreshSelectedOrganization(),
-      ]).catch(handleFailure)
+      void refreshLibrary().catch(handleFailure)
     },
     showManagement: () => setMode('manage'),
     chooseState,

@@ -53,89 +53,12 @@
 .savingLabel { position: absolute; right: 0; bottom: 1px; color: var(--muted); font-size: 9px; }
 .tagManagementBody { display: grid; grid-template-columns: minmax(120px, 42%) minmax(0, 1fr); min-height: 280px; }
 .tagUsage { margin: 0; padding: 14px 18px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; }
-.visits { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 20px; }
-.visitHeading h3 { margin: 0; font-size: 15px; }
-.visitHeading p { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
-.visitForm { display: grid; gap: 7px; margin-top: 14px; }
-.visitForm label { color: var(--muted); font-size: 11px; font-weight: 700; }
-.visitForm > div { display: flex; gap: 6px; }
-.visitForm input { min-width: 0; flex: 1; height: 36px; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); padding: 0 8px; font-size: 11px; }
-.visitForm button, .visitError button, .visitHistory > button { min-height: 34px; border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); padding: 0 10px; font-size: 11px; }
-.visitForm button:disabled, .visitHistory > button:disabled { cursor: wait; opacity: .55; }
-.visitForm small { color: var(--muted); font-size: 10px; line-height: 1.5; }
-.visitError { display: grid; gap: 7px; margin-top: 12px; border: 1px solid #ecd0d0; border-radius: var(--radius-control); background: #fff2f2; padding: 10px; color: var(--danger); font-size: 11px; }
-.visitError button { justify-self: start; border-color: #e4caca; color: var(--danger); }
-.visitNotice { margin: 12px 0 0; border-radius: var(--radius-control); background: var(--accent-soft); padding: 9px 10px; color: var(--accent); font-size: 11px; }
-.visitHistory { margin-top: 16px; }
-.visitHistory > strong { font-size: 12px; }
-.visitHistory > p { color: var(--muted); font-size: 11px; }
-.visitHistory ol { margin: 8px 0 0; padding: 0; list-style: none; }
-.visitHistory li { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 34px; border-top: 1px solid var(--line); font-size: 11px; }
-.visitHistory li small { color: var(--muted); font-size: 9px; text-align: right; }
-.visitHistory > button { width: 100%; margin-top: 8px; }
-.notes { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 20px; }
-.noteHeading { display: flex; align-items: start; justify-content: space-between; gap: 10px; }
-.noteHeading h3 { margin: 0; font-size: 15px; }
-.noteHeading p { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
-.noteHeading button, .noteActions button, .noteError button, .noteList > button { min-height: 34px; border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); padding: 0 10px; font-size: 11px; }
-.noteForm { display: grid; gap: 7px; margin-top: 14px; }
-.noteForm label { color: var(--muted); font-size: 11px; font-weight: 700; }
-.noteDates { margin: 0; color: var(--muted); font-size: 10px; }
-.noteForm textarea { width: 100%; resize: vertical; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); padding: 10px; font: inherit; font-size: 12px; line-height: 1.6; }
-.noteActions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
-.noteActions span { margin-right: auto; color: var(--muted); font-size: 10px; }
-.noteActions button:last-child { border-color: var(--accent); background: var(--accent); color: white; }
-.noteHeading button:disabled, .noteActions button:disabled, .noteList button:disabled { cursor: not-allowed; opacity: .55; }
-.noteError { display: grid; gap: 7px; margin-top: 12px; border: 1px solid #ecd0d0; border-radius: var(--radius-control); background: #fff2f2; padding: 10px; color: var(--danger); font-size: 11px; }
-.noteError button { justify-self: start; border-color: #e4caca; color: var(--danger); }
-.noteNotice { margin: 12px 0 0; border-radius: var(--radius-control); background: var(--accent-soft); padding: 9px 10px; color: var(--accent); font-size: 11px; }
-.noteList { margin-top: 16px; }
-.noteList > strong { font-size: 12px; }
-.noteList > p { color: var(--muted); font-size: 11px; }
-.noteList ol { display: grid; gap: 5px; margin: 8px 0 0; padding: 0; list-style: none; }
-.noteList li button { display: grid; width: 100%; gap: 4px; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--surface); padding: 9px 10px; color: var(--ink); text-align: left; }
-.noteList li button[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); }
-.noteList li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
-.noteList li small { color: var(--muted); font-size: 9px; }
-.noteList > button { width: 100%; margin-top: 8px; }
-.preferences { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
-.preferenceHeading { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
-.preferenceHeading h3 { margin: 0; font-size: 15px; }
-.preferenceHeading p { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
-.preferenceHeading > span { flex: none; color: var(--muted); font-size: 11px; }
-.preferenceToggles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 14px; }
-.preferenceToggles button { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 38px; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); padding: 0 11px; }
-.preferenceToggles button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
-.preferenceToggles small { color: var(--muted); font-size: 10px; }
-.ratingEditor { display: grid; grid-template-columns: auto minmax(76px, 1fr) auto auto; align-items: center; gap: 7px; margin-top: 9px; }
-.ratingEditor label { color: var(--muted); font-size: 11px; font-weight: 700; }
-.ratingEditor input { min-width: 0; height: 34px; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); padding: 0 9px; }
-.ratingEditor button { min-height: 34px; border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); padding: 0 9px; font-size: 11px; }
-.preferenceToggles button:disabled, .ratingEditor button:disabled, .ratingEditor input:disabled { cursor: wait; opacity: .6; }
-.preferenceError { display: flex; justify-content: space-between; gap: 10px; margin-top: 12px; color: var(--danger); font-size: 11px; }
-.preferenceError button { border: 0; background: transparent; color: inherit; text-decoration: underline; }
-.organization { margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line); }
-.organizationHeading { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
-.organizationHeading h3 { margin: 0; font-size: 15px; }
-.organizationHeading p { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
-.organizationHeading > span { flex: none; color: var(--muted); font-size: 11px; }
-.organizationGroup { margin-top: 15px; }
-.organizationGroup > strong { display: block; margin-bottom: 7px; color: var(--muted); font-size: 11px; }
-.organizationGroup > div { display: flex; flex-wrap: wrap; gap: 6px; }
-.organizationGroup button { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); padding: 0 10px; }
-.organizationGroup button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
-.organizationGroup button:disabled { cursor: wait; opacity: .62; }
-.organizationGroup small { color: var(--muted); font-size: 10px; }
-.organizationEmpty { margin: 16px 0 0; color: var(--muted); font-size: 12px; }
-.organizationError { display: flex; justify-content: space-between; gap: 10px; margin-top: 12px; color: var(--danger); font-size: 11px; }
-.organizationError button { border: 0; background: transparent; color: inherit; text-decoration: underline; }
-.organizationMore { min-height: 32px; margin-top: 14px; border: 1px dashed var(--line-strong); border-radius: var(--radius-control); background: transparent; color: var(--muted); padding: 0 10px; font-size: 11px; }
 .gate { display: grid; width: min(620px, calc(100% - 40px)); min-height: calc(100vh - 64px); margin: 0 auto; place-content: center; justify-items: start; }
 .gate p { margin: 0 0 10px; color: var(--accent); font-size: 12px; font-weight: 700; }
 .gate h1 { margin: 0; font-size: clamp(28px, 5vw, 42px); letter-spacing: -.04em; }
 .gate span { max-width: 520px; margin-top: 16px; color: var(--muted); line-height: 1.7; }
 .gate a { margin-top: 24px; border-radius: var(--radius-control); background: var(--accent); color: white; padding: 11px 16px; font-weight: 700; text-decoration: none; }
-.libraryMode button:focus-visible, .preferences button:focus-visible, .preferences input:focus-visible, .visits button:focus-visible, .visits input:focus-visible, .notes button:focus-visible, .notes textarea:focus-visible, .organization button:focus-visible, .management button:focus-visible, .management input:focus-visible, .gate a:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+.libraryMode button:focus-visible, .management button:focus-visible, .management input:focus-visible, .gate a:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
 
 @media (max-width: 980px) {
   .managementGrid { grid-template-columns: 1fr; }
@@ -146,13 +69,6 @@
   .header { display: block; min-height: 90px; padding: 18px 16px; }
   .libraryMode { margin-top: 10px; justify-items: start; }
   .libraryMode p { text-align: left; }
-  .ratingEditor { grid-template-columns: auto minmax(80px, 1fr); }
-  .ratingEditor button { width: 100%; }
-  .visitForm > div { align-items: stretch; flex-direction: column; }
-  .visitForm button { width: 100%; }
-  .noteHeading { align-items: stretch; flex-direction: column; }
-  .noteHeading button { width: 100%; }
-  .noteActions { flex-wrap: wrap; }
   .management { padding: 10px; }
   .managementNotice { display: grid; gap: 5px; }
   .managementNotice span { text-align: left; }

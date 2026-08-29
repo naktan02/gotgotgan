@@ -1,7 +1,7 @@
 'use client'
 
 import type { PersonalLibraryVisits as PersonalLibraryVisitsWorkflow } from './personal-library-visit-workflow'
-import styles from './personal-library.module.css'
+import styles from './personal-place-detail.module.css'
 
 const visitDateFormatter = new Intl.DateTimeFormat('ko-KR', {
   dateStyle: 'medium',

@@ -1,11 +1,11 @@
 'use client'
 
-import styles from './personal-library.module.css'
-import type { PersonalLibraryWorkflow } from './personal-library-workflow'
+import styles from './personal-place-detail.module.css'
+import type { PersonalPlaceDetailWorkflow } from './personal-place-detail-workflow'
 
 type PreferenceEditorProps = Readonly<{
   workflow: Pick<
-    PersonalLibraryWorkflow,
+    PersonalPlaceDetailWorkflow,
     | 'preferenceState'
     | 'preferenceMutationKey'
     | 'preferenceError'

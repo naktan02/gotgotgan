@@ -62,21 +62,8 @@
 .desktopClose { display: grid; width: 32px; height: 32px; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--muted); font-size: 22px; line-height: 1; }
 .desktopClose:hover { background: var(--canvas); color: var(--ink); }
 .mobileBack { display: none; }
-.detailHeading { padding: 3px 0 20px; }
-.detailHeading p { margin: 0 0 7px; color: var(--accent); font-size: 11px; font-weight: 700; }
-.detailHeading h2 { margin: 0; font-size: 24px; letter-spacing: -.035em; }
-.detailHeading span { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
-.detailTabs { position: sticky; z-index: 2; top: 42px; display: flex; gap: 4px; margin: 18px -24px 0; padding: 0 18px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgb(255 255 255 / 96%); overflow-x: auto; }
-.detailTabs a { flex: none; padding: 11px 8px; color: var(--muted); font-size: 11px; font-weight: 650; text-decoration: none; }
-.detailTabs a:hover, .detailTabs a:focus-visible { color: var(--accent); }
-.placeFacts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 18px 0 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); scroll-margin-top: 94px; }
-.placeFacts div { padding: 12px 0; }
-.placeFacts div + div { padding-left: 14px; border-left: 1px solid var(--line); }
-.placeFacts dt { color: var(--muted); font-size: 10px; }
-.placeFacts dd { margin: 5px 0 0; font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
-.detailPane > div[id] { scroll-margin-top: 94px; }
 
-.tabs button:focus-visible, .collectionStrip button:focus-visible, .mobileFilterButton:focus-visible, .facetOptions button:focus-visible, .matchMode button:focus-visible, .placeList button:focus-visible, .more:focus-visible, .desktopClose:focus-visible, .mobileBack:focus-visible, .mobileSwitcher button:focus-visible, .detailTabs a:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+.tabs button:focus-visible, .collectionStrip button:focus-visible, .mobileFilterButton:focus-visible, .facetOptions button:focus-visible, .matchMode button:focus-visible, .placeList button:focus-visible, .more:focus-visible, .desktopClose:focus-visible, .mobileBack:focus-visible, .mobileSwitcher button:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
 
 @media (max-width: 1180px) and (min-width: 721px) {
   .withDetail { grid-template-columns: minmax(320px, 42%) minmax(380px, 1fr); }
@@ -104,7 +91,6 @@
   .detailActions { justify-content: flex-start; min-height: 46px; margin: 0 -16px; padding: 7px 10px; }
   .desktopClose { display: none; }
   .mobileBack { display: block; min-height: 32px; border: 0; background: transparent; color: var(--ink); padding: 0 8px; font-weight: 650; }
-  .detailTabs { top: 46px; margin-right: -16px; margin-left: -16px; padding: 0 10px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

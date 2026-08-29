@@ -3,11 +3,18 @@
 import { useEffect, useRef } from 'react'
 
 import styles from './search-detail.module.css'
-import type { SearchDetailInterface } from './search-workspace-interface'
+import type {
+  SearchCanonicalPlaceDetailRenderer,
+  SearchDetailInterface,
+} from './search-workspace-interface'
 
 export function SearchResultDetailPane({
   detail,
-}: Readonly<{ detail: SearchDetailInterface }>) {
+  renderCanonicalPlaceDetail,
+}: Readonly<{
+  detail: SearchDetailInterface
+  renderCanonicalPlaceDetail?: SearchCanonicalPlaceDetailRenderer
+}>) {
   const {
     selected,
     providerDetail,
@@ -46,6 +53,18 @@ export function SearchResultDetailPane({
 
       {selected === undefined ? (
         <div className={styles.detailEmpty}>목록이나 지도에서 장소를 선택하세요.</div>
+      ) : selected.identity.kind === 'canonical' && renderCanonicalPlaceDetail !== undefined ? (
+        renderCanonicalPlaceDetail({
+          placeId: selected.identity.placeId,
+          summary: {
+            name: selected.name,
+            areaLabel: selected.areaLabel,
+            location: selected.location,
+            primaryTaxonomy: selected.primaryTaxonomy,
+            evidenceStatus: selected.evidenceStatus,
+            sourceLabel: '로컬 색인',
+          },
+        })
       ) : (
         <>
           <div className={styles.detailHeading}>
