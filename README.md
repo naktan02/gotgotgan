@@ -6,7 +6,7 @@ Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed doc
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **source-only; Stages 6.5, 7.5–7.17, and 11A–11E2B2 complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
+Current delivery state: **source-only; Stages 6.5, 7.5–7.17, and 11A–11E2B3 complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
@@ -250,8 +250,13 @@ Stage 11E2B2는 withheld/restored 판정을 소유자 전용 영속 조회함에
 구조화된 appeal을 제공한다. 같은 Handle에는 pending appeal 하나만 허용하며 일반 moderation은 이를
 우회하지 못한다. reviewer 이상이 기각하면 withheld를 유지하고, 수락하면 immutable appeal resolution,
 `appeal-accepted` moderation decision, allowed 상태, owner notice를 한 transaction으로 기록한다. 이
-Backend 기능은 이메일·푸시 delivery나 프론트 UI를 의미하지 않는다. 실제 운영 담당자와 절차가
-활성화되기 전에는 내부 사람 discovery와 외부 색인을 계속 금지한다.
+Backend 기능은 이메일·푸시 delivery를 의미하지 않는다.
+
+Stage 11E2B3는 현재 회원의 프로필 설정과 독립된 소유자용 검토 알림 Web module을 추가한다. 브라우저는
+같은 origin BFF만 호출하고 member·role·operator·token을 제출하지 않는다. withheld 알림의 정해진 사유
+이의제기와 acknowledge만 제공하며, 모호한 실패 뒤에는 같은 appeal UUID와 payload를 재전송한다.
+운영자 검토 화면, 자유 서술, 첨부, 이메일·푸시, 내부 사람 discovery와 외부 색인은 실제 운영 담당자와
+절차가 정해질 때까지 계속 비활성이다.
 
 ## Repository boundaries
 

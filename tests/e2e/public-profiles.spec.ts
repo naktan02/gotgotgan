@@ -13,6 +13,9 @@ function json(route: Route, value: unknown, status = 200) {
 test('creates a stable public profile through authenticated settings', async ({ page }) => {
   const commands: unknown[] = []
   let profile: Record<string, unknown> | undefined
+  await page.route('**/api/profile/moderation-notices**', (route) => json(route, {
+    schemaVersion: 'public-profile-moderation-notices.v1', notices: [],
+  }))
   await page.route('**/api/profile', async (route) => {
     if (route.request().method() === 'GET') {
       if (profile === undefined) {
@@ -55,6 +58,86 @@ test('creates a stable public profile through authenticated settings', async ({ 
     },
   })
   expect(commands[0]).not.toHaveProperty('memberId')
+})
+
+test('acknowledges an owner moderation notice and submits one categorized appeal', async ({ page }) => {
+  const noticeId = '01992d20-0000-7000-8000-000000000010'
+  const appealBodies: unknown[] = []
+  let acknowledgedAt: string | null = null
+  let appeal: Record<string, unknown> | null = null
+
+  await page.route('**/api/profile', (route) => json(route, {
+    schemaVersion: 'public-profile-record.v1',
+    handle: 'ramen-log', displayName: '라멘 기록', visibility: 'public',
+    createdAt: '2026-08-29T10:00:00.000Z', updatedAt: '2026-08-29T10:00:00.000Z',
+  }))
+  await page.route('**/api/profile/moderation-notices**', async (route) => {
+    if (route.request().url().endsWith('/acknowledgement')) {
+      acknowledgedAt = '2026-08-30T10:01:00.000Z'
+      return json(route, {
+        schemaVersion: 'public-profile-notice-acknowledgement.v1',
+        status: 'acknowledged', acknowledgedAt,
+      }, 201)
+    }
+    return json(route, {
+      schemaVersion: 'public-profile-moderation-notices.v1',
+      notices: [{
+        noticeId,
+        handle: 'ramen-log',
+        kind: 'withheld',
+        reason: 'privacy',
+        createdAt: '2026-08-30T10:00:00.000Z',
+        acknowledgedAt,
+        appeal,
+      }],
+    })
+  })
+  await page.route('**/api/profile/moderation-appeals', async (route) => {
+    const body = route.request().postDataJSON()
+    appealBodies.push(body)
+    if (appealBodies.length === 1) {
+      return json(route, {
+        type: 'urn:place:error:public-profile-appeal-unavailable',
+        title: 'Public Profile appeal is temporarily unavailable', status: 503,
+        code: 'PLACE_PUBLIC_PROFILE_APPEAL_UNAVAILABLE', retryable: true,
+        correlationRef: 'e2e-profile-appeal-unavailable',
+      }, 503)
+    }
+    appeal = {
+      appealId: body.appealId,
+      reason: body.reason,
+      status: 'pending',
+      submittedAt: '2026-08-30T10:02:00.000Z',
+      resolvedAt: null,
+      resolutionReason: null,
+    }
+    return json(route, {
+      schemaVersion: 'public-profile-appeal-result.v1', status: 'recorded',
+    }, 201)
+  })
+
+  await page.goto('/profile')
+  await expect(page.getByRole('heading', { name: '프로필 검토 알림' })).toBeVisible()
+  await expect(page.getByText('개인정보 노출 우려')).toBeVisible()
+
+  await page.getByRole('button', { name: '알림 확인' }).click()
+  await expect(page.getByText('확인함')).toBeVisible()
+
+  await page.getByLabel('다시 검토할 사유').selectOption('mistaken-identity')
+  await page.getByRole('button', { name: '이의 제기 제출' }).click()
+  await expect(page.getByText('프로필 검토 요청을 처리하지 못했습니다.')).toBeVisible()
+  await page.getByRole('button', { name: '이의 제기 제출' }).click()
+  await expect(page.getByText('이의 제기: 검토 중')).toBeVisible()
+  await expect(page.getByRole('button', { name: '이의 제기 제출' })).toHaveCount(0)
+
+  expect(appealBodies).toHaveLength(2)
+  expect(appealBodies[0]).toMatchObject({
+    appealId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+    noticeId,
+    reason: 'mistaken-identity',
+  })
+  expect(appealBodies[1]).toEqual(appealBodies[0])
+  expect(JSON.stringify(appealBodies[0])).not.toMatch(/member|role|operator|freeText/i)
 })
 
 test('renders only public Collections on a noindex anonymous profile', async ({ page, request }) => {

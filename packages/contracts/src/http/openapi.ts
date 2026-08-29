@@ -692,6 +692,42 @@ const paths = {
       '503': ref('responses', 'BrowserBackendUnavailable'),
     }, { security: browserSession, requestSchema: 'SetPublicProfileRequest' }),
   },
+  '/api/profile/moderation-notices': {
+    get: operation('listCurrentPublicProfileModerationNoticesForBrowser', {
+      '200': described('Return validated owner-scoped moderation notices', 'PublicProfileModerationNotices'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, {
+      security: browserSession,
+      parameters: [boundedCursorParameter, boundedLimitParameter],
+    }),
+  },
+  '/api/profile/moderation-notices/{noticeId}/acknowledgement': {
+    parameters: [pathParameters.noticeId],
+    put: operation('acknowledgeCurrentPublicProfileModerationNoticeForBrowser', {
+      '200': described('Return an existing moderation-notice acknowledgement', 'PublicProfileNoticeAcknowledgementResult'),
+      '201': described('Acknowledge an owner moderation notice', 'PublicProfileNoticeAcknowledgementResult'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, { security: browserSession }),
+  },
+  '/api/profile/moderation-appeals': {
+    post: operation('submitCurrentPublicProfileAppealForBrowser', {
+      '200': described('Return an existing Public Profile appeal outcome', 'PublicProfileAppealResult'),
+      '201': described('Record a structured Public Profile appeal', 'PublicProfileAppealResult'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '409': ref('responses', 'ProductConflict'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, { security: browserSession, requestSchema: 'PublicProfileAppealRequest' }),
+  },
   '/api/public/profiles/{handle}': {
     parameters: [pathParameters.handle],
     get: operation('getPublicProfileForBrowser', {

@@ -245,6 +245,9 @@ export type PublicProfileModerationRequest = z.infer<typeof publicProfileModerat
 export type PublicProfileModerationRecord = z.infer<typeof publicProfileModerationRecordSchema>
 export type PublicProfileModerationResult = z.infer<typeof publicProfileModerationResultSchema>
 export type PublicProfileReportQueue = z.infer<typeof publicProfileReportQueueSchema>
+export type PublicProfileModerationNoticeQuery = z.infer<
+  typeof publicProfileModerationNoticeQuerySchema
+>
 export type PublicProfileModerationNotices = z.infer<typeof publicProfileModerationNoticesSchema>
 export type PublicProfileAppealRequest = z.infer<typeof publicProfileAppealRequestSchema>
 export type PublicProfileAppealResult = z.infer<typeof publicProfileAppealResultSchema>

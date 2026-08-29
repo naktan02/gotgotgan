@@ -235,13 +235,19 @@ issue-corrected, decision-context 중 하나만 받는다. member·role·operato
 withheld Decision이 현재 moderation과 일치할 때만 최초 201이며 같은 payload replay와 이미 appeal한
 Decision은 200, 바뀐 target은 409다. Decision당 하나와 Handle당 pending 하나를 DB에서도 강제한다.
 
+Web은 같은 origin의 `GET /api/profile/moderation-notices`,
+`PUT /api/profile/moderation-notices/{noticeId}/acknowledgement`,
+`POST /api/profile/moderation-appeals`만 browser에 노출한다. BFF가 opaque session을 server-side bearer로
+바꾸고 Backend 성공 응답을 동일 strict owner schema로 다시 검증한다. browser는 member, role, operator,
+token이나 자유 서술을 제출하지 않는다.
+
 `GET /v1/administration/public-profile-appeals`와
 `PUT /v1/administration/public-profile-appeals/{appealId}`는 `profiles.moderate`를 요구한다. Queue는 owner
 identity 없이 appeal/Handle/category와 target moderation category/time만 반환한다. Resolution은 UUID와
 accepted 또는 categorized rejected만 받는다. accepted는 immutable Appeal Resolution, allowed
 `appeal-accepted` Moderation Decision, current state, owner Notice를 같은 transaction으로 기록한다.
-rejected는 immutable Resolution과 Notice만 만들고 withheld를 유지한다. 이 Backend API는 active
-email/push나 Web UI, 내부 people search를 제공하지 않는다.
+rejected는 immutable Resolution과 Notice만 만들고 withheld를 유지한다. reviewer operations Web UI,
+active email/push와 내부 people search는 제공하지 않는다.
 
 `GET /healthz` reports process liveness and does not depend on PostgreSQL, Identity, or another
 process. `GET /readyz` reports 503 with a bounded `unavailable` projection when an explicitly required

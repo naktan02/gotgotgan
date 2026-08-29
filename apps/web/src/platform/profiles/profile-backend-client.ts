@@ -1,4 +1,9 @@
-import type { PublicProfileQuery, SetPublicProfileRequest } from '@place/contracts/profiles'
+import type {
+  PublicProfileAppealRequest,
+  PublicProfileModerationNoticeQuery,
+  PublicProfileQuery,
+  SetPublicProfileRequest,
+} from '@place/contracts/profiles'
 import { publicProfileProjectionSchema } from '@place/contracts/profiles'
 
 import {
@@ -26,7 +31,7 @@ export function createProfileBackendClient(config: Config = {}) {
     pathname: string,
     accessToken: string,
     signal: AbortSignal,
-    method: 'GET' | 'PUT' = 'GET',
+    method: 'GET' | 'POST' | 'PUT' = 'GET',
     body?: unknown,
   ) {
     return requestFixedBackend(pathname, {
@@ -46,6 +51,36 @@ export function createProfileBackendClient(config: Config = {}) {
     },
     set(accessToken: string, body: SetPublicProfileRequest, signal: AbortSignal) {
       return authenticated('/v1/profiles/current', accessToken, signal, 'PUT', body)
+    },
+    notices(
+      accessToken: string,
+      query: PublicProfileModerationNoticeQuery,
+      signal: AbortSignal,
+    ) {
+      const parameters = new URLSearchParams({ limit: String(query.limit) })
+      if (query.cursor !== undefined) parameters.set('cursor', query.cursor)
+      return authenticated(
+        `/v1/profiles/current/moderation-notices?${parameters}`,
+        accessToken,
+        signal,
+      )
+    },
+    acknowledgeNotice(accessToken: string, noticeId: string, signal: AbortSignal) {
+      return authenticated(
+        `/v1/profiles/current/moderation-notices/${encodeURIComponent(noticeId)}/acknowledgement`,
+        accessToken,
+        signal,
+        'PUT',
+      )
+    },
+    appeal(accessToken: string, body: PublicProfileAppealRequest, signal: AbortSignal) {
+      return authenticated(
+        '/v1/profiles/current/moderation-appeals',
+        accessToken,
+        signal,
+        'POST',
+        body,
+      )
     },
     async published(handle: string, query: PublicProfileQuery, signal?: AbortSignal) {
       const parameters = new URLSearchParams({ limit: String(query.limit) })

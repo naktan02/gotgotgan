@@ -143,3 +143,15 @@ module은 owner를 찾고 Library가 제공하는 좁은 public Collection direc
 Profiles가 Library table을 읽지 않는다. 공개 HTML은 noindex/nofollow이고 `unlisted` Collection은
 렌더링 입력에 들어오지 않는다. 이 panel은 향후 화면 재배치와 무관하게 전역 discovery, 팔로우, 댓글,
 신고를 암묵적으로 소유하지 않는다.
+
+## Stage 11E2B3 Owner moderation inbox composition
+
+프로필 page는 `PublicProfileSettings`와 `PublicProfileModerationInbox`의 공개 View만 세로로 조합한다.
+두 feature module은 workflow, 상태, CSS를 공유하지 않으므로 한 패널의 재배치·시각 변경이 다른 패널의
+내부 구현을 요구하지 않는다. 공통 platform Profile Adapter만 session 해석, server bearer, strict
+contract 검증과 고정 Backend route를 숨긴다.
+
+검토 조회함 workflow는 bounded cursor, acknowledge와 structured appeal 재시도를 소유한다. appeal 응답이
+모호하게 실패하면 같은 UUID와 payload를 보존하고 성공 뒤 projection을 다시 읽는다. View는 최신
+withheld Notice에만 정해진 사유를 노출하며 reviewer 화면, 자유 서술, 첨부, email/push delivery나 사람
+discovery를 포함하지 않는다.

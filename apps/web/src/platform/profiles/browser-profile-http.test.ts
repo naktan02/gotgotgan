@@ -91,4 +91,103 @@ describe('browser Public Profile HTTP', () => {
     expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow')
     expect(fetcher).not.toHaveBeenCalled()
   })
+
+  it('keeps owner moderation evidence behind the browser session', async () => {
+    const appealBodies: unknown[] = []
+    const fetcher = vi.fn(async (url: URL, init: RequestInit) => {
+      expect(new Headers(init.headers).get('authorization')).toBe('Bearer server-access-token')
+      if (url.pathname.endsWith('/moderation-notices')) {
+        expect(url.searchParams.get('limit')).toBe('20')
+        return Response.json({
+          schemaVersion: 'public-profile-moderation-notices.v1',
+          notices: [{
+            noticeId: '01992d20-0000-7000-8000-000000000010',
+            handle: 'ramen-log', kind: 'withheld', reason: 'privacy', createdAt: at,
+            acknowledgedAt: null, appeal: null,
+          }],
+        })
+      }
+      if (url.pathname.endsWith('/acknowledgement')) {
+        expect(init.method).toBe('PUT')
+        return Response.json({
+          schemaVersion: 'public-profile-notice-acknowledgement.v1',
+          status: 'acknowledged', acknowledgedAt: at,
+        }, { status: 201 })
+      }
+      expect(url.pathname).toBe('/v1/profiles/current/moderation-appeals')
+      expect(init.method).toBe('POST')
+      appealBodies.push(JSON.parse(String(init.body)))
+      return Response.json({
+        schemaVersion: 'public-profile-appeal-result.v1', status: 'recorded',
+      }, { status: 201 })
+    })
+    const http = createBrowserProfileHttp({
+      resolveAuthRuntime: sessionRuntime,
+      backend: backend(fetcher),
+      createCorrelationRef: () => 'profile-ref',
+    })
+
+    const notices = await http.notices(new Request(
+      'https://place.example/api/profile/moderation-notices?limit=20',
+    ))
+    expect(notices.status).toBe(200)
+    expect(JSON.stringify(await notices.json())).not.toMatch(/member|operator|token/i)
+
+    const acknowledgement = await http.acknowledgeNotice(
+      '01992d20-0000-7000-8000-000000000010',
+      new Request('https://place.example/api/profile/moderation-notices/notice/acknowledgement', {
+        method: 'PUT',
+      }),
+    )
+    expect(acknowledgement.status).toBe(201)
+
+    const appeal = await http.appeal(new Request(
+      'https://place.example/api/profile/moderation-appeals',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          appealId: '01992d20-0000-7000-8000-000000000011',
+          noticeId: '01992d20-0000-7000-8000-000000000010',
+          reason: 'mistaken-identity',
+        }),
+      },
+    ))
+    expect(appeal.status).toBe(201)
+    expect(appealBodies).toEqual([{
+      appealId: '01992d20-0000-7000-8000-000000000011',
+      noticeId: '01992d20-0000-7000-8000-000000000010',
+      reason: 'mistaken-identity',
+    }])
+  })
+
+  it('rejects forged owner fields and invalid notice identifiers before Backend calls', async () => {
+    const fetcher = vi.fn()
+    const http = createBrowserProfileHttp({
+      resolveAuthRuntime: sessionRuntime,
+      backend: backend(fetcher),
+      createCorrelationRef: () => 'profile-ref',
+    })
+    const appeal = await http.appeal(new Request(
+      'https://place.example/api/profile/moderation-appeals',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          appealId: '01992d20-0000-7000-8000-000000000011',
+          noticeId: '01992d20-0000-7000-8000-000000000010',
+          reason: 'mistaken-identity',
+          memberId: '01992d20-0000-7000-8000-000000000099',
+        }),
+      },
+    ))
+    expect(appeal.status).toBe(400)
+    expect((await http.acknowledgeNotice(
+      'not-a-uuid',
+      new Request('https://place.example/api/profile/moderation-notices/bad/acknowledgement', {
+        method: 'PUT',
+      }),
+    )).status).toBe(400)
+    expect(fetcher).not.toHaveBeenCalled()
+  })
 })

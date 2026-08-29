@@ -2,8 +2,14 @@ import { randomUUID } from 'node:crypto'
 
 import { problemSchema } from '@place/contracts/http'
 import {
+  publicProfileAppealRequestSchema,
+  publicProfileAppealResultSchema,
   publicProfileCommandResultSchema,
   publicProfileHandleParamsSchema,
+  publicProfileModerationNoticeQuerySchema,
+  publicProfileModerationNoticesSchema,
+  publicProfileNoticeAcknowledgementResultSchema,
+  publicProfileNoticeParamsSchema,
   publicProfileQuerySchema,
   publicProfileRecordSchema,
   setPublicProfileRequestSchema,
@@ -118,6 +124,43 @@ export function createBrowserProfileHttp(dependencies: Dependencies) {
         request,
         (token) => dependencies.backend.set(token, parsed.data, request.signal),
         publicProfileCommandResultSchema,
+        [200, 201],
+      )
+    },
+    notices(request: Request) {
+      const query = publicProfileModerationNoticeQuerySchema.safeParse(queryValues(request))
+      if (!query.success) {
+        return problem(400, 'PLACE_PUBLIC_PROFILE_NOTICE_QUERY_INVALID', 'Public Profile notice query is invalid', dependencies.createCorrelationRef())
+      }
+      return authenticated(
+        request,
+        (token) => dependencies.backend.notices(token, query.data, request.signal),
+        publicProfileModerationNoticesSchema,
+        [200],
+      )
+    },
+    acknowledgeNotice(noticeId: string, request: Request) {
+      const params = publicProfileNoticeParamsSchema.safeParse({ noticeId })
+      if (!params.success) {
+        return problem(400, 'PLACE_PUBLIC_PROFILE_NOTICE_INVALID', 'Public Profile notice is invalid', dependencies.createCorrelationRef())
+      }
+      return authenticated(
+        request,
+        (token) => dependencies.backend.acknowledgeNotice(token, params.data.noticeId, request.signal),
+        publicProfileNoticeAcknowledgementResultSchema,
+        [200, 201],
+      )
+    },
+    async appeal(request: Request) {
+      let parsed
+      try { parsed = publicProfileAppealRequestSchema.safeParse(await request.json()) } catch { parsed = undefined }
+      if (parsed === undefined || !parsed.success) {
+        return problem(400, 'PLACE_PUBLIC_PROFILE_APPEAL_INVALID', 'Public Profile appeal is invalid', dependencies.createCorrelationRef())
+      }
+      return authenticated(
+        request,
+        (token) => dependencies.backend.appeal(token, parsed.data, request.signal),
+        publicProfileAppealResultSchema,
         [200, 201],
       )
     },

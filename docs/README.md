@@ -17,7 +17,7 @@ Read only the routes required by the task, after repository `AGENTS.md` and `REA
 - Local execution, worker lifecycle, deployment, backup, or incidents: `operations/README.md`.
 - A durable decision or supersession: `adr/README.md`.
 
-Delivery state is **source-only; Stages 6.5, 7.5–7.17, and 11A–11E2B2 complete, with Stages 2, 7, and 11 in progress and Stage 8 paused after 8B**. A Place-owned physical PostGIS runtime is
+Delivery state is **source-only; Stages 6.5, 7.5–7.17, and 11A–11E2B3 complete, with Stages 2, 7, and 11 in progress and Stage 8 paused after 8B**. A Place-owned physical PostGIS runtime is
 implemented and tested in disposable environments but not deployed or active. No provider account, browser profile, map credential, Identity
 client, Gateway route, family composer, or AI connection is active.
 
@@ -142,8 +142,12 @@ withheld 상태를 바꾼다. 신고자 identity는 공개·검토 projection에
 Stage 11E2B2는 ADR 0019와 Migration `000033`으로 owner-scoped moderation Notice와 appeal/resolution을
 추가한다. appeal은 현재 withheld decision에 한 번만 결합되고 reviewer 수락은 allowed 복구와 동일
 transaction이다. 기각은 withheld를 유지하며 Profile 삭제는 pending appeal을 superseded로 닫는다.
-Notification은 bounded in-product 조회함이며 active delivery나 프론트 UI를 뜻하지 않는다. 실제 운영
-owner가 활성화되기 전에는 내부 사람 discovery를 계속 금지한다.
+Notification은 bounded in-product 조회함이며 active delivery를 뜻하지 않는다.
+
+Stage 11E2B3는 owner Notice 조회·acknowledge·구조화된 appeal을 현재 회원 Web에 연결한다. 프로필 설정과
+검토 조회함은 workflow·view·CSS를 공유하지 않고 page가 공개 Interface만 조합한다. Backend bearer는
+server-side BFF에 머물며 모호한 appeal 실패는 동일 command로 재시도한다. reviewer 운영 UI, 자유 서술,
+첨부, email/push, 내부 사람 discovery와 외부 색인은 추가하지 않는다.
 
 Stage 5는 data-defined Taxonomy와 Search 소유 projection을 추가했다. 로컬 text·taxonomy·bounds·
 회원 signal 검색, cursor pagination, source-neutral partial 결과, responsive 목록/지도 UI를 실제

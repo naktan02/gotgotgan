@@ -2,9 +2,14 @@ import {
   problemSchema,
 } from '@place/contracts/http'
 import {
+  publicProfileAppealResultSchema,
   publicProfileCommandResultSchema,
+  publicProfileModerationNoticesSchema,
+  publicProfileNoticeAcknowledgementResultSchema,
   publicProfileProjectionSchema,
   publicProfileRecordSchema,
+  type PublicProfileAppealRequest,
+  type PublicProfileModerationNoticeQuery,
   type PublicProfileQuery,
   type SetPublicProfileRequest,
 } from '@place/contracts/profiles'
@@ -41,6 +46,37 @@ export const publicProfileHttp = {
       body: JSON.stringify(request),
       signal,
     })))
+    if (!parsed.success) throw new PublicProfileHttpProblem(503)
+    return parsed.data
+  },
+  async notices(query: PublicProfileModerationNoticeQuery, signal?: AbortSignal) {
+    const parameters = new URLSearchParams({ limit: String(query.limit) })
+    if (query.cursor !== undefined) parameters.set('cursor', query.cursor)
+    const parsed = publicProfileModerationNoticesSchema.safeParse(await read(await fetch(
+      `/api/profile/moderation-notices?${parameters}`,
+      { cache: 'no-store', signal },
+    )))
+    if (!parsed.success) throw new PublicProfileHttpProblem(503)
+    return parsed.data
+  },
+  async acknowledgeNotice(noticeId: string, signal?: AbortSignal) {
+    const parsed = publicProfileNoticeAcknowledgementResultSchema.safeParse(await read(await fetch(
+      `/api/profile/moderation-notices/${encodeURIComponent(noticeId)}/acknowledgement`,
+      { method: 'PUT', signal },
+    )))
+    if (!parsed.success) throw new PublicProfileHttpProblem(503)
+    return parsed.data
+  },
+  async appeal(request: PublicProfileAppealRequest, signal?: AbortSignal) {
+    const parsed = publicProfileAppealResultSchema.safeParse(await read(await fetch(
+      '/api/profile/moderation-appeals',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(request),
+        signal,
+      },
+    )))
     if (!parsed.success) throw new PublicProfileHttpProblem(503)
     return parsed.data
   },

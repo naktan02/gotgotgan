@@ -1,4 +1,7 @@
-import { PublicProfileSettings } from '@/features/public-profiles/public'
+import {
+  PublicProfileModerationInbox,
+  PublicProfileSettings,
+} from '@/features/public-profiles/public'
 import { readFamilyNavigation } from '@/platform/family-navigation/family-navigation'
 import { PlaceWorkspaceShell } from '@/shells/place-workspace/PlaceWorkspaceShell'
 
@@ -11,5 +14,6 @@ export default function ProfilePage() {
     stageLabel="공개 프로필"
   >
     <PublicProfileSettings />
+    <PublicProfileModerationInbox />
   </PlaceWorkspaceShell>
 }

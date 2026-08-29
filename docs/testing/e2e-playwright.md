@@ -95,6 +95,11 @@ Collection과 membership identifier는 표시하지 않는다. 공개 프로필 
 Collection, Writing HTML의 robots noindex도 함께 검사한다. test Backend는 익명 Profile 요청에
 Authorization header가 있으면 실패하도록 해 server-side bearer 누출을 탐지한다.
 
+Stage 11E2B3 E2E는 desktop/mobile에서 owner Notice acknowledge와 categorized appeal을 검증한다. 첫
+appeal 응답을 503으로 유실시킨 뒤 같은 UUID와 payload로 재시도하며 browser request에 member, role,
+operator, token이나 free text가 없는지 확인한다. 성공 뒤 pending projection을 다시 읽고 appeal 입력이
+사라지는지도 검증한다. reviewer 운영 화면과 active delivery는 이 suite의 범위가 아니다.
+
 Visit E2E는 같은 Place의 반복 방문이 서로 다른 불변 occurrence로 쌓이고 bounded history와 Place
 summary가 갱신되는지 desktop/mobile에서 검증한다. 첫 기록 응답을 유실시킨 경우에는 새 ID를 만들지
 않고 동일 Visit ID와 payload를 재전송한다. focused Personal Library suite는 두 browser project에서
