@@ -16,11 +16,11 @@ const at = '2026-08-28T00:00:00.000Z'
 const store: LibraryStore = {
   apply: async () => ({ status: 'applied' }),
   getPlacePreferences: async () => undefined,
-  getPublishedCollection: async () => undefined,
 }
 
 function fixture(overrides: Partial<LibraryQueries> = {}) {
   const queries: LibraryQueries = {
+    getPublishedCollection: async () => undefined,
     listPlaces: async (input) => ({
       schemaVersion: 'library-place-list.v3',
       filter: {

@@ -11,7 +11,6 @@ import type {
   LibraryAttempt,
   LibraryCommandOutcome,
   PlacePreferences,
-  PublishedCollection,
 } from '../../domain/model.js'
 import { applyPostgresLibraryCommand } from './postgres-library-command-writes.js'
 import { lockPostgresPlacePreference } from './postgres-library-preference-writes.js'
@@ -257,36 +256,6 @@ export class PostgresLibraryStore implements LibraryStore, ImportedPlaceSaveStor
       saved: row.saved,
       wanted: row.wanted,
       personalRating: row.personal_rating === null ? null : Number(row.personal_rating),
-      updatedAt: row.updated_at.toISOString(),
-    }
-  }
-
-  async getPublishedCollection(publicationId: string): Promise<PublishedCollection | undefined> {
-    const collection = await this.pool.query<{
-      name: string
-      description: string | null
-      visibility: 'unlisted' | 'public'
-      updated_at: Date
-      places: { placeId: string; position: number }[]
-    }>(
-      `SELECT c.name, c.description, c.visibility, c.updated_at,
-              coalesce(jsonb_agg(jsonb_build_object(
-                'placeId', cp.canonical_place_id, 'position', cp.position
-              ) ORDER BY cp.position) FILTER (WHERE cp.canonical_place_id IS NOT NULL), '[]') AS places
-       FROM library.collections c
-       LEFT JOIN library.collection_places cp ON cp.collection_id = c.id
-       WHERE c.publication_id = $1 AND c.visibility IN ('unlisted', 'public')
-       GROUP BY c.id`,
-      [publicationId],
-    )
-    const row = collection.rows[0]
-    if (row === undefined) return undefined
-    return {
-      publicationId,
-      visibility: row.visibility,
-      name: row.name,
-      description: row.description,
-      places: row.places,
       updatedAt: row.updated_at.toISOString(),
     }
   }

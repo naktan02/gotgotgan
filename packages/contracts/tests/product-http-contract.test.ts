@@ -75,11 +75,33 @@ describe('versioned product HTTP results', () => {
   })
 
   it('versions both public content projections without exposing owner evidence', () => {
-    expect(publishedCollectionSchema.parse({
-      schemaVersion: 'place-published-collection.v1', publicationId,
-      visibility: 'public', name: '서울', description: null, places: [],
+    const collection = {
+      schemaVersion: 'place-published-collection.v2' as const, publicationId,
+      visibility: 'public' as const, name: '서울', description: null,
+      places: [{
+        placeId,
+        position: 0,
+        place: {
+          placeId,
+          name: '조용한 라멘 연구소',
+          areaLabel: '서울 성동구 성수동',
+          location: { latitude: 37.5445, longitude: 127.056 },
+          primaryTaxonomy: { key: 'food.noodle.ramen', label: '라멘' },
+          taxonomyKeys: ['food.noodle.ramen'],
+          evidence: { status: 'verified' as const, projectedAt: '2026-08-28T00:00:00.000Z' },
+        },
+      }],
       updatedAt: '2026-08-28T00:00:00.000Z',
-    }).schemaVersion).toBe('place-published-collection.v1')
+    }
+    expect(publishedCollectionSchema.parse(collection).schemaVersion)
+      .toBe('place-published-collection.v2')
+    expect(publishedCollectionSchema.safeParse({
+      ...collection,
+      places: [{
+        ...collection.places[0],
+        place: { ...collection.places[0].place, personalRating: 4.9 },
+      }],
+    }).success).toBe(false)
     expect(publishedWritingSchema.safeParse({
       schemaVersion: 'place-published-writing.v1', kind: 'note', publicationId,
       visibility: 'public', body: '좋아요', placeIds: [placeId],

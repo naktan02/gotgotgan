@@ -14,6 +14,19 @@ export type LibraryPlaceSummary = Readonly<{
   }>
 }>
 
+export type PublishedCollection = Readonly<{
+  publicationId: string
+  visibility: 'unlisted' | 'public'
+  name: string
+  description: string | null
+  places: readonly Readonly<{
+    placeId: string
+    position: number
+    place: LibraryPlaceSummary | null
+  }>[]
+  updatedAt: string
+}>
+
 export type LibraryPlaceListPage = Readonly<{
   schemaVersion: 'library-place-list.v3'
   filter: Readonly<{

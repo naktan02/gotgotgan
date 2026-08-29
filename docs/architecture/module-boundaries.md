@@ -95,6 +95,11 @@ provenance를 한 transaction seam으로 숨긴다. HTTP는 `set-collection-publ
 권한 판정하고 role/tier 문자열을 Library로 넘기지 않는다. 공개 화면의 copy Adapter는 한 시도의
 command/target ID를 보존해 View가 idempotency 구현을 알지 못하게 한다.
 
+공개 Collection read는 command Store가 아니라 `LibraryQueries` Interface에 속한다. PostgreSQL
+Implementation은 Library가 소유한 publication과 순서만 읽고, 기존 `LibraryPlaceSummaryReader`
+Seam으로 모든 Place를 한 번에 보강한다. 이 Adapter가 Search table을 직접 join하지 않으므로 공개
+Place projection의 교체와 Library transaction 규칙이 서로의 Module 내부로 새지 않는다.
+
 Web의 `platform/visits`는 인증 session과 고정 Backend transport만 소비하는 same-origin Adapter다.
 Personal Library의 visit workflow는 View에 기록·history·retry를 묶은 하나의 Interface만 제공하고,
 불변 ID/payload 보존, selection staleness, bounded pagination을 내부에 숨긴다. Backend Visits owner가

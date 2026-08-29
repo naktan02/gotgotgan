@@ -1,16 +1,9 @@
 import { z } from 'zod'
 
+import { placeSummaryFields } from '../place-summary/index.js'
 import { uuidSchema } from '../primitives.js'
 
-const placeLocationSchema = z.object({
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
-}).strict()
-
-const placeTaxonomySchema = z.object({
-  key: z.string().min(1).max(128),
-  label: z.string().min(1).max(160),
-}).strict()
+export { placeSummarySchema, type PlaceSummary } from '../place-summary/index.js'
 
 const placeVisitSummarySchema = z.discriminatedUnion('visited', [
   z.object({ visited: z.literal(false), count: z.literal(0) }).strict(),
@@ -29,21 +22,6 @@ export const placeDetailPersonalStateSchema = z.object({
   preferencesUpdatedAt: z.iso.datetime({ offset: true }).nullable(),
   visits: placeVisitSummarySchema,
 }).strict()
-
-const placeSummaryFields = {
-  placeId: uuidSchema,
-  name: z.string().min(1).max(300),
-  areaLabel: z.string().min(1).max(300).nullable(),
-  location: placeLocationSchema,
-  primaryTaxonomy: placeTaxonomySchema.nullable(),
-  taxonomyKeys: z.array(z.string().min(1).max(128)).max(32),
-  evidence: z.object({
-    status: z.enum(['verified', 'unverified', 'conflicted', 'stale']),
-    projectedAt: z.iso.datetime({ offset: true }),
-  }).strict(),
-}
-
-export const placeSummarySchema = z.object(placeSummaryFields).strict()
 
 const placeDetailIdentityFields = {
   schemaVersion: z.literal('place-detail.v1'),
@@ -66,6 +44,5 @@ export const placeDetailResponseSchema = z.discriminatedUnion('status', [
   }).strict(),
 ])
 
-export type PlaceSummary = z.infer<typeof placeSummarySchema>
 export type PlaceDetailPersonalState = z.infer<typeof placeDetailPersonalStateSchema>
 export type PlaceDetailResponse = z.infer<typeof placeDetailResponseSchema>

@@ -103,6 +103,10 @@ Entry revision의 optimistic 변경과 보존, runtime의 Visit·rating event·W
 공유 해제 즉시 이전 projection 소멸, 재공개 시 새 ID, 다른 회원의 private copy와 source publication
 provenance, Place 순서 외 private metadata 비복사를 실제 row lock과 runtime role로 검증한다.
 
+Library query suite는 공개 Collection의 모든 Place ID가 기존 public summary reader에 정확히 한
+batch로 전달되는지, 반환된 이름·위치·Taxonomy가 원래 순서에 결합되는지, 누락 projection이
+`place: null`로 유지되는지도 별도 disposable PostGIS에서 검증한다.
+
 로컬 검색 suite도 독립적인 disposable PostGIS runtime에 전체 migration을 적용한다. data-defined
 Taxonomy의 publish/replay/conflict, 공개 Place 문서와 회원별 signal projection, text·taxonomy·bounds
 filter, 불투명 cursor pagination, 익명 결과의 개인 상태 비노출과 회원 간 격리를 검증한다. 대표

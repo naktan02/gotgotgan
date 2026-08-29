@@ -202,9 +202,10 @@ test('personal content remains owned, repeatable, versioned, and privacy project
     })
     const publicCollectionPublication = ownedCollection.collection.publicationId
     assert.ok(publicCollectionPublication)
-    const published = await libraryStore.getPublishedCollection(publicCollectionPublication)
+    const published = await libraryQueries.getPublishedCollection(publicCollectionPublication)
     assert.deepEqual(Object.keys(published).sort(), ['description', 'name', 'places', 'publicationId', 'updatedAt', 'visibility'])
     assert.equal(published.places[0].placeId, placeId)
+    assert.equal(published.places[0].place, null)
 
     await assert.rejects(
       library.applyLibraryCommand({ commandId: '01992d10-0000-7000-8000-000000000060', memberId, occurredAt: at, store: libraryStore, command: {
@@ -213,7 +214,7 @@ test('personal content remains owned, repeatable, versioned, and privacy project
       } }),
       { name: 'LibraryCollectionVersionConflictError' },
     )
-    assert.equal((await libraryStore.getPublishedCollection(publicCollectionPublication)).visibility, 'unlisted')
+    assert.equal((await libraryQueries.getPublishedCollection(publicCollectionPublication)).visibility, 'unlisted')
 
     await library.applyLibraryCommand({ commandId: '01992d10-0000-7000-8000-000000000037', memberId, occurredAt: at, store: libraryStore, command: {
       kind: 'set-collection-publication', collectionId: publicCollectionId,
@@ -223,13 +224,13 @@ test('personal content remains owned, repeatable, versioned, and privacy project
       memberId, collectionId: publicCollectionId, limit: 20,
     })
     assert.equal(ownedCollection.collection.publicationId, publicCollectionPublication)
-    assert.equal((await libraryStore.getPublishedCollection(publicCollectionPublication)).visibility, 'public')
+    assert.equal((await libraryQueries.getPublishedCollection(publicCollectionPublication)).visibility, 'public')
 
     await library.applyLibraryCommand({ commandId: '01992d10-0000-7000-8000-000000000038', memberId, occurredAt: at, store: libraryStore, command: {
       kind: 'set-collection-publication', collectionId: publicCollectionId,
       expectedUpdatedAt: ownedCollection.collection.updatedAt, visibility: 'private',
     } })
-    assert.equal(await libraryStore.getPublishedCollection(publicCollectionPublication), undefined)
+    assert.equal(await libraryQueries.getPublishedCollection(publicCollectionPublication), undefined)
     ownedCollection = await libraryQueries.getCollection({
       memberId, collectionId: publicCollectionId, limit: 20,
     })
@@ -264,7 +265,7 @@ test('personal content remains owned, repeatable, versioned, and privacy project
     await library.applyLibraryCommand({ commandId: '01992d10-0000-7000-8000-000000000035', memberId, occurredAt: at, store: libraryStore, command: {
       kind: 'create-collection', collectionId: privateCollectionId, name: 'Private map',
     } })
-    assert.equal(await libraryStore.getPublishedCollection(privateCollectionId), undefined)
+    assert.equal(await libraryQueries.getPublishedCollection(privateCollectionId), undefined)
     const savedPlaces = await libraryQueries.listPlaces({
       memberId, state: 'saved', tagIds: [], tagMatch: 'all',
       areaKeys: [], taxonomyKeys: [], limit: 50,

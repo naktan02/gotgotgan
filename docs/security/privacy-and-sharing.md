@@ -5,7 +5,9 @@ provider connections. Public and explicitly shared projections enumerate allowed
 filtering a private record after serialization. Authorization-denial tests cover every new projection.
 
 Stage 4 public Collection projection에는 publication ID, visibility, 이름, 설명, 정렬된 Place
-ID, 갱신 시각만 포함한다. public Writing projection에는 publication ID, visibility, 글 종류,
+ID와 순서, 갱신 시각이 포함된다. Stage 11B의 `place-published-collection.v2`는 여기에 이름, 지역,
+좌표, Taxonomy, 공개 evidence로 제한한 Place summary 또는 projection 지연을 뜻하는 `null`만 더한다.
+public Writing projection에는 publication ID, visibility, 글 종류,
 공개 본문, 연결한 Place ID, 갱신 시각만 포함한다. 이 query는 owner membership, 저장·가고
 싶음 preference, Personal Rating과 이력, Tag, Visit, 복사 provenance, Writing revision을
 선택하지 않는다. Web도 동일한 허용 목록을 검증하고 예상하지 않은 Backend field를 거부한다.

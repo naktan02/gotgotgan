@@ -81,12 +81,12 @@ export function registerLibraryHttpRoutes(application: FastifyInstance, dependen
   application.get('/v1/public/collections/:publicationId', async (request, reply) => {
     const parsed = publicationIdentifierParamsSchema.safeParse(request.params)
     if (!parsed.success) return sendProductProblem(request, reply, 404, 'PLACE_PUBLICATION_NOT_FOUND', 'Publication not found')
-    const result = await dependencies.store.getPublishedCollection(parsed.data.publicationId)
+    const result = await dependencies.queries.getPublishedCollection(parsed.data.publicationId)
     return result === undefined
       ? sendProductProblem(request, reply, 404, 'PLACE_PUBLICATION_NOT_FOUND', 'Publication not found')
       : reply.header('cache-control', 'no-store').status(200).send(
           publishedCollectionSchema.parse({
-            schemaVersion: 'place-published-collection.v1',
+            schemaVersion: 'place-published-collection.v2',
             ...result,
           }),
         )

@@ -9,7 +9,6 @@ export {
   type LibraryCommandOutcome,
   type LibraryVisibility,
   type PlacePreferences,
-  type PublishedCollection,
 } from './domain/model.js'
 export { applyLibraryCommand } from './application/apply-library-command.js'
 export type { LibraryQueries } from './application/library-queries.js'
@@ -35,6 +34,7 @@ export {
   type LibraryPlaceSummary,
   type LibraryTagMatch,
   type LibraryTagListPage,
+  type PublishedCollection,
 } from './domain/queries.js'
 export {
   registerLibraryHttpRoutes,

@@ -43,7 +43,8 @@ membership을 browser 입력에서 제외하고 두 anonymous 공개 projection�
 import한다. Connector는 `@place/contracts/connector`만 사용한다. `http/openapi.v1.json`,
 `connector/place-connector.v1.schema.json`, `place-reference/place-reference.v1.schema.json`은 다음
 명령으로 생성되는 배포 산출물이며 사람이 같은 enum이나 field 목록을 다시 관리하는 원본이 아니다.
-내부 공통 UUID와 Provider key는 각각 `src/primitives.ts`, `src/providers/`가 소유한다. 각 공개
+내부 공통 UUID, Provider key, 공개 Place summary shape은 각각 `src/primitives.ts`,
+`src/providers/`, `src/place-summary/` leaf가 소유한다. 각 공개
 subpath는 이를 재사용하거나 기존 위치에서 재-export하며 Contracts architecture guard가
 Imports/Connector에서 Search·HTTP로 향하는 역방향 의존성을 거부한다.
 

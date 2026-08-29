@@ -46,3 +46,7 @@ Stage 11A에서 Collection 소유자는 관리 패널에서 나만 보기, 링�
 해제한다. 링크 공개와 전체 공개는 같은 최소 projection을 사용하되 검색 노출 의미만 다르다. 공유를
 보는 회원은 장소와 순서만 자기 private Collection으로 복사하며 원본 소유권, 개인 평점, Tag, Visit,
 Writing을 받지 않는다. 공유 해제 뒤 이전 링크와 복사는 not-found이고 다시 공유하면 새 링크가 된다.
+
+Stage 11B에서 공유를 보는 사용자는 UUID 대신 공개 장소명, 지역, primary Taxonomy와 원래 순서를
+확인한다. 아직 공개 Place projection이 준비되지 않은 행은 사라지지 않고 준비 중으로 표시되며,
+공개 Collection을 복사하는 의미는 계속 Place reference와 순서에만 한정된다.

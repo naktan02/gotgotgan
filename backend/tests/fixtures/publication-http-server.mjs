@@ -9,14 +9,31 @@ if (!host || !/^[a-zA-Z0-9.-]+$/.test(host) || !Number.isInteger(port) || port <
 const collectionPublicationId = '01992d20-0000-7000-8000-000000000001'
 const writingPublicationId = '01992d20-0000-7000-8000-000000000002'
 const placeId = '01992d20-0000-7000-8000-000000000003'
+const pendingPlaceId = '01992d20-0000-7000-8000-000000000004'
 const projections = new Map([
   [`/v1/public/collections/${collectionPublicationId}`, {
-    schemaVersion: 'place-published-collection.v1',
+    schemaVersion: 'place-published-collection.v2',
     publicationId: collectionPublicationId,
     visibility: 'unlisted',
     name: '성수에서 다시 갈 곳',
     description: '링크를 받은 사람에게만 보이는 컬렉션',
-    places: [{ placeId, position: 0 }],
+    places: [{
+      placeId,
+      position: 0,
+      place: {
+        placeId,
+        name: '조용한 라멘 연구소',
+        areaLabel: '서울 성동구 성수동',
+        location: { latitude: 37.5445, longitude: 127.056 },
+        primaryTaxonomy: { key: 'food.noodle.ramen', label: '라멘' },
+        taxonomyKeys: ['food.noodle.ramen'],
+        evidence: { status: 'verified', projectedAt: '2026-08-26T10:00:00.000Z' },
+      },
+    }, {
+      placeId: pendingPlaceId,
+      position: 1,
+      place: null,
+    }],
     updatedAt: '2026-08-26T10:00:00.000Z',
   }],
   [`/v1/public/writing/${writingPublicationId}`, {

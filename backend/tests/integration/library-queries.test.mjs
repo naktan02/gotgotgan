@@ -23,17 +23,19 @@ test('bounded Library queries paginate, hydrate public Place facts, and isolate 
     const search = await import('../../dist/modules/search/index.js')
     const libraryStore = new library.PostgresLibraryStore(database.pool)
     const localSearch = new search.PostgresLocalSearch(database.pool)
-    const queries = new library.PostgresLibraryQueries(database.pool, async (placeIds) => (
-      await localSearch.getPlaceDocuments(placeIds)
-    ).map((document) => ({
-      placeId: document.placeId,
-      name: document.name,
-      areaLabel: document.areaLabel,
-      location: { latitude: document.latitude, longitude: document.longitude },
-      primaryTaxonomy: document.primaryTaxonomy,
-      taxonomyKeys: document.taxonomyKeys,
-      evidence: { status: document.evidenceStatus, projectedAt: document.projectedAt },
-    })))
+    const summaryBatches = []
+    const queries = new library.PostgresLibraryQueries(database.pool, async (placeIds) => {
+      summaryBatches.push([...placeIds])
+      return (await localSearch.getPlaceDocuments(placeIds)).map((document) => ({
+        placeId: document.placeId,
+        name: document.name,
+        areaLabel: document.areaLabel,
+        location: { latitude: document.latitude, longitude: document.longitude },
+        primaryTaxonomy: document.primaryTaxonomy,
+        taxonomyKeys: document.taxonomyKeys,
+        evidence: { status: document.evidenceStatus, projectedAt: document.projectedAt },
+      }))
+    })
 
     await database.pool.query(
       `INSERT INTO access.memberships
@@ -167,6 +169,33 @@ test('bounded Library queries paginate, hydrate public Place facts, and isolate 
         kind: 'add-collection-place', collectionId: collectionA, placeId, position: index,
       })
     }
+
+    const publishableCollection = await queries.getCollection({
+      memberId: memberA, collectionId: collectionA, limit: 20,
+    })
+    await command('01992d20-3000-7000-8000-000000000530', memberA, {
+      kind: 'set-collection-publication',
+      collectionId: collectionA,
+      expectedUpdatedAt: publishableCollection.collection.updatedAt,
+      visibility: 'unlisted',
+    })
+    const publishedCollectionId = (await queries.getCollection({
+      memberId: memberA, collectionId: collectionA, limit: 20,
+    })).collection.publicationId
+    assert.ok(publishedCollectionId)
+    summaryBatches.length = 0
+    const publishedCollection = await queries.getPublishedCollection(publishedCollectionId)
+    assert.deepEqual(summaryBatches, [[places[0], places[1], places[2]]])
+    assert.deepEqual(publishedCollection.places.map((item) => [
+      item.placeId,
+      item.position,
+      item.place?.name ?? null,
+    ]), [
+      [places[0], 0, '성수 장소 1'],
+      [places[1], 1, '성수 장소 2'],
+      [places[2], 2, null],
+    ])
+    assert.equal(await queries.getPublishedCollection(collectionB), undefined)
 
     const collectionsFirst = await queries.listCollections({ memberId: memberA, limit: 1 })
     assert.deepEqual(collectionsFirst.items.map((item) => item.collectionId), [collectionA])

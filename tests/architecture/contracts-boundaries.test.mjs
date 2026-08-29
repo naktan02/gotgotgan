@@ -23,18 +23,19 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
 })
 
-test('accepts contract owners depending on primitive and provider leaves', async () => {
+test('accepts contract owners depending on primitive, provider, and Place summary leaves', async () => {
   const root = await fixture({
     'primitives.ts': 'export const uuid = true',
     'providers/index.ts': 'export const provider = true',
+    'place-summary/index.ts': "import '../primitives.js'",
     'search/index.ts': "import '../primitives.js'; import '../providers/index.js'",
     'imports/index.ts': "import '../primitives.js'; import '../providers/index.js'",
     'connector/index.ts': "import '../primitives.js'; import '../providers/index.js'",
-    'places/index.ts': "import '../primitives.js'",
+    'places/index.ts': "import '../primitives.js'; import '../place-summary/index.js'",
     'library/index.ts': "import '../primitives.js'; import '../places/index.js'",
     'visits/index.ts': "import '../primitives.js'",
     'writing/index.ts': "import '../primitives.js'",
-    'http/content.ts': "import '../primitives.js'",
+    'http/content.ts': "import '../primitives.js'; import '../place-summary/index.js'",
   })
   assert.deepEqual(await inspectContractsArchitecture(root), [])
 })

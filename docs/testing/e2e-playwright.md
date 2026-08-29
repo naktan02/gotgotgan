@@ -75,6 +75,10 @@ private target으로 복사하는 browser command를 보낸다. Web 단위 테�
 command ID와 target Collection ID가 바뀌지 않는지 별도로 확인한다. 이 단계의 focused Library
 suite는 32개 desktop/mobile case이며 전체 root Playwright는 62개 case다.
 
+Stage 11B 공개 화면 E2E는 장소명·지역·primary Taxonomy와 projection 준비 중 상태를 함께 검증하고,
+내부 UUID가 장소 표시값으로 렌더링되지 않는지 확인한다. 이 보강은 기존 publication lifecycle/copy
+case 수를 늘리지 않고 같은 desktop/mobile 흐름의 공개 페이지 assertion을 강화한다.
+
 Visit E2E는 같은 Place의 반복 방문이 서로 다른 불변 occurrence로 쌓이고 bounded history와 Place
 summary가 갱신되는지 desktop/mobile에서 검증한다. 첫 기록 응답을 유실시킨 경우에는 새 ID를 만들지
 않고 동일 Visit ID와 payload를 재전송한다. focused Personal Library suite는 두 browser project에서

@@ -20,8 +20,10 @@ Collection 상세의 Place membership도 별도로 page한다. 잘못된 filter 
 가져온 cursor는 재사용할 수 없다.
 
 HTTP composition은 `LibraryQueries`를 필수로 주입한다. command Store는 회원의 전체 Library를
-무제한 aggregate로 반환하지 않으며, 단건 Place preference와 공개 Collection projection만
-명시적으로 읽는다. 따라서 테스트도 실제 소비자가 사용하는 bounded Interface를 통해 상태를 확인한다.
+무제한 aggregate로 반환하지 않으며 단건 Place preference만 명시적으로 읽는다. 공개 Collection은
+`LibraryQueries`가 공개 가능한 Collection field와 정렬된 Place reference를 읽고, 조립 계층이
+주입한 Place summary reader로 보강한다. 따라서 테스트도 실제 소비자가 사용하는 query Interface를
+통해 상태를 확인한다.
 
 Place 목록은 최대 20개의 Tag ID를 `all` 또는 `any`로 결합한다. Tag 이름은 표시·수정 가능한
 회원 데이터이고 query identity로 쓰지 않는다. 저장 Place에서 파생한 지역·primary Taxonomy facet은
@@ -42,9 +44,10 @@ unlisted/public 전환에는 유지한다. 공유 해제는 ID를 제거하므�
 Tier 정책을 Collection 구현에 넣지 않는다. `copy-published-collection`은 공유 row를 잠근 뒤 정렬된
 Place reference만 새 회원 소유 private Collection으로 복사하고 provenance를 남긴다.
 
-목록 카드용 이름·위치·Taxonomy는 entrypoint가 주입한 public Place summary reader로 한 번에
-조회한다. `PostgresLibraryQueries`는 Library schema만 읽으며 Search table을 join하지 않는다.
-공개 Place projection이 아직 없더라도 회원이 저장한 preference나 Collection membership은
+회원 목록 카드와 공개 Collection의 이름·위치·Taxonomy는 entrypoint가 주입한
+`LibraryPlaceSummaryReader`로 요청당 한 번에 조회한다. `PostgresLibraryQueries`는 Library schema만
+읽으며 Search table을 join하지 않는다. `place-published-collection.v2`는 각 Place ID·순서와 공개
+summary를 반환하고, 공개 Place projection이 아직 없더라도 preference나 Collection membership을
 삭제하지 않고 `place: null`로 반환한다.
 
 facet 집계도 같은 public Place summary reader만 사용한다. 최근 saved Place 최대 2,000개와 지역·

@@ -11,12 +11,24 @@ const environment = { PLACE_BACKEND_ORIGIN: 'http://place-backend.example' }
 describe('publication backend client', () => {
   it('uses fixed public paths and validates the collection projection', async () => {
     const request = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
-      schemaVersion: 'place-published-collection.v1',
+      schemaVersion: 'place-published-collection.v2',
       publicationId: '01992d20-0000-7000-8000-000000000001',
       visibility: 'unlisted',
       name: 'Shared',
       description: null,
-      places: [{ placeId: '01992d20-0000-7000-8000-000000000003', position: 0 }],
+      places: [{
+        placeId: '01992d20-0000-7000-8000-000000000003',
+        position: 0,
+        place: {
+          placeId: '01992d20-0000-7000-8000-000000000003',
+          name: '조용한 라멘 연구소',
+          areaLabel: '서울 성동구 성수동',
+          location: { latitude: 37.5445, longitude: 127.056 },
+          primaryTaxonomy: { key: 'food.noodle.ramen', label: '라멘' },
+          taxonomyKeys: ['food.noodle.ramen'],
+          evidence: { status: 'verified', projectedAt: '2026-08-26T10:00:00.000Z' },
+        },
+      }],
       updatedAt: '2026-08-26T10:00:00.000Z',
     }), { status: 200, headers: { 'content-type': 'application/json' } }))
     await expect(getPublicCollection('01992d20-0000-7000-8000-000000000001', environment)).resolves.toMatchObject({ name: 'Shared' })

@@ -7,9 +7,12 @@ import type {
   LibraryPlaceState,
   LibraryTagMatch,
   LibraryTagListPage,
+  PublishedCollection,
 } from '../domain/queries.js'
 
 export interface LibraryQueries {
+  getPublishedCollection(publicationId: string): Promise<PublishedCollection | undefined>
+
   listPlaces(input: Readonly<{
     memberId: string
     state: LibraryPlaceState

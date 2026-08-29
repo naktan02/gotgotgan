@@ -37,6 +37,14 @@ type CollectionPlaceRow = Readonly<{
   added_at: Date
 }>
 
+type PublishedCollectionRow = Readonly<{
+  name: string
+  description: string | null
+  visibility: 'unlisted' | 'public'
+  updated_at: Date
+  places: readonly Readonly<{ placeId: string; position: number }>[]
+}>
+
 type TagRow = Readonly<{
   id: string
   name: string
@@ -77,6 +85,44 @@ export class PostgresLibraryQueries implements LibraryQueries {
         .filter((summary) => requested.has(summary.placeId))
         .map((summary) => [summary.placeId, summary]),
     )
+  }
+
+  async getPublishedCollection(publicationId: string) {
+    const result = await this.pool.query<PublishedCollectionRow>(
+      `
+        SELECT
+          collection.name,
+          collection.description,
+          collection.visibility,
+          collection.updated_at,
+          coalesce(jsonb_agg(jsonb_build_object(
+            'placeId', place.canonical_place_id,
+            'position', place.position
+          ) ORDER BY place.position, place.canonical_place_id)
+            FILTER (WHERE place.canonical_place_id IS NOT NULL), '[]') AS places
+        FROM library.collections AS collection
+        LEFT JOIN library.collection_places AS place
+          ON place.collection_id = collection.id
+        WHERE collection.publication_id = $1::uuid
+          AND collection.visibility IN ('unlisted', 'public')
+        GROUP BY collection.id
+      `,
+      [publicationId],
+    )
+    const row = result.rows[0]
+    if (row === undefined) return undefined
+    const summaries = await this.summariesById(row.places.map((place) => place.placeId))
+    return {
+      publicationId,
+      visibility: row.visibility,
+      name: row.name,
+      description: row.description,
+      places: row.places.map((place) => ({
+        ...place,
+        place: summaries.get(place.placeId) ?? null,
+      })),
+      updatedAt: row.updated_at.toISOString(),
+    }
   }
 
   async listPlaces(input: Parameters<LibraryQueries['listPlaces']>[0]) {

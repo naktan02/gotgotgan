@@ -6,7 +6,7 @@ Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed doc
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **source-only; Stages 6.5, 7.5–7.16, and 11A complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
+Current delivery state: **source-only; Stages 6.5, 7.5–7.16, and 11A–11B complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
@@ -195,6 +195,12 @@ Stage 11A는 Provider 추가·outbound sync와 독립적인 Collection 공유 �
 publication provenance를 남긴다. 개인 평점·Tag·Visit·Writing·ownership은 공개하거나 복사하지 않는다.
 Migration `000029`, 실제 PostGIS, Web 단위 테스트와 desktop/mobile Playwright가 전환·해제·복사를
 검증하며 public profile/map discovery와 cross-product PlaceReference 소비자는 아직 후속이다.
+
+Stage 11B는 공개 Collection의 정렬된 Place reference에 `place-published-collection.v2`의
+허용 목록 Place summary를 결합한다. Library query는 Search table을 직접 join하지 않고 이미 조립된
+`LibraryPlaceSummaryReader` Interface를 한 번 호출하며, Search projection이 늦은 Place는 순서를
+잃지 않고 `place: null`로 남긴다. 공개 화면은 이름·지역·primary Taxonomy를 표시하되 UUID나
+Personal Rating, Tag, Visit, Writing, ownership을 표시하지 않는다.
 
 ## Repository boundaries
 

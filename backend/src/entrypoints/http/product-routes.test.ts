@@ -30,16 +30,28 @@ function fixtureApplication(
   const library: LibraryStore = {
     apply,
     getPlacePreferences: async () => ({ memberId, placeId, saved: true, wanted: false, personalRating: 4.4, updatedAt: now().toISOString() }),
+  }
+  const libraryQueries: LibraryQueries = {
     getPublishedCollection: async (id): Promise<PublishedCollection | undefined> => id === publicationId ? {
       publicationId,
       visibility: 'unlisted',
       name: 'Shared places',
       description: null,
-      places: [{ placeId, position: 0 }],
+      places: [{
+        placeId,
+        position: 0,
+        place: {
+          placeId,
+          name: '조용한 라멘 연구소',
+          areaLabel: '서울 성동구 성수동',
+          location: { latitude: 37.5445, longitude: 127.056 },
+          primaryTaxonomy: { key: 'food.noodle.ramen', label: '라멘' },
+          taxonomyKeys: ['food.noodle.ramen'],
+          evidence: { status: 'verified', projectedAt: now().toISOString() },
+        },
+      }],
       updatedAt: now().toISOString(),
     } : undefined,
-  }
-  const libraryQueries: LibraryQueries = {
     listPlaces: async (input) => ({
       schemaVersion: 'library-place-list.v3',
       filter: {
@@ -205,12 +217,24 @@ describe('Stage 4 product HTTP boundary', () => {
     expect(collection.statusCode).toBe(200)
     expect(collection.headers['cache-control']).toBe('no-store')
     expect(collection.json()).toEqual({
-      schemaVersion: 'place-published-collection.v1',
+      schemaVersion: 'place-published-collection.v2',
       publicationId,
       visibility: 'unlisted',
       name: 'Shared places',
       description: null,
-      places: [{ placeId, position: 0 }],
+      places: [{
+        placeId,
+        position: 0,
+        place: {
+          placeId,
+          name: '조용한 라멘 연구소',
+          areaLabel: '서울 성동구 성수동',
+          location: { latitude: 37.5445, longitude: 127.056 },
+          primaryTaxonomy: { key: 'food.noodle.ramen', label: '라멘' },
+          taxonomyKeys: ['food.noodle.ramen'],
+          evidence: { status: 'verified', projectedAt: now().toISOString() },
+        },
+      }],
       updatedAt: now().toISOString(),
     })
     const absent = await application.inject({ method: 'GET', url: '/v1/public/collections/01992d04-0000-7000-8000-000000000099' })

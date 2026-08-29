@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { placeSummarySchema } from '../place-summary/index.js'
 import { uuidSchema } from '../primitives.js'
 
 export { uuidSchema } from '../primitives.js'
@@ -233,7 +234,7 @@ export const publicationIdentifierParamsSchema = z.object({
 export const placeIdentifierParamsSchema = z.object({ placeId: uuidSchema }).strict()
 
 export const publishedCollectionSchema = z.object({
-  schemaVersion: z.literal('place-published-collection.v1'),
+  schemaVersion: z.literal('place-published-collection.v2'),
   publicationId: uuidSchema,
   visibility: sharedVisibilitySchema,
   name: z.string().min(1).max(120),
@@ -241,6 +242,7 @@ export const publishedCollectionSchema = z.object({
   places: z.array(z.object({
     placeId: uuidSchema,
     position: z.number().int().nonnegative(),
+    place: placeSummarySchema.nullable(),
   }).strict()),
   updatedAt: z.iso.datetime(),
 }).strict()

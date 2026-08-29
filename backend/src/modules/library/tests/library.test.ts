@@ -7,13 +7,11 @@ import {
   type LibraryCommand,
   type LibraryCommandOutcome,
   type LibraryStore,
-  type PublishedCollection,
 } from '../index.js'
 
 class MemoryLibraryStore implements LibraryStore {
   readonly attempts = new Map<string, LibraryAttempt>()
   readonly commands: LibraryCommand[] = []
-  published?: PublishedCollection
 
   async apply(attempt: LibraryAttempt): Promise<LibraryCommandOutcome> {
     const prior = this.attempts.get(attempt.commandId)
@@ -23,10 +21,6 @@ class MemoryLibraryStore implements LibraryStore {
     this.attempts.set(attempt.commandId, attempt)
     this.commands.push(attempt.command)
     return { status: 'applied' }
-  }
-
-  async getPublishedCollection(publicationId: string) {
-    return this.published?.publicationId === publicationId ? this.published : undefined
   }
 
   async getPlacePreferences() {
@@ -192,19 +186,5 @@ describe('personal library', () => {
       ...first,
       command: { ...first.command, wanted: false },
     })).rejects.toBeInstanceOf(LibraryCommandConflictError)
-  })
-
-  it('returns only an explicit published collection projection', async () => {
-    const store = new MemoryLibraryStore()
-    store.published = {
-      publicationId: '01992d00-0000-7000-8000-000000000050',
-      visibility: 'public',
-      name: 'Public places',
-      description: null,
-      places: [{ placeId: '01992d00-0000-7000-8000-000000000051', position: 0 }],
-      updatedAt: '2026-08-26T10:00:00.000Z',
-    }
-    await expect(store.getPublishedCollection(store.published.publicationId)).resolves.toEqual(store.published)
-    await expect(store.getPublishedCollection('01992d00-0000-7000-8000-000000000099')).resolves.toBeUndefined()
   })
 })

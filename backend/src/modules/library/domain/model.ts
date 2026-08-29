@@ -10,15 +10,6 @@ export type PlacePreferences = Readonly<{
   updatedAt: string
 }>
 
-export type PublishedCollection = Readonly<{
-  publicationId: string
-  visibility: Exclude<LibraryVisibility, 'private'>
-  name: string
-  description: string | null
-  places: readonly Readonly<{ placeId: string; position: number }>[]
-  updatedAt: string
-}>
-
 export type LibraryCommand =
   | Readonly<{
       kind: 'set-place-preferences'

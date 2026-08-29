@@ -19,6 +19,8 @@ Collection은 정렬된 Canonical Place reference를 소유한다. 기본 visibi
 public과 unlisted Collection에는 불투명한 publication ID가 필요하다. 공개된 Collection을
 복사하면 독립된 private Collection과 출처 provenance가 생성된다. 정렬된 Place reference만
 복사하며 Rating, Tag, Visit, Writing, ownership은 복사하지 않는다.
+공개 조회의 각 reference에는 별도 공개 Place projection의 summary를 결합할 수 있지만 이는 Library
+소유 데이터가 아니며, projection이 늦으면 `null`이어도 reference와 순서는 유지된다.
 
 공유 상태 변경은 읽었던 Collection `updatedAt`을 예상 버전으로 사용한다. 첫 공유가 ID를 만들고
 unlisted/public 전환은 같은 링크를 유지한다. private 전환은 ID를 폐기해 기존 링크를 되살릴 수 없고,
