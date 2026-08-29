@@ -17,8 +17,12 @@ import {
 } from '../src/library/index.js'
 import { publicPlaceDetailResponseSchema } from '../src/places/index.js'
 import {
+  publicProfileAppealQueueSchema,
+  publicProfileAppealRequestSchema,
+  publicProfileAppealResolutionRequestSchema,
   publicProfileHandleSchema,
   publicProfileModerationRequestSchema,
+  publicProfileModerationNoticesSchema,
   publicProfileProjectionSchema,
   publicProfileReportQueueSchema,
   publicProfileReportRequestSchema,
@@ -180,6 +184,10 @@ describe('versioned product HTTP results', () => {
       decisionId: documentId,
       moderation: { state: 'allowed', reason: 'spam', expectedUpdatedAt: null },
     }).success).toBe(false)
+    expect(publicProfileModerationRequestSchema.safeParse({
+      decisionId: documentId,
+      moderation: { state: 'allowed', reason: 'appeal-accepted', expectedUpdatedAt: null },
+    }).success).toBe(false)
     expect(publicProfileReportQueueSchema.safeParse({
       schemaVersion: 'public-profile-report-queue.v1',
       reports: [{
@@ -187,6 +195,41 @@ describe('versioned product HTTP results', () => {
         reportedAt: '2026-08-28T00:00:00.000Z',
         expiresAt: '2027-02-24T00:00:00.000Z',
         reporterMembershipId: membershipId,
+      }],
+    }).success).toBe(false)
+    expect(publicProfileAppealRequestSchema.safeParse({
+      appealId: documentId,
+      noticeId: publicationId,
+      reason: 'mistaken-identity',
+      details: 'free-form appeal',
+    }).success).toBe(false)
+    expect(publicProfileAppealResolutionRequestSchema.safeParse({
+      resolutionId: documentId,
+      resolution: { outcome: 'accepted', reason: 'decision-upheld' },
+    }).success).toBe(false)
+    expect(publicProfileModerationNoticesSchema.safeParse({
+      schemaVersion: 'public-profile-moderation-notices.v1',
+      notices: [{
+        noticeId: documentId,
+        handle: 'ramen-log',
+        kind: 'withheld',
+        reason: 'spam',
+        createdAt: '2026-08-28T00:00:00.000Z',
+        acknowledgedAt: null,
+        appeal: null,
+        actorMembershipId: membershipId,
+      }],
+    }).success).toBe(false)
+    expect(publicProfileAppealQueueSchema.safeParse({
+      schemaVersion: 'public-profile-appeal-queue.v1',
+      appeals: [{
+        appealId: documentId,
+        handle: 'ramen-log',
+        reason: 'decision-context',
+        submittedAt: '2026-08-28T00:00:00.000Z',
+        moderationReason: 'privacy',
+        moderationDecidedAt: '2026-08-27T00:00:00.000Z',
+        ownerMembershipId: membershipId,
       }],
     }).success).toBe(false)
   })

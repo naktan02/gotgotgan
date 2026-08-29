@@ -23,6 +23,7 @@ export const placePermissions = [
   'place.public.read',
   ...grantablePermissions,
   'profiles.report',
+  'profiles.appeal',
   'profiles.moderate',
   'administration.read',
   'administration.manage',

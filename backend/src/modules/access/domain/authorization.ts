@@ -9,7 +9,7 @@ import type {
 const permissionsByRole: Readonly<Record<AuthorityRole, ReadonlySet<PlacePermission>>> = {
   member: new Set([
     'place.public.read', 'search.read', 'library.read', 'library.write', 'library.share',
-    'imports.read', 'imports.write', 'profiles.report',
+    'imports.read', 'imports.write', 'profiles.report', 'profiles.appeal',
   ]),
   reviewer: new Set([
     'place.public.read',
@@ -22,6 +22,7 @@ const permissionsByRole: Readonly<Record<AuthorityRole, ReadonlySet<PlacePermiss
     'review.read',
     'review.decide',
     'profiles.report',
+    'profiles.appeal',
     'profiles.moderate',
   ]),
   administrator: new Set([
@@ -35,6 +36,7 @@ const permissionsByRole: Readonly<Record<AuthorityRole, ReadonlySet<PlacePermiss
     'review.read',
     'review.decide',
     'profiles.report',
+    'profiles.appeal',
     'profiles.moderate',
     'administration.read',
     'administration.manage',
@@ -50,6 +52,7 @@ const permissionsByRole: Readonly<Record<AuthorityRole, ReadonlySet<PlacePermiss
     'review.read',
     'review.decide',
     'profiles.report',
+    'profiles.appeal',
     'profiles.moderate',
     'administration.read',
     'administration.manage',

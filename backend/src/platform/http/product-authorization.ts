@@ -12,6 +12,7 @@ export type ProductPermission =
   | 'imports.read'
   | 'imports.write'
   | 'profiles.report'
+  | 'profiles.appeal'
   | 'profiles.moderate'
 
 export type ProductAuthorizer = (

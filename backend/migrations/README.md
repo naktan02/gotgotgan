@@ -135,3 +135,10 @@ URL을 다른 회원에게 재배정할 수 없다.
 180일 retention 중 반복 신고를 막는다. Profile 삭제 trigger는 pending report를 종료한다. runtime은
 report의 bounded DML, 현재 moderation의 제한된 column update, decision insert/select만 받고 decision
 UPDATE/DELETE 권한은 없다.
+
+`000033`은 현재 moderation을 정확한 immutable decision ID에 결합하고 owner Notice, structured Appeal,
+immutable Appeal Resolution을 정규화한다. decision당 Appeal 하나와 Handle당 pending 하나를 DB index로
+강제한다. accepted resolution은 새 allowed moderation decision과 current state를 한 transaction에서
+기록하고 rejected는 current withheld를 바꾸지 않는다. Profile 삭제 trigger는 pending Appeal을 system
+superseded resolution로 닫는다. runtime은 Notice acknowledgement와 Appeal current status column만
+갱신할 수 있고 resolution UPDATE/DELETE 권한은 없다.

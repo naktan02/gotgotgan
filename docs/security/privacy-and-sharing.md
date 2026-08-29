@@ -46,6 +46,14 @@ reservation은 retired 상태로 보존한다. retired Handle도 unknown과 같�
 대기열과 익명 projection은 reporter membership ID를 반환하지 않고 withheld와 unknown은 같은 404다.
 내부 discovery 증폭은 owner 알림·appeal 운영 책임이 정해질 때까지 금지한다.
 
+withheld/restored 판정과 appeal-rejected 결과는 해당 Profile owner만 읽는 bounded Notice 조회함에
+category와 시각으로 투영한다. operator Membership ID는 제외하고 cursor에는 owner UUID 대신 SHA-256
+fingerprint만 넣는다. Appeal은 특정 withheld Notice와 현재 Decision이 일치할 때만 자유 서술 없이
+제출하며 decision당 하나, Handle당 pending 하나로 제한한다. pending 중 일반 moderation 변경을 막고
+accepted resolution만 allowed 복구와 같은 transaction으로 기록한다. Membership 삭제 시 owner 연결과
+Notice는 제거하고 categorized immutable resolution은 운영 감사로 남긴다. 이메일·푸시·첨부·support
+대화는 저장하거나 전달하지 않는다.
+
 공개 Collection에서 선택한 장소 상세은 `GET /api/public/places/{placeId}`로 지연 조회한다. Web 서버는
 Backend에 bearer evidence를 보내지 않으며 `PublicPlaceDetailResponse`가 이름·지역·좌표·Taxonomy·공개
 evidence와 redirect identity 외의 field를 거부한다. 특히 optional-member Backend route가

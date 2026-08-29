@@ -6,7 +6,7 @@ Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed doc
 Place is an independent personal place platform for provider-neutral place identity, source
 evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
 
-Current delivery state: **source-only; Stages 6.5, 7.5–7.17, and 11A–11E2B1 complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
+Current delivery state: **source-only; Stages 6.5, 7.5–7.17, and 11A–11E2B2 complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and
 access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
@@ -243,7 +243,15 @@ Stage 11E2B1은 직접 링크 프로필을 증폭하지 않은 채 안전 기반
 정해진 사유로 신고하고, 같은 회원·Handle 신고는 180일 보존 기간 동안 하나로 제한된다. 신고 자체는
 공개를 중단하지 않는다. `reviewer` 이상만 owner의 hidden/public과 독립된 allowed/withheld 판정을
 내리며, immutable decision 이력을 남긴다. 익명 응답과 검토 대기열에는 신고자 ID가 없고 withheld는
-unknown과 같은 404다. owner 알림·appeal과 내부 사람 discovery는 다음 운영 gate로 남는다.
+unknown과 같은 404다. owner 알림·appeal은 Stage 11E2B2에서 이어지며 내부 사람 discovery는 계속
+운영 gate 뒤에 남는다.
+
+Stage 11E2B2는 withheld/restored 판정을 소유자 전용 영속 조회함에 투영하고 특정 withheld 판정당 한 번의
+구조화된 appeal을 제공한다. 같은 Handle에는 pending appeal 하나만 허용하며 일반 moderation은 이를
+우회하지 못한다. reviewer 이상이 기각하면 withheld를 유지하고, 수락하면 immutable appeal resolution,
+`appeal-accepted` moderation decision, allowed 상태, owner notice를 한 transaction으로 기록한다. 이
+Backend 기능은 이메일·푸시 delivery나 프론트 UI를 의미하지 않는다. 실제 운영 담당자와 절차가
+활성화되기 전에는 내부 사람 discovery와 외부 색인을 계속 금지한다.
 
 ## Repository boundaries
 

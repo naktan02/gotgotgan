@@ -12,10 +12,32 @@ export {
   type SetPublicProfileCommand,
 } from './domain/model.js'
 export {
+  InvalidPublicProfileAppealCursorError,
+  InvalidPublicProfileAppealError,
+  PublicProfileAppealAlreadyResolvedError,
+  PublicProfileAppealConflictError,
+  PublicProfileAppealTargetChangedError,
+  PublicProfileAppealTargetNotFoundError,
+  type PendingPublicProfileAppeal,
+  type PublicProfileAppealAttempt,
+  type PublicProfileAppealOutcome,
+  type PublicProfileAppealReason,
+  type PublicProfileAppealRejectionReason,
+  type PublicProfileAppealResolutionAttempt,
+  type PublicProfileAppealResolutionCommand,
+  type PublicProfileAppealResolutionOutcome,
+  type PublicProfileAppealStatus,
+  type PublicProfileAppealSummary,
+  type PublicProfileNoticeAcknowledgementOutcome,
+  type PublicProfileOwnerNotice,
+  type PublicProfileOwnerNoticeKind,
+} from './domain/appeals.js'
+export {
   InvalidPublicProfileModerationError,
   InvalidPublicProfileReportCursorError,
   InvalidPublicProfileReportError,
   PublicProfileModerationConflictError,
+  PublicProfileModerationAppealPendingError,
   PublicProfileModerationTargetNotFoundError,
   PublicProfileModerationVersionConflictError,
   PublicProfileReportConflictError,
@@ -41,6 +63,14 @@ export {
   type PublicProfileStore,
 } from './application/public-profiles.js'
 export {
+  acknowledgePublicProfileOwnerNotice,
+  listPendingPublicProfileAppeals,
+  listPublicProfileOwnerNotices,
+  resolvePublicProfileAppeal,
+  submitPublicProfileAppeal,
+  type PublicProfileAppealStore,
+} from './application/public-profile-appeals.js'
+export {
   listPendingPublicProfileReports,
   moderatePublicProfile,
   readPublicProfileModeration,
@@ -49,6 +79,7 @@ export {
 } from './application/public-profile-safety.js'
 export { PostgresPublicProfileStore } from './adapters/persistence/postgres-public-profile-store.js'
 export { PostgresPublicProfileSafetyStore } from './adapters/persistence/postgres-public-profile-safety-store.js'
+export { PostgresPublicProfileAppealStore } from './adapters/persistence/postgres-public-profile-appeal-store.js'
 export {
   registerProfileHttpRoutes,
   type ProfileHttpDependencies,

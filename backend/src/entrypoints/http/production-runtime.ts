@@ -52,6 +52,7 @@ import {
 } from '../../modules/providers/index.js'
 import {
   InvalidPublicProfileCursorError,
+  PostgresPublicProfileAppealStore,
   PostgresPublicProfileSafetyStore,
   PostgresPublicProfileStore,
 } from '../../modules/profiles/index.js'
@@ -165,6 +166,7 @@ export async function createProductionHttpRuntime(
     )
     const publicProfileStore = new PostgresPublicProfileStore(pool)
     const publicProfileSafetyStore = new PostgresPublicProfileSafetyStore(pool)
+    const publicProfileAppealStore = new PostgresPublicProfileAppealStore(pool)
     const placeSuggestions = new PostgresPlaceSuggestions(pool)
     const ingestionStore = new PostgresIngestionStore(pool)
     const connectorImports = new PostgresConnectorImports(pool)
@@ -352,6 +354,7 @@ export async function createProductionHttpRuntime(
         authorizer: productAuthorizer,
         store: publicProfileStore,
         safety: publicProfileSafetyStore,
+        appeals: publicProfileAppealStore,
         collections: async (input) => {
           try {
             return await libraryQueries.listPublicCollectionsByOwner(input)

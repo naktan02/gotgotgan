@@ -117,6 +117,11 @@ projection의 membership ID 노출도 거부한다.
 implicit allowed 상태, reviewer의 withheld/allowed optimistic 판정, withheld 익명 비노출, 판정 후 queue
 종료, immutable decision의 runtime UPDATE 거부를 검증한다. Profile 삭제 trigger가 남은 신고를 종료하고
 180일 이후 bounded cleanup이 row를 삭제하는 것도 실제 runtime/migration 권한으로 확인한다.
+Migration `000033` 이후 같은 suite는 owner Notice의 operator ID 비노출과 acknowledgement, decision당
+Appeal 하나·Handle당 pending 하나, redacted appeal queue, pending 중 일반 moderation 우회 거부를
+검증한다. rejected resolution은 withheld를 유지하고 accepted resolution은 immutable appeal/moderation
+decision과 allowed 복구를 원자적으로 만든다. Profile 삭제는 pending Appeal을 `profile-deleted`
+superseded로 닫고 runtime의 Appeal Resolution UPDATE는 거부한다.
 
 로컬 검색 suite도 독립적인 disposable PostGIS runtime에 전체 migration을 적용한다. data-defined
 Taxonomy의 publish/replay/conflict, 공개 Place 문서와 회원별 signal projection, text·taxonomy·bounds

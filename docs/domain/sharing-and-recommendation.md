@@ -25,7 +25,13 @@ not-found 경계로 처리한다. Public Profile Report는 인증된 회원의 c
 결정이 아니다. Public Profile Moderation은 owner visibility와 독립된 allowed/withheld 운영 판정이며
 immutable decision을 남긴다. 두 책임은 Profile identity Store와 분리된 Safety Interface에 있다.
 withheld도 익명에게 같은 not-found이고 reporter identity는 공개·검토 projection에 없다. 사람 검색·
-팔로우·댓글·추천과 owner 알림·appeal은 아직 이 단계의 책임이 아니다.
+팔로우·댓글·추천은 아직 이 단계의 책임이 아니다.
+
+Public Profile Moderation Notice는 withheld/restored/appeal-rejected 사실의 owner-scoped projection이고
+외부 메시지 delivery가 아니다. Public Profile Appeal은 현재 withheld Decision 하나에 owner가 한 번만
+제출하는 categorized 재검토 요청이다. Profile Appeal Resolution은 reviewer 이상의 immutable
+accepted/rejected 판정이다. accepted만 같은 transaction에서 Moderation을 allowed로 복구하며 rejected는
+target Decision을 유지한다. owner visibility는 어느 경우에도 별도 축이다.
 
 향후 추천 기능은 privacy 검토를 통과한 projection을 입력으로 받고 versioned interface로
 설명 또는 후보를 반환한다. 추천 infrastructure는 충분한 데이터와 별도 단계가 준비되기

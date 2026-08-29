@@ -221,8 +221,27 @@ identity가 없다.
 대기열은 최대 50개의 opaque cursor page이고 reporter identity를 포함하지 않는다. 현재 moderation이
 없으면 `allowed`, null reason/version으로 읽는다. PUT은 decision UUID와 state에 맞는 categorical reason,
 nullable `expectedUpdatedAt`을 요구하고 판정 후 해당 Handle의 pending 신고를 종료한다. `withheld`인
-Handle은 owner가 public이어도 익명 Profile route에서 unknown과 같은 404다. owner 알림·appeal이나
-내부 people search를 제공하는 API는 아직 없다.
+Handle은 owner가 public이어도 익명 Profile route에서 unknown과 같은 404다. pending appeal이 있으면
+일반 moderation PUT은 409이며 `appeal-accepted` reason은 appeal resolution만 만들 수 있다.
+
+`GET /v1/profiles/current/moderation-notices`는 bearer와 `profiles.appeal`을 요구하며 현재 회원에게
+withheld/restored/appeal-rejected Notice를 최대 50개 owner-fingerprint-bound cursor page로 반환한다.
+operator/owner Membership ID는 계약에 없고 optional nested appeal summary로 pending/accepted/rejected/
+superseded 결과를 보여준다. `PUT /v1/profiles/current/moderation-notices/{noticeId}/acknowledgement`는
+서버 시각으로 해당 owner Notice를 멱등 acknowledge한다.
+
+`POST /v1/profiles/current/moderation-appeals`는 appeal UUID, owner Notice UUID와 mistaken-identity,
+issue-corrected, decision-context 중 하나만 받는다. member·role·operator·자유 서술은 거부한다. Notice의
+withheld Decision이 현재 moderation과 일치할 때만 최초 201이며 같은 payload replay와 이미 appeal한
+Decision은 200, 바뀐 target은 409다. Decision당 하나와 Handle당 pending 하나를 DB에서도 강제한다.
+
+`GET /v1/administration/public-profile-appeals`와
+`PUT /v1/administration/public-profile-appeals/{appealId}`는 `profiles.moderate`를 요구한다. Queue는 owner
+identity 없이 appeal/Handle/category와 target moderation category/time만 반환한다. Resolution은 UUID와
+accepted 또는 categorized rejected만 받는다. accepted는 immutable Appeal Resolution, allowed
+`appeal-accepted` Moderation Decision, current state, owner Notice를 같은 transaction으로 기록한다.
+rejected는 immutable Resolution과 Notice만 만들고 withheld를 유지한다. 이 Backend API는 active
+email/push나 Web UI, 내부 people search를 제공하지 않는다.
 
 `GET /healthz` reports process liveness and does not depend on PostgreSQL, Identity, or another
 process. `GET /readyz` reports 503 with a bounded `unavailable` projection when an explicitly required

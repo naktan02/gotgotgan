@@ -77,7 +77,13 @@ import {
   publicPlaceDetailResponseSchema,
 } from '../places/index.js'
 import {
+  publicProfileAppealQueueSchema,
+  publicProfileAppealRequestSchema,
+  publicProfileAppealResolutionRequestSchema,
+  publicProfileAppealResolutionResultSchema,
+  publicProfileAppealResultSchema,
   publicProfileCommandResultSchema,
+  publicProfileModerationNoticesSchema,
   publicProfileModerationRecordSchema,
   publicProfileModerationRequestSchema,
   publicProfileModerationResultSchema,
@@ -86,6 +92,7 @@ import {
   publicProfileReportQueueSchema,
   publicProfileReportRequestSchema,
   publicProfileReportResultSchema,
+  publicProfileNoticeAcknowledgementResultSchema,
   setPublicProfileRequestSchema,
 } from '../profiles/index.js'
 import {
@@ -186,6 +193,14 @@ const pathParameters = {
   handle: {
     name: 'handle', in: 'path', required: true,
     schema: { type: 'string', pattern: '^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$', minLength: 3, maxLength: 30 },
+  },
+  noticeId: {
+    name: 'noticeId', in: 'path', required: true,
+    schema: { type: 'string', format: 'uuid' },
+  },
+  appealId: {
+    name: 'appealId', in: 'path', required: true,
+    schema: { type: 'string', format: 'uuid' },
   },
 }
 
@@ -774,6 +789,67 @@ const paths = {
       '503': ref('responses', 'ProductUnavailable'),
     }, { security: bearer, requestSchema: 'PublicProfileModerationRequest' }),
   },
+  '/v1/profiles/current/moderation-notices': {
+    get: operation('listCurrentPublicProfileModerationNotices', {
+      '200': described('Return bounded owner-scoped moderation notices', 'PublicProfileModerationNotices'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, {
+      security: bearer,
+      parameters: [boundedCursorParameter, boundedLimitParameter],
+    }),
+  },
+  '/v1/profiles/current/moderation-notices/{noticeId}/acknowledgement': {
+    parameters: [pathParameters.noticeId],
+    put: operation('acknowledgeCurrentPublicProfileModerationNotice', {
+      '200': described('Return an existing moderation-notice acknowledgement', 'PublicProfileNoticeAcknowledgementResult'),
+      '201': described('Acknowledge an owner moderation notice', 'PublicProfileNoticeAcknowledgementResult'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer }),
+  },
+  '/v1/profiles/current/moderation-appeals': {
+    post: operation('submitCurrentPublicProfileAppeal', {
+      '200': described('Return an existing Public Profile appeal outcome', 'PublicProfileAppealResult'),
+      '201': described('Record a structured Public Profile appeal', 'PublicProfileAppealResult'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '409': ref('responses', 'ProductConflict'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer, requestSchema: 'PublicProfileAppealRequest' }),
+  },
+  '/v1/administration/public-profile-appeals': {
+    get: operation('listPendingPublicProfileAppeals', {
+      '200': described('Return a bounded owner-redacted appeal queue', 'PublicProfileAppealQueue'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, {
+      security: bearer,
+      parameters: [boundedCursorParameter, boundedLimitParameter],
+    }),
+  },
+  '/v1/administration/public-profile-appeals/{appealId}': {
+    parameters: [pathParameters.appealId],
+    put: operation('resolvePublicProfileAppeal', {
+      '200': described('Replay a Public Profile appeal resolution', 'PublicProfileAppealResolutionResult'),
+      '201': described('Resolve a Public Profile appeal', 'PublicProfileAppealResolutionResult'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '409': ref('responses', 'ProductConflict'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer, requestSchema: 'PublicProfileAppealResolutionRequest' }),
+  },
   '/v1/provider-connections': { get: operation('listPlaceProviderConnections', {
     '200': described('Return sanitized provider connection metadata', 'ProviderConnectionList'),
     '401': ref('responses', 'AuthenticationRequired'),
@@ -1220,6 +1296,13 @@ const schemas: Readonly<Record<string, ZodType>> = {
   PublicProfileModerationRequest: publicProfileModerationRequestSchema,
   PublicProfileModerationRecord: publicProfileModerationRecordSchema,
   PublicProfileModerationResult: publicProfileModerationResultSchema,
+  PublicProfileModerationNotices: publicProfileModerationNoticesSchema,
+  PublicProfileNoticeAcknowledgementResult: publicProfileNoticeAcknowledgementResultSchema,
+  PublicProfileAppealRequest: publicProfileAppealRequestSchema,
+  PublicProfileAppealResult: publicProfileAppealResultSchema,
+  PublicProfileAppealQueue: publicProfileAppealQueueSchema,
+  PublicProfileAppealResolutionRequest: publicProfileAppealResolutionRequestSchema,
+  PublicProfileAppealResolutionResult: publicProfileAppealResolutionResultSchema,
   PlaceSearchRequest: placeSearchRequestSchema,
   PlaceSearchResponse: placeSearchResponseSchema,
   PlaceSuggestionsRequest: placeSuggestionsRequestSchema,

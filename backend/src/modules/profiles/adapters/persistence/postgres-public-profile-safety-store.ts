@@ -16,6 +16,7 @@ type ProfileSafetyRow = Readonly<{
   moderation_state: 'allowed' | 'withheld'
 }>
 type ModerationRow = Readonly<{
+  decision_id: string
   state: 'allowed' | 'withheld'
   reason: PublicProfileModerationRecord['reason']
   updated_at: Date
@@ -120,8 +121,19 @@ async function moderateInTransaction(client: PoolClient, attempt: PublicProfileM
       : { status: 'conflict' as const }
   }
 
-  const target = await client.query<{ handle: string }>(
-    `SELECT handle FROM profiles.public_profiles WHERE handle = $1 FOR UPDATE`,
+  const noticeCollision = await client.query(
+    `SELECT 1
+       FROM profiles.public_profile_owner_notices
+      WHERE notice_id = $1::uuid`,
+    [attempt.decisionId],
+  )
+  if (noticeCollision.rows.length !== 0) return { status: 'conflict' as const }
+
+  const target = await client.query<{ handle: string; membership_id: string }>(
+    `SELECT handle, membership_id
+       FROM profiles.public_profiles
+      WHERE handle = $1
+      FOR UPDATE`,
     [attempt.handle],
   )
   if (target.rows.length === 0) return { status: 'target-not-found' as const }
@@ -138,7 +150,7 @@ async function moderateInTransaction(client: PoolClient, attempt: PublicProfileM
   }
 
   const currentResult = await client.query<ModerationRow>(
-    `SELECT state, reason, updated_at
+    `SELECT decision_id, state, reason, updated_at
        FROM profiles.public_profile_moderation
       WHERE handle = $1
       FOR UPDATE`,
@@ -151,18 +163,17 @@ async function moderateInTransaction(client: PoolClient, attempt: PublicProfileM
     (current !== undefined && (expected === null || current.updated_at.toISOString() !== expected))
   ) return { status: 'version-conflict' as const }
 
-  const changedAt = nextTimestamp(attempt.occurredAt, current?.updated_at)
-  await client.query(
-    `INSERT INTO profiles.public_profile_moderation (
-       handle, state, reason, decided_by_membership_id, updated_at
-     ) VALUES ($1, $2, $3, $4::uuid, $5::timestamptz)
-     ON CONFLICT (handle) DO UPDATE
-       SET state = EXCLUDED.state,
-           reason = EXCLUDED.reason,
-           decided_by_membership_id = EXCLUDED.decided_by_membership_id,
-           updated_at = EXCLUDED.updated_at`,
-    [attempt.handle, attempt.command.state, attempt.command.reason, attempt.actorMemberId, changedAt],
+  const pendingAppeal = await client.query(
+    `SELECT 1
+       FROM profiles.public_profile_appeals
+      WHERE handle = $1
+        AND status = 'pending'
+      FOR UPDATE`,
+    [attempt.handle],
   )
+  if (pendingAppeal.rows.length !== 0) return { status: 'appeal-pending' as const }
+
+  const changedAt = nextTimestamp(attempt.occurredAt, current?.updated_at)
   await client.query(
     `INSERT INTO profiles.public_profile_moderation_decisions (
        decision_id, handle, actor_membership_id, previous_state, next_state,
@@ -180,10 +191,43 @@ async function moderateInTransaction(client: PoolClient, attempt: PublicProfileM
     ],
   )
   await client.query(
+    `INSERT INTO profiles.public_profile_moderation (
+       handle, state, reason, decided_by_membership_id, updated_at, decision_id
+     ) VALUES ($1, $2, $3, $4::uuid, $5::timestamptz, $6::uuid)
+     ON CONFLICT (handle) DO UPDATE
+       SET state = EXCLUDED.state,
+           reason = EXCLUDED.reason,
+           decided_by_membership_id = EXCLUDED.decided_by_membership_id,
+           updated_at = EXCLUDED.updated_at,
+           decision_id = EXCLUDED.decision_id`,
+    [
+      attempt.handle,
+      attempt.command.state,
+      attempt.command.reason,
+      attempt.actorMemberId,
+      changedAt,
+      attempt.decisionId,
+    ],
+  )
+  await client.query(
     `UPDATE profiles.public_profile_reports
         SET reviewed_at = GREATEST(reported_at, $2::timestamptz)
       WHERE handle = $1 AND reviewed_at IS NULL`,
     [attempt.handle, changedAt],
+  )
+  await client.query(
+    `INSERT INTO profiles.public_profile_owner_notices (
+       notice_id, owner_membership_id, handle, moderation_decision_id,
+       appeal_resolution_id, kind, reason, created_at, acknowledged_at
+     ) VALUES ($1::uuid, $2::uuid, $3, $1::uuid, NULL, $4, $5, $6::timestamptz, NULL)`,
+    [
+      attempt.decisionId,
+      target.rows[0]!.membership_id,
+      attempt.handle,
+      attempt.command.state === 'withheld' ? 'withheld' : 'restored',
+      attempt.command.reason,
+      changedAt,
+    ],
   )
   return { status: 'applied' as const }
 }

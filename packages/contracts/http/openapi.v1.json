@@ -2652,6 +2652,314 @@
         }
       }
     },
+    "/v1/profiles/current/moderation-notices": {
+      "get": {
+        "operationId": "listCurrentPublicProfileModerationNotices",
+        "summary": "listCurrentPublicProfileModerationNotices",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return bounded owner-scoped moderation notices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileModerationNotices"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "503": {
+            "$ref": "#/components/responses/ProductUnavailable"
+          }
+        }
+      }
+    },
+    "/v1/profiles/current/moderation-notices/{noticeId}/acknowledgement": {
+      "parameters": [
+        {
+          "name": "noticeId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "put": {
+        "operationId": "acknowledgeCurrentPublicProfileModerationNotice",
+        "summary": "acknowledgeCurrentPublicProfileModerationNotice",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return an existing moderation-notice acknowledgement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileNoticeAcknowledgementResult"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Acknowledge an owner moderation notice",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileNoticeAcknowledgementResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/ProductUnavailable"
+          }
+        }
+      }
+    },
+    "/v1/profiles/current/moderation-appeals": {
+      "post": {
+        "operationId": "submitCurrentPublicProfileAppeal",
+        "summary": "submitCurrentPublicProfileAppeal",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicProfileAppealRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return an existing Public Profile appeal outcome",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileAppealResult"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Record a structured Public Profile appeal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileAppealResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/ProductConflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/ProductUnavailable"
+          }
+        }
+      }
+    },
+    "/v1/administration/public-profile-appeals": {
+      "get": {
+        "operationId": "listPendingPublicProfileAppeals",
+        "summary": "listPendingPublicProfileAppeals",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return a bounded owner-redacted appeal queue",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileAppealQueue"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "503": {
+            "$ref": "#/components/responses/ProductUnavailable"
+          }
+        }
+      }
+    },
+    "/v1/administration/public-profile-appeals/{appealId}": {
+      "parameters": [
+        {
+          "name": "appealId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "put": {
+        "operationId": "resolvePublicProfileAppeal",
+        "summary": "resolvePublicProfileAppeal",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicProfileAppealResolutionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Replay a Public Profile appeal resolution",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileAppealResolutionResult"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Resolve a Public Profile appeal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileAppealResolutionResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/ProductConflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/ProductUnavailable"
+          }
+        }
+      }
+    },
     "/v1/provider-connections": {
       "get": {
         "operationId": "listPlaceProviderConnections",
@@ -11435,10 +11743,7 @@
                   },
                   "reason": {
                     "type": "string",
-                    "enum": [
-                      "insufficient-evidence",
-                      "appeal-accepted"
-                    ]
+                    "const": "insufficient-evidence"
                   },
                   "expectedUpdatedAt": {
                     "anyOf": [
@@ -11545,6 +11850,425 @@
           "schemaVersion": {
             "type": "string",
             "const": "public-profile-moderation-result.v1"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "applied",
+              "replayed"
+            ]
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "PublicProfileModerationNotices": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "public-profile-moderation-notices.v1"
+          },
+          "notices": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "noticeId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "handle": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 30,
+                  "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "withheld",
+                    "restored",
+                    "appeal-rejected"
+                  ]
+                },
+                "reason": {
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "impersonation",
+                            "harassment",
+                            "privacy",
+                            "spam",
+                            "unsafe-content"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "insufficient-evidence",
+                            "appeal-accepted"
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "decision-upheld",
+                        "insufficient-remediation"
+                      ]
+                    }
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                "acknowledgedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "appeal": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "appealId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "mistaken-identity",
+                            "issue-corrected",
+                            "decision-context"
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "accepted",
+                            "rejected",
+                            "superseded"
+                          ]
+                        },
+                        "submittedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                        },
+                        "resolvedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "resolutionReason": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "decision-upheld",
+                                    "insufficient-remediation"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "appeal-accepted",
+                                    "profile-deleted"
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "appealId",
+                        "reason",
+                        "status",
+                        "submittedAt",
+                        "resolvedAt",
+                        "resolutionReason"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "noticeId",
+                "handle",
+                "kind",
+                "reason",
+                "createdAt",
+                "acknowledgedAt",
+                "appeal"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "notices"
+        ],
+        "additionalProperties": false
+      },
+      "PublicProfileNoticeAcknowledgementResult": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "public-profile-notice-acknowledgement.v1"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "acknowledged",
+              "already-acknowledged"
+            ]
+          },
+          "acknowledgedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "status",
+          "acknowledgedAt"
+        ],
+        "additionalProperties": false
+      },
+      "PublicProfileAppealRequest": {
+        "type": "object",
+        "properties": {
+          "appealId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "noticeId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "mistaken-identity",
+              "issue-corrected",
+              "decision-context"
+            ]
+          }
+        },
+        "required": [
+          "appealId",
+          "noticeId",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "PublicProfileAppealResult": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "public-profile-appeal-result.v1"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "recorded",
+              "replayed",
+              "already-appealed"
+            ]
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "PublicProfileAppealQueue": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "public-profile-appeal-queue.v1"
+          },
+          "appeals": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "appealId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "handle": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 30,
+                  "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$"
+                },
+                "reason": {
+                  "type": "string",
+                  "enum": [
+                    "mistaken-identity",
+                    "issue-corrected",
+                    "decision-context"
+                  ]
+                },
+                "submittedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                "moderationReason": {
+                  "type": "string",
+                  "enum": [
+                    "impersonation",
+                    "harassment",
+                    "privacy",
+                    "spam",
+                    "unsafe-content"
+                  ]
+                },
+                "moderationDecidedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                }
+              },
+              "required": [
+                "appealId",
+                "handle",
+                "reason",
+                "submittedAt",
+                "moderationReason",
+                "moderationDecidedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "appeals"
+        ],
+        "additionalProperties": false
+      },
+      "PublicProfileAppealResolutionRequest": {
+        "type": "object",
+        "properties": {
+          "resolutionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "resolution": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "outcome": {
+                    "type": "string",
+                    "const": "accepted"
+                  }
+                },
+                "required": [
+                  "outcome"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "outcome": {
+                    "type": "string",
+                    "const": "rejected"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "decision-upheld",
+                      "insufficient-remediation"
+                    ]
+                  }
+                },
+                "required": [
+                  "outcome",
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": [
+          "resolutionId",
+          "resolution"
+        ],
+        "additionalProperties": false
+      },
+      "PublicProfileAppealResolutionResult": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "public-profile-appeal-resolution-result.v1"
           },
           "status": {
             "type": "string",

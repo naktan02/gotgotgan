@@ -37,7 +37,7 @@ export type PublicProfileModerationAttempt = Readonly<{
 }>
 
 export type PublicProfileModerationOutcome = Readonly<{
-  status: 'applied' | 'replayed' | 'conflict' | 'target-not-found' | 'version-conflict'
+  status: 'applied' | 'replayed' | 'conflict' | 'target-not-found' | 'version-conflict' | 'appeal-pending'
 }>
 
 export type PublicProfileModerationRecord = Readonly<{
@@ -87,6 +87,10 @@ export class PublicProfileModerationVersionConflictError extends Error {
   override readonly name = 'PublicProfileModerationVersionConflictError'
 }
 
+export class PublicProfileModerationAppealPendingError extends Error {
+  override readonly name = 'PublicProfileModerationAppealPendingError'
+}
+
 export class InvalidPublicProfileReportCursorError extends Error {
   override readonly name = 'InvalidPublicProfileReportCursorError'
 }
@@ -100,8 +104,7 @@ export function assertPublicProfileReportReason(reason: string): asserts reason 
 export function assertPublicProfileModerationCommand(command: PublicProfileModerationCommand): void {
   const withheld = command.state === 'withheld' &&
     publicProfileReportReasons.includes(command.reason as PublicProfileReportReason)
-  const allowed = command.state === 'allowed' &&
-    (command.reason === 'insufficient-evidence' || command.reason === 'appeal-accepted')
+  const allowed = command.state === 'allowed' && command.reason === 'insufficient-evidence'
   if (!withheld && !allowed) {
     throw new InvalidPublicProfileModerationError('Public Profile moderation reason is invalid')
   }

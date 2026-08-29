@@ -71,6 +71,13 @@ receipt·보존·moderation 현재 상태·immutable decision·redacted queue를
 Interface만 조립하고 moderation persistence를 직접 만지지 않는다. Library public Collection directory는
 계속 주입 port이며 Profiles Adapter가 Library table을 join하지 않는다.
 
+Appeal/Notice는 `PublicProfileSafetyStore` 메서드를 늘려 일반 report/moderation 호출자에게 노출하지
+않고 `PublicProfileAppealStore`라는 별도 깊은 Interface에 둔다. PostgreSQL Appeal Adapter가 owner
+Notice, 제출 제한, redacted queue, accepted/rejected resolution과 accepted moderation 복구 transaction을
+숨긴다. 일반 Safety Adapter는 moderation decision과 그 owner Notice를 같은 transaction에서 만들고
+pending Appeal이 있으면 Appeal Interface 사용을 요구한다. HTTP도 appeal route 구현 파일을 분리하되
+Profiles의 외부 route 등록 Interface는 하나로 유지한다.
+
 Stage 7.5 read surface도 이 경계를 유지한다. Visits와 Writing은 command Store의 raw/unbounded list를
 확장하지 않고 각각 작은 query Interface와 자기 schema만 읽는 PostgreSQL Adapter를 둔다. Ingestion도
 `ImportQueries`, `ImportManagementStore`, `ImportReviewStore`를 분리해 bounded read, cancel/resume,

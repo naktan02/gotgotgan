@@ -34,6 +34,7 @@ import {
   reportPublicProfile,
   type PublicProfileSafetyStore,
 } from '../../application/public-profile-safety.js'
+import type { PublicProfileAppealStore } from '../../application/public-profile-appeals.js'
 import {
   InvalidPublicProfileError,
   PublicProfileConflictError,
@@ -43,6 +44,7 @@ import {
 } from '../../domain/model.js'
 import {
   InvalidPublicProfileModerationError,
+  PublicProfileModerationAppealPendingError,
   InvalidPublicProfileReportCursorError,
   PublicProfileModerationConflictError,
   PublicProfileModerationTargetNotFoundError,
@@ -51,11 +53,13 @@ import {
   PublicProfileReportTargetNotFoundError,
   PublicProfileSelfReportError,
 } from '../../domain/safety.js'
+import { registerProfileAppealHttpRoutes } from './register-profile-appeal-http.js'
 
 export type ProfileHttpDependencies = Readonly<{
   authorizer: ProductAuthorizer
   store: PublicProfileStore
   safety: PublicProfileSafetyStore
+  appeals: PublicProfileAppealStore
   collections: PublicCollectionDirectory
   now: () => Date
 }>
@@ -69,6 +73,12 @@ export function registerProfileHttpRoutes(
   application: FastifyInstance,
   dependencies: ProfileHttpDependencies,
 ): void {
+  registerProfileAppealHttpRoutes(application, {
+    authorizer: dependencies.authorizer,
+    store: dependencies.appeals,
+    now: dependencies.now,
+  })
+
   application.get('/v1/profiles/current', async (request, reply) => {
     const memberId = await requireProductMember(request, reply, dependencies.authorizer, 'library.share')
     if (memberId === undefined) return
@@ -262,6 +272,9 @@ export function registerProfileHttpRoutes(
       }
       if (error instanceof PublicProfileModerationVersionConflictError) {
         return sendProductProblem(request, reply, 409, 'PLACE_PUBLIC_PROFILE_MODERATION_VERSION_CONFLICT', 'Public Profile moderation changed concurrently', true)
+      }
+      if (error instanceof PublicProfileModerationAppealPendingError) {
+        return sendProductProblem(request, reply, 409, 'PLACE_PUBLIC_PROFILE_APPEAL_PENDING', 'Public Profile appeal must be resolved first', true)
       }
       if (error instanceof PublicProfileModerationConflictError) {
         return sendProductProblem(request, reply, 409, 'PLACE_PUBLIC_PROFILE_MODERATION_CONFLICT', 'Public Profile moderation conflicts with an earlier request')

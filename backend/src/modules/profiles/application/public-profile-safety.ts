@@ -4,6 +4,7 @@ import {
   assertPublicProfileModerationCommand,
   assertPublicProfileReportReason,
   InvalidPublicProfileReportCursorError,
+  PublicProfileModerationAppealPendingError,
   PublicProfileModerationConflictError,
   PublicProfileModerationTargetNotFoundError,
   PublicProfileModerationVersionConflictError,
@@ -113,6 +114,9 @@ export async function moderatePublicProfile(input: Readonly<{
   }
   if (outcome.status === 'version-conflict') {
     throw new PublicProfileModerationVersionConflictError('Public Profile moderation changed concurrently')
+  }
+  if (outcome.status === 'appeal-pending') {
+    throw new PublicProfileModerationAppealPendingError('Public Profile has a pending appeal')
   }
   return outcome
 }

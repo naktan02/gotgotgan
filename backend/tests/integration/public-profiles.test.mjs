@@ -17,6 +17,7 @@ test('Public Profiles keep handles stable and list only owner public Collections
     const library = await import('../../dist/modules/library/index.js')
     const store = new profiles.PostgresPublicProfileStore(database.pool)
     const safety = new profiles.PostgresPublicProfileSafetyStore(database.pool)
+    const appeals = new profiles.PostgresPublicProfileAppealStore(database.pool)
     const queries = new library.PostgresLibraryQueries(
       database.pool,
       async () => [],
@@ -172,25 +173,179 @@ test('Public Profiles keep handles stable and list only owner public Collections
     const withheldRecord = await profiles.readPublicProfileModeration({
       handle: 'ramen-log', store: safety,
     })
+    const ownerNotices = await profiles.listPublicProfileOwnerNotices({
+      ownerMemberId: memberA,
+      limit: 20,
+      store: appeals,
+    })
+    assert.deepEqual(ownerNotices.notices.map((notice) => ({
+      noticeId: notice.noticeId, kind: notice.kind, reason: notice.reason,
+    })), [{
+      noticeId: '01992d20-4000-7000-8000-000000000601',
+      kind: 'withheld',
+      reason: 'spam',
+    }])
+    assert.equal(JSON.stringify(ownerNotices).includes(memberReviewer), false)
+    assert.equal((await profiles.acknowledgePublicProfileOwnerNotice({
+      ownerMemberId: memberA,
+      noticeId: '01992d20-4000-7000-8000-000000000601',
+      occurredAt: '2026-08-29T10:06:02.000Z',
+      store: appeals,
+    })).status, 'acknowledged')
+
+    const firstAppeal = await profiles.submitPublicProfileAppeal({
+      appealId: '01992d20-4000-7000-8000-000000000701',
+      ownerMemberId: memberA,
+      noticeId: '01992d20-4000-7000-8000-000000000601',
+      reason: 'mistaken-identity',
+      occurredAt: '2026-08-29T10:06:03.000Z',
+      store: appeals,
+    })
+    assert.equal(firstAppeal.status, 'recorded')
+    assert.equal((await profiles.submitPublicProfileAppeal({
+      appealId: '01992d20-4000-7000-8000-000000000701',
+      ownerMemberId: memberA,
+      noticeId: '01992d20-4000-7000-8000-000000000601',
+      reason: 'mistaken-identity',
+      occurredAt: '2026-08-29T10:06:04.000Z',
+      store: appeals,
+    })).status, 'replayed')
+    assert.equal((await profiles.submitPublicProfileAppeal({
+      appealId: '01992d20-4000-7000-8000-000000000702',
+      ownerMemberId: memberA,
+      noticeId: '01992d20-4000-7000-8000-000000000601',
+      reason: 'decision-context',
+      occurredAt: '2026-08-29T10:06:05.000Z',
+      store: appeals,
+    })).status, 'already-appealed')
+    const appealQueue = await profiles.listPendingPublicProfileAppeals({
+      limit: 20,
+      store: appeals,
+    })
+    assert.deepEqual(appealQueue.appeals.map((appeal) => ({
+      appealId: appeal.appealId,
+      handle: appeal.handle,
+      reason: appeal.reason,
+      moderationReason: appeal.moderationReason,
+    })), [{
+      appealId: '01992d20-4000-7000-8000-000000000701',
+      handle: 'ramen-log',
+      reason: 'mistaken-identity',
+      moderationReason: 'spam',
+    }])
+    assert.equal(JSON.stringify(appealQueue).includes(memberA), false)
+    await assert.rejects(
+      profiles.moderatePublicProfile({
+        decisionId: '01992d20-4000-7000-8000-000000000602',
+        actorMemberId: memberReviewer,
+        handle: 'ramen-log',
+        command: {
+          state: 'allowed', reason: 'insufficient-evidence',
+          expectedUpdatedAt: withheldRecord.updatedAt,
+        },
+        occurredAt: '2026-08-29T10:07:00.000Z',
+        store: safety,
+      }),
+      profiles.PublicProfileModerationAppealPendingError,
+    )
+    assert.equal((await profiles.resolvePublicProfileAppeal({
+      resolutionId: '01992d20-4000-7000-8000-000000000801',
+      actorMemberId: memberReviewer,
+      appealId: '01992d20-4000-7000-8000-000000000701',
+      command: { outcome: 'rejected', reason: 'decision-upheld' },
+      occurredAt: '2026-08-29T10:07:01.000Z',
+      store: appeals,
+    })).status, 'applied')
+    assert.equal(await store.getPublished('ramen-log'), undefined)
     assert.equal((await profiles.moderatePublicProfile({
-      decisionId: '01992d20-4000-7000-8000-000000000602',
+      decisionId: '01992d20-4000-7000-8000-000000000603',
       actorMemberId: memberReviewer,
       handle: 'ramen-log',
       command: {
-        state: 'allowed', reason: 'insufficient-evidence',
+        state: 'withheld', reason: 'privacy',
         expectedUpdatedAt: withheldRecord.updatedAt,
       },
-      occurredAt: '2026-08-29T10:07:00.000Z',
+      occurredAt: '2026-08-29T10:08:00.000Z',
       store: safety,
     })).status, 'applied')
+    assert.equal((await profiles.submitPublicProfileAppeal({
+      appealId: '01992d20-4000-7000-8000-000000000703',
+      ownerMemberId: memberA,
+      noticeId: '01992d20-4000-7000-8000-000000000603',
+      reason: 'issue-corrected',
+      occurredAt: '2026-08-29T10:08:01.000Z',
+      store: appeals,
+    })).status, 'recorded')
+    assert.equal((await profiles.resolvePublicProfileAppeal({
+      resolutionId: '01992d20-4000-7000-8000-000000000802',
+      actorMemberId: memberReviewer,
+      appealId: '01992d20-4000-7000-8000-000000000703',
+      command: { outcome: 'accepted' },
+      occurredAt: '2026-08-29T10:09:00.000Z',
+      store: appeals,
+    })).status, 'applied')
     assert.equal((await store.getPublished('ramen-log')).handle, 'ramen-log')
+    await assert.rejects(
+      database.administratorClient.query(
+        `INSERT INTO profiles.public_profile_owner_notices (
+           notice_id, owner_membership_id, handle, moderation_decision_id,
+           appeal_resolution_id, kind, reason, created_at, acknowledged_at
+         ) VALUES (
+           '01992d20-4000-7000-8000-000000000805', $1::uuid, 'ramen-log',
+           '01992d20-4000-7000-8000-000000000802', NULL, 'restored',
+           'appeal-accepted', '2026-08-29T10:09:01.000Z'::timestamptz, NULL
+         )`,
+        [memberA],
+      ),
+      (error) => error?.code === '23514',
+    )
+    const firstNoticePage = await profiles.listPublicProfileOwnerNotices({
+      ownerMemberId: memberA,
+      limit: 1,
+      store: appeals,
+    })
+    assert.ok(firstNoticePage.nextCursor)
+    assert.equal(
+      Buffer.from(firstNoticePage.nextCursor, 'base64url').toString('utf8').includes(memberA),
+      false,
+    )
+    await assert.rejects(
+      profiles.listPublicProfileOwnerNotices({
+        ownerMemberId: memberB,
+        cursor: firstNoticePage.nextCursor,
+        limit: 1,
+        store: appeals,
+      }),
+      profiles.InvalidPublicProfileAppealCursorError,
+    )
     assert.equal((await profiles.reportPublicProfile({
       reportId: '01992d20-4000-7000-8000-000000000504',
       reporterMemberId: memberReviewer,
       handle: 'ramen-log',
       reason: 'privacy',
-      occurredAt: '2026-08-29T10:08:00.000Z',
+      occurredAt: '2026-08-29T10:10:00.000Z',
       store: safety,
+    })).status, 'recorded')
+    const restoredRecord = await profiles.readPublicProfileModeration({
+      handle: 'ramen-log', store: safety,
+    })
+    assert.equal((await profiles.moderatePublicProfile({
+      decisionId: '01992d20-4000-7000-8000-000000000604',
+      actorMemberId: memberReviewer,
+      handle: 'ramen-log',
+      command: {
+        state: 'withheld', reason: 'privacy', expectedUpdatedAt: restoredRecord.updatedAt,
+      },
+      occurredAt: '2026-08-29T10:11:00.000Z',
+      store: safety,
+    })).status, 'applied')
+    assert.equal((await profiles.submitPublicProfileAppeal({
+      appealId: '01992d20-4000-7000-8000-000000000704',
+      ownerMemberId: memberA,
+      noticeId: '01992d20-4000-7000-8000-000000000604',
+      reason: 'decision-context',
+      occurredAt: '2026-08-29T10:11:01.000Z',
+      store: appeals,
     })).status, 'recorded')
 
     await assert.rejects(
@@ -233,6 +388,24 @@ test('Public Profiles keep handles stable and list only owner public Collections
     )
     assert.ok(closedReports.rows.length >= 2)
     assert.ok(closedReports.rows.every((row) => row.reviewed_at instanceof Date))
+    const supersededAppeal = await database.administratorClient.query(
+      `SELECT appeal.status, resolution.outcome, resolution.reason
+         FROM profiles.public_profile_appeals appeal
+         JOIN profiles.public_profile_appeal_resolutions resolution
+           ON resolution.resolution_id = appeal.resolution_id
+        WHERE appeal.appeal_id = '01992d20-4000-7000-8000-000000000704'`,
+    )
+    assert.deepEqual(supersededAppeal.rows[0], {
+      status: 'superseded', outcome: 'superseded', reason: 'profile-deleted',
+    })
+    await assert.rejects(
+      database.pool.query(
+        `UPDATE profiles.public_profile_appeal_resolutions
+            SET reason = 'decision-upheld'
+          WHERE resolution_id = '01992d20-4000-7000-8000-000000000802'`,
+      ),
+      (error) => error?.code === '42501',
+    )
     const retired = await database.administratorClient.query(
       `SELECT membership_id, retired_at
          FROM profiles.public_handle_reservations

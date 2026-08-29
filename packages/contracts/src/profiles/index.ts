@@ -53,10 +53,116 @@ export const publicProfileModerationRequestSchema = z.object({
     }).strict(),
     z.object({
       state: z.literal('allowed'),
-      reason: publicProfileAllowReasonSchema,
+      reason: z.literal('insufficient-evidence'),
       expectedUpdatedAt: z.iso.datetime({ offset: true }).nullable(),
     }).strict(),
   ]),
+}).strict()
+
+export const publicProfileAppealReasonSchema = z.enum([
+  'mistaken-identity', 'issue-corrected', 'decision-context',
+])
+export const publicProfileAppealRejectionReasonSchema = z.enum([
+  'decision-upheld', 'insufficient-remediation',
+])
+export const publicProfileAppealStatusSchema = z.enum([
+  'pending', 'accepted', 'rejected', 'superseded',
+])
+export const publicProfileOwnerNoticeKindSchema = z.enum([
+  'withheld', 'restored', 'appeal-rejected',
+])
+
+export const publicProfileModerationNoticeQuerySchema = z.object({
+  cursor: z.string().min(1).max(2_048).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+}).strict()
+
+export const publicProfileNoticeParamsSchema = z.object({
+  noticeId: uuidSchema,
+}).strict()
+
+const publicProfileAppealSummarySchema = z.object({
+  appealId: uuidSchema,
+  reason: publicProfileAppealReasonSchema,
+  status: publicProfileAppealStatusSchema,
+  submittedAt: z.iso.datetime({ offset: true }),
+  resolvedAt: z.iso.datetime({ offset: true }).nullable(),
+  resolutionReason: z.union([
+    publicProfileAppealRejectionReasonSchema,
+    z.enum(['appeal-accepted', 'profile-deleted']),
+  ]).nullable(),
+}).strict()
+
+export const publicProfileModerationNoticesSchema = z.object({
+  schemaVersion: z.literal('public-profile-moderation-notices.v1'),
+  notices: z.array(z.object({
+    noticeId: uuidSchema,
+    handle: publicProfileHandleSchema,
+    kind: publicProfileOwnerNoticeKindSchema,
+    reason: z.union([
+      publicProfileModerationReasonSchema,
+      publicProfileAppealRejectionReasonSchema,
+    ]),
+    createdAt: z.iso.datetime({ offset: true }),
+    acknowledgedAt: z.iso.datetime({ offset: true }).nullable(),
+    appeal: publicProfileAppealSummarySchema.nullable(),
+  }).strict()).max(50),
+  nextCursor: z.string().min(1).max(2_048).optional(),
+}).strict()
+
+export const publicProfileNoticeAcknowledgementResultSchema = z.object({
+  schemaVersion: z.literal('public-profile-notice-acknowledgement.v1'),
+  status: z.enum(['acknowledged', 'already-acknowledged']),
+  acknowledgedAt: z.iso.datetime({ offset: true }),
+}).strict()
+
+export const publicProfileAppealRequestSchema = z.object({
+  appealId: uuidSchema,
+  noticeId: uuidSchema,
+  reason: publicProfileAppealReasonSchema,
+}).strict()
+
+export const publicProfileAppealResultSchema = z.object({
+  schemaVersion: z.literal('public-profile-appeal-result.v1'),
+  status: z.enum(['recorded', 'replayed', 'already-appealed']),
+}).strict()
+
+export const publicProfileAppealQueueQuerySchema = z.object({
+  cursor: z.string().min(1).max(2_048).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+}).strict()
+
+export const publicProfileAppealQueueSchema = z.object({
+  schemaVersion: z.literal('public-profile-appeal-queue.v1'),
+  appeals: z.array(z.object({
+    appealId: uuidSchema,
+    handle: publicProfileHandleSchema,
+    reason: publicProfileAppealReasonSchema,
+    submittedAt: z.iso.datetime({ offset: true }),
+    moderationReason: publicProfileReportReasonSchema,
+    moderationDecidedAt: z.iso.datetime({ offset: true }),
+  }).strict()).max(50),
+  nextCursor: z.string().min(1).max(2_048).optional(),
+}).strict()
+
+export const publicProfileAppealParamsSchema = z.object({
+  appealId: uuidSchema,
+}).strict()
+
+export const publicProfileAppealResolutionRequestSchema = z.object({
+  resolutionId: uuidSchema,
+  resolution: z.discriminatedUnion('outcome', [
+    z.object({ outcome: z.literal('accepted') }).strict(),
+    z.object({
+      outcome: z.literal('rejected'),
+      reason: publicProfileAppealRejectionReasonSchema,
+    }).strict(),
+  ]),
+}).strict()
+
+export const publicProfileAppealResolutionResultSchema = z.object({
+  schemaVersion: z.literal('public-profile-appeal-resolution-result.v1'),
+  status: z.enum(['applied', 'replayed']),
 }).strict()
 
 export const publicProfileModerationRecordSchema = z.object({
@@ -139,3 +245,13 @@ export type PublicProfileModerationRequest = z.infer<typeof publicProfileModerat
 export type PublicProfileModerationRecord = z.infer<typeof publicProfileModerationRecordSchema>
 export type PublicProfileModerationResult = z.infer<typeof publicProfileModerationResultSchema>
 export type PublicProfileReportQueue = z.infer<typeof publicProfileReportQueueSchema>
+export type PublicProfileModerationNotices = z.infer<typeof publicProfileModerationNoticesSchema>
+export type PublicProfileAppealRequest = z.infer<typeof publicProfileAppealRequestSchema>
+export type PublicProfileAppealResult = z.infer<typeof publicProfileAppealResultSchema>
+export type PublicProfileAppealQueue = z.infer<typeof publicProfileAppealQueueSchema>
+export type PublicProfileAppealResolutionRequest = z.infer<
+  typeof publicProfileAppealResolutionRequestSchema
+>
+export type PublicProfileAppealResolutionResult = z.infer<
+  typeof publicProfileAppealResolutionResultSchema
+>

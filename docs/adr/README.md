@@ -4,8 +4,8 @@ ADRs record durable repository-local decisions. Copy `template.md`, assign the n
 status and date, link evidence, name consequences and supersession conditions, and update routed docs.
 
 현재 최신 결정은
-[`0018-separate-profile-reports-from-moderation.md`](0018-separate-profile-reports-from-moderation.md)이며,
-회원 신고 신호와 운영 moderation 판정을 분리하고 owner 공개 상태와도 독립적으로 유지한다.
+[`0019-bind-profile-appeals-to-withheld-decisions.md`](0019-bind-profile-appeals-to-withheld-decisions.md)이며,
+owner appeal을 특정 withheld 판정에 한 번만 결합하고 수락과 moderation 복구를 원자적으로 처리한다.
 
 Stage 7 결정은 `0011-connected-import-pipeline-and-provider-isolation.md`에 기록한다. 연결 계정
 작업, Provider parser 격리, 암호화 캡처, 명시적 검토와 Library 반영 경계를 정의한다.
@@ -43,3 +43,5 @@ Stage 7 결정은 `0011-connected-import-pipeline-and-provider-isolation.md`에 
   Membership 연결은 제거하되 namespace 예약은 보존하고 다른 회원 재배정을 금지한다.
 - `0018-separate-profile-reports-from-moderation.md`: 인증된 categorized 신고, reviewer 이상 운영 판정,
   180일 보존, owner visibility와 독립된 allowed/withheld 상태를 정의한다.
+- `0019-bind-profile-appeals-to-withheld-decisions.md`: owner Notice와 structured appeal, reviewer의
+  immutable resolution, accepted appeal과 allowed 복구의 원자성을 정의한다.
