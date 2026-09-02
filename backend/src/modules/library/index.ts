@@ -18,6 +18,55 @@ export type {
   ImportedPlaceSaveStore,
 } from './application/ports/imported-place-save-store.js'
 export type { LibraryStore } from './application/ports/library-store.js'
+export type {
+  CollectionOrder,
+  ImportedCollectionMaterializer,
+  PersonalLibraryWorkspace,
+  PersonalRatingLedger,
+  PlaceFiling,
+  PublishedCollectionExchange,
+} from './application/ports/collection-first.js'
+export {
+  InvalidCollectionFirstInputError,
+  type CollectionFavoritePlace,
+  type CollectionOrderMove,
+  type CollectionOrderReceipt,
+  type CollectionPublicationChange,
+  type CollectionPublicationReceipt,
+  type CollectionVisibility,
+  type CollectionWorkspaceSummary,
+  type ImportedCollectionMaterialization,
+  type ImportedCollectionReceipt,
+  type LibraryWriteRejection,
+  type LibraryWriteResult,
+  type OpaqueVersion,
+  type PersonalLibraryWorkspaceQuery,
+  type PersonalLibraryWorkspaceView,
+  type PersonalRating,
+  type PersonalRatingChange,
+  type PersonalRatingReceipt,
+  type PlaceFilingChange,
+  type PlaceFilingMutation,
+  type PlaceFilingQuery,
+  type PlaceFilingReceipt,
+  type PlaceFilingView,
+  type Placement,
+  type PublishedCollectionCopy,
+  type PublishedCollectionCopyReceipt,
+  type WriteContext,
+} from './domain/collection-first.js'
+export {
+  asOpaqueVersion,
+  normalizeCollectionOrderMove,
+  normalizeCollectionPublicationChange,
+  normalizeImportedCollectionMaterialization,
+  normalizePersonalLibraryWorkspaceQuery,
+  normalizePersonalRatingChange,
+  normalizePlaceFilingMutation,
+  normalizePlacement,
+  normalizePublishedCollectionCopy,
+  normalizeWriteContext,
+} from './application/validate-collection-first.js'
 export { PostgresLibraryStore } from './adapters/persistence/postgres-library-store.js'
 export { PostgresLibraryQueries } from './adapters/persistence/postgres-library-queries.js'
 export {

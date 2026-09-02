@@ -307,6 +307,226 @@ export const libraryPlaceOrganizationResponseSchema = z.object({
   nextCursor: cursorSchema.optional(),
 }).strict()
 
+/**
+ * Collection-first Personal Library contracts.
+ *
+ * These v2 schemas intentionally do not reuse the legacy saved/wanted state model. A Place is a
+ * favorite when it belongs to at least one member-owned Collection; Personal Rating remains an
+ * independent annotation and filter.
+ */
+export const libraryCollectionRevisionV2Schema = z.string().min(1).max(2_048)
+
+export const personalLibraryFavoriteScopeV2Schema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('all') }).strict(),
+  z.object({
+    kind: z.literal('collection'),
+    collectionId: uuidSchema,
+  }).strict(),
+])
+
+export const personalLibraryRatingFilterV2Schema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('any') }).strict(),
+  z.object({ kind: z.literal('rated') }).strict(),
+  z.object({ kind: z.literal('unrated') }).strict(),
+])
+
+export const personalLibraryOverlayV2Schema = z.object({
+  isFavorited: z.boolean(),
+  collectionCount: z.number().int().nonnegative(),
+  personalRating: z.number().min(0.1).max(5).multipleOf(0.1).nullable(),
+}).strict().refine(
+  (overlay) => overlay.isFavorited === (overlay.collectionCount > 0),
+  'isFavorited must reflect whether the Place belongs to at least one Collection',
+)
+
+export const personalLibraryCollectionSummaryV2Schema = z.object({
+  collectionId: uuidSchema,
+  name: z.string().min(1).max(120),
+  description: z.string().max(2_000).nullable(),
+  visibility: z.enum(['private', 'unlisted', 'public']),
+  publicationId: uuidSchema.nullable(),
+  placeCount: z.number().int().nonnegative(),
+  collectionRevision: libraryCollectionRevisionV2Schema,
+  updatedAt: z.iso.datetime({ offset: true }),
+}).strict()
+
+export const personalLibraryWorkspaceRequestV2Schema = z.object({
+  favoriteScope: personalLibraryFavoriteScopeV2Schema.default({ kind: 'all' }),
+  ratingFilter: personalLibraryRatingFilterV2Schema.default({ kind: 'any' }),
+  tagIds: tagIdsSchema,
+  tagMatch: libraryTagMatchSchema.default('all'),
+  areaKeys: areaKeysSchema,
+  taxonomyKeys: taxonomyKeysSchema,
+  collectionCursor: cursorSchema.optional(),
+  placeCursor: cursorSchema.optional(),
+  limit: pageLimitSchema,
+}).strict()
+
+export const personalLibraryWorkspaceResponseV2Schema = z.object({
+  schemaVersion: z.literal('personal-library-workspace.v2'),
+  filter: z.object({
+    favoriteScope: personalLibraryFavoriteScopeV2Schema,
+    ratingFilter: personalLibraryRatingFilterV2Schema,
+    tagIds: z.array(uuidSchema).max(20),
+    tagMatch: libraryTagMatchSchema,
+    areaKeys: z.array(areaFacetKeySchema).max(10),
+    taxonomyKeys: z.array(taxonomyFacetKeySchema).max(10),
+  }).strict(),
+  collections: z.array(personalLibraryCollectionSummaryV2Schema).max(50),
+  collectionNextCursor: cursorSchema.optional(),
+  places: z.array(z.object({
+    placeId: uuidSchema,
+    overlay: personalLibraryOverlayV2Schema,
+    place: placeSummarySchema.nullable(),
+  }).strict()).max(50),
+  placeNextCursor: cursorSchema.optional(),
+}).strict()
+
+export const placeFilingRequestV2Schema = z.object({
+  cursor: cursorSchema.optional(),
+  limit: pageLimitSchema,
+}).strict()
+
+export const placeFilingResponseV2Schema = z.object({
+  schemaVersion: z.literal('place-filing.v2'),
+  placeId: uuidSchema,
+  overlay: personalLibraryOverlayV2Schema,
+  collections: z.array(z.object({
+    collectionId: uuidSchema,
+    name: z.string().min(1).max(120),
+    included: z.boolean(),
+    collectionRevision: libraryCollectionRevisionV2Schema,
+  }).strict()).max(50),
+  nextCursor: cursorSchema.optional(),
+}).strict()
+
+/**
+ * Receipt for one idempotent Library operation. `commandId` retains the existing HTTP command
+ * convention while identifying the operation whose result was applied or replayed.
+ */
+export const libraryOperationReceiptV2Schema = z.object({
+  commandId: uuidSchema,
+  status: z.enum(['applied', 'replayed']),
+}).strict()
+
+export const libraryOperationRejectionV2Schema = z.discriminatedUnion('code', [
+  z.object({
+    code: z.literal('not-found'),
+  }).strict(),
+  z.object({
+    code: z.literal('version-conflict'),
+  }).strict(),
+  z.object({
+    code: z.literal('operation-id-reused'),
+  }).strict(),
+  z.object({
+    code: z.literal('invalid-selection'),
+  }).strict(),
+  z.object({
+    code: z.literal('anchor-not-found'),
+  }).strict(),
+  z.object({
+    code: z.literal('source-membership-missing'),
+  }).strict(),
+  z.object({
+    code: z.literal('collection-limit-exceeded'),
+    limit: z.number().int().positive().optional(),
+  }).strict(),
+  z.object({
+    code: z.literal('binding-version-conflict'),
+  }).strict(),
+  z.object({
+    code: z.literal('publication-changed'),
+  }).strict(),
+])
+
+export const placeFilingDesiredStateV2Schema = z.enum(['included', 'excluded'])
+
+const placeFilingChangeV2Schema = z.object({
+  collectionId: uuidSchema,
+  expectedCollectionRevision: libraryCollectionRevisionV2Schema,
+  desired: placeFilingDesiredStateV2Schema,
+}).strict()
+
+export const placeFilingCommandRequestV2Schema = z.object({
+  schemaVersion: z.literal('place-filing-command.v2'),
+  commandId: uuidSchema,
+  placeId: uuidSchema,
+  changes: z.array(placeFilingChangeV2Schema).min(1).max(50),
+}).strict().refine(
+  (request) => new Set(request.changes.map((change) => change.collectionId)).size === request.changes.length,
+  'each Collection may appear only once in an atomic filing command',
+)
+
+const placeFilingAppliedCollectionV2Schema = z.object({
+  collectionId: uuidSchema,
+  included: z.boolean(),
+  collectionRevision: libraryCollectionRevisionV2Schema,
+}).strict()
+
+export const placeFilingCommandResultV2Schema = z.discriminatedUnion('outcome', [
+  z.object({
+    schemaVersion: z.literal('place-filing-command-result.v2'),
+    outcome: z.literal('accepted'),
+    receipt: libraryOperationReceiptV2Schema,
+    placeId: uuidSchema,
+    overlay: personalLibraryOverlayV2Schema,
+    collections: z.array(placeFilingAppliedCollectionV2Schema).min(1).max(50),
+  }).strict().refine(
+    (result) => new Set(result.collections.map((collection) => collection.collectionId)).size ===
+      result.collections.length,
+    'each Collection result must appear only once',
+  ),
+  z.object({
+    schemaVersion: z.literal('place-filing-command-result.v2'),
+    outcome: z.literal('rejected'),
+    commandId: uuidSchema,
+    rejection: libraryOperationRejectionV2Schema,
+  }).strict(),
+])
+
+export const collectionOrderAnchorV2Schema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('first') }).strict(),
+  z.object({ kind: z.literal('last') }).strict(),
+  z.object({
+    kind: z.literal('before'),
+    placeId: uuidSchema,
+  }).strict(),
+  z.object({
+    kind: z.literal('after'),
+    placeId: uuidSchema,
+  }).strict(),
+])
+
+export const collectionOrderCommandRequestV2Schema = z.object({
+  schemaVersion: z.literal('collection-order-command.v2'),
+  commandId: uuidSchema,
+  collectionId: uuidSchema,
+  placeId: uuidSchema,
+  expectedCollectionRevision: libraryCollectionRevisionV2Schema,
+  anchor: collectionOrderAnchorV2Schema,
+}).strict().refine(
+  (command) => !('placeId' in command.anchor) || command.anchor.placeId !== command.placeId,
+  'a Collection Place cannot be ordered relative to itself',
+)
+
+export const collectionOrderCommandResultV2Schema = z.discriminatedUnion('outcome', [
+  z.object({
+    schemaVersion: z.literal('collection-order-command-result.v2'),
+    outcome: z.literal('accepted'),
+    receipt: libraryOperationReceiptV2Schema,
+    collectionId: uuidSchema,
+    placeId: uuidSchema,
+    collectionRevision: libraryCollectionRevisionV2Schema,
+  }).strict(),
+  z.object({
+    schemaVersion: z.literal('collection-order-command-result.v2'),
+    outcome: z.literal('rejected'),
+    commandId: uuidSchema,
+    rejection: libraryOperationRejectionV2Schema,
+  }).strict(),
+])
+
 export type LibraryPlaceState = z.infer<typeof libraryPlaceStateSchema>
 export type LibraryTagMatch = z.infer<typeof libraryTagMatchSchema>
 export type LibraryPlacePreferencesResponse = z.infer<typeof libraryPlacePreferencesResponseSchema>
@@ -325,3 +545,20 @@ export type LibraryTagListQuery = z.infer<typeof libraryTagListQuerySchema>
 export type LibraryTagListResponse = z.infer<typeof libraryTagListResponseSchema>
 export type LibraryPlaceOrganizationQuery = z.infer<typeof libraryPlaceOrganizationQuerySchema>
 export type LibraryPlaceOrganizationResponse = z.infer<typeof libraryPlaceOrganizationResponseSchema>
+export type LibraryCollectionRevisionV2 = z.infer<typeof libraryCollectionRevisionV2Schema>
+export type PersonalLibraryFavoriteScopeV2 = z.infer<typeof personalLibraryFavoriteScopeV2Schema>
+export type PersonalLibraryRatingFilterV2 = z.infer<typeof personalLibraryRatingFilterV2Schema>
+export type PersonalLibraryOverlayV2 = z.infer<typeof personalLibraryOverlayV2Schema>
+export type PersonalLibraryCollectionSummaryV2 = z.infer<typeof personalLibraryCollectionSummaryV2Schema>
+export type PersonalLibraryWorkspaceRequestV2 = z.infer<typeof personalLibraryWorkspaceRequestV2Schema>
+export type PersonalLibraryWorkspaceResponseV2 = z.infer<typeof personalLibraryWorkspaceResponseV2Schema>
+export type PlaceFilingRequestV2 = z.infer<typeof placeFilingRequestV2Schema>
+export type PlaceFilingResponseV2 = z.infer<typeof placeFilingResponseV2Schema>
+export type LibraryOperationReceiptV2 = z.infer<typeof libraryOperationReceiptV2Schema>
+export type LibraryOperationRejectionV2 = z.infer<typeof libraryOperationRejectionV2Schema>
+export type PlaceFilingDesiredStateV2 = z.infer<typeof placeFilingDesiredStateV2Schema>
+export type PlaceFilingCommandRequestV2 = z.infer<typeof placeFilingCommandRequestV2Schema>
+export type PlaceFilingCommandResultV2 = z.infer<typeof placeFilingCommandResultV2Schema>
+export type CollectionOrderAnchorV2 = z.infer<typeof collectionOrderAnchorV2Schema>
+export type CollectionOrderCommandRequestV2 = z.infer<typeof collectionOrderCommandRequestV2Schema>
+export type CollectionOrderCommandResultV2 = z.infer<typeof collectionOrderCommandResultV2Schema>

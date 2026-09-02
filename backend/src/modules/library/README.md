@@ -1,8 +1,20 @@
 # Library 모듈
 
-Library는 회원의 저장·가고 싶음 상태, 현재 Personal Rating, 평점 변경 이력, Collection,
-Tag, 복사 provenance를 소유한다. Visit은 소유하지 않으며 `visited` 상태를 별도 flag로
-저장하지 않는다.
+곳곳간의 즐겨찾기 truth는 회원 소유 Collection membership이다. Library는 Collection과 순서,
+Tag, 현재 Personal Rating, 평점 변경 이력, import·copy provenance를 소유한다. Rating과 Tag는
+Collection membership과 독립이며 마지막 membership 제거로 삭제하지 않는다. Visit과 Writing은
+각 소유 Module에 남고 Library가 상태를 복제하거나 schema를 직접 join하지 않는다.
+
+새 Collection-first Seam은 `PersonalLibraryWorkspace`, `PlaceFiling`, `CollectionOrder`를 흔한 사용자
+흐름에 제공하고, `ImportedCollectionMaterializer`, `PublishedCollectionExchange`,
+`PersonalRatingLedger`를 특수 흐름에 제공한다. 호출자는 불투명 version과 `first`/`last`/
+`before`/`after` anchor만 사용하며 database 정수 position을 알지 못한다. 같은 operation ID와 정규화된
+요청은 원래 결과를 replay하고, 타인 소유와 미존재 resource는 같은 `not-found` 경계로 축약한다.
+
+아래 `LibraryCommand`, `LibraryQueries`, `saved`/`wanted` 설명은 기존 source-only v1 소비자를 위한
+Compatibility Adapter의 현재 구현이다. 새 기능을 이 경계에 추가하지 않으며 Web·Import·Search를
+Collection-first Interface로 전환한 뒤 제거한다. `000035` migration은 이 전환에 필요한 revision,
+v2 operation receipt, N:1 source-list binding과 부분 복사 provenance를 additive하게 준비한다.
 
 application interface는 멱등 domain command를 받는다. persistence는 table별 repository가
 아니라 하나의 깊은 adapter로 제공한다. 공개 Collection 조회는 owner ID, Tag, Rating,

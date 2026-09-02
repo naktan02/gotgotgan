@@ -114,3 +114,11 @@ Migration `000029`는 `access.membership_resource_grants` constraint에 `library
 Collection table이나 공개 projection shape는 바꾸지 않으며, Product Authorizer가 공유 기능을 일반
 write와 별도로 판단할 수 있는 최소 권한 seam만 만든다. 활성 share grant를 지우지 않도록 rollback은
 해당 grant가 있으면 fail closed한다.
+
+Migration `000035`는 사용자 Collection membership을 즐겨찾기의 단일 truth로 전환한다. 기존
+`saved`/`wanted` column을 즉시 삭제하지는 않지만 새 Interface에서는 사용하지 않는다. Collection,
+회원 Collection/Tag, Personal Rating에 독립 revision을 추가하고, 응답 유실 재시도에 같은 결과를
+돌려주는 v2 operation receipt를 만든다. Provider Source List binding은 Source List를 key로 삼아 여러
+목록이 같은 Collection을 가리킬 수 있고, 공개 목록 부분 복사는 operation과 원본 순서별 Item
+provenance를 보존한다. 전환 전 미분류 legacy Place가 있으면 자동 `저장됨`/`가고 싶음` Collection을
+만들지 않고 migration을 중단해 사용자가 선택한 분류로 먼저 정리하게 한다.

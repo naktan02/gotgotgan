@@ -770,6 +770,40 @@ test('database preparation confines runtime authority and persists Place access 
     assert.equal(contractResult.rows[0].table_owner, databaseRuntime.roles.migration)
     assert.match(contractResult.rows[0].indexdef, /USING gist \(location\)/)
 
+    const collectionFirstContract = await administratorClient.query(`
+      SELECT
+        EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'library' AND table_name = 'collections'
+            AND column_name = 'revision' AND data_type = 'bigint'
+        ) AS has_collection_revision,
+        EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'library' AND table_name = 'place_preferences'
+            AND column_name = 'rating_revision' AND data_type = 'bigint'
+        ) AS has_rating_revision,
+        to_regclass('library.member_revisions') IS NOT NULL AS has_member_revisions,
+        to_regclass('library.operation_receipts_v2') IS NOT NULL AS has_operation_receipts,
+        to_regclass('library.import_source_list_bindings') IS NOT NULL AS has_source_bindings,
+        to_regclass('library.publication_copy_operations') IS NOT NULL AS has_copy_operations,
+        to_regclass('library.publication_copy_items') IS NOT NULL AS has_copy_items
+    `)
+    assert.deepEqual(collectionFirstContract.rows[0], {
+      has_collection_revision: true,
+      has_rating_revision: true,
+      has_member_revisions: true,
+      has_operation_receipts: true,
+      has_source_bindings: true,
+      has_copy_operations: true,
+      has_copy_items: true,
+    })
+
+    await expectInsufficientPrivilege(
+      runtimeClient,
+      `UPDATE library.import_source_list_bindings
+       SET owner_membership_id = '01991e60-9c4e-7a13-945a-0d224d0059c2'`,
+    )
+
     await runtimeClient.query(`
       INSERT INTO places.canonical_places (id, location)
       VALUES (

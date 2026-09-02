@@ -63,6 +63,12 @@ union은 Collection rename/delete와 Place move/remove, Tag rename/delete/untag�
 replay 규칙을 사용한다. `set-place-preferences`는 saved/wanted/Personal Rating 목표 상태 전체와
 nullable `expectedUpdatedAt`을 요구하며 offset timestamp를 UTC로 정규화한다.
 
+Collection-first v2 계약은 기존 소비자를 깨지 않도록 같은 subpath에 additive하게 제공한다. 새
+`PersonalLibraryWorkspace`, `PlaceFiling`, `CollectionOrder` schema에서 즐겨찾기는 `all` 또는 특정
+Collection membership 범위로만 표현하며 `saved`/`wanted`와 정수 position을 허용하지 않는다. Collection
+목록과 장소 목록 cursor는 독립적이고, write는 불투명 Collection revision과 anchor placement, 응답
+유실 후 replay 가능한 operation receipt 및 존재 정보를 누출하지 않는 안정 rejection을 사용한다.
+
 `@place/contracts/visits`는 `visit-record-result.v1`, `visit-summary.v1`과 회원·fingerprint·임의 evidence를 노출하지 않는 bounded
 `visit-history.v1`을 소유한다. `@place/contracts/writing`은 `writing-command-result.v1`과 본문을 최대 280자 preview로 제한한
 `writing-list.v2`와 소유자 단건 전체 본문용 `writing-detail.v1`을 분리한다. 목록과 상세는 서버가
