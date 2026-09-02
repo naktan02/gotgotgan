@@ -7,8 +7,8 @@ import {
   type CatalogHomeLibrary,
 } from '@/features/catalog-home/public'
 import {
-  BrowserLibraryProblem,
-  personalLibraryHttp,
+  CollectionLibraryProblem,
+  collectionLibraryHttp,
 } from '@/features/personal-library/public'
 import type { FamilyNavigation } from '@/platform/family-navigation/family-navigation'
 import { DeterministicPlaceMap } from '@/platform/maps/DeterministicPlaceMap'
@@ -17,34 +17,27 @@ import { PlaceWorkspaceShell } from '@/shells/place-workspace/PlaceWorkspaceShel
 const homeLibrary: CatalogHomeLibrary = {
   async readCollections(signal) {
     try {
-      const page = await personalLibraryHttp.collections(undefined, signal)
+      const page = await collectionLibraryHttp.workspace({
+        favoriteScope: { kind: 'all' },
+        ratingFilter: { kind: 'any' },
+        tagIds: [],
+        tagMatch: 'all',
+        areaKeys: [],
+        taxonomyKeys: [],
+        limit: 20,
+      }, signal)
       return {
         kind: 'ready',
-        items: page.items.map((item) => ({
+        items: page.collections.map((item) => ({
           collectionId: item.collectionId,
           name: item.name,
           placeCount: item.placeCount,
         })),
       }
     } catch (error) {
-      return error instanceof BrowserLibraryProblem && error.status === 401
+      return error instanceof CollectionLibraryProblem && error.status === 401
         ? { kind: 'signed-out' }
         : { kind: 'unavailable' }
-    }
-  },
-  async filePlace(input) {
-    try {
-      await personalLibraryHttp.command({
-        commandId: crypto.randomUUID(),
-        command: {
-          kind: 'add-collection-place',
-          collectionId: input.collectionId,
-          placeId: input.placeId,
-        },
-      })
-      return { kind: 'success' }
-    } catch {
-      return { kind: 'unavailable' }
     }
   },
 }

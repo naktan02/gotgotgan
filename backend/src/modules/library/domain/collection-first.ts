@@ -1,3 +1,5 @@
+import type { LibraryPlaceSummary, LibraryTagMatch } from './queries.js'
+
 declare const opaqueVersionBrand: unique symbol
 
 /**
@@ -26,8 +28,10 @@ export type CollectionWorkspaceSummary = Readonly<{
   name: string
   description: string | null
   visibility: CollectionVisibility
+  publicationId: string | null
   placeCount: number
   version: OpaqueVersion
+  updatedAt: string
 }>
 
 /**
@@ -39,11 +43,17 @@ export type CollectionFavoritePlace = Readonly<{
   collectionMembershipCount: number
   tagIds: readonly string[]
   personalRating: number | null
+  place: LibraryPlaceSummary | null
 }>
 
 export type PersonalLibraryWorkspaceQuery = Readonly<{
   memberId: string
-  scope: Readonly<{ kind: 'all' }> | Readonly<{ kind: 'collection'; collectionId: string }>
+  favoriteScope: Readonly<{ kind: 'all' }> | Readonly<{ kind: 'collection'; collectionId: string }>
+  ratingFilter: Readonly<{ kind: 'any' }> | Readonly<{ kind: 'rated' }> | Readonly<{ kind: 'unrated' }>
+  tagIds: readonly string[]
+  tagMatch: LibraryTagMatch
+  areaKeys: readonly string[]
+  taxonomyKeys: readonly string[]
   collectionCursor?: string | undefined
   placeCursor?: string | undefined
   limit: number
@@ -51,7 +61,14 @@ export type PersonalLibraryWorkspaceQuery = Readonly<{
 
 export type PersonalLibraryWorkspaceView = Readonly<{
   schemaVersion: 'personal-library-workspace.v2'
-  scope: PersonalLibraryWorkspaceQuery['scope']
+  filter: Readonly<{
+    favoriteScope: PersonalLibraryWorkspaceQuery['favoriteScope']
+    ratingFilter: PersonalLibraryWorkspaceQuery['ratingFilter']
+    tagIds: readonly string[]
+    tagMatch: LibraryTagMatch
+    areaKeys: readonly string[]
+    taxonomyKeys: readonly string[]
+  }>
   collections: Readonly<{
     items: readonly CollectionWorkspaceSummary[]
     nextCursor?: string | undefined
@@ -59,6 +76,16 @@ export type PersonalLibraryWorkspaceView = Readonly<{
   favoritePlaces: Readonly<{
     items: readonly CollectionFavoritePlace[]
     nextCursor?: string | undefined
+  }>
+  availableFilters: Readonly<{
+    coverage: Readonly<{
+      favoritePlaceCount: number
+      sampledPlaceCount: number
+      projectedPlaceCount: number
+      complete: boolean
+    }>
+    areas: readonly Readonly<{ key: string; label: string; count: number }>[]
+    taxonomies: readonly Readonly<{ key: string; label: string; count: number }>[]
   }>
 }>
 
@@ -72,6 +99,8 @@ export type PlaceFilingQuery = Readonly<{
 export type PlaceFilingView = Readonly<{
   schemaVersion: 'place-filing.v2'
   placeId: string
+  collectionMembershipCount: number
+  personalRating: number | null
   collections: readonly Readonly<{
     collectionId: string
     name: string
@@ -100,6 +129,8 @@ export type PlaceFilingMutation = Readonly<{
 
 export type PlaceFilingReceipt = Readonly<{
   placeId: string
+  collectionMembershipCount: number
+  personalRating: number | null
   collections: readonly Readonly<{
     collectionId: string
     included: boolean
@@ -119,6 +150,34 @@ export type CollectionOrderReceipt = Readonly<{
   collectionId: string
   placeId: string
   version: OpaqueVersion
+}>
+
+export type CollectionLifecycleCommand =
+  | Readonly<{
+      kind: 'create'
+      context: WriteContext
+      collectionId: string
+      name: string
+      description: string | null
+    }>
+  | Readonly<{
+      kind: 'update'
+      context: WriteContext
+      collectionId: string
+      expectedVersion: OpaqueVersion
+      name?: string | undefined
+      description?: string | null | undefined
+      visibility?: CollectionVisibility | undefined
+    }>
+  | Readonly<{
+      kind: 'delete'
+      context: WriteContext
+      collectionId: string
+      expectedVersion: OpaqueVersion
+    }>
+
+export type CollectionLifecycleReceipt = Readonly<{
+  collection: CollectionWorkspaceSummary | null
 }>
 
 export type ImportedCollectionMaterialization = Readonly<{

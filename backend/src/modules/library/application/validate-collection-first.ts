@@ -1,6 +1,7 @@
 import {
   InvalidCollectionFirstInputError,
   type CollectionOrderMove,
+  type CollectionLifecycleCommand,
   type CollectionPublicationChange,
   type ImportedCollectionMaterialization,
   type OpaqueVersion,
@@ -75,14 +76,34 @@ function requirePageLimit(limit: number): number {
 export function normalizePersonalLibraryWorkspaceQuery(
   query: PersonalLibraryWorkspaceQuery,
 ): PersonalLibraryWorkspaceQuery {
+  const tagIds = [...query.tagIds].sort()
+  if (tagIds.length > 20 || new Set(tagIds).size !== tagIds.length) {
+    invalid('tagIds', 'tagIds must contain at most 20 unique entries')
+  }
+  const areaKeys = [...query.areaKeys].sort()
+  const taxonomyKeys = [...query.taxonomyKeys].sort()
+  if (areaKeys.length > 10 || new Set(areaKeys).size !== areaKeys.length) {
+    invalid('areaKeys', 'areaKeys must contain at most 10 unique entries')
+  }
+  if (taxonomyKeys.length > 10 || new Set(taxonomyKeys).size !== taxonomyKeys.length) {
+    invalid('taxonomyKeys', 'taxonomyKeys must contain at most 10 unique entries')
+  }
   return {
     memberId: requireIdentifier(query.memberId, 'memberId'),
-    scope: query.scope.kind === 'all'
-      ? query.scope
+    favoriteScope: query.favoriteScope.kind === 'all'
+      ? query.favoriteScope
       : {
           kind: 'collection',
-          collectionId: requireIdentifier(query.scope.collectionId, 'scope.collectionId'),
+          collectionId: requireIdentifier(
+            query.favoriteScope.collectionId,
+            'favoriteScope.collectionId',
+          ),
         },
+    ratingFilter: query.ratingFilter,
+    tagIds,
+    tagMatch: query.tagMatch,
+    areaKeys,
+    taxonomyKeys,
     ...(query.collectionCursor === undefined
       ? {}
       : { collectionCursor: requireText(query.collectionCursor, 'collectionCursor', 2_000) }),
@@ -135,6 +156,40 @@ export function normalizeCollectionOrderMove(input: CollectionOrderMove): Collec
     placeId,
     expectedVersion: asOpaqueVersion(input.expectedVersion, 'expectedVersion'),
     placement: normalizePlacement(input.placement, placeId),
+  }
+}
+
+export function normalizeCollectionLifecycleCommand(
+  input: CollectionLifecycleCommand,
+): CollectionLifecycleCommand {
+  const context = normalizeWriteContext(input.context)
+  const collectionId = requireIdentifier(input.collectionId, 'collectionId')
+  if (input.kind === 'create') {
+    return {
+      kind: 'create', context, collectionId,
+      name: requireText(input.name, 'name', 120),
+      description: input.description === null
+        ? null
+        : requireText(input.description, 'description', 2_000),
+    }
+  }
+  const expectedVersion = asOpaqueVersion(input.expectedVersion, 'expectedVersion')
+  if (input.kind === 'delete') {
+    return { kind: 'delete', context, collectionId, expectedVersion }
+  }
+  if (
+    input.name === undefined && input.description === undefined &&
+    input.visibility === undefined
+  ) invalid('command', 'update must change at least one Collection field')
+  return {
+    kind: 'update', context, collectionId, expectedVersion,
+    ...(input.name === undefined ? {} : { name: requireText(input.name, 'name', 120) }),
+    ...(input.description === undefined ? {} : {
+      description: input.description === null
+        ? null
+        : requireText(input.description, 'description', 2_000),
+    }),
+    ...(input.visibility === undefined ? {} : { visibility: input.visibility }),
   }
 }
 

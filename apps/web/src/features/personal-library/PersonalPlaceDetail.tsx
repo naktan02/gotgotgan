@@ -2,7 +2,7 @@
 
 import { PersonalLibraryNotes } from './PersonalLibraryNotes'
 import { PersonalLibraryOrganizationEditor } from './PersonalLibraryOrganizationEditor'
-import { PersonalLibraryPreferenceEditor } from './PersonalLibraryPreferenceEditor'
+import { PersonalLibraryRatingEditor } from './PersonalLibraryRatingEditor'
 import { PersonalLibraryVisits } from './PersonalLibraryVisits'
 import styles from './personal-place-detail.module.css'
 import { usePersonalPlaceDetailWorkflow } from './personal-place-detail-workflow'
@@ -11,7 +11,7 @@ import { libraryEvidenceLabel } from './personal-library-presentation'
 export type PersonalPlaceSummary = Readonly<{
   name: string
   areaLabel: string | null
-  location: Readonly<{ latitude: number; longitude: number }>
+  location: Readonly<{ latitude: number; longitude: number }> | null
   primaryTaxonomy: Readonly<{ key: string; label: string }> | null
   evidenceStatus: 'verified' | 'unverified' | 'conflicted' | 'stale'
   sourceLabel?: string
@@ -23,10 +23,12 @@ export function PersonalPlaceDetail({
   placeId,
   summary,
   onChanged = noChange,
+  filingEditor,
 }: Readonly<{
   placeId: string
   summary?: PersonalPlaceSummary
   onChanged?: () => Promise<unknown>
+  filingEditor?: React.ReactNode
 }>) {
   const workflow = usePersonalPlaceDetailWorkflow({ placeId, onChanged })
   const publicDetail = workflow.detail?.status === 'pending' ? undefined : workflow.detail
@@ -69,19 +71,21 @@ export function PersonalPlaceDetail({
             </div>
             <div>
               <dt>위치</dt>
-              <dd>{selectedPlace.location.latitude.toFixed(5)}, {selectedPlace.location.longitude.toFixed(5)}</dd>
+              <dd>{selectedPlace.location === null
+                ? '위치 정보 준비 중'
+                : `${selectedPlace.location.latitude.toFixed(5)}, ${selectedPlace.location.longitude.toFixed(5)}`}</dd>
             </div>
           </dl>
         </>
       )}
 
       {personalState !== undefined && (
-        <PersonalLibraryPreferenceEditor workflow={workflow} />
+        <PersonalLibraryRatingEditor workflow={workflow} />
       )}
       {personalState !== undefined && (
         <nav aria-label="장소 상세 항목" className={styles.detailTabs}>
           <a href="#place-facts">정보</a>
-          <a href="#place-organization">내 분류</a>
+          <a href="#place-organization">내 곳곳간</a>
           <a href="#place-visits">방문</a>
           <a href="#place-notes">메모</a>
         </nav>
@@ -93,13 +97,13 @@ export function PersonalPlaceDetail({
       {workflow.detail?.status === 'pending' && (
         <section className={styles.accessNotice} role="status">
           <strong>기본 정보 대기</strong>
-          <span>장소 기본 정보는 동기화 중입니다. 내 분류, 방문, 메모는 지금 사용할 수 있습니다.</span>
+          <span>장소 기본 정보는 동기화 중입니다. 내 곳곳간, 방문, 메모는 지금 사용할 수 있습니다.</span>
         </section>
       )}
       {loginRequired && (
         <section className={styles.accessNotice}>
           <strong>내 기록을 사용하려면 로그인이 필요합니다.</strong>
-          <span>저장, 내 평점, 컬렉션·태그, 방문과 메모는 로그인 후 표시됩니다.</span>
+          <span>내 평점, 카테고리·태그, 방문과 메모는 로그인 후 표시됩니다.</span>
           <a href="/api/auth/oidc/start">로그인하고 계속</a>
         </section>
       )}
@@ -116,7 +120,8 @@ export function PersonalPlaceDetail({
       {personalState !== undefined && (
         <>
           <div id="place-organization">
-            <PersonalLibraryOrganizationEditor workflow={workflow} />
+            {filingEditor}
+            <PersonalLibraryOrganizationEditor showCollections={filingEditor === undefined} workflow={workflow} />
           </div>
           <div id="place-visits"><PersonalLibraryVisits visits={workflow.visits} /></div>
           <div id="place-notes"><PersonalLibraryNotes notes={workflow.notes} /></div>

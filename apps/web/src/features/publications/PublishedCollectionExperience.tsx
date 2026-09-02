@@ -20,7 +20,7 @@ import styles from './publication.module.css'
 
 function initialViewport(collection: PublishedCollection): PlaceMapViewport {
   const locations = collection.places.flatMap((item) => (
-    item.place === null ? [] : [item.place.location]
+    item.place?.location == null ? [] : [item.place.location]
   ))
   if (locations.length === 0) {
     return { bounds: { west: -180, south: -85, east: 180, north: 85 }, zoom: 2 }

@@ -16,7 +16,7 @@ export const placeSummaryFields = {
   placeId: uuidSchema,
   name: z.string().min(1).max(300),
   areaLabel: z.string().min(1).max(300).nullable(),
-  location: placeLocationSchema,
+  location: placeLocationSchema.nullable(),
   primaryTaxonomy: placeTaxonomySchema.nullable(),
   taxonomyKeys: z.array(z.string().min(1).max(128)).max(32),
   evidence: z.object({

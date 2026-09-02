@@ -1,1165 +1,452 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
 import type {
-  BrowserLibraryCommandRequest,
-  BrowserPrivateNoteCommandRequest,
-  BrowserVisitRecordRequest,
-} from '@place/contracts/http'
+  CollectionLifecycleCommandRequestV2,
+  PlaceFilingCommandRequestV2,
+} from '@place/contracts/library'
 
 const ramenPlaceId = '01992d20-7000-7000-8000-000000000101'
-const cafePlaceId = '01992d20-7000-7000-8000-000000000102'
+const museumPlaceId = '01992d20-7000-7000-8000-000000000102'
+const ramenCollectionId = '01992d20-7000-7000-8000-000000000301'
+const tokyoCollectionId = '01992d20-7000-7000-8000-000000000302'
 const ramenTagId = '01992d20-7000-7000-8000-000000000201'
-const shoyuTagId = '01992d20-7000-7000-8000-000000000202'
-const seongsuCollectionId = '01992d20-7000-7000-8000-000000000301'
-const firstNoteId = '01992d20-7000-7000-8000-000000000501'
-const secondNoteId = '01992d20-7000-7000-8000-000000000502'
-const timestamp = '2026-08-28T00:00:00.000Z'
+const timestamp = '2026-09-03T00:00:00.000Z'
 const seongsuAreaKey = 'area_abcdefghijklmnopqrstuv'
-const seoulForestAreaKey = 'area_vutsrqponmlkjihgfedcba'
+const uenoAreaKey = 'area_vutsrqponmlkjihgfedcba'
 
-type FixturePreference = Readonly<{
-  saved: boolean
-  wanted: boolean
-  personalRating: number | null
-  updatedAt: string
-}>
-
-type FixtureCollection = {
+type Collection = {
   collectionId: string
   name: string
   description: string | null
   placeIds: string[]
-  visibility: 'private' | 'unlisted' | 'public'
-  publicationId: string | null
-  updatedAt: string
+  revision: number
 }
 
-type FixtureTag = {
-  tagId: string
-  name: string
-  placeIds: Set<string>
-  createdAt: string
-}
-
-type FixtureVisit = BrowserVisitRecordRequest & Readonly<{ recordedAt: string }>
-type FixtureNote = {
-  documentId: string
-  placeId: string
-  body: string
-  version: number
-  createdAt: string
-  updatedAt: string
-}
+type LibraryFixtureOptions = Readonly<{
+  conflictOnce?: boolean
+  responseLossOnce?: boolean
+}>
 
 function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
 }
 
-function place(placeId: string, name: string, areaLabel: string, taxonomy: string) {
-  return {
-    placeId,
-    name,
-    areaLabel,
-    location: placeId === ramenPlaceId
-      ? { latitude: 37.5447, longitude: 127.0557 }
-      : { latitude: 37.5461, longitude: 127.0492 },
-    primaryTaxonomy: { key: taxonomy.toLowerCase(), label: taxonomy },
-    taxonomyKeys: [taxonomy.toLowerCase()],
+function revision(collection: Collection) {
+  return `collection-revision.v1.${collection.collectionId}.${collection.revision}`
+}
+
+const places = {
+  [ramenPlaceId]: {
+    placeId: ramenPlaceId,
+    name: '멘야 하루',
+    areaLabel: '서울 성동구 성수동',
+    location: { latitude: 37.5447, longitude: 127.0557 },
+    primaryTaxonomy: { key: 'ramen.shoyu', label: '쇼유라멘' },
+    taxonomyKeys: ['food', 'ramen', 'ramen.shoyu'],
     evidence: { status: 'verified', projectedAt: timestamp },
+  },
+  [museumPlaceId]: {
+    placeId: museumPlaceId,
+    name: '도쿄 새 박물관',
+    areaLabel: '도쿄 우에노',
+    location: null,
+    primaryTaxonomy: { key: 'attraction.museum', label: '박물관' },
+    taxonomyKeys: ['attraction', 'attraction.museum'],
+    evidence: { status: 'unverified', projectedAt: timestamp },
+  },
+} as const
+
+function problem(status: number, code: string) {
+  return {
+    type: `urn:gotgotgan:error:${code.toLowerCase()}`,
+    title: code,
+    status,
+    code,
+    retryable: status === 409 || status === 503,
+    correlationRef: `e2e-${status}`,
   }
 }
 
-const ramen = place(ramenPlaceId, '멘야 하루', '서울 성동구 성수동', '쇼유라멘')
-const cafe = place(cafePlaceId, '서울숲 로스터스', '서울 성동구 서울숲', '카페')
+async function installCollectionLibraryFixture(page: Page, options: LibraryFixtureOptions = {}) {
+  const collections = new Map<string, Collection>([
+    [ramenCollectionId, {
+      collectionId: ramenCollectionId,
+      name: '서울 라멘',
+      description: '다시 먹고 싶은 라멘집',
+      placeIds: [ramenPlaceId],
+      revision: 1,
+    }],
+    [tokyoCollectionId, {
+      collectionId: tokyoCollectionId,
+      name: '도쿄 여행',
+      description: '도쿄에서 둘러볼 곳',
+      placeIds: [museumPlaceId],
+      revision: 1,
+    }],
+  ])
+  const filingCommands: PlaceFilingCommandRequestV2[] = []
+  const lifecycleCommands: CollectionLifecycleCommandRequestV2[] = []
+  const applied = new Set<string>()
+  let conflictPending = options.conflictOnce ?? false
+  let responseLossPending = options.responseLossOnce ?? false
 
-async function installLibraryFixture(
-  page: Page,
-  options: Readonly<{
-    preferenceConflictOnce?: boolean
-    preferenceFailureOnce?: boolean
-    managementFailureOnce?: boolean
-    visitFailureOnce?: boolean
-    paginatedVisits?: boolean
-    writingFailureOnce?: boolean
-    writingConflictOnce?: boolean
-    paginatedNotes?: boolean
-    pendingDetail?: boolean
-    listFirstPageOnly?: boolean
-  }> = {},
-) {
-  let preferenceRevision = 0
-  let preferenceConflictPending = options.preferenceConflictOnce ?? false
-  let preferenceFailurePending = options.preferenceFailureOnce ?? false
-  let managementFailurePending = options.managementFailureOnce ?? false
-  let visitFailurePending = options.visitFailureOnce ?? false
-  let writingFailurePending = options.writingFailureOnce ?? false
-  let writingConflictPending = options.writingConflictOnce ?? false
-  const appliedCommandIds = new Set<string>()
-  const appliedVisitFingerprints = new Map<string, string>()
-  const appliedWritingFingerprints = new Map<string, string>()
-  const collections = new Map<string, FixtureCollection>([[seongsuCollectionId, {
-    collectionId: seongsuCollectionId,
-    name: '성수동',
-    description: '성수동에서 다시 가볼 곳',
-    placeIds: [ramenPlaceId, cafePlaceId],
-    visibility: 'private',
-    publicationId: null,
-    updatedAt: timestamp,
-  }]])
-  const tags = new Map<string, FixtureTag>([
-    [ramenTagId, {
-      tagId: ramenTagId, name: '라면', placeIds: new Set([ramenPlaceId]), createdAt: timestamp,
-    }],
-    [shoyuTagId, {
-      tagId: shoyuTagId, name: '쇼유라멘', placeIds: new Set([cafePlaceId]), createdAt: timestamp,
-    }],
-  ])
-  const preferences: Record<string, FixturePreference> = {
-    [ramenPlaceId]: {
-      saved: true, wanted: false, personalRating: 4.5, updatedAt: timestamp,
-    },
-    [cafePlaceId]: {
-      saved: true, wanted: false, personalRating: null, updatedAt: timestamp,
-    },
-  }
-  const visits = new Map<string, FixtureVisit[]>([
-    [ramenPlaceId, [{
-      id: '01992d20-7000-7000-8000-000000000401',
-      placeId: ramenPlaceId,
-      visitedAt: timestamp,
-      recordedAt: '2026-08-28T00:05:00.000Z',
-    }, {
-      id: '01992d20-7000-7000-8000-000000000402',
-      placeId: ramenPlaceId,
-      visitedAt: '2026-08-27T03:00:00.000Z',
-      recordedAt: '2026-08-27T03:10:00.000Z',
-    }]],
-    [cafePlaceId, []],
-  ])
-  const notes = new Map<string, FixtureNote>([
-    [firstNoteId, {
-      documentId: firstNoteId,
-      placeId: ramenPlaceId,
-      body: '국물이 깔끔하고 면 익힘이 좋았다.',
-      version: 1,
-      createdAt: '2026-08-27T01:00:00.000Z',
-      updatedAt: '2026-08-29T01:00:00.000Z',
-    }],
-    [secondNoteId, {
-      documentId: secondNoteId,
-      placeId: ramenPlaceId,
-      body: '다음에는 매운 토핑을 추가해 보기.',
-      version: 1,
-      createdAt: '2026-08-26T01:00:00.000Z',
-      updatedAt: '2026-08-28T01:00:00.000Z',
-    }],
-  ])
-  const commands: BrowserLibraryCommandRequest[] = []
-  const visitRequests: BrowserVisitRecordRequest[] = []
-  const writingRequests: BrowserPrivateNoteCommandRequest[] = []
-  await page.route('**/api/library/place-facets', (route) => json(route, {
-    schemaVersion: 'library-place-facets.v1',
-    sourceState: 'saved',
-    coverage: { savedPlaceCount: 2, sampledPlaceCount: 2, projectedPlaceCount: 2, complete: true },
-    areas: [
-      { key: seongsuAreaKey, label: '서울 성동구 성수동', count: 1 },
-      { key: seoulForestAreaKey, label: '서울 성동구 서울숲', count: 1 },
-    ],
-    taxonomies: [
-      { key: '쇼유라멘', label: '쇼유라멘', count: 1 },
-      { key: '카페', label: '카페', count: 1 },
-    ],
-  }))
-  await page.route('**/api/library/tags?*', (route) => json(route, {
-    schemaVersion: 'library-tag-list.v1',
-    items: [...tags.values()].map((tag) => ({
-      tagId: tag.tagId,
-      name: tag.name,
-      placeCount: tag.placeIds.size,
-      createdAt: tag.createdAt,
-    })),
-  }))
-  await page.route('**/api/library/collections?*', (route) => json(route, {
-    schemaVersion: 'library-collection-list.v1',
-    items: [...collections.values()].map((collection) => ({
-      collectionId: collection.collectionId,
-      name: collection.name,
-      description: collection.description,
-      visibility: collection.visibility,
-      publicationId: collection.publicationId,
-      placeCount: collection.placeIds.length,
-      updatedAt: collection.updatedAt,
-    })),
-  }))
-  await page.route('**/api/library/collections/*?*', (route) => {
-    const collectionId = new URL(route.request().url()).pathname.split('/').at(-1)!
-    const collection = collections.get(collectionId)
-    if (collection === undefined) return json(route, {}, 404)
+  const workspace = (route: Route) => {
+    const url = new URL(route.request().url())
+    const selectedCollectionId = url.searchParams.get('collectionId')
+    const areaKeys = url.searchParams.getAll('areaKeys')
+    const taxonomyKeys = url.searchParams.getAll('taxonomyKeys')
+    const rating = url.searchParams.get('rating') ?? 'any'
+    const selected = selectedCollectionId === null
+      ? [...new Set([...collections.values()].flatMap((collection) => collection.placeIds))]
+      : collections.get(selectedCollectionId)?.placeIds ?? []
+    const items = selected.filter((placeId) => {
+      const place = places[placeId as keyof typeof places]
+      if (place === undefined) return false
+      if (rating === 'unrated' && placeId === ramenPlaceId) return false
+      if (rating === 'rated' && placeId !== ramenPlaceId) return false
+      if (areaKeys.length > 0 && !areaKeys.includes(placeId === ramenPlaceId ? seongsuAreaKey : uenoAreaKey)) return false
+      return taxonomyKeys.length === 0 || taxonomyKeys.some((key) => place.taxonomyKeys.includes(key as never))
+    })
     return json(route, {
-      schemaVersion: 'library-collection-detail.v1',
-      collection: {
+      schemaVersion: 'personal-library-workspace.v2',
+      filter: {
+        favoriteScope: selectedCollectionId === null
+          ? { kind: 'all' }
+          : { kind: 'collection', collectionId: selectedCollectionId },
+        ratingFilter: { kind: rating },
+        tagIds: url.searchParams.getAll('tagIds'),
+        tagMatch: url.searchParams.get('tagMatch') ?? 'all',
+        areaKeys,
+        taxonomyKeys,
+      },
+      collections: [...collections.values()].map((collection) => ({
         collectionId: collection.collectionId,
         name: collection.name,
         description: collection.description,
-        visibility: collection.visibility,
-        publicationId: collection.publicationId,
+        visibility: 'private',
+        publicationId: null,
         placeCount: collection.placeIds.length,
-        updatedAt: collection.updatedAt,
-      },
-      places: collection.placeIds.map((placeId, position) => ({
+        collectionRevision: revision(collection),
+        updatedAt: timestamp,
+      })),
+      places: items.map((placeId) => ({
         placeId,
-        position,
-        addedAt: timestamp,
-        place: placeId === ramenPlaceId ? ramen : cafe,
+        overlay: {
+          isFavorited: true,
+          collectionCount: [...collections.values()].filter((collection) => collection.placeIds.includes(placeId)).length,
+          personalRating: placeId === ramenPlaceId ? 4.5 : null,
+        },
+        place: places[placeId as keyof typeof places],
+      })),
+      availableFilters: {
+        coverage: {
+          favoritePlaceCount: 2,
+          sampledPlaceCount: 2,
+          projectedPlaceCount: 2,
+          complete: true,
+        },
+        areas: [
+          { key: seongsuAreaKey, label: '서울 성동구 성수동', count: 1 },
+          { key: uenoAreaKey, label: '도쿄 우에노', count: 1 },
+        ],
+        taxonomies: [
+          { key: 'ramen.shoyu', label: '쇼유라멘', count: 1 },
+          { key: 'attraction.museum', label: '박물관', count: 1 },
+        ],
+      },
+    })
+  }
+
+  await page.route('**/api/library/workspace?*', workspace)
+  await page.route('**/api/library/tags?*', (route) => json(route, {
+    schemaVersion: 'library-tag-list.v1',
+    items: [{ tagId: ramenTagId, name: '진한 국물', placeCount: 1, createdAt: timestamp }],
+  }))
+  await page.route('**/api/library/map?*', (route) => {
+    const url = new URL(route.request().url())
+    const collectionId = url.searchParams.get('collectionId') ?? ''
+    const collection = collections.get(collectionId)
+    const located = (collection?.placeIds ?? []).filter((placeId) => places[placeId as keyof typeof places].location !== null)
+    return json(route, {
+      schemaVersion: 'library-map-projection.v1',
+      scope: { kind: 'collection', collectionId },
+      viewport: {
+        bounds: {
+          west: Number(url.searchParams.get('west')),
+          south: Number(url.searchParams.get('south')),
+          east: Number(url.searchParams.get('east')),
+          north: Number(url.searchParams.get('north')),
+        },
+        zoom: Number(url.searchParams.get('zoom')),
+      },
+      features: located.map((placeId) => ({
+        kind: 'place',
+        placeId,
+        label: places[placeId as keyof typeof places].name,
+        location: places[placeId as keyof typeof places].location,
+      })),
+      coverage: {
+        representedPlaceCount: located.length,
+        unprojectedPlaceCount: (collection?.placeIds.length ?? 0) - located.length,
+        complete: located.length === (collection?.placeIds.length ?? 0),
+      },
+    })
+  })
+  await page.route('**/api/library/places/*/filing?*', (route) => {
+    const placeId = new URL(route.request().url()).pathname.split('/').at(-2)!
+    return json(route, {
+      schemaVersion: 'place-filing.v2',
+      placeId,
+      overlay: {
+        isFavorited: [...collections.values()].some((collection) => collection.placeIds.includes(placeId)),
+        collectionCount: [...collections.values()].filter((collection) => collection.placeIds.includes(placeId)).length,
+        personalRating: placeId === ramenPlaceId ? 4.5 : null,
+      },
+      collections: [...collections.values()].map((collection) => ({
+        collectionId: collection.collectionId,
+        name: collection.name,
+        included: collection.placeIds.includes(placeId),
+        collectionRevision: revision(collection),
       })),
     })
   })
-  await page.route('**/api/library/map?*', (route) => {
-    const url = new URL(route.request().url())
-    const scopeKind = url.searchParams.get('scope')
-    const selectedTags = url.searchParams.getAll('tagIds')
-    const selectedAreas = url.searchParams.getAll('areaKeys')
-    const selectedTaxonomies = url.searchParams.getAll('taxonomyKeys')
-    const state = url.searchParams.get('state') ?? 'saved'
-    const scopedPlaceIds = scopeKind === 'collection'
-      ? collections.get(url.searchParams.get('collectionId') ?? '')?.placeIds ?? []
-      : [ramenPlaceId, cafePlaceId].filter((placeId) => {
-          const preference = preferences[placeId]
-          return preference !== undefined &&
-            (state === 'saved' ? preference.saved : state === 'wanted'
-              ? preference.wanted : preference.personalRating !== null) &&
-            (selectedTags.length === 0 || (
-              selectedTags.some((tagId) => tags.get(tagId)?.placeIds.has(placeId))
-            )) &&
-            (selectedAreas.length === 0 || selectedAreas.includes(
-              placeId === ramenPlaceId ? seongsuAreaKey : seoulForestAreaKey,
-            )) &&
-            (selectedTaxonomies.length === 0 || selectedTaxonomies.includes(
-              placeId === ramenPlaceId ? '쇼유라멘' : '카페',
-            ))
-        })
-    const projected = scopedPlaceIds.flatMap((placeId) => {
-      if (options.pendingDetail && placeId === ramenPlaceId) return []
-      const summary = placeId === ramenPlaceId ? ramen : cafe
-      return [{
-        kind: 'place', placeId, label: summary.name, location: summary.location,
-      }]
-    })
-    const west = Number(url.searchParams.get('west'))
-    const south = Number(url.searchParams.get('south'))
-    const east = Number(url.searchParams.get('east'))
-    const north = Number(url.searchParams.get('north'))
+  await page.route('**/api/library/filing-commands', async (route) => {
+    const command = route.request().postDataJSON() as PlaceFilingCommandRequestV2
+    filingCommands.push(command)
+    if (conflictPending) {
+      conflictPending = false
+      for (const collection of collections.values()) collection.revision += 1
+      return json(route, {
+        schemaVersion: 'place-filing-command-result.v2',
+        outcome: 'rejected',
+        commandId: command.commandId,
+        rejection: { code: 'version-conflict' },
+      }, 409)
+    }
+    const replayed = applied.has(command.commandId)
+    if (!replayed) {
+      for (const change of command.changes) {
+        const collection = collections.get(change.collectionId)
+        if (collection === undefined) continue
+        collection.placeIds = change.desired === 'included'
+          ? [...new Set([...collection.placeIds, command.placeId])]
+          : collection.placeIds.filter((placeId) => placeId !== command.placeId)
+        collection.revision += 1
+      }
+      applied.add(command.commandId)
+    }
+    if (responseLossPending) {
+      responseLossPending = false
+      return json(route, problem(503, 'PLACE_LIBRARY_UNAVAILABLE'), 503)
+    }
+    const matching = [...collections.values()].filter((collection) => collection.placeIds.includes(command.placeId))
     return json(route, {
-      schemaVersion: 'library-map-projection.v1',
-      scope: scopeKind === 'collection'
-        ? { kind: 'collection', collectionId: url.searchParams.get('collectionId') }
-        : {
-            kind: 'state', state, tagIds: [...selectedTags].sort(),
-            tagMatch: url.searchParams.get('tagMatch') ?? 'all',
-            areaKeys: [...selectedAreas].sort(), taxonomyKeys: [...selectedTaxonomies].sort(),
-          },
-      viewport: { bounds: { west, south, east, north }, zoom: Number(url.searchParams.get('zoom')) },
-      features: projected,
-      coverage: {
-        representedPlaceCount: projected.length,
-        unprojectedPlaceCount: scopedPlaceIds.length - projected.length,
-        complete: scopedPlaceIds.length === projected.length,
+      schemaVersion: 'place-filing-command-result.v2',
+      outcome: 'accepted',
+      receipt: { commandId: command.commandId, status: replayed ? 'replayed' : 'applied' },
+      placeId: command.placeId,
+      overlay: {
+        isFavorited: matching.length > 0,
+        collectionCount: matching.length,
+        personalRating: command.placeId === ramenPlaceId ? 4.5 : null,
       },
-    })
+      collections: command.changes.map((change) => ({
+        collectionId: change.collectionId,
+        included: collections.get(change.collectionId)?.placeIds.includes(command.placeId) ?? false,
+        collectionRevision: revision(collections.get(change.collectionId)!),
+      })),
+    }, replayed ? 200 : 201)
   })
-  await page.route('**/api/library/places?*', (route) => {
-    const url = new URL(route.request().url())
-    const selectedTags = url.searchParams.getAll('tagIds')
-    const selectedAreas = url.searchParams.getAll('areaKeys')
-    const selectedTaxonomies = url.searchParams.getAll('taxonomyKeys')
-    const state = url.searchParams.get('state') ?? 'saved'
-    const allItems = [{
-          placeId: ramenPlaceId,
-          ...preferences[ramenPlaceId],
-          place: options.pendingDetail ? null : ramen,
-        }, {
-          placeId: cafePlaceId,
-          ...preferences[cafePlaceId],
-          place: cafe,
-        }]
-    const items = allItems.filter((item) => (
-      (state === 'saved' ? item.saved : state === 'wanted' ? item.wanted : item.personalRating !== null) &&
-      (selectedTags.length === 0 || (
-        selectedTags.includes(ramenTagId) && item.placeId === ramenPlaceId
-      )) &&
-      (selectedAreas.length === 0 || (
-        selectedAreas.includes(item.placeId === ramenPlaceId ? seongsuAreaKey : seoulForestAreaKey)
-      )) &&
-      (selectedTaxonomies.length === 0 || selectedTaxonomies.includes(
-        item.place?.primaryTaxonomy.key ?? '',
-      ))
-    ))
+  await page.route('**/api/library/collection-commands', async (route) => {
+    const command = route.request().postDataJSON() as CollectionLifecycleCommandRequestV2
+    lifecycleCommands.push(command)
+    if (command.kind === 'create') {
+      collections.set(command.collectionId, {
+        collectionId: command.collectionId,
+        name: command.name,
+        description: command.description,
+        placeIds: [],
+        revision: 1,
+      })
+    } else if (command.kind === 'update') {
+      const collection = collections.get(command.collectionId)!
+      if (command.name !== undefined) collection.name = command.name
+      if (command.description !== undefined) collection.description = command.description
+      collection.revision += 1
+    } else {
+      collections.delete(command.collectionId)
+    }
+    const collection = command.kind === 'delete' ? null : collections.get(command.collectionId)!
     return json(route, {
-      schemaVersion: 'library-place-list.v3',
-      filter: {
-        state,
-        tagIds: [...selectedTags].sort(),
-        tagMatch: url.searchParams.get('tagMatch') ?? 'all',
-        areaKeys: [...selectedAreas].sort(),
-        taxonomyKeys: [...selectedTaxonomies].sort(),
+      schemaVersion: 'collection-lifecycle-command-result.v2',
+      outcome: 'accepted',
+      receipt: { commandId: command.commandId, status: 'applied' },
+      collection: collection === null ? null : {
+        collectionId: collection.collectionId,
+        name: collection.name,
+        description: collection.description,
+        visibility: 'private',
+        publicationId: null,
+        placeCount: collection.placeIds.length,
+        collectionRevision: revision(collection),
+        updatedAt: timestamp,
       },
-      items: options.listFirstPageOnly ? items.slice(0, 1) : items,
-      ...(options.listFirstPageOnly && items.length > 1 ? { nextCursor: 'list-page-2' } : {}),
+    }, 201)
+  })
+  await page.route(/\/api\/places\/[^/]+$/, (route) => {
+    const placeId = new URL(route.request().url()).pathname.split('/').at(-1)!
+    const place = places[placeId as keyof typeof places]
+    return json(route, {
+      schemaVersion: 'place-detail.v1',
+      requestedPlaceId: placeId,
+      placeId,
+      redirectedFrom: [],
+      status: 'available',
+      ...place,
+      personalState: {
+        saved: false,
+        wanted: false,
+        personalRating: placeId === ramenPlaceId ? 4.5 : null,
+        preferencesUpdatedAt: timestamp,
+        visits: { visited: false, count: 0 },
+      },
     })
   })
   await page.route('**/api/library/places/*/organization?*', (route) => {
-    const placeId = route.request().url().includes(ramenPlaceId) ? ramenPlaceId : cafePlaceId
+    const placeId = new URL(route.request().url()).pathname.split('/').at(-2)!
     return json(route, {
       schemaVersion: 'library-place-organization.v1',
       placeId,
-      items: [
-        ...[...collections.values()].map((collection) => {
-          const position = collection.placeIds.indexOf(placeId)
-          return {
-            kind: 'collection' as const,
-            collectionId: collection.collectionId,
-            name: collection.name,
-            selected: position >= 0,
-            position: position >= 0 ? position : null,
-          }
-        }),
-        ...[...tags.values()].map((tag) => ({
-          kind: 'tag' as const,
-          tagId: tag.tagId,
-          name: tag.name,
-          selected: tag.placeIds.has(placeId),
-        })),
-      ],
-    })
-  })
-  await page.route('**/api/library/commands', async (route) => {
-    const body = route.request().postDataJSON() as BrowserLibraryCommandRequest
-    commands.push(body)
-    if (appliedCommandIds.has(body.commandId)) {
-      return json(route, { schemaVersion: 'library-command-result.v1', status: 'replayed' })
-    }
-    if (body.command.kind === 'set-place-preferences') {
-      const current = preferences[body.command.placeId]
-      if (current === undefined) return json(route, {}, 404)
-      if (preferenceConflictPending) {
-        preferenceConflictPending = false
-        preferences[body.command.placeId] = {
-          ...current,
-          updatedAt: new Date(Date.parse(timestamp) + 9_000).toISOString(),
-        }
-        return json(route, {
-          type: 'urn:place:error:library-preference-version-conflict',
-          title: 'Place preferences changed after they were read',
-          status: 409,
-          code: 'PLACE_LIBRARY_PREFERENCE_VERSION_CONFLICT',
-          retryable: true,
-          correlationRef: 'e2e-preference-conflict',
-        }, 409)
-      }
-      if (current.updatedAt !== body.command.expectedUpdatedAt) {
-        return json(route, {
-          type: 'urn:place:error:library-preference-version-conflict',
-          title: 'Place preferences changed after they were read',
-          status: 409,
-          code: 'PLACE_LIBRARY_PREFERENCE_VERSION_CONFLICT',
-          retryable: true,
-          correlationRef: 'e2e-preference-conflict',
-        }, 409)
-      }
-      preferenceRevision += 1
-      preferences[body.command.placeId] = {
-        saved: body.command.saved,
-        wanted: body.command.wanted,
-        personalRating: body.command.personalRating,
-        updatedAt: new Date(Date.parse(timestamp) + preferenceRevision * 1_000).toISOString(),
-      }
-      appliedCommandIds.add(body.commandId)
-      if (preferenceFailurePending) {
-        preferenceFailurePending = false
-        return json(route, {
-          type: 'urn:place:error:library-unavailable',
-          title: 'Library is temporarily unavailable',
-          status: 503,
-          code: 'PLACE_LIBRARY_UNAVAILABLE',
-          retryable: true,
-          correlationRef: 'e2e-preference-response-loss',
-        }, 503)
-      }
-    } else if (body.command.kind === 'create-collection') {
-      collections.set(body.command.collectionId, {
-        collectionId: body.command.collectionId,
-        name: body.command.name,
-        description: body.command.description ?? null,
-        placeIds: [],
-        visibility: 'private',
-        publicationId: null,
-        updatedAt: timestamp,
-      })
-    } else if (body.command.kind === 'rename-collection') {
-      const collection = collections.get(body.command.collectionId)
-      if (collection !== undefined) collection.name = body.command.name
-    } else if (body.command.kind === 'set-collection-publication') {
-      const collection = collections.get(body.command.collectionId)
-      if (collection === undefined) return json(route, {}, 404)
-      if (collection.updatedAt !== body.command.expectedUpdatedAt) {
-        return json(route, {
-          type: 'urn:place:error:library-collection-version-conflict',
-          title: 'Collection changed after it was read',
-          status: 409,
-          code: 'PLACE_LIBRARY_COLLECTION_VERSION_CONFLICT',
-          retryable: true,
-          correlationRef: 'e2e-collection-conflict',
-        }, 409)
-      }
-      collection.publicationId = body.command.visibility === 'private'
-        ? null
-        : collection.publicationId ?? body.commandId
-      collection.visibility = body.command.visibility
-      collection.updatedAt = new Date(Date.parse(collection.updatedAt) + 1).toISOString()
-    } else if (body.command.kind === 'delete-collection') {
-      collections.delete(body.command.collectionId)
-    } else if (body.command.kind === 'add-collection-place') {
-      const collection = collections.get(body.command.collectionId)
-      if (collection !== undefined && !collection.placeIds.includes(body.command.placeId)) {
-        collection.placeIds.splice(body.command.position ?? collection.placeIds.length, 0, body.command.placeId)
-      }
-    } else if (body.command.kind === 'remove-collection-place') {
-      const collection = collections.get(body.command.collectionId)
-      if (collection !== undefined) {
-        collection.placeIds = collection.placeIds.filter((placeId) => placeId !== body.command.placeId)
-      }
-    } else if (body.command.kind === 'move-collection-place') {
-      const collection = collections.get(body.command.collectionId)
-      const current = collection?.placeIds.indexOf(body.command.placeId) ?? -1
-      if (collection !== undefined && current >= 0) {
-        const [placeId] = collection.placeIds.splice(current, 1)
-        collection.placeIds.splice(body.command.position, 0, placeId!)
-      }
-    } else if (body.command.kind === 'create-tag') {
-      tags.set(body.command.tagId, {
-        tagId: body.command.tagId,
-        name: body.command.name,
-        placeIds: new Set(),
-        createdAt: timestamp,
-      })
-    } else if (body.command.kind === 'rename-tag') {
-      const tag = tags.get(body.command.tagId)
-      if (tag !== undefined) tag.name = body.command.name
-    } else if (body.command.kind === 'delete-tag') {
-      tags.delete(body.command.tagId)
-    } else if (body.command.kind === 'tag-place') {
-      tags.get(body.command.tagId)?.placeIds.add(body.command.placeId)
-    } else if (body.command.kind === 'untag-place') {
-      tags.get(body.command.tagId)?.placeIds.delete(body.command.placeId)
-    }
-    if (body.command.kind !== 'set-place-preferences') {
-      appliedCommandIds.add(body.commandId)
-    }
-    if (managementFailurePending && body.command.kind === 'create-collection') {
-      managementFailurePending = false
-      return json(route, {
-        type: 'urn:place:error:library-unavailable',
-        title: 'Library is temporarily unavailable',
-        status: 503,
-        code: 'PLACE_LIBRARY_UNAVAILABLE',
-        retryable: true,
-        correlationRef: 'e2e-management-response-loss',
-      }, 503)
-    }
-    return json(route, { schemaVersion: 'library-command-result.v1', status: 'applied' }, 201)
-  })
-  await page.route(/\/api\/places\/[^/]+$/, (route) => {
-    const selected = route.request().url().includes(ramenPlaceId) ? ramen : cafe
-    const preference = preferences[selected.placeId]!
-    const placeVisits = visits.get(selected.placeId) ?? []
-    const visitedTimes = placeVisits.map((visit) => visit.visitedAt).sort()
-    if (options.pendingDetail && selected.placeId === ramenPlaceId) {
-      return json(route, {
-        schemaVersion: 'place-detail.v1',
-        status: 'pending',
-        requestedPlaceId: selected.placeId,
-        placeId: selected.placeId,
-        redirectedFrom: [],
-        personalState: {
-          saved: preference.saved,
-          wanted: preference.wanted,
-          personalRating: preference.personalRating,
-          preferencesUpdatedAt: preference.updatedAt,
-          visits: placeVisits.length === 0
-            ? { visited: false, count: 0 }
-            : {
-                visited: true,
-                count: placeVisits.length,
-                firstVisitedAt: visitedTimes[0],
-                lastVisitedAt: visitedTimes.at(-1),
-              },
-        },
-      })
-    }
-    return json(route, {
-      schemaVersion: 'place-detail.v1',
-      status: 'available',
-      requestedPlaceId: selected.placeId,
-      redirectedFrom: [],
-      ...selected,
-      personalState: {
-        saved: preference.saved,
-        wanted: preference.wanted,
-        personalRating: preference.personalRating,
-        preferencesUpdatedAt: preference.updatedAt,
-        visits: placeVisits.length === 0
-          ? { visited: false, count: 0 }
-          : {
-              visited: true,
-              count: placeVisits.length,
-              firstVisitedAt: visitedTimes[0],
-              lastVisitedAt: visitedTimes.at(-1),
-            },
-      },
+      items: [{
+        kind: 'tag', tagId: ramenTagId, name: '진한 국물', selected: placeId === ramenPlaceId,
+      }],
     })
   })
   await page.route('**/api/places/*/visits?*', (route) => {
-    const url = new URL(route.request().url())
-    const placeId = url.pathname.split('/').at(-2)!
-    const placeVisits = visits.get(placeId) ?? []
-    const cursor = url.searchParams.get('cursor')
-    const items = options.paginatedVisits
-      ? cursor === null ? placeVisits.slice(0, 1) : placeVisits.slice(1)
-      : placeVisits
-    return json(route, {
-      schemaVersion: 'visit-history.v1',
-      placeId,
-      items: items.map((visit) => ({
-        visitId: visit.id,
-        visitedAt: visit.visitedAt,
-        recordedAt: visit.recordedAt,
-      })),
-      ...(options.paginatedVisits && cursor === null && placeVisits.length > 1
-        ? { nextCursor: 'visit-page-2' }
-        : {}),
-    })
-  })
-  await page.route('**/api/visits', (route) => {
-    const body = route.request().postDataJSON() as BrowserVisitRecordRequest
-    visitRequests.push(body)
-    const fingerprint = JSON.stringify(body)
-    const appliedFingerprint = appliedVisitFingerprints.get(body.id)
-    if (appliedFingerprint !== undefined) {
-      return appliedFingerprint === fingerprint
-        ? json(route, { schemaVersion: 'visit-record-result.v1', status: 'recorded' }, 201)
-        : json(route, {
-            type: 'urn:place:error:visit-conflict',
-            title: 'Visit conflicts with an earlier record',
-            status: 409,
-            code: 'PLACE_VISIT_CONFLICT',
-            retryable: true,
-            correlationRef: 'e2e-visit-conflict',
-          }, 409)
-    }
-    const placeVisits = visits.get(body.placeId) ?? []
-    visits.set(body.placeId, [{
-      ...body,
-      recordedAt: '2026-08-28T14:30:00.000Z',
-    }, ...placeVisits].sort((left, right) => right.visitedAt.localeCompare(left.visitedAt)))
-    appliedVisitFingerprints.set(body.id, fingerprint)
-    if (visitFailurePending) {
-      visitFailurePending = false
-      return json(route, {
-        type: 'urn:place:error:visit-unavailable',
-        title: 'Visits are temporarily unavailable',
-        status: 503,
-        code: 'PLACE_VISIT_UNAVAILABLE',
-        retryable: true,
-        correlationRef: 'e2e-visit-response-loss',
-      }, 503)
-    }
-    return json(route, { schemaVersion: 'visit-record-result.v1', status: 'recorded' }, 201)
+    const placeId = new URL(route.request().url()).pathname.split('/').at(-2)!
+    return json(route, { schemaVersion: 'visit-history.v1', placeId, items: [] })
   })
   await page.route('**/api/writing?*', (route) => {
     const url = new URL(route.request().url())
-    const placeId = url.searchParams.get('placeId')!
-    const cursor = url.searchParams.get('cursor')
-    const placeNotes = [...notes.values()]
-      .filter((note) => note.placeId === placeId)
-      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
-    const items = options.paginatedNotes
-      ? cursor === null ? placeNotes.slice(0, 1) : placeNotes.slice(1)
-      : placeNotes
     return json(route, {
       schemaVersion: 'writing-list.v2',
-      filter: { kind: 'note', placeId },
-      items: items.map((note) => ({
-        documentId: note.documentId,
-        kind: 'note',
-        title: null,
-        bodyPreview: note.body.slice(0, 280),
-        bodyTruncated: note.body.length > 280,
-        visibility: 'private',
-        publicationId: null,
-        version: note.version,
-        placeIds: [note.placeId],
-        createdAt: note.createdAt,
-        updatedAt: note.updatedAt,
-      })),
-      ...(options.paginatedNotes && cursor === null && placeNotes.length > 1
-        ? { nextCursor: 'note-page-2' }
-        : {}),
+      filter: { kind: 'note', placeId: url.searchParams.get('placeId') },
+      items: [],
     })
   })
-  await page.route(/\/api\/writing\/[0-9a-f-]+$/, (route) => {
-    const documentId = new URL(route.request().url()).pathname.split('/').at(-1)!
-    const note = notes.get(documentId)
-    if (note === undefined) return json(route, {
-      type: 'urn:place:error:writing-not-found',
-      title: 'Writing not found',
-      status: 404,
-      code: 'PLACE_WRITING_NOT_FOUND',
-      retryable: false,
-      correlationRef: 'e2e-writing-not-found',
-    }, 404)
-    return json(route, {
-      schemaVersion: 'writing-detail.v1',
-      document: {
-        documentId: note.documentId,
-        kind: 'note',
-        title: null,
-        body: note.body,
-        visibility: 'private',
-        publicationId: null,
-        version: note.version,
-        placeIds: [note.placeId],
-        createdAt: note.createdAt,
-        updatedAt: note.updatedAt,
-      },
-    })
-  })
-  await page.route('**/api/writing/commands', (route) => {
-    const body = route.request().postDataJSON() as BrowserPrivateNoteCommandRequest
-    writingRequests.push(body)
-    const fingerprint = JSON.stringify(body)
-    const prior = appliedWritingFingerprints.get(body.commandId)
-    if (prior !== undefined) {
-      return prior === fingerprint
-        ? json(route, { schemaVersion: 'writing-command-result.v1', status: 'replayed' })
-        : json(route, {
-            type: 'urn:place:error:writing-command-conflict',
-            title: 'Writing command conflicts with an earlier request',
-            status: 409,
-            code: 'PLACE_WRITING_COMMAND_CONFLICT',
-            retryable: true,
-            correlationRef: 'e2e-writing-command-conflict',
-          }, 409)
-    }
-    if (body.command.kind === 'update-note' && writingConflictPending) {
-      writingConflictPending = false
-      const current = notes.get(body.command.documentId)!
-      notes.set(current.documentId, {
-        ...current,
-        body: '다른 기기에서 저장한 최신 메모',
-        version: current.version + 1,
-        updatedAt: '2026-08-29T02:00:00.000Z',
-      })
-      return json(route, {
-        type: 'urn:place:error:writing-version-conflict',
-        title: 'Writing changed concurrently',
-        status: 409,
-        code: 'PLACE_WRITING_VERSION_CONFLICT',
-        retryable: true,
-        correlationRef: 'e2e-writing-version-conflict',
-      }, 409)
-    }
-    let version: number
-    if (body.command.kind === 'create-note') {
-      version = 1
-      notes.set(body.command.documentId, {
-        documentId: body.command.documentId,
-        placeId: body.command.placeId,
-        body: body.command.body,
-        version,
-        createdAt: '2026-08-29T03:00:00.000Z',
-        updatedAt: '2026-08-29T03:00:00.000Z',
-      })
-    } else {
-      const current = notes.get(body.command.documentId)
-      if (current === undefined || current.version !== body.command.expectedVersion) {
-        return json(route, {
-          type: 'urn:place:error:writing-version-conflict',
-          title: 'Writing changed concurrently',
-          status: 409,
-          code: 'PLACE_WRITING_VERSION_CONFLICT',
-          retryable: true,
-          correlationRef: 'e2e-writing-version-conflict',
-        }, 409)
-      }
-      version = current.version + 1
-      notes.set(current.documentId, {
-        ...current,
-        body: body.command.body,
-        version,
-        updatedAt: '2026-08-29T03:00:00.000Z',
-      })
-    }
-    appliedWritingFingerprints.set(body.commandId, fingerprint)
-    if (writingFailurePending) {
-      writingFailurePending = false
-      return json(route, {
-        type: 'urn:place:error:writing-unavailable',
-        title: 'Writing is temporarily unavailable',
-        status: 503,
-        code: 'PLACE_WRITING_UNAVAILABLE',
-        retryable: true,
-        correlationRef: 'e2e-writing-response-loss',
-      }, 503)
-    }
-    return json(route, {
-      schemaVersion: 'writing-command-result.v1',
-      status: 'applied',
-      documentId: body.command.documentId,
-      version,
-    }, 201)
-  })
-  return { commands, visitRequests, writingRequests }
-}
 
-async function openLibraryFilters(page: Page) {
-  const mobileFilterButton = page.getByRole('button', { name: '필터 열기' })
-  if (await mobileFilterButton.isVisible()) await mobileFilterButton.click()
+  return { collections, filingCommands, lifecycleCommands }
 }
 
 async function openRamenDetail(page: Page) {
-  await page.getByRole('region', { name: '장소 목록' })
-    .getByRole('button', { name: /멘야 하루/ })
-    .click()
+  await page.getByRole('button', { name: /서울 라멘/ }).first().click()
+  await page.getByRole('button', { name: /멘야 하루/ }).click()
+  await expect(page.getByRole('complementary', { name: '선택한 장소 상세' })).toBeVisible()
 }
 
-test('browses saved Places by tags and Collection without leaking the Backend boundary', async ({ page }) => {
-  await installLibraryFixture(page)
+test('uses Collection membership as the favorite truth and keeps unlocated Places in the list', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'desktop Collection workspace coverage')
+  await installCollectionLibraryFixture(page)
   await page.goto('/library')
-  await openLibraryFilters(page)
 
-  const tagFilters = page.getByLabel('태그 필터')
-  await expect(page.getByRole('heading', { name: '내 장소' })).toBeVisible()
-  await expect(page.getByRole('link', { name: '내 장소' })).toHaveAttribute('aria-current', 'page')
-  await expect(tagFilters.getByRole('button', { name: /^라면/ })).toBeVisible()
-  await expect(page.getByText('멘야 하루', { exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: '내 카테고리' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /서울 라멘/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /도쿄 여행/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: '서울 성동구 성수동', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '쇼유라멘', exact: true })).toBeVisible()
+  await expect(page.locator('body')).not.toContainText('저장됨')
+  await expect(page.locator('body')).not.toContainText('가고 싶음')
 
-  const areaFilters = page.getByLabel('저장 장소 지역 필터')
-  await areaFilters.getByRole('button', { name: /^서울 성동구 성수동/ }).click()
-  await expect(areaFilters.getByRole('button', { name: /^서울 성동구 성수동/ }))
-    .toHaveAttribute('aria-pressed', 'true')
-  await expect(page.getByText('서울숲 로스터스', { exact: true })).toHaveCount(0)
-  await areaFilters.getByRole('button', { name: /^서울 성동구 성수동/ }).click()
-
-  const taxonomyFilters = page.getByLabel('저장 장소 분류 필터')
-  await taxonomyFilters.getByRole('button', { name: /^쇼유라멘/ }).click()
-  await expect(page.getByText('서울숲 로스터스', { exact: true })).toHaveCount(0)
-  await taxonomyFilters.getByRole('button', { name: /^쇼유라멘/ }).click()
-
-  await tagFilters.getByRole('button', { name: /^라면/ }).click()
-  await expect(tagFilters.getByRole('button', { name: /^라면/ })).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.getByText('서울숲 로스터스', { exact: true })).toHaveCount(0)
-
-  await tagFilters.getByRole('button', { name: /^쇼유라멘/ }).click()
-  await page.getByRole('button', { name: '하나 이상' }).click()
-  await expect(page.getByRole('button', { name: '하나 이상' })).toHaveAttribute('aria-pressed', 'true')
-
-  await page.getByRole('button', { name: '성수동 2' }).click()
-  await expect(page.getByText('서울숲 로스터스', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: '성수동 2' })).toHaveAttribute('aria-current', 'page')
-  await openRamenDetail(page)
-  await expect(page.getByLabel('내 평점')).toHaveValue('4.5')
+  await page.getByRole('button', { name: /도쿄 여행/ }).first().click()
+  await expect(page.getByRole('button', { name: /도쿄 새 박물관/ })).toBeVisible()
 })
 
-test('keeps list, detail, and map coordinated across desktop and mobile surfaces', async ({ page }) => {
-  await installLibraryFixture(page)
+test('files one Place into multiple Collections atomically without changing its Rating', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'desktop atomic filing coverage')
+  const fixture = await installCollectionLibraryFixture(page)
+  await page.goto('/library')
+  await openRamenDetail(page)
+
+  const filing = page.getByRole('region', { name: '내 카테고리' })
+  await expect(page.getByRole('region', { name: '내 평점' }).getByLabel('0.1–5.0')).toHaveValue('4.5')
+  await filing.getByLabel(/서울 라멘/).uncheck()
+  await filing.getByLabel(/도쿄 여행/).check()
+  await filing.getByRole('button', { name: '변경 저장' }).click()
+  await expect(filing.getByRole('status').filter({ hasText: '내 카테고리를 저장했습니다.' })).toBeVisible()
+
+  expect(fixture.filingCommands).toHaveLength(1)
+  expect(fixture.filingCommands[0]?.changes).toHaveLength(2)
+  expect(fixture.filingCommands[0]).not.toHaveProperty('personalRating')
+  expect(fixture.collections.get(ramenCollectionId)?.placeIds).not.toContain(ramenPlaceId)
+  expect(fixture.collections.get(tokyoCollectionId)?.placeIds).toContain(ramenPlaceId)
+})
+
+test('preserves a filing draft on revision conflict', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'desktop conflict recovery coverage')
+  const fixture = await installCollectionLibraryFixture(page, { conflictOnce: true })
+  await page.goto('/library')
+  await openRamenDetail(page)
+
+  const filing = page.getByRole('region', { name: '내 카테고리' })
+  const tokyo = filing.getByLabel(/도쿄 여행/)
+  await tokyo.check()
+  await filing.getByRole('button', { name: '변경 저장' }).click()
+  await expect(filing.getByRole('status').filter({ hasText: '선택은 유지했으니' })).toBeVisible()
+  await expect(tokyo).toBeChecked()
+
+  await filing.getByRole('button', { name: '변경 저장' }).click()
+  await expect(filing.getByRole('status').filter({ hasText: '내 카테고리를 저장했습니다.' })).toBeVisible()
+  expect(fixture.filingCommands).toHaveLength(2)
+  expect(fixture.filingCommands[0]?.commandId).not.toBe(fixture.filingCommands[1]?.commandId)
+})
+
+test('retries a response-lost filing with the exact same command', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'desktop idempotent retry coverage')
+  const fixture = await installCollectionLibraryFixture(page, { responseLossOnce: true })
+  await page.goto('/library')
+  await openRamenDetail(page)
+
+  const filing = page.getByRole('region', { name: '내 카테고리' })
+  await filing.getByLabel(/도쿄 여행/).check()
+  await filing.getByRole('button', { name: '변경 저장' }).click()
+  await expect(filing.getByRole('alert')).toContainText('같은 요청으로 다시 확인')
+  await filing.getByRole('button', { name: '다시 시도' }).click()
+  await expect(filing.getByRole('status').filter({ hasText: '이전 요청 결과를 확인했습니다.' })).toBeVisible()
+
+  expect(fixture.filingCommands).toHaveLength(2)
+  expect(fixture.filingCommands[0]).toEqual(fixture.filingCommands[1])
+})
+
+test('creates, renames, and deletes a Collection through revision-based commands', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'desktop Collection lifecycle coverage')
+  const fixture = await installCollectionLibraryFixture(page)
   await page.goto('/library')
 
-  const list = page.getByRole('region', { name: '장소 목록' })
-  const detail = page.getByRole('complementary', { name: '선택한 장소 상세' })
-  const map = page.getByRole('region', { name: '내 장소 지도' })
+  await page.getByLabel('카테고리 이름').first().fill('비 오는 날')
+  await page.getByRole('button', { name: '추가' }).click()
+  await expect(page.getByRole('button', { name: /비 오는 날/ })).toBeVisible()
 
-  if ((page.viewportSize()?.width ?? 0) > 720) {
-    await expect(list).toBeVisible()
-    await expect(detail).toBeVisible()
-    await expect(map).toBeVisible()
-    await map.getByRole('button', { name: '서울숲 로스터스 지도에서 선택' }).click()
-    await expect(detail.getByRole('heading', { name: '서울숲 로스터스' })).toBeVisible()
-    return
-  }
+  await page.getByLabel('카테고리 이름 수정').fill('우산 들고 갈 곳')
+  await page.getByRole('button', { name: '수정' }).click()
+  await expect(page.getByRole('button', { name: /우산 들고 갈 곳/ })).toBeVisible()
 
-  await expect(list).toBeVisible()
-  await expect(detail).toBeHidden()
-  await expect(map).toBeHidden()
+  await page.getByRole('button', { name: '카테고리 삭제' }).click()
+  await page.getByRole('button', { name: '삭제 확인' }).click()
+  await expect(page.getByRole('button', { name: /우산 들고 갈 곳/ })).toHaveCount(0)
+  expect(fixture.lifecycleCommands.map((command) => command.kind)).toEqual(['create', 'update', 'delete'])
+})
+
+test('switches mobile Collection, list, map, and detail surfaces without losing selection', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chromium', 'mobile Collection workspace coverage')
+  await installCollectionLibraryFixture(page)
+  await page.goto('/library')
+
+  await page.getByRole('button', { name: '카테고리', exact: true }).click()
+  await page.getByRole('button', { name: /서울 라멘/ }).first().click()
+  await page.getByRole('button', { name: /멘야 하루/ }).click()
+  await expect(page.getByRole('complementary', { name: '선택한 장소 상세' })).toBeVisible()
+  await page.getByRole('button', { name: '← 목록으로' }).click()
   await page.getByRole('button', { name: '지도', exact: true }).click()
-  await expect(map).toBeVisible()
-  await expect(list).toBeHidden()
-  await map.getByRole('button', { name: '멘야 하루 지도에서 선택' }).click()
-  await expect(detail).toBeVisible()
-  await expect(detail.getByRole('button', { name: '목록으로' })).toBeFocused()
-  await detail.getByRole('button', { name: '목록으로' }).click()
-  await expect(list).toBeVisible()
-  await expect(list.getByRole('button', { name: /멘야 하루/ })).toBeFocused()
-})
-
-test('shows every saved Place in the viewport even when the list has only its first page', async ({ page }) => {
-  await installLibraryFixture(page, { listFirstPageOnly: true })
-  await page.goto('/library')
-
-  await expect(page.getByRole('region', { name: '장소 목록' })
-    .getByText('서울숲 로스터스', { exact: true })).toHaveCount(0)
-  if ((page.viewportSize()?.width ?? 0) <= 720) {
-    await page.getByRole('button', { name: '지도', exact: true }).click()
-  }
-  const map = page.getByRole('region', { name: '내 장소 지도' })
-  await expect(map.getByRole('button', { name: '서울숲 로스터스 지도에서 선택' })).toBeVisible()
-  await expect(map.getByText('현재 지도 영역의 저장 장소 2개를 모두 표현했습니다.')).toBeVisible()
-})
-
-test('keeps personal controls available while imported Place detail is pending', async ({ page }) => {
-  await installLibraryFixture(page, { pendingDetail: true })
-  await page.goto('/library')
-
-  await page.getByRole('region', { name: '장소 목록' })
-    .getByRole('button', { name: /장소 정보 동기화 중/ })
-    .click()
-
-  const detail = page.getByRole('complementary', { name: '선택한 장소 상세' })
-  await expect(detail.getByText('기본 정보 대기', { exact: true })).toBeVisible()
-  await expect(detail.getByRole('alert')).toHaveCount(0)
-  await expect(detail.getByRole('region', { name: '내 상태' })).toBeVisible()
-  await expect(detail.getByRole('region', { name: '내 분류' })).toBeVisible()
-  await expect(detail.getByRole('region', { name: '방문 기록' })).toBeVisible()
-  await expect(detail.getByRole('region', { name: '내 메모' })).toBeVisible()
-})
-
-test('shows a login action when the opaque browser session is absent', async ({ page }) => {
-  await page.route('**/api/library/**', (route) => json(route, {
-    type: 'urn:place:error:authentication-required',
-    title: 'Authentication required',
-    status: 401,
-    code: 'PLACE_AUTHENTICATION_REQUIRED',
-    retryable: false,
-    correlationRef: 'e2e-auth-required',
-  }, 401))
-
-  await page.goto('/library')
-
-  await expect(page.getByRole('heading', { name: '내 장소를 보려면 로그인이 필요합니다.' })).toBeVisible()
-  await expect(page.getByRole('link', { name: '로그인하고 계속' })).toHaveAttribute('href', '/api/auth/oidc/start')
-})
-
-test('updates saved, wanted, and Personal Rating with observed preference versions', async ({ page }) => {
-  const { commands } = await installLibraryFixture(page)
-  await page.goto('/library')
-  await openRamenDetail(page)
-
-  const preferences = page.getByRole('region', { name: '내 상태' })
-  const wanted = preferences.getByRole('button', { name: /가고 싶음/ })
-  await wanted.click()
-  await expect(wanted).toHaveAttribute('aria-pressed', 'true')
-
-  await preferences.getByLabel('내 평점').fill('4.8')
-  await preferences.getByRole('button', { name: '평점 저장' }).click()
-  await expect(preferences.getByLabel('내 평점')).toHaveValue('4.8')
-
-  const saved = preferences.getByRole('button', { name: /^저장/ })
-  await saved.click()
-  await expect(page.getByRole('region', { name: '장소 목록' })
-    .getByText('멘야 하루', { exact: true })).toHaveCount(0)
-
-  const preferenceCommands = commands.filter((value) => (
-    value.command.kind === 'set-place-preferences'
-  ))
-  expect(preferenceCommands).toHaveLength(3)
-  expect(preferenceCommands.map((value) => value.command)).toEqual([
-    expect.objectContaining({
-      expectedUpdatedAt: timestamp,
-      saved: true, wanted: true, personalRating: 4.5,
-    }),
-    expect.objectContaining({
-      expectedUpdatedAt: '2026-08-28T00:00:01.000Z',
-      saved: true, wanted: true, personalRating: 4.8,
-    }),
-    expect.objectContaining({
-      expectedUpdatedAt: '2026-08-28T00:00:02.000Z',
-      saved: false, wanted: true, personalRating: 4.8,
-    }),
-  ])
-})
-
-test('refreshes a stale Place preference instead of overwriting it', async ({ page }) => {
-  await installLibraryFixture(page, { preferenceConflictOnce: true })
-  await page.goto('/library')
-  await openRamenDetail(page)
-
-  const preferences = page.getByRole('region', { name: '내 상태' })
-  const wanted = preferences.getByRole('button', { name: /가고 싶음/ })
-  await wanted.click()
-
-  await expect(preferences.getByRole('alert')).toContainText(
-    '다른 곳에서 상태가 변경되어 최신 값을 불러왔습니다.',
-  )
-  await expect(wanted).toHaveAttribute('aria-pressed', 'false')
-})
-
-test('retries a response-lost preference command with the same command ID', async ({ page }) => {
-  const { commands } = await installLibraryFixture(page, { preferenceFailureOnce: true })
-  await page.goto('/library')
-  await openRamenDetail(page)
-
-  const preferences = page.getByRole('region', { name: '내 상태' })
-  const wanted = preferences.getByRole('button', { name: /가고 싶음/ })
-  await wanted.click()
-  await expect(preferences.getByRole('alert')).toContainText('내 상태를 저장하지 못했습니다.')
-  await preferences.getByRole('button', { name: '다시 시도' }).click()
-  await expect(wanted).toHaveAttribute('aria-pressed', 'true')
-
-  const preferenceCommands = commands.filter((value) => (
-    value.command.kind === 'set-place-preferences'
-  ))
-  expect(preferenceCommands).toHaveLength(2)
-  expect(preferenceCommands[0]?.commandId).toBe(preferenceCommands[1]?.commandId)
-})
-
-test('manages Place-owned Collections, Tags, and ordered memberships', async ({ page }) => {
-  const { commands } = await installLibraryFixture(page)
-  await page.goto('/library')
-  await page.getByRole('button', { name: '목록·태그 관리' }).click()
-
-  await expect(page.getByText('NAVER·Google·Kakao의 원본 저장 목록이나 즐겨찾기는')).toBeVisible()
-  const collectionManager = page.getByRole('region', { name: '컬렉션' })
-  await collectionManager.getByLabel('새 컬렉션 이름').fill('을지로 라멘')
-  await collectionManager.getByRole('button', { name: '만들기' }).click()
-  await expect(collectionManager.getByRole('button', { name: /을지로 라멘/ })).toBeVisible()
-  await collectionManager.getByRole('button', { name: '컬렉션 삭제' }).click()
-  await collectionManager.getByRole('button', { name: '삭제 확인' }).click()
-  await expect(collectionManager.getByRole('button', { name: /을지로 라멘/ })).toHaveCount(0)
-
-  await collectionManager.getByRole('button', { name: /성수동/ }).click()
-  await collectionManager.getByLabel('컬렉션 이름', { exact: true }).fill('성수 라멘')
-  await collectionManager.getByRole('button', { name: '이름 변경' }).click()
-  await expect(collectionManager.getByRole('button', { name: /성수 라멘/ })).toBeVisible()
-  await collectionManager.getByRole('button', { name: '서울숲 로스터스 위로 이동' }).click()
-  await expect(collectionManager.locator('ol > li').first()).toContainText('서울숲 로스터스')
-  await collectionManager.getByRole('button', { name: '멘야 하루 컬렉션에서 제거' }).click()
-  await expect(collectionManager.getByText('멘야 하루', { exact: true })).toHaveCount(0)
-
-  const tagManager = page.getByRole('region', { name: '태그' })
-  await tagManager.getByLabel('새 태그 이름').fill('혼밥')
-  await tagManager.getByRole('button', { name: '만들기' }).click()
-  await expect(tagManager.getByRole('button', { name: /혼밥/ })).toBeVisible()
-  await tagManager.getByRole('button', { name: /라면/ }).click()
-  await tagManager.getByLabel('태그 이름', { exact: true }).fill('라멘 전문점')
-  await tagManager.getByRole('button', { name: '이름 변경' }).click()
-  await expect(tagManager.getByRole('button', { name: /라멘 전문점/ })).toBeVisible()
-  await tagManager.getByRole('button', { name: '태그 삭제' }).click()
-  await tagManager.getByRole('button', { name: '삭제 확인' }).click()
-  await expect(tagManager.getByRole('button', { name: /라멘 전문점/ })).toHaveCount(0)
-
-  await page.getByRole('button', { name: '장소 보기' }).click()
-  const collectionNavigation = page.getByLabel('내 컬렉션')
-  await collectionNavigation.getByRole('button', { name: /성수 라멘/ }).click()
-  const placeList = page.getByRole('region', { name: '장소 목록' })
-  await expect(placeList.getByText('서울숲 로스터스', { exact: true })).toBeVisible()
-  await expect(placeList.getByText('멘야 하루', { exact: true })).toHaveCount(0)
-
-  expect(commands.map((value) => value.command.kind)).toEqual(expect.arrayContaining([
-    'create-collection',
-    'delete-collection',
-    'rename-collection',
-    'move-collection-place',
-    'remove-collection-place',
-    'create-tag',
-    'rename-tag',
-    'delete-tag',
-  ]))
-})
-
-test('publishes, changes, and revokes a Collection without exposing private metadata', async ({ page }) => {
-  const { commands } = await installLibraryFixture(page)
-  await page.goto('/library')
-  await page.getByRole('button', { name: '목록·태그 관리' }).click()
-
-  const sharing = page.getByRole('region', { name: '컬렉션 공유' })
-  await expect(sharing.getByText('나만 보기')).toBeVisible()
-  await expect(sharing).toContainText('개인 평점·태그·방문·메모는 포함하지 않고')
-
-  await sharing.getByRole('button', { name: '링크로 공유' }).click()
-  await expect(sharing.getByText('링크를 아는 사람')).toBeVisible()
-  const shareLink = sharing.getByRole('link', { name: '공유 화면 열기' })
-  const firstPath = await shareLink.getAttribute('href')
-  expect(firstPath).toMatch(/^\/share\/collections\/[0-9a-f-]{36}$/)
-
-  await sharing.getByRole('button', { name: '전체 공개' }).click()
-  await expect(sharing.getByText('전체 공개')).toBeVisible()
-  await expect(shareLink).toHaveAttribute('href', firstPath!)
-
-  await sharing.getByRole('button', { name: '공유 해제' }).click()
-  await expect(sharing.getByText('나만 보기')).toBeVisible()
-  await expect(sharing.getByRole('link', { name: '공유 화면 열기' })).toHaveCount(0)
-
-  const publicationCommands = commands.filter((request) => (
-    request.command.kind === 'set-collection-publication'
-  ))
-  expect(publicationCommands.map((request) => request.command.visibility)).toEqual([
-    'unlisted', 'public', 'private',
-  ])
-  expect(publicationCommands.every((request) => !('publicationId' in request.command))).toBe(true)
-})
-
-test('retries a response-lost management command with the same command ID', async ({ page }) => {
-  const { commands } = await installLibraryFixture(page, { managementFailureOnce: true })
-  await page.goto('/library')
-  await page.getByRole('button', { name: '목록·태그 관리' }).click()
-
-  const collectionManager = page.getByRole('region', { name: '컬렉션' })
-  await collectionManager.getByLabel('새 컬렉션 이름').fill('응답 유실 복구')
-  await collectionManager.getByRole('button', { name: '만들기' }).click()
-  await expect(page.getByText('컬렉션을 만들지 못했습니다.', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: '같은 요청 다시 시도' }).click()
-  await expect(collectionManager.getByRole('button', { name: /응답 유실 복구/ })).toBeVisible()
-
-  const createCommands = commands.filter((value) => value.command.kind === 'create-collection')
-  expect(createCommands).toHaveLength(2)
-  expect(createCommands[0]?.commandId).toBe(createCommands[1]?.commandId)
-  expect(createCommands[0]?.command).toEqual(createCommands[1]?.command)
-})
-
-test('records repeated immutable Visits and reads bounded history', async ({ page }) => {
-  const { visitRequests } = await installLibraryFixture(page, { paginatedVisits: true })
-  await page.goto('/library')
-  await openRamenDetail(page)
-
-  const visitRegion = page.getByRole('region', { name: '방문 기록' })
-  await expect(visitRegion.getByText(/총 2회/)).toBeVisible()
-  await expect(visitRegion.locator('ol > li')).toHaveCount(1)
-  await visitRegion.getByRole('button', { name: '이전 방문 더 보기' }).click()
-  await expect(visitRegion.locator('ol > li')).toHaveCount(2)
-
-  await visitRegion.getByLabel('방문한 시각').fill('2026-08-27T08:30')
-  await visitRegion.getByRole('button', { name: '방문 추가' }).click()
-
-  await expect(visitRegion.getByRole('status')).toHaveText('방문 기록을 추가했습니다.')
-  await expect(visitRegion.getByText(/총 3회/)).toBeVisible()
-  expect(visitRequests).toHaveLength(1)
-  expect(visitRequests[0]).toMatchObject({ placeId: ramenPlaceId })
-  expect(visitRequests[0]).not.toHaveProperty('memberId')
-  expect(visitRequests[0]).not.toHaveProperty('evidence')
-})
-
-test('retries a response-lost Visit with the same immutable request', async ({ page }) => {
-  const { visitRequests } = await installLibraryFixture(page, { visitFailureOnce: true })
-  await page.goto('/library')
-  await openRamenDetail(page)
-
-  const visitRegion = page.getByRole('region', { name: '방문 기록' })
-  await visitRegion.getByLabel('방문한 시각').fill('2026-08-26T19:10')
-  await visitRegion.getByRole('button', { name: '방문 추가' }).click()
-  await expect(visitRegion.getByRole('alert')).toContainText('방문 기록 결과를 확인하지 못했습니다.')
-  await visitRegion.getByRole('button', { name: '같은 기록 다시 확인' }).click()
-
-  await expect(visitRegion.getByRole('status')).toHaveText('방문 기록을 추가했습니다.')
-  await expect(visitRegion.getByText(/총 3회/)).toBeVisible()
-  expect(visitRequests).toHaveLength(2)
-  expect(visitRequests[0]).toEqual(visitRequests[1])
-})
-
-test('creates and edits private Place Notes through bounded Writing pages', async ({ page }) => {
-  const { writingRequests } = await installLibraryFixture(page, { paginatedNotes: true })
-  await page.goto('/library')
-  await openRamenDetail(page)
-
-  const notes = page.getByRole('region', { name: '내 메모' })
-  await expect(notes.locator('ol > li')).toHaveCount(1)
-  await notes.getByRole('button', { name: '메모 더 보기' }).click()
-  await expect(notes.locator('ol > li')).toHaveCount(2)
-
-  await notes.getByRole('button', { name: /국물이 깔끔하고/ }).click()
-  const editor = notes.getByLabel('메모 편집')
-  await expect(editor).toHaveValue('국물이 깔끔하고 면 익힘이 좋았다.')
-  await expect(notes.getByText(/작성 2026\. 8\. 27\..*수정 2026\. 8\. 29\./)).toBeVisible()
-  await editor.fill('국물이 깔끔하고 면 익힘이 아주 좋았다.')
-  await notes.getByRole('button', { name: '메모 저장' }).click()
-  await expect(notes.getByRole('status')).toHaveText('메모를 저장했습니다.')
-
-  await notes.getByRole('button', { name: '새 메모' }).click()
-  await notes.getByLabel('새 비공개 메모').fill('주말에는 대기가 길다.')
-  await notes.getByRole('button', { name: '메모 저장' }).click()
-  await expect(notes.getByRole('status')).toHaveText('비공개 메모를 만들었습니다.')
-
-  expect(writingRequests).toHaveLength(2)
-  expect(writingRequests[0]?.command.kind).toBe('update-note')
-  expect(writingRequests[1]?.command.kind).toBe('create-note')
-  expect(writingRequests.every((request) => (
-    !('memberId' in request) &&
-    !('visibility' in request.command) &&
-    !('publicationId' in request.command)
-  ))).toBe(true)
-})
-
-test('retries a response-lost private Note with the exact command', async ({ page }) => {
-  const { writingRequests } = await installLibraryFixture(page, { writingFailureOnce: true })
-  await page.goto('/library')
-  await openRamenDetail(page)
-
-  const notes = page.getByRole('region', { name: '내 메모' })
-  await notes.getByLabel('새 비공개 메모').fill('응답 유실에도 한 번만 저장할 메모')
-  await notes.getByRole('button', { name: '메모 저장' }).click()
-  await expect(notes.getByRole('alert')).toContainText('메모 저장 결과를 확인하지 못했습니다.')
-  await notes.getByRole('button', { name: '같은 저장 다시 확인' }).click()
-
-  await expect(notes.getByRole('status')).toHaveText('비공개 메모를 만들었습니다.')
-  expect(writingRequests).toHaveLength(2)
-  expect(writingRequests[0]).toEqual(writingRequests[1])
-})
-
-test('preserves a Note draft on optimistic version conflict', async ({ page }) => {
-  const { writingRequests } = await installLibraryFixture(page, { writingConflictOnce: true })
-  await page.goto('/library')
-  await openRamenDetail(page)
-
-  const notes = page.getByRole('region', { name: '내 메모' })
-  await notes.getByRole('button', { name: /국물이 깔끔하고/ }).click()
-  const editor = notes.getByLabel('메모 편집')
-  await editor.fill('내가 작성 중인 충돌 초안')
-  await notes.getByRole('button', { name: '메모 저장' }).click()
-
-  await expect(notes.getByRole('alert')).toContainText('현재 초안은 덮어쓰지 않았습니다.')
-  await expect(editor).toHaveValue('내가 작성 중인 충돌 초안')
-  await notes.getByRole('button', { name: '최신 내용 불러오기' }).click()
-  await expect(editor).toHaveValue('다른 기기에서 저장한 최신 메모')
-  expect(writingRequests).toHaveLength(1)
-})
-
-test('organizes a Place with only the member saved Collections and Tags', async ({ page }) => {
-  const { commands } = await installLibraryFixture(page)
-  await page.goto('/library')
-  await openRamenDetail(page)
-
-  const organization = page.getByRole('region', { name: '내 분류' })
-  await expect(organization.getByText('내가 저장하거나 가져온 컬렉션과 태그만 표시됩니다.')).toBeVisible()
-  await expect(organization.getByRole('button', { name: '성수동 포함됨' }))
-    .toHaveAttribute('aria-pressed', 'true')
-  await expect(organization.getByRole('button', { name: '쇼유라멘 추가' }))
-    .toHaveAttribute('aria-pressed', 'false')
-
-  await organization.getByRole('button', { name: '쇼유라멘 추가' }).click()
-  await expect(organization.getByRole('button', { name: '쇼유라멘 포함됨' }))
-    .toHaveAttribute('aria-pressed', 'true')
-  await organization.getByRole('button', { name: '성수동 포함됨' }).click()
-  await expect(organization.getByRole('button', { name: '성수동 추가' }))
-    .toHaveAttribute('aria-pressed', 'false')
-
-  expect(commands).toHaveLength(2)
-  expect(commands).toEqual(expect.arrayContaining([
-    expect.objectContaining({
-      command: { kind: 'tag-place', tagId: shoyuTagId, placeId: ramenPlaceId },
-    }),
-    expect.objectContaining({
-      command: {
-        kind: 'remove-collection-place',
-        collectionId: seongsuCollectionId,
-        placeId: ramenPlaceId,
-      },
-    }),
-  ]))
+  await expect(page.getByRole('region', { name: '내 장소 지도' })).toBeVisible()
+  await page.getByRole('button', { name: '목록', exact: true }).click()
+  await expect(page.getByRole('button', { name: /멘야 하루/ })).toBeVisible()
 })

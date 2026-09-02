@@ -1,5 +1,26 @@
 # Personal Library feature
 
+## 활성 Collection-first 화면
+
+`/library`는 `CollectionLibrary`와 `personal-library-workspace.v2`를 사용한다. 장소는 현재 회원이
+만든 Collection 하나 이상에 포함될 때만 즐겨찾기이며, 별도의 저장 상태나 가고 싶은 상태를 화면,
+필터, 지도 범위의 근거로 사용하지 않는다. Collection과 Place cursor는 독립적으로 append한다.
+지역·Taxonomy 선택지는 같은 v2 workspace의 Collection-first `availableFilters`를 사용한다. Tag 보조
+요청이 실패해도 workspace 전체를 지우지 않는다.
+
+`place-filing-workflow.ts`는 여러 Collection membership을 한 원자 command로 변경한다. 현재 읽은
+페이지의 선택만 전송하고, version conflict에서는 선택을 보존한 채 최신 revision을 다시 읽는다.
+응답 유실 재시도는 동일한 command ID와 payload를 사용한다. Collection 생성·수정·삭제도 opaque
+revision을 요구하는 lifecycle v2 command를 사용한다.
+
+활성 화면은 전용 `collection-library.module.css`만 사용하며 이전 세대 스타일 위에 override하지
+않는다. 지도는 provider-neutral `PlaceMapRenderer`로 주입되어 목록, 상세, Collection filing과
+독립적으로 실패할 수 있다. Personal Rating·Tag·Visit·Note는 별도 개인 기록으로 유지되며 즐겨찾기
+판단에는 참여하지 않는다.
+
+## 비활성 v1 마이그레이션 소스
+
+아래 파일은 기존 소비자 호환과 점진적 제거를 위해 남아 있으며 `/library`에서는 조립하지 않는다.
 사용자가 저장 상태, 저장 장소에서 파생한 지역·Taxonomy, 태그 조합, 컬렉션으로 자신의 장소를 다시 찾는 Library-first workflow다.
 화면은 same-origin Browser API에만 의존하며 Backend origin, bearer token, Product Tier 이름을 알지
 못한다. 선택한 장소에서는 현재 회원이 저장하거나 가져온 Collection·Tag 선택지를 페이지로 읽고

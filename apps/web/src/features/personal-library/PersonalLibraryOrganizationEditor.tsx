@@ -19,16 +19,20 @@ type OrganizationEditorProps = Readonly<{
   >
 }>
 
-export function PersonalLibraryOrganizationEditor({ workflow }: OrganizationEditorProps) {
+export function PersonalLibraryOrganizationEditor({
+  workflow,
+  showCollections = true,
+}: OrganizationEditorProps & Readonly<{ showCollections?: boolean }>) {
   const collections = workflow.organizationItems.filter((item) => item.kind === 'collection')
   const tags = workflow.organizationItems.filter((item) => item.kind === 'tag')
+  const visibleItemCount = tags.length + (showCollections ? collections.length : 0)
 
   return (
     <section aria-labelledby="personal-organization-title" className={styles.organization}>
       <div className={styles.organizationHeading}>
         <div>
-          <h3 id="personal-organization-title">내 분류</h3>
-          <p>내가 저장하거나 가져온 컬렉션과 태그만 표시됩니다.</p>
+          <h3 id="personal-organization-title">{showCollections ? '내 분류' : '개인 태그'}</h3>
+          <p>{showCollections ? '내 카테고리와 태그를 관리합니다.' : '이 장소의 개인 태그를 관리합니다.'}</p>
         </div>
         {workflow.organizationLoading && <span>불러오는 중…</span>}
       </div>
@@ -40,11 +44,11 @@ export function PersonalLibraryOrganizationEditor({ workflow }: OrganizationEdit
         </div>
       )}
 
-      {!workflow.organizationLoading && workflow.organizationItems.length === 0 ? (
-        <p className={styles.organizationEmpty}>아직 사용할 컬렉션이나 태그가 없습니다.</p>
+      {!workflow.organizationLoading && visibleItemCount === 0 ? (
+        <p className={styles.organizationEmpty}>{showCollections ? '아직 사용할 카테고리나 태그가 없습니다.' : '아직 사용할 태그가 없습니다.'}</p>
       ) : (
         <>
-          {collections.length > 0 && (
+          {showCollections && collections.length > 0 && (
             <div className={styles.organizationGroup}>
               <strong>컬렉션</strong>
               <div>

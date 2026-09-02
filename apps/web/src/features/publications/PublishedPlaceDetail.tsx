@@ -82,8 +82,9 @@ export function PublishedPlaceDetail({
             <div>
               <dt>위치</dt>
               <dd>
-                {state.detail.location.latitude.toFixed(5)}, {' '}
-                {state.detail.location.longitude.toFixed(5)}
+                {state.detail.location === null
+                  ? '위치 정보 준비 중'
+                  : `${state.detail.location.latitude.toFixed(5)}, ${state.detail.location.longitude.toFixed(5)}`}
               </dd>
             </div>
           </dl>

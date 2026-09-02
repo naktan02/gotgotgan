@@ -63,6 +63,10 @@ import {
   providerConnectionListSchema,
 } from '../imports/index.js'
 import {
+  collectionLifecycleCommandRequestV2Schema,
+  collectionLifecycleCommandResultV2Schema,
+  collectionOrderCommandRequestV2Schema,
+  collectionOrderCommandResultV2Schema,
   libraryCommandResultSchema,
   libraryCollectionDetailResponseSchema,
   libraryCollectionListResponseSchema,
@@ -72,6 +76,10 @@ import {
   libraryPlaceOrganizationResponseSchema,
   libraryPlaceListResponseSchema,
   libraryTagListResponseSchema,
+  personalLibraryWorkspaceResponseV2Schema,
+  placeFilingCommandRequestV2Schema,
+  placeFilingCommandResultV2Schema,
+  placeFilingResponseV2Schema,
 } from '../library/index.js'
 import {
   placeDetailResponseSchema,
@@ -271,6 +279,21 @@ const libraryMapScopeParameter = {
 const libraryMapCollectionIdParameter = {
   name: 'collectionId', in: 'query', required: false,
   schema: { type: 'string', format: 'uuid' },
+}
+
+const personalLibraryRatingParameter = {
+  name: 'rating', in: 'query', required: false,
+  schema: { type: 'string', enum: ['any', 'rated', 'unrated'], default: 'any' },
+}
+
+const collectionCursorParameter = {
+  name: 'collectionCursor', in: 'query', required: false,
+  schema: { type: 'string', minLength: 1, maxLength: 2_048 },
+}
+
+const placeCursorParameter = {
+  name: 'placeCursor', in: 'query', required: false,
+  schema: { type: 'string', minLength: 1, maxLength: 2_048 },
 }
 
 const libraryMapViewportParameters = [
@@ -986,6 +1009,144 @@ const paths = {
     '404': ref('responses', 'ProductNotFound'),
     '409': ref('responses', 'ProductConflict'),
   }, { security: bearer, requestSchema: 'PlaceImportReviewRequest' }) },
+  '/api/library/workspace': {
+    get: operation('getPersonalLibraryWorkspaceForBrowserV2', {
+      '200': described(
+        'Return bounded Collection-backed favorites and member-owned Collections',
+        'PersonalLibraryWorkspaceV2',
+      ),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, {
+      security: browserSession,
+      parameters: [
+        libraryMapCollectionIdParameter,
+        personalLibraryRatingParameter,
+        libraryTagIdsParameter,
+        libraryTagMatchParameter,
+        libraryAreaKeysParameter,
+        libraryTaxonomyKeysParameter,
+        collectionCursorParameter,
+        placeCursorParameter,
+        boundedLimitParameter,
+      ],
+    }),
+  },
+  '/api/library/places/{placeId}/filing': {
+    parameters: [pathParameters.placeId],
+    get: operation('getPlaceFilingForBrowserV2', {
+      '200': described('Return bounded Collection choices for one Place', 'PlaceFilingV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, { security: browserSession, parameters: [boundedCursorParameter, boundedLimitParameter] }),
+  },
+  '/api/library/filing-commands': {
+    post: operation('applyPlaceFilingForBrowserV2', {
+      '200': described('Replay one atomic Place filing command', 'PlaceFilingCommandResultV2'),
+      '201': described('Apply one atomic Place filing command', 'PlaceFilingCommandResultV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': described('Reject a non-disclosed unavailable resource', 'PlaceFilingCommandResultV2'),
+      '409': described('Reject a revision or operation identity conflict', 'PlaceFilingCommandResultV2'),
+      '422': described('Reject an invalid atomic filing selection', 'PlaceFilingCommandResultV2'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, { security: browserSession, requestSchema: 'PlaceFilingCommandRequestV2' }),
+  },
+  '/api/library/collection-commands': {
+    post: operation('applyCollectionLifecycleForBrowserV2', {
+      '200': described('Replay one Collection lifecycle command', 'CollectionLifecycleCommandResultV2'),
+      '201': described('Apply one Collection lifecycle command', 'CollectionLifecycleCommandResultV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': described('Reject a non-disclosed unavailable Collection', 'CollectionLifecycleCommandResultV2'),
+      '409': described('Reject a revision or operation identity conflict', 'CollectionLifecycleCommandResultV2'),
+      '422': described('Reject an invalid Collection lifecycle operation', 'CollectionLifecycleCommandResultV2'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, { security: browserSession, requestSchema: 'CollectionLifecycleCommandRequestV2' }),
+  },
+  '/v1/library/workspace': {
+    get: operation('getPersonalLibraryWorkspaceV2', {
+      '200': described(
+        'Return bounded Collection-backed favorites and member-owned Collections',
+        'PersonalLibraryWorkspaceV2',
+      ),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '503': ref('responses', 'LibraryQueryUnavailable'),
+    }, {
+      security: bearer,
+      parameters: [
+        libraryMapCollectionIdParameter,
+        personalLibraryRatingParameter,
+        libraryTagIdsParameter,
+        libraryTagMatchParameter,
+        libraryAreaKeysParameter,
+        libraryTaxonomyKeysParameter,
+        collectionCursorParameter,
+        placeCursorParameter,
+        boundedLimitParameter,
+      ],
+    }),
+  },
+  '/v1/library/places/{placeId}/filing': {
+    parameters: [pathParameters.placeId],
+    get: operation('getPlaceFilingV2', {
+      '200': described('Return bounded Collection choices for one Place', 'PlaceFilingV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'LibraryQueryUnavailable'),
+    }, { security: bearer, parameters: [boundedCursorParameter, boundedLimitParameter] }),
+  },
+  '/v1/library/filing-commands': {
+    post: operation('applyPlaceFilingV2', {
+      '200': described('Replay one atomic Place filing command', 'PlaceFilingCommandResultV2'),
+      '201': described('Apply one atomic Place filing command', 'PlaceFilingCommandResultV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': described('Reject a non-disclosed unavailable resource', 'PlaceFilingCommandResultV2'),
+      '409': described('Reject a revision or operation identity conflict', 'PlaceFilingCommandResultV2'),
+      '422': described('Reject an invalid atomic filing selection', 'PlaceFilingCommandResultV2'),
+      '503': ref('responses', 'LibraryQueryUnavailable'),
+    }, { security: bearer, requestSchema: 'PlaceFilingCommandRequestV2' }),
+  },
+  '/v1/library/order-commands': {
+    post: operation('applyCollectionOrderV2', {
+      '200': described('Replay one Collection order command', 'CollectionOrderCommandResultV2'),
+      '201': described('Apply one Collection order command', 'CollectionOrderCommandResultV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': described('Reject a non-disclosed unavailable Collection', 'CollectionOrderCommandResultV2'),
+      '409': described('Reject a revision or operation identity conflict', 'CollectionOrderCommandResultV2'),
+      '422': described('Reject an invalid ordering anchor', 'CollectionOrderCommandResultV2'),
+      '503': ref('responses', 'LibraryQueryUnavailable'),
+    }, { security: bearer, requestSchema: 'CollectionOrderCommandRequestV2' }),
+  },
+  '/v1/library/collection-commands': {
+    post: operation('applyCollectionLifecycleV2', {
+      '200': described('Replay one Collection lifecycle command', 'CollectionLifecycleCommandResultV2'),
+      '201': described('Apply one Collection lifecycle command', 'CollectionLifecycleCommandResultV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': described('Reject a non-disclosed unavailable Collection', 'CollectionLifecycleCommandResultV2'),
+      '409': described('Reject a revision or operation identity conflict', 'CollectionLifecycleCommandResultV2'),
+      '422': described('Reject an invalid Collection lifecycle operation', 'CollectionLifecycleCommandResultV2'),
+      '503': ref('responses', 'LibraryQueryUnavailable'),
+    }, { security: bearer, requestSchema: 'CollectionLifecycleCommandRequestV2' }),
+  },
   '/v1/library/places/{placeId}': {
     parameters: [pathParameters.placeId],
     get: operation('getPlacePreferences', {
@@ -1338,6 +1499,14 @@ const schemas: Readonly<Record<string, ZodType>> = {
   LibraryCollectionListResponse: libraryCollectionListResponseSchema,
   LibraryCollectionDetailResponse: libraryCollectionDetailResponseSchema,
   LibraryTagListResponse: libraryTagListResponseSchema,
+  PersonalLibraryWorkspaceV2: personalLibraryWorkspaceResponseV2Schema,
+  PlaceFilingV2: placeFilingResponseV2Schema,
+  PlaceFilingCommandRequestV2: placeFilingCommandRequestV2Schema,
+  PlaceFilingCommandResultV2: placeFilingCommandResultV2Schema,
+  CollectionOrderCommandRequestV2: collectionOrderCommandRequestV2Schema,
+  CollectionOrderCommandResultV2: collectionOrderCommandResultV2Schema,
+  CollectionLifecycleCommandRequestV2: collectionLifecycleCommandRequestV2Schema,
+  CollectionLifecycleCommandResultV2: collectionLifecycleCommandResultV2Schema,
   VisitHistoryResponse: visitHistoryResponseSchema,
   WritingListResponse: writingListResponseSchema,
   WritingDetailResponse: writingDetailResponseSchema,

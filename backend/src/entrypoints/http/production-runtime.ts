@@ -15,8 +15,12 @@ import {
 } from '../../modules/access/index.js'
 import {
   InvalidLibraryCursorError,
+  PostgresCollectionLifecycle,
+  PostgresCollectionOrder,
   PostgresLibraryQueries,
   PostgresLibraryStore,
+  PostgresPersonalLibraryWorkspace,
+  PostgresPlaceFiling,
   saveImportedPlace,
 } from '../../modules/library/index.js'
 import {
@@ -157,6 +161,23 @@ export async function createProductionHttpRuntime(
         }
       },
     )
+    const personalLibraryWorkspace = new PostgresPersonalLibraryWorkspace(
+      pool,
+      async (placeIds) => (await localSearch.getCatalogPlaceDocuments(placeIds)).map((document) => ({
+        placeId: document.placeId,
+        name: document.name,
+        areaLabel: document.area?.label ?? null,
+        location: document.location,
+        primaryTaxonomy: document.primaryTaxonomy === null
+          ? null
+          : { key: document.primaryTaxonomy.key, label: document.primaryTaxonomy.label },
+        taxonomyKeys: document.taxonomyReferences.map((reference) => reference.key),
+        evidence: {
+          status: document.evidenceStatus,
+          projectedAt: document.projectedAt,
+        },
+      })),
+    )
     const publicProfileStore = new PostgresPublicProfileStore(pool)
     const publicProfileSafetyStore = new PostgresPublicProfileSafetyStore(pool)
     const publicProfileAppealStore = new PostgresPublicProfileAppealStore(pool)
@@ -285,6 +306,12 @@ export async function createProductionHttpRuntime(
         store: libraryStore,
         queries: libraryQueries,
         now,
+        collectionFirst: {
+          workspace: personalLibraryWorkspace,
+          filing: new PostgresPlaceFiling(pool),
+          order: new PostgresCollectionOrder(pool),
+          lifecycle: new PostgresCollectionLifecycle(pool),
+        },
       },
       ...(connector === undefined ? {} : {
         connector: {

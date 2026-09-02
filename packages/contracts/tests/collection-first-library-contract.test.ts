@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  collectionLifecycleCommandRequestV2Schema,
+  collectionLifecycleCommandResultV2Schema,
   collectionOrderCommandRequestV2Schema,
   collectionOrderCommandResultV2Schema,
   libraryOperationRejectionV2Schema,
   libraryOperationReceiptV2Schema,
   personalLibraryOverlayV2Schema,
+  personalLibraryWorkspaceHttpQueryV2Schema,
   personalLibraryWorkspaceRequestV2Schema,
   personalLibraryWorkspaceResponseV2Schema,
   placeFilingCommandRequestV2Schema,
@@ -47,6 +50,16 @@ describe('Collection-first Personal Library v2 contracts', () => {
       .toBe(false)
     expect(personalLibraryWorkspaceRequestV2Schema.safeParse({ saved: true }).success).toBe(false)
     expect(personalLibraryWorkspaceRequestV2Schema.safeParse({ wanted: true }).success).toBe(false)
+    expect(personalLibraryWorkspaceHttpQueryV2Schema.parse({
+      collectionId,
+      rating: 'rated',
+      tagIds: placeId,
+    })).toMatchObject({
+      collectionId,
+      rating: 'rated',
+      tagIds: [placeId],
+      limit: 20,
+    })
   })
 
   it('publishes a bounded workspace without legacy Place states', () => {
@@ -74,9 +87,25 @@ describe('Collection-first Personal Library v2 contracts', () => {
       places: [{
         placeId,
         overlay: { isFavorited: true, collectionCount: 1, personalRating: 4.5 },
-        place: null,
+        place: {
+          placeId,
+          name: '좌표 확인 중인 라멘집',
+          areaLabel: '서울',
+          location: null,
+          primaryTaxonomy: { key: 'food.ramen', label: '라멘' },
+          taxonomyKeys: ['food.ramen'],
+          evidence: { status: 'unverified', projectedAt: '2026-09-03T00:00:00.000Z' },
+        },
       }],
       placeNextCursor: 'places-page-2',
+      availableFilters: {
+        coverage: {
+          favoritePlaceCount: 1, sampledPlaceCount: 1,
+          projectedPlaceCount: 1, complete: true,
+        },
+        areas: [{ key: 'area_abcdefghijklmnopqrstuv', label: '서울', count: 1 }],
+        taxonomies: [{ key: 'food.ramen', label: '라멘', count: 1 }],
+      },
     })
 
     expect(workspace.places[0]?.overlay).toEqual({
@@ -237,5 +266,28 @@ describe('Collection-first Personal Library v2 contracts', () => {
       collectionRevision: 'post-order-revision',
     })
     expect(result.outcome).toBe('accepted')
+  })
+
+  it('uses the same opaque revision for Collection lifecycle changes', () => {
+    const create = collectionLifecycleCommandRequestV2Schema.parse({
+      schemaVersion: 'collection-lifecycle-command.v2',
+      kind: 'create', commandId, collectionId, name: ' 서울 라멘 ',
+    })
+    expect(create).toMatchObject({ name: '서울 라멘', description: null })
+    expect(collectionLifecycleCommandRequestV2Schema.safeParse({
+      schemaVersion: 'collection-lifecycle-command.v2',
+      kind: 'update', commandId, collectionId,
+      expectedCollectionRevision: collectionRevision,
+    }).success).toBe(false)
+    expect(collectionLifecycleCommandResultV2Schema.parse({
+      schemaVersion: 'collection-lifecycle-command-result.v2',
+      outcome: 'accepted',
+      receipt: { commandId, status: 'applied' },
+      collection: {
+        collectionId, name: '서울 라멘', description: null, visibility: 'private',
+        publicationId: null, placeCount: 0, collectionRevision,
+        updatedAt: '2026-09-03T00:00:00.000Z',
+      },
+    }).outcome).toBe('accepted')
   })
 })

@@ -290,4 +290,163 @@ describe('browser library HTTP', () => {
     expect(response.status).toBe(400)
     expect(resolveAuthRuntime).not.toHaveBeenCalled()
   })
+
+  it('forwards the flat browser workspace query as a Collection-first request', async () => {
+    const observed: string[] = []
+    const http = createBrowserLibraryHttp({
+      resolveAuthRuntime: sessionRuntime,
+      backend: backend(async (url) => {
+        observed.push(url.toString())
+        return Response.json({
+          schemaVersion: 'personal-library-workspace.v2',
+          filter: {
+            favoriteScope: { kind: 'collection', collectionId },
+            ratingFilter: { kind: 'rated' },
+            tagIds: [tagA], tagMatch: 'all', areaKeys: [areaKey],
+            taxonomyKeys: ['food.noodle.ramen'],
+          },
+          collections: [], places: [],
+          availableFilters: {
+            coverage: { favoritePlaceCount: 0, sampledPlaceCount: 0, projectedPlaceCount: 0, complete: true },
+            areas: [], taxonomies: [],
+          },
+        })
+      }),
+      createCorrelationRef: () => 'unused',
+    })
+
+    const response = await http.workspace(new Request(
+      `https://place.example/api/library/workspace?collectionId=${collectionId}&rating=rated&tagIds=${tagA}&areaKeys=${areaKey}&taxonomyKeys=food.noodle.ramen&limit=20`,
+    ))
+
+    expect(response.status).toBe(200)
+    expect(observed).toEqual([
+      `https://place-backend.example/v1/library/workspace?rating=rated&tagMatch=all&limit=20&collectionId=${collectionId}&tagIds=${tagA}&areaKeys=${areaKey}&taxonomyKeys=food.noodle.ramen`,
+    ])
+    expect(JSON.stringify(await response.json())).not.toMatch(/saved|wanted/i)
+  })
+
+  it.each([
+    { status: 404, code: 'not-found' },
+    { status: 409, code: 'version-conflict' },
+    { status: 422, code: 'invalid-selection' },
+  ])('preserves a typed filing rejection at HTTP $status', async ({ status, code }) => {
+    const http = createBrowserLibraryHttp({
+      resolveAuthRuntime: sessionRuntime,
+      backend: backend(async () => Response.json({
+        schemaVersion: 'place-filing-command-result.v2',
+        outcome: 'rejected',
+        commandId,
+        rejection: { code },
+      }, { status })),
+      createCorrelationRef: () => 'unused',
+    })
+
+    const response = await http.filingCommand(new Request(
+      'https://place.example/api/library/filing-commands',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          schemaVersion: 'place-filing-command.v2',
+          commandId,
+          placeId,
+          changes: [{
+            collectionId,
+            expectedCollectionRevision: 'opaque-revision',
+            desired: 'included',
+          }],
+        }),
+      },
+    ))
+
+    expect(response.status).toBe(status)
+    expect(await response.json()).toMatchObject({
+      outcome: 'rejected', rejection: { code },
+    })
+  })
+
+  it('preserves revision-checked Collection lifecycle conflicts', async () => {
+    const http = createBrowserLibraryHttp({
+      resolveAuthRuntime: sessionRuntime,
+      backend: backend(async (_url, init) => {
+        expect(JSON.parse(String(init.body))).toMatchObject({
+          schemaVersion: 'collection-lifecycle-command.v2',
+          kind: 'update',
+          expectedCollectionRevision: 'opaque-revision',
+        })
+        return Response.json({
+          schemaVersion: 'collection-lifecycle-command-result.v2',
+          outcome: 'rejected',
+          commandId,
+          rejection: { code: 'version-conflict' },
+        }, { status: 409 })
+      }),
+      createCorrelationRef: () => 'unused',
+    })
+
+    const response = await http.collectionCommand(new Request(
+      'https://place.example/api/library/collection-commands',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          schemaVersion: 'collection-lifecycle-command.v2',
+          kind: 'update',
+          commandId,
+          collectionId,
+          expectedCollectionRevision: 'opaque-revision',
+          name: '도쿄 여행',
+        }),
+      },
+    ))
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({
+      outcome: 'rejected', rejection: { code: 'version-conflict' },
+    })
+  })
+
+  it('preserves an applied Collection lifecycle result with HTTP 201', async () => {
+    const http = createBrowserLibraryHttp({
+      resolveAuthRuntime: sessionRuntime,
+      backend: backend(async () => Response.json({
+        schemaVersion: 'collection-lifecycle-command-result.v2',
+        outcome: 'accepted',
+        receipt: { commandId, status: 'applied' },
+        collection: {
+          collectionId,
+          name: '서울 라멘',
+          description: null,
+          visibility: 'private',
+          publicationId: null,
+          placeCount: 0,
+          collectionRevision: 'opaque-revision',
+          updatedAt: '2026-09-03T00:00:00.000Z',
+        },
+      }, { status: 201 })),
+      createCorrelationRef: () => 'unused',
+    })
+
+    const response = await http.collectionCommand(new Request(
+      'https://place.example/api/library/collection-commands',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          schemaVersion: 'collection-lifecycle-command.v2',
+          kind: 'create',
+          commandId,
+          collectionId,
+          name: '서울 라멘',
+          description: null,
+        }),
+      },
+    ))
+
+    expect(response.status).toBe(201)
+    expect(await response.json()).toMatchObject({
+      outcome: 'accepted', receipt: { status: 'applied' },
+    })
+  })
 })

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import type { PlaceFilingCommandRequestV2 } from '@place/contracts/library'
 
 const configuredBaseUrl = process.env.PLACE_WEB_E2E_BASE_URL
 if (configuredBaseUrl === undefined) throw new Error('PLACE_WEB_E2E_BASE_URL is required')
@@ -89,4 +90,93 @@ test('redirects the retired search workspace to Home', async ({ page }) => {
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByLabel('곳곳간 카탈로그 검색')).toBeVisible()
   await expect(page.getByText('장소 찾기', { exact: true })).toHaveCount(0)
+})
+
+test('files a Home search result into multiple Collections with one v2 command', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'desktop Home filing coverage')
+  const ramenCollectionId = '01992d20-7000-7000-8000-000000000301'
+  const tripCollectionId = '01992d20-7000-7000-8000-000000000302'
+  const commands: PlaceFilingCommandRequestV2[] = []
+  const collection = (collectionId: string, name: string) => ({
+    collectionId,
+    name,
+    description: null,
+    visibility: 'private',
+    publicationId: null,
+    placeCount: 0,
+    collectionRevision: `revision.${collectionId}`,
+    updatedAt: '2026-09-03T00:00:00.000Z',
+  })
+  await page.route('**/api/library/workspace?*', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      schemaVersion: 'personal-library-workspace.v2',
+      filter: {
+        favoriteScope: { kind: 'all' }, ratingFilter: { kind: 'any' },
+        tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: [],
+      },
+      collections: [
+        collection(ramenCollectionId, '서울 라멘'),
+        collection(tripCollectionId, '주말 여행'),
+      ],
+      places: [],
+      availableFilters: {
+        coverage: {
+          favoritePlaceCount: 0, sampledPlaceCount: 0,
+          projectedPlaceCount: 0, complete: true,
+        },
+        areas: [], taxonomies: [],
+      },
+    }),
+  }))
+  await page.route('**/api/library/places/*/filing?*', (route) => {
+    const placeId = new URL(route.request().url()).pathname.split('/').at(-2)!
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        schemaVersion: 'place-filing.v2',
+        placeId,
+        overlay: { isFavorited: false, collectionCount: 0, personalRating: null },
+        collections: [
+          { collectionId: ramenCollectionId, name: '서울 라멘', included: false, collectionRevision: `revision.${ramenCollectionId}` },
+          { collectionId: tripCollectionId, name: '주말 여행', included: false, collectionRevision: `revision.${tripCollectionId}` },
+        ],
+      }),
+    })
+  })
+  await page.route('**/api/library/filing-commands', async (route) => {
+    const command = route.request().postDataJSON() as PlaceFilingCommandRequestV2
+    commands.push(command)
+    return route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        schemaVersion: 'place-filing-command-result.v2',
+        outcome: 'accepted',
+        receipt: { commandId: command.commandId, status: 'applied' },
+        placeId: command.placeId,
+        overlay: { isFavorited: true, collectionCount: 2, personalRating: null },
+        collections: command.changes.map((change) => ({
+          collectionId: change.collectionId,
+          included: true,
+          collectionRevision: `${change.expectedCollectionRevision}.next`,
+        })),
+      }),
+    })
+  })
+
+  await page.goto('/')
+  await submitSearch(page, '성수 라멘')
+  await page.getByRole('button', { name: '컬렉션 선택' }).click()
+  const filing = page.getByRole('region', { name: '내 카테고리' })
+  await filing.getByLabel(/서울 라멘/).check()
+  await filing.getByLabel(/주말 여행/).check()
+  await filing.getByRole('button', { name: '변경 저장' }).click()
+  await expect(filing.getByRole('status').filter({ hasText: '내 카테고리를 저장했습니다.' })).toBeVisible()
+
+  expect(commands).toHaveLength(1)
+  expect(commands[0]?.schemaVersion).toBe('place-filing-command.v2')
+  expect(commands[0]?.changes).toHaveLength(2)
 })

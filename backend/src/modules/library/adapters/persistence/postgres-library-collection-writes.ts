@@ -41,7 +41,8 @@ async function touchCollection(
 ): Promise<void> {
   await client.query(
     `UPDATE library.collections
-     SET updated_at = greatest(updated_at, $2::timestamptz)
+     SET revision = revision + 1,
+         updated_at = greatest(updated_at + interval '1 millisecond', $2::timestamptz)
      WHERE id = $1::uuid`,
     [collectionId, occurredAt],
   )
@@ -106,7 +107,9 @@ export async function applyCollectionWrite(
   if (command.kind === 'rename-collection') {
     const result = await client.query(
       `UPDATE library.collections
-       SET name = $3, updated_at = greatest(updated_at, $4::timestamptz)
+       SET name = $3,
+           revision = revision + 1,
+           updated_at = greatest(updated_at + interval '1 millisecond', $4::timestamptz)
        WHERE id = $1::uuid AND owner_membership_id = $2::uuid`,
       [command.collectionId, attempt.memberId, command.name, attempt.occurredAt],
     )
@@ -134,8 +137,9 @@ export async function applyCollectionWrite(
            publication_id = CASE
              WHEN $3 = 'private' THEN NULL
              WHEN visibility = 'private' THEN gen_random_uuid()
-             ELSE publication_id
+           ELSE publication_id
            END,
+           revision = revision + 1,
            updated_at = greatest(updated_at + interval '1 millisecond', $4::timestamptz)
        WHERE id = $1::uuid AND owner_membership_id = $2::uuid`,
       [command.collectionId, attempt.memberId, command.visibility, attempt.occurredAt],

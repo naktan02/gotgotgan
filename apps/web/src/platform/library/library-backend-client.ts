@@ -1,10 +1,14 @@
 import type {
+  CollectionLifecycleCommandRequestV2,
   LibraryCollectionDetailQuery,
   LibraryCollectionListQuery,
   LibraryMapQuery,
   LibraryPlaceListQuery,
   LibraryPlaceOrganizationQuery,
   LibraryTagListQuery,
+  PersonalLibraryWorkspaceRequestV2,
+  PlaceFilingCommandRequestV2,
+  PlaceFilingRequestV2,
 } from '@place/contracts/library'
 
 import {
@@ -46,6 +50,25 @@ function mapQueryString(query: LibraryMapQuery): URLSearchParams {
   return parameters
 }
 
+function workspaceQueryString(query: PersonalLibraryWorkspaceRequestV2): URLSearchParams {
+  const parameters = new URLSearchParams({
+    rating: query.ratingFilter.kind,
+    tagMatch: query.tagMatch,
+    limit: String(query.limit),
+  })
+  if (query.favoriteScope.kind === 'collection') {
+    parameters.set('collectionId', query.favoriteScope.collectionId)
+  }
+  for (const tagId of query.tagIds) parameters.append('tagIds', tagId)
+  for (const areaKey of query.areaKeys) parameters.append('areaKeys', areaKey)
+  for (const taxonomyKey of query.taxonomyKeys) parameters.append('taxonomyKeys', taxonomyKey)
+  if (query.collectionCursor !== undefined) {
+    parameters.set('collectionCursor', query.collectionCursor)
+  }
+  if (query.placeCursor !== undefined) parameters.set('placeCursor', query.placeCursor)
+  return parameters
+}
+
 export function createLibraryBackendClient(config: LibraryBackendClientConfig = {}) {
   const environment = config.environment ?? process.env
   const fetcher = config.fetcher ?? fetch
@@ -73,6 +96,39 @@ export function createLibraryBackendClient(config: LibraryBackendClientConfig = 
   }
 
   return {
+    collectionCommand(
+      accessToken: string,
+      body: CollectionLifecycleCommandRequestV2,
+      signal: AbortSignal,
+    ) {
+      return send('/v1/library/collection-commands', accessToken, signal, 'POST', body)
+    },
+    workspace(
+      accessToken: string,
+      query: PersonalLibraryWorkspaceRequestV2,
+      signal: AbortSignal,
+    ) {
+      return send(`/v1/library/workspace?${workspaceQueryString(query)}`, accessToken, signal)
+    },
+    filing(
+      accessToken: string,
+      placeId: string,
+      query: PlaceFilingRequestV2,
+      signal: AbortSignal,
+    ) {
+      return send(
+        `/v1/library/places/${placeId}/filing?${queryString(query)}`,
+        accessToken,
+        signal,
+      )
+    },
+    filingCommand(
+      accessToken: string,
+      body: PlaceFilingCommandRequestV2,
+      signal: AbortSignal,
+    ) {
+      return send('/v1/library/filing-commands', accessToken, signal, 'POST', body)
+    },
     map(accessToken: string, query: LibraryMapQuery, signal: AbortSignal) {
       return send(`/v1/library/map?${mapQueryString(query)}`, accessToken, signal)
     },

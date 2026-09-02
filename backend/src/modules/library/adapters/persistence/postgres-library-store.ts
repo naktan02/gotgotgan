@@ -184,7 +184,8 @@ export class PostgresLibraryStore implements LibraryStore, ImportedPlaceSaveStor
       )
       await client.query(
         `UPDATE library.collections
-         SET updated_at = greatest(updated_at, $2::timestamptz)
+         SET revision = revision + 1,
+             updated_at = greatest(updated_at + interval '1 millisecond', $2::timestamptz)
          WHERE id = $1::uuid`,
         [collectionId, attempt.occurredAt],
       )

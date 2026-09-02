@@ -37,15 +37,24 @@ describe('Collection-first Library interfaces', () => {
   it('models workspace favorites only as Collection-backed rows', async () => {
     const expected: PersonalLibraryWorkspaceView = {
       schemaVersion: 'personal-library-workspace.v2',
-      scope: { kind: 'all' },
+      filter: {
+        favoriteScope: { kind: 'all' },
+        ratingFilter: { kind: 'any' },
+        tagIds: [],
+        tagMatch: 'all',
+        areaKeys: [],
+        taxonomyKeys: [],
+      },
       collections: {
         items: [{
           collectionId: 'ramen',
           name: '서울 라멘',
           description: null,
           visibility: 'private',
+          publicationId: null,
           placeCount: 1,
           version: collectionVersion,
+          updatedAt: '2026-09-03T10:00:00.000Z',
         }],
       },
       favoritePlaces: {
@@ -54,18 +63,31 @@ describe('Collection-first Library interfaces', () => {
           collectionMembershipCount: 1,
           tagIds: ['쇼유라멘'],
           personalRating: 4.7,
+          place: null,
         }],
+      },
+      availableFilters: {
+        coverage: {
+          favoritePlaceCount: 1, sampledPlaceCount: 1,
+          projectedPlaceCount: 1, complete: true,
+        },
+        areas: [], taxonomies: [],
       },
     }
     const workspace: PersonalLibraryWorkspace = {
       open: async () => expected,
     }
 
-    const result = await workspace.open({ memberId: context.memberId, scope: { kind: 'all' }, limit: 20 })
+    const result = await workspace.open({
+      memberId: context.memberId,
+      favoriteScope: { kind: 'all' },
+      ratingFilter: { kind: 'any' },
+      tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: [], limit: 20,
+    })
 
     expect(result).toEqual(expected)
-    expect(result.favoritePlaces.items[0]).not.toHaveProperty('saved')
-    expect(result.favoritePlaces.items[0]).not.toHaveProperty('wanted')
+    expect(result!.favoritePlaces.items[0]).not.toHaveProperty('saved')
+    expect(result!.favoritePlaces.items[0]).not.toHaveProperty('wanted')
   })
 
   it('normalizes one-to-fifty explicit filing changes as one atomic method input', async () => {
@@ -75,6 +97,8 @@ describe('Collection-first Library interfaces', () => {
       operationId: context.operationId,
       value: {
         placeId: 'ramen-shop',
+        collectionMembershipCount: 1,
+        personalRating: null,
         collections: [{ collectionId: 'ramen', included: true, version: collectionVersion }],
       },
     }
@@ -82,6 +106,8 @@ describe('Collection-first Library interfaces', () => {
       open: async () => ({
         schemaVersion: 'place-filing.v2',
         placeId: 'ramen-shop',
+        collectionMembershipCount: 0,
+        personalRating: null,
         collections: [],
       }),
       apply: async (mutation) => {
@@ -340,12 +366,18 @@ describe('Collection-first Library interfaces', () => {
     expect(asOpaqueVersion('not-a-timestamp')).toBe('not-a-timestamp')
     expect(normalizePersonalLibraryWorkspaceQuery({
       memberId: context.memberId,
-      scope: { kind: 'collection', collectionId: 'ramen' },
+      favoriteScope: { kind: 'collection', collectionId: 'ramen' },
+      ratingFilter: { kind: 'any' }, tagIds: [], tagMatch: 'all',
+      areaKeys: [], taxonomyKeys: [],
       limit: 50,
-    })).toMatchObject({ limit: 50, scope: { kind: 'collection', collectionId: 'ramen' } })
+    })).toMatchObject({
+      limit: 50, favoriteScope: { kind: 'collection', collectionId: 'ramen' },
+    })
     expect(() => normalizePersonalLibraryWorkspaceQuery({
       memberId: context.memberId,
-      scope: { kind: 'all' },
+      favoriteScope: { kind: 'all' },
+      ratingFilter: { kind: 'any' }, tagIds: [], tagMatch: 'all',
+      areaKeys: [], taxonomyKeys: [],
       limit: 51,
     })).toThrowError(expect.objectContaining({ field: 'limit' }))
   })
@@ -355,12 +387,16 @@ describe('Collection-first Library interfaces', () => {
       {
         status: 'applied',
         operationId: 'one',
-        value: { placeId: 'p', collections: [] },
+        value: {
+          placeId: 'p', collectionMembershipCount: 0, personalRating: null, collections: [],
+        },
       },
       {
         status: 'replayed',
         operationId: 'one',
-        value: { placeId: 'p', collections: [] },
+        value: {
+          placeId: 'p', collectionMembershipCount: 0, personalRating: null, collections: [],
+        },
       },
       {
         status: 'rejected',

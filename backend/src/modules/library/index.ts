@@ -19,6 +19,7 @@ export type {
 } from './application/ports/imported-place-save-store.js'
 export type { LibraryStore } from './application/ports/library-store.js'
 export type {
+  CollectionLifecycle,
   CollectionOrder,
   ImportedCollectionMaterializer,
   PersonalLibraryWorkspace,
@@ -29,6 +30,8 @@ export type {
 export {
   InvalidCollectionFirstInputError,
   type CollectionFavoritePlace,
+  type CollectionLifecycleCommand,
+  type CollectionLifecycleReceipt,
   type CollectionOrderMove,
   type CollectionOrderReceipt,
   type CollectionPublicationChange,
@@ -58,6 +61,7 @@ export {
 export {
   asOpaqueVersion,
   normalizeCollectionOrderMove,
+  normalizeCollectionLifecycleCommand,
   normalizeCollectionPublicationChange,
   normalizeImportedCollectionMaterialization,
   normalizePersonalLibraryWorkspaceQuery,
@@ -69,6 +73,12 @@ export {
 } from './application/validate-collection-first.js'
 export { PostgresLibraryStore } from './adapters/persistence/postgres-library-store.js'
 export { PostgresLibraryQueries } from './adapters/persistence/postgres-library-queries.js'
+export {
+  PostgresCollectionLifecycle,
+  PostgresCollectionOrder,
+  PostgresPersonalLibraryWorkspace,
+  PostgresPlaceFiling,
+} from './adapters/persistence/postgres-collection-first-library.js'
 export {
   InvalidLibraryCursorError,
   InvalidLibraryQueryError,
@@ -95,3 +105,7 @@ export {
   registerLibraryHttpRoutes,
   type LibraryHttpDependencies,
 } from './transport/http/register-library-http.js'
+export {
+  registerCollectionFirstHttpRoutes,
+  type CollectionFirstHttpDependencies,
+} from './transport/http/register-collection-first-http.js'

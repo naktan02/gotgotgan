@@ -29,9 +29,6 @@ export type CatalogHomeLibrary = Readonly<{
     | Readonly<{ kind: 'ready'; items: readonly FavoriteCollection[] }>
     | Readonly<{ kind: 'signed-out' | 'unavailable' }>
   >
-  filePlace: (input: Readonly<{ placeId: string; collectionId: string }>) => Promise<
-    Readonly<{ kind: 'success' | 'unavailable' }>
-  >
 }>
 
 type CollectionState = 'loading' | 'ready' | 'signed-out' | 'unavailable'
@@ -51,9 +48,7 @@ export type CatalogHomeWorkflow = Readonly<{
   collections: readonly FavoriteCollection[]
   collectionState: CollectionState
   collectionPickerOpen: boolean
-  collectionMutation: 'idle' | 'loading' | 'success' | 'unavailable'
-  collectionMessage: string | undefined
-  recentlyFiled: readonly Readonly<{ place: CatalogHomePlace; collectionName: string }>[]
+  recentlyFiled: readonly CatalogHomePlace[]
   viewport: PlaceMapViewport
   mobileSurface: 'list' | 'map'
   changeDraftQuery: (query: string) => void
@@ -62,7 +57,8 @@ export type CatalogHomeWorkflow = Readonly<{
   excludeToken: (tokenId: string) => void
   selectPlace: (placeId: string) => void
   setCollectionPickerOpen: (open: boolean) => void
-  fileInCollection: (collection: FavoriteCollection) => void
+  onFilingApplied: () => Promise<void>
+  onFilingAccessFailure: (status: number) => void
   setViewport: (viewport: PlaceMapViewport) => void
   searchViewport: () => void
   loadMore: () => void
@@ -101,31 +97,32 @@ export function CatalogHomeProvider({
   const [collections, setCollections] = useState<readonly FavoriteCollection[]>([])
   const [collectionState, setCollectionState] = useState<CollectionState>('loading')
   const [collectionPickerOpen, setCollectionPickerOpen] = useState(false)
-  const [collectionMutation, setCollectionMutation] = useState<'idle' | 'loading' | 'success' | 'unavailable'>('idle')
-  const [collectionMessage, setCollectionMessage] = useState<string>()
-  const [recentlyFiled, setRecentlyFiled] = useState<readonly Readonly<{ place: CatalogHomePlace; collectionName: string }>[] >([])
+  const [recentlyFiled, setRecentlyFiled] = useState<readonly CatalogHomePlace[]>([])
   const [viewport, setViewport] = useState<PlaceMapViewport>(initialViewport)
   const [mobileSurface, setMobileSurface] = useState<'list' | 'map'>('list')
   const searchSequence = useRef(0)
   const searchController = useRef<AbortController | undefined>(undefined)
 
+  const loadCollections = useCallback(async (signal: AbortSignal) => {
+    try {
+      const result = await library.readCollections(signal)
+      if (result.kind === 'ready') {
+        setCollections(result.items)
+        setCollectionState('ready')
+        return
+      }
+      setCollectionState(result.kind)
+    } catch (reason: unknown) {
+      if (reason instanceof DOMException && reason.name === 'AbortError') return
+      setCollectionState('unavailable')
+    }
+  }, [library])
+
   useEffect(() => {
     const controller = new AbortController()
-    library.readCollections(controller.signal)
-      .then((result) => {
-        if (result.kind === 'ready') {
-          setCollections(result.items)
-          setCollectionState('ready')
-          return
-        }
-        setCollectionState(result.kind)
-      })
-      .catch((reason: unknown) => {
-        if (reason instanceof DOMException && reason.name === 'AbortError') return
-        setCollectionState('unavailable')
-      })
+    void loadCollections(controller.signal)
     return () => controller.abort()
-  }, [library])
+  }, [loadCollections])
 
   const executeSearch = useCallback(async (
     query: string,
@@ -230,33 +227,25 @@ export function CatalogHomeProvider({
     setExcludedTokenIds(next)
     void executeSearch(submittedQuery, selectedQuickType, next)
   }
-  const fileInCollection = (collection: FavoriteCollection) => {
-    if (selected === undefined || collectionMutation === 'loading') return
-    setCollectionMutation('loading')
-    setCollectionMessage(undefined)
-    void library.filePlace({
-      collectionId: collection.collectionId,
-      placeId: selected.placeId,
-    }).then((result) => {
-      if (result.kind !== 'success') throw new Error('Collection filing unavailable')
-      setCollectionMutation('success')
-      setCollectionMessage(`‘${collection.name}’에 정리했습니다.`)
-      setCollectionPickerOpen(false)
+  const onFilingApplied = useCallback(async () => {
+    if (selected !== undefined) {
       setRecentlyFiled((current) => [
-        { place: selected, collectionName: collection.name },
-        ...current.filter((item) => item.place.placeId !== selected.placeId),
+        selected,
+        ...current.filter((place) => place.placeId !== selected.placeId),
       ].slice(0, 3))
-    }).catch(() => {
-      setCollectionMutation('unavailable')
-      setCollectionMessage('컬렉션에 정리하지 못했습니다. 다시 시도해 주세요.')
-    })
-  }
+    }
+    await loadCollections(new AbortController().signal)
+  }, [loadCollections, selected])
+
+  const onFilingAccessFailure = useCallback((status: number) => {
+    setCollectionState(status === 401 ? 'signed-out' : 'unavailable')
+  }, [])
 
   const value = useMemo<CatalogHomeWorkflow>(() => ({
     draftQuery, submittedQuery, selectedQuickType, interpretation, items, selected,
     searchState, searchError, nextCursor, paginationState,
     collections, collectionState, collectionPickerOpen,
-    collectionMutation, collectionMessage, recentlyFiled, viewport, mobileSurface,
+    recentlyFiled, viewport, mobileSurface,
     changeDraftQuery: setDraftQuery,
     submitSearch,
     toggleQuickType,
@@ -267,7 +256,8 @@ export function CatalogHomeProvider({
       setMobileSurface('map')
     },
     setCollectionPickerOpen,
-    fileInCollection,
+    onFilingApplied,
+    onFilingAccessFailure,
     setViewport,
     searchViewport: () => void executeSearch(submittedQuery, selectedQuickType, excludedTokenIds, viewport.bounds),
     loadMore: () => {
@@ -284,9 +274,9 @@ export function CatalogHomeProvider({
     showList: () => setMobileSurface('list'),
     showMap: () => setMobileSurface('map'),
   }), [
-    collectionMessage, collectionMutation, collectionPickerOpen, collectionState, collections,
+    collectionPickerOpen, collectionState, collections,
     activeSearchBounds, draftQuery, excludedTokenIds, executeSearch, interpretation, items,
-    mobileSurface, nextCursor, paginationState, recentlyFiled, searchError, searchState, selected,
+    mobileSurface, nextCursor, onFilingAccessFailure, onFilingApplied, paginationState, recentlyFiled, searchError, searchState, selected,
     selectedQuickType, submittedQuery, viewport,
   ])
 

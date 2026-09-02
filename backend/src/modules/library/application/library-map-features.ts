@@ -5,6 +5,9 @@ import type {
 } from '../domain/queries.js'
 
 const maximumColumns = 24
+type LocatedLibraryPlaceSummary = LibraryPlaceSummary & Readonly<{
+  location: NonNullable<LibraryPlaceSummary['location']>
+}>
 
 function gridSize(zoom: number): Readonly<{ columns: number; rows: number }> {
   const columns = zoom >= 16 ? maximumColumns : zoom >= 13 ? 18 : zoom >= 10 ? 12 : 8
@@ -12,7 +15,7 @@ function gridSize(zoom: number): Readonly<{ columns: number; rows: number }> {
 }
 
 function withinBounds(
-  location: LibraryPlaceSummary['location'],
+  location: NonNullable<LibraryPlaceSummary['location']>,
   bounds: LibraryMapBounds,
 ): boolean {
   return location.longitude >= bounds.west && location.longitude <= bounds.east &&
@@ -20,7 +23,7 @@ function withinBounds(
 }
 
 function clusterBounds(
-  places: readonly LibraryPlaceSummary[],
+  places: readonly LocatedLibraryPlaceSummary[],
   viewport: LibraryMapBounds,
   columns: number,
   rows: number,
@@ -49,6 +52,7 @@ export function projectLibraryMapFeatures(input: Readonly<{
   zoom: number
 }>): readonly LibraryMapFeature[] {
   const uniquePlaces = [...new Map(input.places.map((place) => [place.placeId, place])).values()]
+    .filter((place): place is LocatedLibraryPlaceSummary => place.location !== null)
     .filter((place) => withinBounds(place.location, input.bounds))
   const { columns, rows } = gridSize(input.zoom)
   const longitudeSpan = input.bounds.east - input.bounds.west
@@ -56,7 +60,7 @@ export function projectLibraryMapFeatures(input: Readonly<{
   const cells = new Map<string, {
     column: number
     row: number
-    places: LibraryPlaceSummary[]
+    places: LocatedLibraryPlaceSummary[]
   }>()
 
   for (const place of uniquePlaces) {

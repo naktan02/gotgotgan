@@ -350,6 +350,20 @@ export class PostgresLocalSearch implements
     return result.rows.map(rowToDocument)
   }
 
+  async getCatalogPlaceDocuments(placeIds: readonly string[]): Promise<readonly CatalogPlaceSummary[]> {
+    if (placeIds.length === 0) return []
+    const result = await this.pool.query<CatalogSearchRow>(
+      `SELECT place_id, display_name, area_label, area_key, area_version,
+              ST_Y(location) AS latitude, ST_X(location) AS longitude,
+              primary_taxonomy_key, primary_taxonomy_label, taxonomy_references,
+              evidence_status, projected_at, 0::double precision AS score
+       FROM search.place_documents
+       WHERE place_id = ANY($1::uuid[])`,
+      [placeIds],
+    )
+    return result.rows.map(rowToCatalogSummary)
+  }
+
   async getPlaceDocumentsInBounds(placeIds: readonly string[], bounds: SearchBounds) {
     const requested = [...new Set(placeIds)]
     if (requested.length === 0) return { documents: [], unprojectedPlaceCount: 0 }

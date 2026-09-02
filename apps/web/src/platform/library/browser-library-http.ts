@@ -6,6 +6,8 @@ import {
   problemSchema,
 } from '@place/contracts/http'
 import {
+  collectionLifecycleCommandRequestV2Schema,
+  collectionLifecycleCommandResultV2Schema,
   libraryCollectionDetailQuerySchema,
   libraryCollectionDetailResponseSchema,
   libraryCollectionIdentifierParamsSchema,
@@ -23,6 +25,12 @@ import {
   libraryPlaceOrganizationResponseSchema,
   libraryTagListQuerySchema,
   libraryTagListResponseSchema,
+  personalLibraryWorkspaceRequestV2Schema,
+  personalLibraryWorkspaceResponseV2Schema,
+  placeFilingCommandRequestV2Schema,
+  placeFilingCommandResultV2Schema,
+  placeFilingRequestV2Schema,
+  placeFilingResponseV2Schema,
 } from '@place/contracts/library'
 import { placeDetailResponseSchema } from '@place/contracts/places'
 
@@ -144,7 +152,7 @@ export function createBrowserLibraryHttp(dependencies: Dependencies) {
       }
       const response = await operation(session.tokens.accessToken)
       const value = await responseJson(response)
-      if (response.ok && acceptedStatuses.includes(response.status)) {
+      if (acceptedStatuses.includes(response.status)) {
         const parsed = schema.safeParse(value)
         if (!parsed.success) return unavailable()
         return Response.json(parsed.data, {
@@ -172,6 +180,91 @@ export function createBrowserLibraryHttp(dependencies: Dependencies) {
   }
 
   return {
+    async collectionCommand(request: Request): Promise<Response> {
+      const body = await requestBody(request, collectionLifecycleCommandRequestV2Schema)
+      if (body === undefined) return invalid()
+      return invoke(
+        request,
+        (accessToken) => dependencies.backend.collectionCommand(
+          accessToken,
+          body,
+          request.signal,
+        ),
+        collectionLifecycleCommandResultV2Schema,
+        [200, 201, 404, 409, 422],
+      )
+    },
+    workspace(request: Request): Promise<Response> {
+      const url = new URL(request.url)
+      const allowed = new Set([
+        'collectionId', 'rating', 'tagIds', 'tagMatch', 'areaKeys', 'taxonomyKeys',
+        'collectionCursor', 'placeCursor', 'limit',
+      ])
+      if ([...url.searchParams.keys()].some((key) => !allowed.has(key))) {
+        return Promise.resolve(invalid())
+      }
+      const single = (key: string) => {
+        const values = url.searchParams.getAll(key)
+        return values.length > 1 ? null : values[0]
+      }
+      const collectionId = single('collectionId')
+      const rating = single('rating')
+      const tagMatch = single('tagMatch')
+      const collectionCursor = single('collectionCursor')
+      const placeCursor = single('placeCursor')
+      const limit = single('limit')
+      if ([collectionId, rating, tagMatch, collectionCursor, placeCursor, limit].includes(null)) {
+        return Promise.resolve(invalid())
+      }
+      const query = personalLibraryWorkspaceRequestV2Schema.safeParse({
+        favoriteScope: collectionId === undefined
+          ? { kind: 'all' }
+          : { kind: 'collection', collectionId },
+        ratingFilter: { kind: rating ?? 'any' },
+        tagIds: url.searchParams.getAll('tagIds'),
+        tagMatch: tagMatch ?? 'all',
+        areaKeys: url.searchParams.getAll('areaKeys'),
+        taxonomyKeys: url.searchParams.getAll('taxonomyKeys'),
+        ...(collectionCursor === undefined ? {} : { collectionCursor }),
+        ...(placeCursor === undefined ? {} : { placeCursor }),
+        limit: limit ?? '20',
+      }).data
+      if (query === undefined) return Promise.resolve(invalid())
+      return invoke(
+        request,
+        (accessToken) => dependencies.backend.workspace(accessToken, query, request.signal),
+        personalLibraryWorkspaceResponseV2Schema,
+      )
+    },
+    filing(request: Request, placeId: string): Promise<Response> {
+      const identifier = libraryPlaceIdentifierParamsSchema.safeParse({ placeId }).data
+      const query = parseQuery(request, placeFilingRequestV2Schema)
+      if (identifier === undefined || query === undefined) return Promise.resolve(invalid())
+      return invoke(
+        request,
+        (accessToken) => dependencies.backend.filing(
+          accessToken,
+          identifier.placeId,
+          query,
+          request.signal,
+        ),
+        placeFilingResponseV2Schema,
+      )
+    },
+    async filingCommand(request: Request): Promise<Response> {
+      const body = await requestBody(request, placeFilingCommandRequestV2Schema)
+      if (body === undefined) return invalid()
+      return invoke(
+        request,
+        (accessToken) => dependencies.backend.filingCommand(
+          accessToken,
+          body,
+          request.signal,
+        ),
+        placeFilingCommandResultV2Schema,
+        [200, 201, 404, 409, 422],
+      )
+    },
     map(request: Request): Promise<Response> {
       const query = parseQuery(
         request,

@@ -24,12 +24,17 @@ import {
 import type { LibraryQueries } from '../../application/library-queries.js'
 import { InvalidLibraryCursorError, InvalidLibraryQueryError } from '../../domain/queries.js'
 import { registerLibraryQueryHttpRoutes } from './register-library-query-http.js'
+import {
+  registerCollectionFirstHttpRoutes,
+  type CollectionFirstHttpDependencies,
+} from './register-collection-first-http.js'
 
 export type LibraryHttpDependencies = Readonly<{
   authorizer: ProductAuthorizer
   store: LibraryStore
   queries: LibraryQueries
   now: () => Date
+  collectionFirst?: Omit<CollectionFirstHttpDependencies, 'authorizer' | 'now'> | undefined
 }>
 
 export function registerLibraryHttpRoutes(application: FastifyInstance, dependencies: LibraryHttpDependencies): void {
@@ -37,6 +42,13 @@ export function registerLibraryHttpRoutes(application: FastifyInstance, dependen
     authorizer: dependencies.authorizer,
     queries: dependencies.queries,
   })
+  if (dependencies.collectionFirst !== undefined) {
+    registerCollectionFirstHttpRoutes(application, {
+      authorizer: dependencies.authorizer,
+      now: dependencies.now,
+      ...dependencies.collectionFirst,
+    })
+  }
   application.post('/v1/library/commands', async (request, reply) => {
     const parsed = libraryCommandRequestSchema.safeParse(request.body)
     if (!parsed.success) return sendProductProblem(request, reply, 400, 'PLACE_LIBRARY_COMMAND_INVALID', 'Library command is invalid')

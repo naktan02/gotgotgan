@@ -1,6 +1,8 @@
 import type {
   CollectionOrderMove,
   CollectionOrderReceipt,
+  CollectionLifecycleCommand,
+  CollectionLifecycleReceipt,
   CollectionPublicationChange,
   CollectionPublicationReceipt,
   ImportedCollectionMaterialization,
@@ -21,18 +23,23 @@ import type {
 
 /** Read model for the member's Collection-centered library surface. */
 export interface PersonalLibraryWorkspace {
-  open(query: PersonalLibraryWorkspaceQuery): Promise<PersonalLibraryWorkspaceView>
+  open(query: PersonalLibraryWorkspaceQuery): Promise<PersonalLibraryWorkspaceView | undefined>
 }
 
 /** Atomic filing of one Place into or out of one or more explicitly named Collections. */
 export interface PlaceFiling {
-  open(query: PlaceFilingQuery): Promise<PlaceFilingView>
+  open(query: PlaceFilingQuery): Promise<PlaceFilingView | undefined>
   apply(mutation: PlaceFilingMutation): Promise<LibraryWriteResult<PlaceFilingReceipt>>
 }
 
 /** Reorders one existing Collection membership without exposing numeric persistence positions. */
 export interface CollectionOrder {
   move(input: CollectionOrderMove): Promise<LibraryWriteResult<CollectionOrderReceipt>>
+}
+
+/** Creates, edits, publishes, or deletes a member-owned Collection with one revision model. */
+export interface CollectionLifecycle {
+  apply(input: CollectionLifecycleCommand): Promise<LibraryWriteResult<CollectionLifecycleReceipt>>
 }
 
 /** Provider-neutral materialization of one observed source list into one private Collection. */

@@ -362,6 +362,19 @@ export const personalLibraryWorkspaceRequestV2Schema = z.object({
   limit: pageLimitSchema,
 }).strict()
 
+/** Flat transport query projected into `personalLibraryWorkspaceRequestV2Schema` by the API. */
+export const personalLibraryWorkspaceHttpQueryV2Schema = z.object({
+  collectionId: uuidSchema.optional(),
+  rating: z.enum(['any', 'rated', 'unrated']).default('any'),
+  tagIds: tagIdsSchema,
+  tagMatch: libraryTagMatchSchema.default('all'),
+  areaKeys: areaKeysSchema,
+  taxonomyKeys: taxonomyKeysSchema,
+  collectionCursor: cursorSchema.optional(),
+  placeCursor: cursorSchema.optional(),
+  limit: pageLimitSchema,
+}).strict()
+
 export const personalLibraryWorkspaceResponseV2Schema = z.object({
   schemaVersion: z.literal('personal-library-workspace.v2'),
   filter: z.object({
@@ -380,6 +393,18 @@ export const personalLibraryWorkspaceResponseV2Schema = z.object({
     place: placeSummarySchema.nullable(),
   }).strict()).max(50),
   placeNextCursor: cursorSchema.optional(),
+  availableFilters: z.object({
+    coverage: z.object({
+      favoritePlaceCount: z.number().int().nonnegative(),
+      sampledPlaceCount: z.number().int().nonnegative(),
+      projectedPlaceCount: z.number().int().nonnegative(),
+      complete: z.boolean(),
+    }).strict(),
+    areas: z.array(libraryPlaceFacetSchema.extend({ key: areaFacetKeySchema })).max(50),
+    taxonomies: z.array(libraryPlaceFacetSchema.extend({
+      key: taxonomyFacetKeySchema,
+    })).max(50),
+  }).strict(),
 }).strict()
 
 export const placeFilingRequestV2Schema = z.object({
@@ -527,6 +552,53 @@ export const collectionOrderCommandResultV2Schema = z.discriminatedUnion('outcom
   }).strict(),
 ])
 
+export const collectionLifecycleCommandRequestV2Schema = z.discriminatedUnion('kind', [
+  z.object({
+    schemaVersion: z.literal('collection-lifecycle-command.v2'),
+    kind: z.literal('create'),
+    commandId: uuidSchema,
+    collectionId: uuidSchema,
+    name: z.string().trim().min(1).max(120),
+    description: z.string().trim().min(1).max(2_000).nullable().default(null),
+  }).strict(),
+  z.object({
+    schemaVersion: z.literal('collection-lifecycle-command.v2'),
+    kind: z.literal('update'),
+    commandId: uuidSchema,
+    collectionId: uuidSchema,
+    expectedCollectionRevision: libraryCollectionRevisionV2Schema,
+    name: z.string().trim().min(1).max(120).optional(),
+    description: z.string().trim().min(1).max(2_000).nullable().optional(),
+    visibility: z.enum(['private', 'unlisted', 'public']).optional(),
+  }).strict().refine(
+    (command) => command.name !== undefined || command.description !== undefined ||
+      command.visibility !== undefined,
+    'an update must change at least one Collection field',
+  ),
+  z.object({
+    schemaVersion: z.literal('collection-lifecycle-command.v2'),
+    kind: z.literal('delete'),
+    commandId: uuidSchema,
+    collectionId: uuidSchema,
+    expectedCollectionRevision: libraryCollectionRevisionV2Schema,
+  }).strict(),
+])
+
+export const collectionLifecycleCommandResultV2Schema = z.discriminatedUnion('outcome', [
+  z.object({
+    schemaVersion: z.literal('collection-lifecycle-command-result.v2'),
+    outcome: z.literal('accepted'),
+    receipt: libraryOperationReceiptV2Schema,
+    collection: personalLibraryCollectionSummaryV2Schema.nullable(),
+  }).strict(),
+  z.object({
+    schemaVersion: z.literal('collection-lifecycle-command-result.v2'),
+    outcome: z.literal('rejected'),
+    commandId: uuidSchema,
+    rejection: libraryOperationRejectionV2Schema,
+  }).strict(),
+])
+
 export type LibraryPlaceState = z.infer<typeof libraryPlaceStateSchema>
 export type LibraryTagMatch = z.infer<typeof libraryTagMatchSchema>
 export type LibraryPlacePreferencesResponse = z.infer<typeof libraryPlacePreferencesResponseSchema>
@@ -551,6 +623,7 @@ export type PersonalLibraryRatingFilterV2 = z.infer<typeof personalLibraryRating
 export type PersonalLibraryOverlayV2 = z.infer<typeof personalLibraryOverlayV2Schema>
 export type PersonalLibraryCollectionSummaryV2 = z.infer<typeof personalLibraryCollectionSummaryV2Schema>
 export type PersonalLibraryWorkspaceRequestV2 = z.infer<typeof personalLibraryWorkspaceRequestV2Schema>
+export type PersonalLibraryWorkspaceHttpQueryV2 = z.infer<typeof personalLibraryWorkspaceHttpQueryV2Schema>
 export type PersonalLibraryWorkspaceResponseV2 = z.infer<typeof personalLibraryWorkspaceResponseV2Schema>
 export type PlaceFilingRequestV2 = z.infer<typeof placeFilingRequestV2Schema>
 export type PlaceFilingResponseV2 = z.infer<typeof placeFilingResponseV2Schema>
@@ -562,3 +635,5 @@ export type PlaceFilingCommandResultV2 = z.infer<typeof placeFilingCommandResult
 export type CollectionOrderAnchorV2 = z.infer<typeof collectionOrderAnchorV2Schema>
 export type CollectionOrderCommandRequestV2 = z.infer<typeof collectionOrderCommandRequestV2Schema>
 export type CollectionOrderCommandResultV2 = z.infer<typeof collectionOrderCommandResultV2Schema>
+export type CollectionLifecycleCommandRequestV2 = z.infer<typeof collectionLifecycleCommandRequestV2Schema>
+export type CollectionLifecycleCommandResultV2 = z.infer<typeof collectionLifecycleCommandResultV2Schema>

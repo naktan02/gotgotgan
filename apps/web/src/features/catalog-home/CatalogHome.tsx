@@ -4,6 +4,7 @@ import { Component, type ErrorInfo, type ReactNode } from 'react'
 
 import type { PlaceMapRenderer } from '@/platform/maps/place-map-interface'
 
+import { PlaceFilingControl } from '../personal-library/public/place-filing'
 import {
   catalogQuickTypes,
   type CatalogHomePlace,
@@ -68,17 +69,12 @@ function CollectionChooser({ workflow }: Readonly<{ workflow: CatalogHomeWorkflo
   if (workflow.collectionState === 'unavailable') return <p className={styles.pickerState}>컬렉션을 불러오지 못했습니다.</p>
   if (workflow.collections.length === 0) return <p className={styles.pickerState}><a href="/library">내 곳곳간</a>에서 컬렉션을 먼저 만들어 주세요.</p>
   return (
-    <div aria-label="정리할 컬렉션 선택" className={styles.collectionPicker} role="group">
-      {workflow.collections.map((collection) => (
-        <button
-          disabled={workflow.collectionMutation === 'loading'}
-          key={collection.collectionId}
-          onClick={() => workflow.fileInCollection(collection)}
-          type="button"
-        >
-          <span>{collection.name}</span><small>{collection.placeCount}곳</small>
-        </button>
-      ))}
+    <div aria-label="정리할 컬렉션 선택" className={styles.collectionPicker}>
+      <PlaceFilingControl
+        onAccessFailure={workflow.onFilingAccessFailure}
+        onApplied={workflow.onFilingApplied}
+        placeId={workflow.selected?.placeId}
+      />
     </div>
   )
 }
@@ -120,8 +116,8 @@ function RecentActivity({ workflow }: Readonly<{ workflow: CatalogHomeWorkflow }
       ) : (
         <ul className={styles.recentList}>
           {workflow.recentlyFiled.map((item) => (
-            <li key={item.place.placeId}>
-              <strong>{item.place.name}</strong><span>{item.collectionName}</span>
+            <li key={item.placeId}>
+              <strong>{item.name}</strong><span>내 카테고리 구성을 업데이트함</span>
             </li>
           ))}
         </ul>
@@ -207,7 +203,6 @@ function SelectedPlaceCard({ workflow }: Readonly<{ workflow: CatalogHomeWorkflo
         type="button"
       >컬렉션 선택</button>
       <CollectionChooser workflow={workflow} />
-      <p aria-live="polite" className={styles.collectionMessage}>{workflow.collectionMessage}</p>
     </section>
   )
 }
