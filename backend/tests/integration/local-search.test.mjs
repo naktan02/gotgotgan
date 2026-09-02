@@ -10,8 +10,11 @@ const projectedAt = '2026-08-26T00:00:00.000Z'
 function document(placeId, name, longitude, taxonomyKey, taxonomyLabel) {
   return {
     placeId, sourceVersion: 1, name, areaLabel: '성수', latitude: 37.5445,
+    areaReference: { key: 'kr.seoul.seongsu', version: 3 },
     longitude, primaryTaxonomy: { key: taxonomyKey, label: taxonomyLabel },
-    taxonomyKeys: [taxonomyKey], evidenceStatus: 'verified', projectedAt,
+    taxonomyKeys: [taxonomyKey],
+    taxonomyReferences: [{ key: taxonomyKey, version: 1, kind: 'category' }],
+    evidenceStatus: 'verified', projectedAt,
   }
 }
 
@@ -74,6 +77,87 @@ test('local search is indexed, cursor-bounded, taxonomy-driven, and member-isola
     })
     assert.deepEqual(classified.items.map((item) => item.name), ['성수 카페'])
 
+    const catalog = await local.searchCatalog({
+      query: '',
+      areaReference: { key: 'kr.seoul.seongsu', version: 3 },
+      taxonomyReferences: [{ key: 'drink.coffee', version: 1 }],
+      limit: 20,
+    })
+    assert.deepEqual(catalog.items.map((item) => item.name), ['성수 카페'])
+    assert.deepEqual(catalog.items[0].area.reference, {
+      key: 'kr.seoul.seongsu', version: 3,
+    })
+    assert.deepEqual(catalog.items[0].taxonomyReferences, [{
+      key: 'drink.coffee', version: 1, kind: 'category',
+    }])
+    const catalogFirstPage = await local.searchCatalog({
+      query: '', taxonomyReferences: [], limit: 1,
+    })
+    assert.ok(catalogFirstPage.nextCursor)
+    await assert.rejects(
+      local.searchCatalog({
+        query: '라멘', taxonomyReferences: [], limit: 1,
+        cursor: catalogFirstPage.nextCursor,
+      }),
+      searchModule.InvalidSearchCursorError,
+    )
+    const wrongCatalogVersion = await local.searchCatalog({
+      query: '',
+      areaReference: { key: 'kr.seoul.seongsu', version: 2 },
+      taxonomyReferences: [],
+      limit: 20,
+    })
+    assert.equal(wrongCatalogVersion.items.length, 0)
+    const parentFiltered = await local.searchCatalog({
+      query: '',
+      areaReference: { key: 'kr.seoul', version: 1 },
+      areaReferences: [
+        { key: 'kr.seoul', version: 1 },
+        { key: 'kr.seoul.seongsu', version: 3 },
+      ],
+      taxonomyReferences: [{ key: 'place.food', version: 1 }],
+      taxonomyReferenceGroups: [[
+        { key: 'food.noodle.ramen', version: 1, kind: 'category' },
+        { key: 'drink.coffee', version: 1, kind: 'category' },
+      ]],
+      limit: 20,
+    })
+    assert.deepEqual(parentFiltered.items.map((item) => item.name).sort(), [
+      '성수 라멘 둘', '성수 라멘 하나', '성수 카페',
+    ])
+    const tamperedCatalogCursor = JSON.parse(Buffer.from(
+      catalogFirstPage.nextCursor,
+      'base64url',
+    ).toString('utf8'))
+    tamperedCatalogCursor.placeId = 'not-a-uuid'
+    await assert.rejects(
+      local.searchCatalog({
+        query: '', taxonomyReferences: [], limit: 1,
+        cursor: Buffer.from(JSON.stringify(tamperedCatalogCursor)).toString('base64url'),
+      }),
+      searchModule.InvalidSearchCursorError,
+    )
+
+    await database.pool.query(`
+      INSERT INTO search.place_documents (
+        place_id, source_version, display_name, area_label, search_text, location,
+        primary_taxonomy_key, primary_taxonomy_label, taxonomy_keys,
+        evidence_status, projected_at
+      ) VALUES (
+        '01992d20-0000-7000-8000-000000000199', 1,
+        '위치 확인 중인 새 장소', NULL, '위치 확인 중인 새 장소', NULL,
+        NULL, NULL, '{}', 'unverified', $1::timestamptz
+      )
+    `, [projectedAt])
+    const unlocatedCatalog = await local.searchCatalog({
+      query: '위치 확인 중인 새 장소', taxonomyReferences: [], limit: 20,
+    })
+    assert.equal(unlocatedCatalog.items[0].location, null)
+    const unlocatedLegacy = await search({
+      query: '위치 확인 중인 새 장소', filters: { taxonomyKeys: [] }, limit: 20,
+    })
+    assert.equal(unlocatedLegacy.items.length, 0)
+
     const memberResult = await search({
       query: '', filters: { taxonomyKeys: [], saved: true, minimumPersonalRating: 4.4 },
       limit: 20, viewerMemberId: memberA,
@@ -107,9 +191,20 @@ test('local search is indexed, cursor-bounded, taxonomy-driven, and member-isola
     const textPlan = await database.pool.query(`EXPLAIN (FORMAT JSON) SELECT place_id FROM search.place_documents WHERE search_text % '대표 볼륨 카페 1200'`)
     const spatialPlan = await database.pool.query(`EXPLAIN (FORMAT JSON) SELECT place_id FROM search.place_documents WHERE location && ST_MakeEnvelope(126.9, 37.4, 126.95, 37.45, 4326)`)
     const taxonomyPlan = await database.pool.query(`EXPLAIN (FORMAT JSON) SELECT place_id FROM search.place_documents WHERE taxonomy_keys && ARRAY['drink.coffee']::text[]`)
+    const catalogAreaPlan = await database.pool.query(`EXPLAIN (FORMAT JSON) SELECT place_id FROM search.place_documents WHERE area_key = 'kr.seoul.seongsu' AND area_version = 3`)
+    const catalogTaxonomyPlan = await database.pool.query(`EXPLAIN (FORMAT JSON) SELECT place_id FROM search.place_documents WHERE taxonomy_references @> '[{"key":"drink.coffee","version":1}]'::jsonb`)
     assert.match(JSON.stringify(textPlan.rows[0]), /search_place_documents_text_trgm/)
     assert.match(JSON.stringify(spatialPlan.rows[0]), /search_place_documents_location_gist/)
     assert.match(JSON.stringify(taxonomyPlan.rows[0]), /search_place_documents_taxonomy_gin/)
+    assert.match(JSON.stringify(catalogAreaPlan.rows[0]), /search_place_documents_area_version/)
+    assert.match(JSON.stringify(catalogTaxonomyPlan.rows[0]), /search_place_documents_taxonomy_references_gin/)
+
+    await assert.rejects(
+      database.pool.query(`UPDATE search.place_documents
+        SET taxonomy_references = '[{"key":"drink.coffee","version":1,"kind":"category","raw":"forbidden"}]'::jsonb
+        WHERE display_name = '성수 카페'`),
+      (error) => error?.code === '23514',
+    )
 
     await assert.rejects(
       database.pool.query(`UPDATE taxonomy.node_versions SET label = 'rewrite' WHERE node_key = 'food.noodle.ramen'`),

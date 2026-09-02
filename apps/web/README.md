@@ -19,11 +19,16 @@ internals. Process readiness checks the OIDC database and internal Backend only 
 flags are enabled and publishes no dependency details. It exposes no tokens or internal endpoints. Identity/Gateway
 provisioning and provider imports remain explicitly not integrated.
 
-Stage 5는 `/search`의 responsive 목록/지도 작업 공간과 `/api/search/*` BFF를 제공한다. Web은
-공유 계약으로 Backend 응답을 다시 검증하고 fixed Backend origin/path만 호출한다. 입력 debounce,
-교체 요청 취소, bounds 재검색, filter, pagination, 목록/marker 선택, mobile 전환과 상태별
-Playwright evidence가 있다. 지도는 live provider가 아닌 결정적 좌표 renderer이므로 실제 tile,
-사진, provider 평점이나 attribution을 표시하지 않는다.
+Stage 6의 `/`는 곳곳간 내부 Canonical Place 카탈로그만 탐색하는 지도 중심 홈이다. 검색어를
+지역·장소 유형·속성·잔여 검색어의 제거 가능한 해석 칩으로 보여 주며, 목록과 지도는 같은 결과와
+선택을 공유한다. Provider 검색·상세는 대화형 브라우저 경로에 없고 NAVER·Google·Kakao 데이터는
+관리자 수집 또는 설정의 서비스별 가져오기 흐름에서만 들어온다. 이전 `/search` 진입은 `/`로
+redirect한다.
+
+즐겨찾기 동작은 `saved`/`wanted` 상태가 아니라 사용자 소유 Collection membership을 만든다. 홈은
+Collection 요약과 이번 접속의 최근 정리만 빠르게 보여 주고, 생성·순서·다중 선택 등 본격 관리는
+`/library`가 소유한다. 지도 renderer가 실패하거나 결과에 좌표가 없어도 목록 검색과 Collection
+정리는 계속 사용할 수 있다.
 
 Stage 7.7은 `/library`의 authenticated Library-first 작업 공간과 `/api/library/*`,
 `/api/places/{placeId}` BFF를 제공한다. 상태별 Place, Tag all/any, Collection, Place detail을

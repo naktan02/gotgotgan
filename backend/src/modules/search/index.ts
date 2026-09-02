@@ -23,6 +23,20 @@ export {
   type SuggestionSession,
 } from './domain/suggestions.js'
 export { createPlaceSearch } from './application/search-places.js'
+export {
+  createCatalogPlaceSearch,
+  interpretCatalogSearch,
+} from './application/search-catalog-places.js'
+export type {
+  CatalogPlaceSearchInput,
+  CatalogPlaceSearchPage,
+  CatalogPlaceSearchQuery,
+  CatalogPlaceSummary,
+  CatalogSearchInterpretation,
+  CatalogSearchInterpretationToken,
+} from './domain/catalog-home-search.js'
+export type { CatalogPlaceSearchSource } from './application/ports/catalog-place-search-source.js'
+export type { CatalogSearchVocabulary } from './application/ports/catalog-search-vocabulary.js'
 export { createPlaceSuggestions } from './application/suggest-places.js'
 export {
   createPlaceSuggestionSelection,

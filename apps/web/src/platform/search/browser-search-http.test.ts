@@ -26,12 +26,6 @@ function dependencies() {
         status: 'recorded',
         observationId: '01992d20-5000-7000-8000-000000000003',
       })),
-      providerDetail: vi.fn(async () => ({
-        schemaVersion: 'place-provider-detail.v1',
-        providerKey: 'google', providerPlaceId: 'google-1', name: '라멘집',
-        address: null, location: null, categoryLabel: null,
-        photos: [], attributions: [], observedAt: '2026-08-26T10:00:00.000Z',
-      })),
       taxonomy: vi.fn(async () => ({ schemaVersion: 'place-taxonomy.v1', nodes: [] })),
     },
     createCorrelationRef: () => 'browser-search-ref',
@@ -68,19 +62,14 @@ describe('browser search HTTP', () => {
         schemaVersion: 'place-suggestion-selection.v1',
         suggestionId: '01992d20-5000-7000-8000-000000000002',
       })),
-      http.providerDetail(jsonRequest('/api/search/provider-details', {
-        schemaVersion: 'place-provider-detail.v1',
-        providerKey: 'google', providerPlaceId: 'google-1',
-      })),
     ]
 
     const responses = await Promise.all(requests)
-    expect(responses.map((response) => response.status)).toEqual([200, 200, 200, 200])
+    expect(responses.map((response) => response.status)).toEqual([200, 200, 200])
     expect(responses.every((response) => response.headers.get('cache-control') === 'no-store')).toBe(true)
     expect(configured.backend.places).toHaveBeenCalledOnce()
     expect(configured.backend.suggestions).toHaveBeenCalledOnce()
     expect(configured.backend.selectSuggestion).toHaveBeenCalledOnce()
-    expect(configured.backend.providerDetail).toHaveBeenCalledOnce()
   })
 
   it('allowlists backend problem statuses and preserves safe evidence only', async () => {

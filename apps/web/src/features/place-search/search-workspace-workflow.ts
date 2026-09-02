@@ -4,12 +4,10 @@ import {
   placeSearchResponseSchema,
   placeSuggestionSelectionResponseSchema,
   placeSuggestionsResponseSchema,
-  providerPlaceDetailSchema,
   taxonomyProjectionSchema,
   type PlaceSearchRequest,
   type PlaceSearchResult,
   type PlaceSuggestion,
-  type ProviderPlaceDetail,
   type SearchBounds,
   type TaxonomyNode,
 } from '@place/contracts/search'
@@ -33,10 +31,6 @@ async function jsonOrThrow(response: Response): Promise<unknown> {
   return response.json()
 }
 
-type ProviderDetailState =
-  | Readonly<{ kind: 'idle' | 'loading' | 'unavailable' }>
-  | Readonly<{ kind: 'available'; detail: ProviderPlaceDetail }>
-
 export function usePlaceSearchWorkflow(): SearchWorkspaceWorkflow {
   const [draftQuery, setDraftQuery] = useState('')
   const [submittedQuery, setSubmittedQuery] = useState('')
@@ -48,7 +42,6 @@ export function usePlaceSearchWorkflow(): SearchWorkspaceWorkflow {
   const [sources, setSources] = useState<readonly { sourceKey: string; status: 'complete' | 'partial' | 'unavailable'; resultCount: number; errorCode?: string }[]>([])
   const [nextCursor, setNextCursor] = useState<string | undefined>()
   const [selectedResultId, setSelectedResultId] = useState<string | undefined>()
-  const [providerDetailState, setProviderDetailState] = useState<ProviderDetailState>({ kind: 'idle' })
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | undefined>()
@@ -224,45 +217,6 @@ export function usePlaceSearchWorkflow(): SearchWorkspaceWorkflow {
   const suggestionPartial = suggestionSources.some((source) => source.status !== 'complete')
   const selected = items.find((item) => item.resultId === selectedResultId)
 
-  useEffect(() => {
-    setProviderDetailState({ kind: 'idle' })
-    if (
-      selected?.identity.kind !== 'provider' || !selected.source.detailsAvailable ||
-      selected.identity.providerPlaceId === undefined
-    ) return
-    const controller = new AbortController()
-    setProviderDetailState({ kind: 'loading' })
-    fetch('/api/search/provider-details', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        schemaVersion: 'place-provider-detail.v1',
-        providerKey: selected.identity.providerKey,
-        providerPlaceId: selected.identity.providerPlaceId,
-      }),
-      cache: 'no-store',
-      signal: controller.signal,
-    })
-      .then(jsonOrThrow)
-      .then((payload) => {
-        setProviderDetailState({
-          kind: 'available',
-          detail: providerPlaceDetailSchema.parse(payload),
-        })
-      })
-      .catch((reason: unknown) => {
-        if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
-          setProviderDetailState({ kind: 'unavailable' })
-        }
-      })
-    return () => controller.abort()
-  }, [selected])
-
-  const detailState = providerDetailState.kind
-  const providerDetail = providerDetailState.kind === 'available'
-    ? providerDetailState.detail
-    : undefined
-
   function changeDraftQuery(value: string) {
     setDraftQuery(value)
     setActiveSuggestionIndex(0)
@@ -330,8 +284,6 @@ export function usePlaceSearchWorkflow(): SearchWorkspaceWorkflow {
     },
     detail: {
       selected,
-      providerDetail,
-      detailState,
       mobileSurface,
       dismissDetail: () => {
         setMobileSurface('list')

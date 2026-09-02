@@ -39,16 +39,7 @@ import {
   PostgresCanonicalResolutionStore,
 } from '../../modules/places/index.js'
 import {
-  createProviderPlaceDetailReader,
-  GoogleOfficialPlaceDetails,
-  GoogleOfficialPlaceSearch,
-  KakaoOfficialPlaceSearch,
-  NaverOfficialPlaceSearch,
-  OfficialProviderHttpClient,
   parseNaverSavedPlaceCapture,
-  type ProviderPlaceDetails,
-  type ProviderPlaceSearch,
-  type ProviderPlaceSuggestions,
 } from '../../modules/providers/index.js'
 import {
   InvalidPublicProfileCursorError,
@@ -57,6 +48,7 @@ import {
   PostgresPublicProfileStore,
 } from '../../modules/profiles/index.js'
 import {
+  createCatalogPlaceSearch,
   createPlaceSearch,
   createPlaceSuggestionMaterialization,
   createPlaceSuggestionSelection,
@@ -65,6 +57,7 @@ import {
   PostgresPlaceSuggestions,
   projectLocalPlace,
 } from '../../modules/search/index.js'
+import { PostgresAreaCatalog } from '../../modules/areas/index.js'
 import { PostgresTaxonomyStore } from '../../modules/taxonomy/index.js'
 import { PostgresVisitQueries, PostgresVisitStore } from '../../modules/visits/index.js'
 import { PostgresWritingQueries, PostgresWritingStore } from '../../modules/writing/index.js'
@@ -208,30 +201,8 @@ export async function createProductionHttpRuntime(
       resolveProviderIdentity: (identity) => canonicalStore.resolveProviderIdentity(identity),
       apply: (attempt) => applyCanonicalResolution({ ...attempt, store: canonicalStore }),
     }
-    const providerHttp = new OfficialProviderHttpClient()
-    const providerSearchSources: ProviderPlaceSearch[] = []
-    const providerSuggestionSources: ProviderPlaceSuggestions[] = []
-    const providerDetailReaders: ProviderPlaceDetails[] = []
-    if (config.providers?.naver !== undefined) {
-      const naver = new NaverOfficialPlaceSearch(config.providers.naver, providerHttp, now)
-      providerSearchSources.push(naver)
-      providerSuggestionSources.push(naver)
-    }
-    if (config.providers?.kakao !== undefined) {
-      const kakao = new KakaoOfficialPlaceSearch(config.providers.kakao, providerHttp, now)
-      providerSearchSources.push(kakao)
-      providerSuggestionSources.push(kakao)
-    }
-    if (config.providers?.google !== undefined) {
-      const google = new GoogleOfficialPlaceSearch(config.providers.google, providerHttp, now)
-      providerSearchSources.push(google)
-      providerSuggestionSources.push(google)
-      providerDetailReaders.push(
-        new GoogleOfficialPlaceDetails(config.providers.google, providerHttp, now),
-      )
-    }
     const suggest = createPlaceSuggestions({
-      sources: [placeSuggestions, ...providerSuggestionSources],
+      sources: [placeSuggestions],
       store: placeSuggestions,
       nextId: randomUUID,
       now,
@@ -270,6 +241,7 @@ export async function createProductionHttpRuntime(
       },
     })
     const taxonomyStore = new PostgresTaxonomyStore(pool)
+    const areaCatalog = new PostgresAreaCatalog(pool)
     const connector = config.connector === undefined
       ? undefined
       : createConnectorImportReceiver({
@@ -340,12 +312,6 @@ export async function createProductionHttpRuntime(
           },
         },
       },
-      ...(providerDetailReaders.length === 0 ? {} : {
-        providers: {
-          getDetail: createProviderPlaceDetailReader(providerDetailReaders),
-          supportedProviders: providerDetailReaders.map((reader) => reader.providerKey),
-        },
-      }),
       places: {
         authorizer: productAuthorizer,
         read: readPlaceDetail,
@@ -369,7 +335,18 @@ export async function createProductionHttpRuntime(
       },
       search: {
         authorizer: productAuthorizer,
-        search: createPlaceSearch({ sources: [localSearch, ...providerSearchSources] }),
+        search: createPlaceSearch({ sources: [localSearch] }),
+        catalog: createCatalogPlaceSearch({
+          source: localSearch,
+          vocabulary: {
+            listAreas: () => areaCatalog.listCurrent(),
+            listTaxonomies: async () => (await taxonomyStore.listCurrent())
+              .filter((node) => node.active)
+              .map(({ key, version, parentKey, label, kind }) => ({
+                key, version, parentKey, label, kind,
+              })),
+          },
+        }),
         suggestions: {
           suggest,
           select: selectSuggestion,

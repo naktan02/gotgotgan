@@ -4,8 +4,9 @@ ADRs record durable repository-local decisions. Copy `template.md`, assign the n
 status and date, link evidence, name consequences and supersession conditions, and update routed docs.
 
 현재 최신 결정은
-[`0022-publish-canonical-place-profiles-from-evidence.md`](0022-publish-canonical-place-profiles-from-evidence.md)이며,
-Provider-neutral assertion 원장에서 근거가 명시된 Canonical Place Profile revision을 발행한다.
+[`0023-use-canonical-catalog-for-interactive-home-search.md`](0023-use-canonical-catalog-for-interactive-home-search.md)이며,
+대화형 홈 검색을 내부 Canonical Catalog projection으로 제한하고 Provider 데이터 유입을 별도
+가져오기·수집 workflow로 분리한다.
 
 Stage 7 결정은 `0011-connected-import-pipeline-and-provider-isolation.md`에 기록한다. 연결 계정
 작업, Provider parser 격리, 암호화 캡처, 명시적 검토와 Library 반영 경계를 정의한다.
@@ -51,3 +52,5 @@ Stage 7 결정은 `0011-connected-import-pipeline-and-provider-isolation.md`에 
   즐겨찾기의 유일한 기준으로 삼고 Collection-first Interface와 v1 전환 게이트를 정의한다.
 - `0022-publish-canonical-place-profiles-from-evidence.md`: 정규화 assertion 원장, 불변 Profile,
   Area·Taxonomy exact version과 fail-closed Media 권리를 하나의 발행 경계로 정의한다.
+- `0023-use-canonical-catalog-for-interactive-home-search.md`: 내부 Canonical Catalog만 대화형 홈에서
+  검색하고 Provider 계정 가져오기·관리자 수집을 별도 workflow로 격리한다.

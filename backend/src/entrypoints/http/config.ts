@@ -42,11 +42,6 @@ export type ProductionHttpConfig = Readonly<{
   }>
   authentication: Extract<AuthRuntimeConfig, { mode: 'oidc' }>
   membershipPolicy: MembershipOnboardingPolicy
-  providers?: Readonly<{
-    naver?: NaverOfficialSearchConfig
-    kakao?: KakaoOfficialSearchConfig
-    google?: GoogleOfficialPlacesConfig
-  }>
   connector?: Readonly<{
     publicOrigin: string
     grantTtlMilliseconds: number
@@ -338,10 +333,9 @@ export async function loadProductionHttpConfig(
     const values = productionEnvironmentSchema.parse(environment)
     const authentication = readAuthRuntimeConfig(environment)
     if (authentication.mode !== 'oidc') throw configurationError()
-    const [databaseUrl, membershipPolicyJson, providers, connector] = await Promise.all([
+    const [databaseUrl, membershipPolicyJson, connector] = await Promise.all([
       readOneLineFile(values.PLACE_DATABASE_URL_FILE),
       readOneLineFile(values.PLACE_MEMBERSHIP_POLICY_FILE),
-      loadOfficialProviderConfig(environment),
       values.PLACE_CONNECTOR_RUNTIME_ENABLED === 'true'
         ? loadConnectorConfig(environment)
         : undefined,
@@ -366,7 +360,6 @@ export async function loadProductionHttpConfig(
         initialUserGrade: policy.initialUserGrade,
         initialProductTier: policy.initialProductTier,
       },
-      ...(providers === undefined ? {} : { providers }),
       ...(connector === undefined ? {} : { connector }),
       ...(platformAccess === undefined ? {} : { platformAccess }),
     }

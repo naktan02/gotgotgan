@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  catalogPlaceSearchRequestSchema,
+  catalogPlaceSearchResponseSchema,
   placeSuggestionMaterializationResponseSchema,
   placeSuggestionSelectionResponseSchema,
   placeSuggestionsResponseSchema,
@@ -9,6 +11,60 @@ import {
 } from '../src/search/index.js'
 
 describe('provider-neutral search contracts', () => {
+  it('keeps home catalog search canonical-only and version-pins interpreted meaning', () => {
+    const request = catalogPlaceSearchRequestSchema.parse({
+      schemaVersion: 'catalog-place-search.v1',
+      query: '성수 조용한 라멘',
+      excludedTokenIds: ['attribute:bW9vZC5xdWlldA:2'],
+    })
+    const response = catalogPlaceSearchResponseSchema.parse({
+      schemaVersion: 'catalog-place-search.v1',
+      interpretation: {
+        normalizedQuery: '',
+        tokens: [
+          { tokenId: 'area:c2VvdWwuY2hpbGQuMQ:3', kind: 'area', key: 'seoul.child.1', version: 3, label: '성수' },
+          { tokenId: 'place-type:Zm9vZC5ub29kbGUucmFtZW4:4', kind: 'place-type', key: 'food.noodle.ramen', version: 4, label: '라멘' },
+        ],
+      },
+      items: [{
+        placeId: '01992d20-0000-7000-8000-000000000101',
+        name: '조용한 라멘 연구소',
+        area: {
+          label: '성수',
+          reference: { key: 'seoul.child.1', version: 3 },
+        },
+        location: { latitude: 37.5445, longitude: 127.056 },
+        primaryTaxonomy: { key: 'food.noodle.ramen', version: 4, label: '라멘' },
+        taxonomyReferences: [
+          { key: 'food.noodle.ramen', version: 4, kind: 'category' },
+          { key: 'mood.quiet', version: 2, kind: 'attribute' },
+        ],
+        evidenceStatus: 'verified',
+        projectedAt: '2026-08-26T10:00:00.000Z',
+      }, {
+        placeId: '01992d20-0000-7000-8000-000000000102',
+        name: '좌표 검수 중인 장소',
+        area: null,
+        location: null,
+        primaryTaxonomy: null,
+        taxonomyReferences: [],
+        evidenceStatus: 'unverified',
+        projectedAt: '2026-08-26T10:00:00.000Z',
+      }],
+      mapBounds: { west: 127.0555, south: 37.544, east: 127.0565, north: 37.545 },
+    })
+
+    expect(request.excludedTokenIds).toHaveLength(1)
+    expect(response.items[0]).not.toHaveProperty('identity')
+    expect(response.items[0]).not.toHaveProperty('source')
+    expect(response.items[0]).not.toHaveProperty('saved')
+    expect(response.items[0]).not.toHaveProperty('wanted')
+    expect(response.items[1]?.location).toBeNull()
+    expect(response.interpretation.tokens[0]).toMatchObject({
+      kind: 'area', key: 'seoul.child.1', version: 3,
+    })
+  })
+
   it('keeps external observations distinct from canonical places', () => {
     const parsed = placeSearchResponseSchema.parse({
       schemaVersion: 'place-search.v1',

@@ -107,6 +107,8 @@ import {
   writingListResponseSchema,
 } from '../writing/index.js'
 import {
+  catalogPlaceSearchRequestSchema,
+  catalogPlaceSearchResponseSchema,
   placeSearchRequestSchema,
   placeSearchResponseSchema,
   placeSuggestionMaterializationRequestSchema,
@@ -1202,6 +1204,14 @@ const paths = {
     '400': ref('responses', 'ProductRequestInvalid'),
     '503': ref('responses', 'BrowserBackendUnavailable'),
   }, { security: anonymous, requestSchema: 'PlaceSearchRequest' }) },
+  '/api/search/catalog': { post: operation('searchCanonicalPlaceCatalogForBrowser', {
+    '200': described(
+      'Return interpreted canonical-only catalog results and their map bounds',
+      'CatalogPlaceSearchResponse',
+    ),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '503': ref('responses', 'BrowserBackendUnavailable'),
+  }, { security: anonymous, requestSchema: 'CatalogPlaceSearchRequest' }) },
   '/api/search/suggestions': { post: operation('suggestPlacesForBrowser', {
     '200': described('Return provider-neutral query-as-you-type candidates', 'PlaceSuggestionsResponse'),
     '400': ref('responses', 'ProductRequestInvalid'),
@@ -1213,24 +1223,27 @@ const paths = {
     '404': ref('responses', 'ProductNotFound'),
     '503': ref('responses', 'BrowserBackendUnavailable'),
   }, { security: anonymous, requestSchema: 'PlaceSuggestionSelectionRequest' }) },
-  '/api/search/provider-details': { post: operation('getProviderPlaceDetailsForBrowser', {
-    '200': described('Return a validated provider detail projection', 'ProviderPlaceDetail'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '503': ref('responses', 'BrowserBackendUnavailable'),
-  }, { security: anonymous, requestSchema: 'ProviderPlaceDetailRequest' }) },
   '/api/search/taxonomy': { get: operation('listPlaceTaxonomyNodesForBrowser', {
     '200': described('Return the current provider-neutral taxonomy', 'TaxonomyProjection'),
     '503': ref('responses', 'BrowserBackendUnavailable'),
   }, { security: anonymous }) },
   '/v1/search/places': { post: operation('searchPlaces', {
-    '200': described('Return provider-neutral local and official provider results', 'PlaceSearchResponse'),
+    '200': described('Return provider-neutral local projection results', 'PlaceSearchResponse'),
     '400': ref('responses', 'ProductRequestInvalid'),
     '401': ref('responses', 'AuthenticationRequired'),
     '403': ref('responses', 'AccessDenied'),
     '503': ref('responses', 'ProductUnavailable'),
   }, { security: optionalBearer, requestSchema: 'PlaceSearchRequest' }) },
+  '/v1/search/catalog': { post: operation('searchCanonicalPlaceCatalog', {
+    '200': described(
+      'Return interpreted canonical-only catalog results and their map bounds',
+      'CatalogPlaceSearchResponse',
+    ),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '503': ref('responses', 'ProductUnavailable'),
+  }, { security: anonymous, requestSchema: 'CatalogPlaceSearchRequest' }) },
   '/v1/search/suggestions': { post: operation('suggestPlaces', {
-    '200': described('Return bounded local and provider-backed suggestions', 'PlaceSuggestionsResponse'),
+    '200': described('Return bounded local projection suggestions', 'PlaceSuggestionsResponse'),
     '400': ref('responses', 'ProductRequestInvalid'),
     '503': ref('responses', 'ProductUnavailable'),
   }, { security: anonymous, requestSchema: 'PlaceSuggestionsRequest' }) },
@@ -1248,8 +1261,8 @@ const paths = {
     '404': ref('responses', 'ProductNotFound'),
     '503': ref('responses', 'ProductUnavailable'),
   }, { security: bearer, requestSchema: 'PlaceSuggestionMaterializationRequest' }) },
-  '/v1/providers/place-details': { post: operation('getProviderPlaceDetails', {
-    '200': described('Return a bounded provider detail projection', 'ProviderPlaceDetail'),
+  '/v1/providers/place-details': { post: operation('getProviderPlaceDetailsForOperatorComposition', {
+    '200': described('Return a bounded provider detail projection for a non-interactive operator composition', 'ProviderPlaceDetail'),
     '400': ref('responses', 'ProductRequestInvalid'),
     '503': ref('responses', 'ProductUnavailable'),
   }, { security: anonymous, requestSchema: 'ProviderPlaceDetailRequest' }) },
@@ -1349,6 +1362,8 @@ const schemas: Readonly<Record<string, ZodType>> = {
   PublicProfileAppealResolutionResult: publicProfileAppealResolutionResultSchema,
   PlaceSearchRequest: placeSearchRequestSchema,
   PlaceSearchResponse: placeSearchResponseSchema,
+  CatalogPlaceSearchRequest: catalogPlaceSearchRequestSchema,
+  CatalogPlaceSearchResponse: catalogPlaceSearchResponseSchema,
   PlaceSuggestionsRequest: placeSuggestionsRequestSchema,
   PlaceSuggestionsResponse: placeSuggestionsResponseSchema,
   PlaceSuggestionSelectionRequest: placeSuggestionSelectionRequestSchema,

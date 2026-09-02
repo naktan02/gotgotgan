@@ -9,9 +9,8 @@ export const dynamic = 'force-dynamic'
 
 export default function ProfilePage() {
   return <PlaceWorkspaceShell
-    currentPage="profile"
+    currentPage="settings"
     familyNavigation={readFamilyNavigation(process.env.PLACE_FAMILY_NAVIGATION_MANIFEST)}
-    stageLabel="공개 프로필"
   >
     <PublicProfileSettings />
     <PublicProfileModerationInbox />

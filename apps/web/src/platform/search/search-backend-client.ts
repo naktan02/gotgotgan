@@ -1,18 +1,18 @@
 import { problemSchema } from '@place/contracts/http'
 import {
+  catalogPlaceSearchRequestSchema,
+  catalogPlaceSearchResponseSchema,
   placeSearchRequestSchema,
   placeSearchResponseSchema,
   placeSuggestionSelectionRequestSchema,
   placeSuggestionSelectionResponseSchema,
   placeSuggestionsRequestSchema,
   placeSuggestionsResponseSchema,
-  providerPlaceDetailRequestSchema,
-  providerPlaceDetailSchema,
   taxonomyProjectionSchema,
   type PlaceSearchRequestInput,
+  type CatalogPlaceSearchRequestInput,
   type PlaceSuggestionSelectionRequest,
   type PlaceSuggestionsRequestInput,
-  type ProviderPlaceDetailRequest,
 } from '@place/contracts/search'
 
 import {
@@ -56,6 +56,34 @@ async function responseJson(response: Response): Promise<unknown> {
     throw new Error('Place Backend returned an unsupported response')
   }
   return response.json()
+}
+
+export async function searchCatalogPlaces(
+  request: CatalogPlaceSearchRequestInput,
+  environment: BackendEnvironment = process.env,
+  fetcher: BackendFetcher = fetch,
+  signal?: AbortSignal,
+) {
+  const body = catalogPlaceSearchRequestSchema.parse(request)
+  const response = await requestFixedBackend('/v1/search/catalog', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: signal === undefined
+      ? AbortSignal.timeout(5_000)
+      : AbortSignal.any([signal, AbortSignal.timeout(5_000)]),
+  }, environment, fetcher)
+  const payload = await responseJson(response)
+  if (!response.ok) {
+    const problem = safeProblem(payload)
+    if (problem !== undefined) {
+      throw new SearchBackendProblem(
+        problem.status, problem.code, problem.title, problem.retryable, problem.correlationRef,
+      )
+    }
+    throw new Error('Catalog search Backend is unavailable')
+  }
+  return catalogPlaceSearchResponseSchema.parse(payload)
 }
 
 export async function searchPlaces(
@@ -155,36 +183,4 @@ export async function getSearchTaxonomy(
   }, environment, fetcher)
   if (!response.ok) throw new Error('Place taxonomy Backend is unavailable')
   return taxonomyProjectionSchema.parse(await responseJson(response))
-}
-
-export async function getProviderPlaceDetail(
-  request: ProviderPlaceDetailRequest,
-  environment: BackendEnvironment = process.env,
-  fetcher: BackendFetcher = fetch,
-  signal?: AbortSignal,
-) {
-  const body = providerPlaceDetailRequestSchema.parse(request)
-  const response = await requestFixedBackend('/v1/providers/place-details', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-    signal: signal === undefined
-      ? AbortSignal.timeout(5_000)
-      : AbortSignal.any([signal, AbortSignal.timeout(5_000)]),
-  }, environment, fetcher)
-  const payload = await responseJson(response)
-  if (!response.ok) {
-    const problem = safeProblem(payload)
-    if (problem !== undefined) {
-      throw new SearchBackendProblem(
-        problem.status,
-        problem.code,
-        problem.title,
-        problem.retryable,
-        problem.correlationRef,
-      )
-    }
-    throw new Error('Provider place details are unavailable')
-  }
-  return providerPlaceDetailSchema.parse(payload)
 }

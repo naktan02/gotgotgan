@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import {
+  loadOfficialProviderConfig,
   loadProductionHttpConfig,
   readHttpProcessMode,
   readHttpRuntimeConfig,
@@ -142,48 +143,25 @@ describe('HTTP runtime configuration', () => {
     }
   })
 
-  it('loads only complete deployment-owned official provider groups', async () => {
+  it('does not load Provider credentials into the interactive HTTP process', async () => {
     const environment = await configurationEnvironment()
     const directory = dirname(environment.PLACE_DATABASE_URL_FILE!)
-    const naverId = join(directory, 'naver-client-id')
-    const naverSecret = join(directory, 'naver-client-secret')
-    const kakaoKey = join(directory, 'kakao-key')
-    const googleKey = join(directory, 'google-key')
-    await Promise.all([
-      writeFile(naverId, 'naver-id\n', { mode: 0o600 }),
-      writeFile(naverSecret, 'naver-secret\n', { mode: 0o600 }),
-      writeFile(kakaoKey, 'kakao-secret\n', { mode: 0o600 }),
-      writeFile(googleKey, 'google-secret\n', { mode: 0o600 }),
-    ])
 
     const config = await loadProductionHttpConfig({
       ...environment,
       PLACE_NAVER_SEARCH_ENDPOINT: 'https://naver-api.example/local.json',
-      PLACE_NAVER_CLIENT_ID_FILE: naverId,
-      PLACE_NAVER_CLIENT_SECRET_FILE: naverSecret,
+      PLACE_NAVER_CLIENT_ID_FILE: join(directory, 'missing-naver-client-id'),
+      PLACE_NAVER_CLIENT_SECRET_FILE: join(directory, 'missing-naver-client-secret'),
       PLACE_NAVER_TIMEOUT_MILLISECONDS: '2500',
       PLACE_KAKAO_SEARCH_ENDPOINT: 'https://kakao-api.example/search/keyword.json',
-      PLACE_KAKAO_REST_API_KEY_FILE: kakaoKey,
+      PLACE_KAKAO_REST_API_KEY_FILE: join(directory, 'missing-kakao-key'),
       PLACE_KAKAO_TIMEOUT_MILLISECONDS: '2500',
       PLACE_GOOGLE_PLACES_BASE_URL: 'https://places-api.example/v1/',
-      PLACE_GOOGLE_PLACES_API_KEY_FILE: googleKey,
+      PLACE_GOOGLE_PLACES_API_KEY_FILE: join(directory, 'missing-google-key'),
       PLACE_GOOGLE_TIMEOUT_MILLISECONDS: '2500',
     })
 
-    expect(config.providers).toEqual({
-      naver: {
-        endpoint: new URL('https://naver-api.example/local.json'),
-        clientId: 'naver-id', clientSecret: 'naver-secret', timeoutMilliseconds: 2500,
-      },
-      kakao: {
-        endpoint: new URL('https://kakao-api.example/search/keyword.json'),
-        restApiKey: 'kakao-secret', timeoutMilliseconds: 2500,
-      },
-      google: {
-        baseUrl: new URL('https://places-api.example/v1/'),
-        apiKey: 'google-secret', timeoutMilliseconds: 2500,
-      },
-    })
+    expect(config).not.toHaveProperty('providers')
   })
 
   it('loads central platform access only when explicitly enabled for the OIDC audience', async () => {
@@ -225,20 +203,20 @@ describe('HTTP runtime configuration', () => {
     }))).rejects.toThrow('Production HTTP configuration is invalid')
   })
 
-  it('rejects partial provider groups and endpoints carrying credentials', async () => {
-    await expect(loadProductionHttpConfig(await configurationEnvironment({
+  it('keeps the detached Provider acquisition loader strict', async () => {
+    await expect(loadOfficialProviderConfig(await configurationEnvironment({
       PLACE_KAKAO_SEARCH_ENDPOINT: 'https://kakao-api.example/search/keyword.json',
-    }))).rejects.toThrow('Production HTTP configuration is invalid')
+    }))).rejects.toThrow()
 
     const environment = await configurationEnvironment()
     const key = join(dirname(environment.PLACE_DATABASE_URL_FILE!), 'google-key')
     await writeFile(key, 'google-secret\n', { mode: 0o600 })
-    await expect(loadProductionHttpConfig({
+    await expect(loadOfficialProviderConfig({
       ...environment,
       PLACE_GOOGLE_PLACES_BASE_URL: 'https://secret@places-api.example/v1/',
       PLACE_GOOGLE_PLACES_API_KEY_FILE: key,
       PLACE_GOOGLE_TIMEOUT_MILLISECONDS: '2500',
-    })).rejects.toThrow('Production HTTP configuration is invalid')
+    })).rejects.toThrow()
   })
 
   it('loads connector limits and protected capture storage only when explicitly enabled', async () => {

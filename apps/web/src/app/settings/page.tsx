@@ -1,17 +1,16 @@
-import { ConnectedPlaceImports } from '@/features/place-imports/public'
+import { SettingsDestination } from '@/features/navigation-destinations/public'
 import { readFamilyNavigation } from '@/platform/family-navigation/family-navigation'
 import { PlaceWorkspaceShell } from '@/shells/place-workspace/PlaceWorkspaceShell'
 
 export const dynamic = 'force-dynamic'
 
-export default function ImportsPage() {
-  const familyNavigation = readFamilyNavigation(process.env.PLACE_FAMILY_NAVIGATION_MANIFEST)
+export default function SettingsPage() {
   return (
     <PlaceWorkspaceShell
       currentPage="settings"
-      familyNavigation={familyNavigation}
+      familyNavigation={readFamilyNavigation(process.env.PLACE_FAMILY_NAVIGATION_MANIFEST)}
     >
-      <ConnectedPlaceImports />
+      <SettingsDestination />
     </PlaceWorkspaceShell>
   )
 }

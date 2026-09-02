@@ -1,9 +1,15 @@
 import {
+  catalogPlaceSearchRequestSchema,
+  catalogPlaceSearchResponseSchema,
   placeSearchRequestSchema,
   placeSearchResponseSchema,
 } from '@place/contracts/search'
 import type { FastifyInstance } from 'fastify'
 
+import type {
+  CatalogPlaceSearchInput,
+  CatalogPlaceSearchPage,
+} from '../../domain/catalog-home-search.js'
 import { InvalidSearchCursorError, type PlaceSearchPage, type PlaceSearchQuery } from '../../domain/model.js'
 import {
   resolveOptionalProductMember,
@@ -22,6 +28,7 @@ function usesPersonalFilters(query: PlaceSearchQuery): boolean {
 
 export type SearchHttpDependencies = Readonly<{
   search: (query: PlaceSearchQuery) => Promise<PlaceSearchPage>
+  catalog?: (query: CatalogPlaceSearchInput) => Promise<CatalogPlaceSearchPage>
   authorizer?: ProductAuthorizer
   suggestions?: SuggestionHttpDependencies
 }>
@@ -32,6 +39,49 @@ export function registerSearchHttpRoutes(
 ): void {
   if (dependencies.suggestions !== undefined) {
     registerSuggestionHttpRoutes(application, dependencies.suggestions, dependencies.authorizer)
+  }
+  if (dependencies.catalog !== undefined) {
+    application.post('/v1/search/catalog', async (request, reply) => {
+      const parsed = catalogPlaceSearchRequestSchema.safeParse(request.body)
+      if (!parsed.success) {
+        return sendProductProblem(
+          request,
+          reply,
+          400,
+          'PLACE_CATALOG_SEARCH_REQUEST_INVALID',
+          'Catalog search request is invalid',
+        )
+      }
+      try {
+        const result = await dependencies.catalog!({
+          query: parsed.data.query,
+          excludedTokenIds: parsed.data.excludedTokenIds,
+          limit: parsed.data.limit,
+          ...(parsed.data.bounds === undefined ? {} : { bounds: parsed.data.bounds }),
+          ...(parsed.data.cursor === undefined ? {} : { cursor: parsed.data.cursor }),
+        })
+        const response = catalogPlaceSearchResponseSchema.parse(result)
+        return reply.header('cache-control', 'no-store').status(200).send(response)
+      } catch (error) {
+        if (error instanceof InvalidSearchCursorError) {
+          return sendProductProblem(
+            request,
+            reply,
+            400,
+            'PLACE_CATALOG_SEARCH_CURSOR_INVALID',
+            'Catalog search cursor is invalid',
+          )
+        }
+        return sendProductProblem(
+          request,
+          reply,
+          503,
+          'PLACE_CATALOG_SEARCH_UNAVAILABLE',
+          'Catalog search is temporarily unavailable',
+          true,
+        )
+      }
+    })
   }
   application.post('/v1/search/places', async (request, reply) => {
     const parsed = placeSearchRequestSchema.safeParse(request.body)

@@ -11,7 +11,6 @@ export default function LibraryPage() {
     <PlaceWorkspaceShell
       currentPage="library"
       familyNavigation={familyNavigation}
-      stageLabel="개인 라이브러리"
     >
       <PlaceLibraryWorkspace />
     </PlaceWorkspaceShell>

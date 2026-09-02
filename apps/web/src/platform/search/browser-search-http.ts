@@ -1,30 +1,30 @@
 import { randomUUID } from 'node:crypto'
 
 import {
+  catalogPlaceSearchRequestSchema,
   placeSearchRequestSchema,
   placeSuggestionSelectionRequestSchema,
   placeSuggestionsRequestSchema,
-  providerPlaceDetailRequestSchema,
   type PlaceSearchRequestInput,
+  type CatalogPlaceSearchRequestInput,
   type PlaceSuggestionSelectionRequest,
   type PlaceSuggestionsRequestInput,
-  type ProviderPlaceDetailRequest,
 } from '@place/contracts/search'
 
 import {
-  getProviderPlaceDetail,
   getSearchTaxonomy,
   SearchBackendProblem,
+  searchCatalogPlaces,
   searchPlaces,
   selectPlaceSuggestion,
   suggestPlaces,
 } from './search-backend-client'
 
 type SearchBackend = Readonly<{
+  catalog?: (request: CatalogPlaceSearchRequestInput, signal: AbortSignal) => Promise<unknown>
   places: (request: PlaceSearchRequestInput, signal: AbortSignal) => Promise<unknown>
   suggestions: (request: PlaceSuggestionsRequestInput, signal: AbortSignal) => Promise<unknown>
   selectSuggestion: (request: PlaceSuggestionSelectionRequest, signal: AbortSignal) => Promise<unknown>
-  providerDetail: (request: ProviderPlaceDetailRequest, signal: AbortSignal) => Promise<unknown>
   taxonomy: () => Promise<unknown>
 }>
 
@@ -104,6 +104,24 @@ export function createBrowserSearchHttp(dependencies: Dependencies) {
   }
 
   return {
+    async catalog(request: Request): Promise<Response> {
+      const body = await payload(request, catalogPlaceSearchRequestSchema)
+      if (body === undefined) {
+        return invalid('PLACE_CATALOG_SEARCH_REQUEST_INVALID', '카탈로그 검색 조건이 올바르지 않습니다.')
+      }
+      if (dependencies.backend.catalog === undefined) {
+        return unavailable('PLACE_CATALOG_SEARCH_UNAVAILABLE', '카탈로그 검색을 잠시 사용할 수 없습니다.')
+      }
+      try {
+        return success(await dependencies.backend.catalog(body, request.signal))
+      } catch (error) {
+        return failure(
+          error, (status) => status === 400 ? 400 : 503,
+          'PLACE_CATALOG_SEARCH_UNAVAILABLE', '카탈로그 검색을 잠시 사용할 수 없습니다.',
+        )
+      }
+    },
+
     async places(request: Request): Promise<Response> {
       const body = await payload(request, placeSearchRequestSchema)
       if (body === undefined) {
@@ -146,21 +164,6 @@ export function createBrowserSearchHttp(dependencies: Dependencies) {
       }
     },
 
-    async providerDetail(request: Request): Promise<Response> {
-      const body = await payload(request, providerPlaceDetailRequestSchema)
-      if (body === undefined) {
-        return invalid('PLACE_PROVIDER_DETAIL_REQUEST_INVALID', '상세 조회 요청이 올바르지 않습니다.')
-      }
-      try {
-        return success(await dependencies.backend.providerDetail(body, request.signal))
-      } catch (error) {
-        return failure(
-          error, (status) => status === 400 ? 400 : 503,
-          'PLACE_PROVIDER_DETAIL_UNAVAILABLE', '장소 상세를 불러올 수 없습니다.',
-        )
-      }
-    },
-
     async taxonomy(): Promise<Response> {
       try {
         return success(await dependencies.backend.taxonomy(), 'public, max-age=300')
@@ -173,10 +176,10 @@ export function createBrowserSearchHttp(dependencies: Dependencies) {
 
 export const browserSearchHttp = createBrowserSearchHttp({
   backend: {
+    catalog: (request, signal) => searchCatalogPlaces(request, process.env, fetch, signal),
     places: (request, signal) => searchPlaces(request, process.env, fetch, signal),
     suggestions: (request, signal) => suggestPlaces(request, process.env, fetch, signal),
     selectSuggestion: (request, signal) => selectPlaceSuggestion(request, process.env, fetch, signal),
-    providerDetail: (request, signal) => getProviderPlaceDetail(request, process.env, fetch, signal),
     taxonomy: () => getSearchTaxonomy(),
   },
   createCorrelationRef: randomUUID,

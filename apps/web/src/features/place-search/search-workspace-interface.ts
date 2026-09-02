@@ -1,7 +1,6 @@
 import type {
   PlaceSearchResult,
   PlaceSuggestion,
-  ProviderPlaceDetail,
   TaxonomyNode,
 } from '@place/contracts/search'
 import type { ReactNode } from 'react'
@@ -60,8 +59,6 @@ export type SearchResultsInterface = Readonly<{
 
 export type SearchDetailInterface = Readonly<{
   selected?: PlaceSearchResult
-  providerDetail?: ProviderPlaceDetail
-  detailState: 'idle' | 'loading' | 'available' | 'unavailable'
   mobileSurface: SearchMobileSurface
   dismissDetail: () => void
   showList: () => void

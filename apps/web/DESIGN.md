@@ -86,6 +86,21 @@ Search와 Library projection은 바뀌지 않는다. 이 보강은 화면 픽셀
 frontend architecture guards, 114 Web tests, typecheck, production build와 14개 Search
 desktop/mobile Playwright case 및 기존 screenshot baseline이 모두 통과했다.
 
+## Stage 6 Canonical Catalog Home
+
+`/`는 별도 대시보드나 Provider 통합 검색이 아니라 Search가 소유한 Canonical Place projection의
+주 탐색 화면이다. `CatalogHomeProvider`가 검색·선택·viewport·Collection 정리 상태를 하나의 깊은
+workflow로 숨기고, shell은 상단 검색 슬롯과 전역 navigation만 소유한다. `app` 조립부가 Catalog
+Home의 좁은 Library port에 Personal Library의 공개 client를 연결하므로 두 feature는 서로의 내부
+component나 상태를 import하지 않는다.
+
+화면에는 Backend가 실제로 해석한 지역·장소 유형·속성·검색어 token만 칩으로 표시한다. 사용자가
+칩을 제거하거나 “이 지역에서 보기”를 누른 경우에만 해당 조건으로 다시 요청하며, 새 요청은 이전
+요청을 취소한다. 지도는 좌표가 있는 결과만 표현하고 지도 장애나 좌표 부재가 목록과 Collection
+membership 생성을 막지 않는다. 즐겨찾기의 유일한 진실은 Collection membership이며 Provider
+검색·상세·원문 평점은 이 workflow와 공개 BFF에 포함하지 않는다. 서비스별 저장 목록 가져오기는
+설정, 원천 데이터 수집과 검수는 별도 Admin application의 책임이다.
+
 ## Stage 7.16 Canonical Place detail composition
 
 선택한 canonical Search 결과와 Personal Library가 같은 개인 기능을 사용하되 feature끼리 내부

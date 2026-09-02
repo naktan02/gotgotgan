@@ -26,6 +26,61 @@ afterEach(async () => {
 })
 
 describe('search HTTP interface', () => {
+  it('serves a canonical-only interpreted catalog projection for Home', async () => {
+    const observed: unknown[] = []
+    const application = buildHttpApplication({
+      search: {
+        search: async () => ({
+          schemaVersion: 'place-search.v1', items: [],
+          sources: [{ sourceKey: 'local', status: 'complete', resultCount: 0 }],
+        }),
+        catalog: async (query) => {
+          observed.push(query)
+          return {
+            schemaVersion: 'catalog-place-search.v1',
+            interpretation: {
+              normalizedQuery: '',
+              tokens: [{
+                tokenId: 'place-type:Zm9vZC5ub29kbGUucmFtZW4:4',
+                kind: 'place-type', key: 'food.noodle.ramen', version: 4, label: '라멘',
+              }],
+            },
+            items: [{
+              placeId: '01992d20-0000-7000-8000-000000000101',
+              name: '조용한 라멘 연구소',
+              area: { label: '성수', reference: { key: 'kr.seoul.seongsu', version: 3 } },
+              location: { latitude: 37.5445, longitude: 127.056 },
+              primaryTaxonomy: { key: 'food.noodle.ramen', version: 4, label: '라멘' },
+              taxonomyReferences: [{ key: 'food.noodle.ramen', version: 4, kind: 'category' }],
+              evidenceStatus: 'verified',
+              projectedAt: '2026-08-26T10:00:00.000Z',
+            }],
+            mapBounds: { west: 127.0555, south: 37.544, east: 127.0565, north: 37.545 },
+          }
+        },
+      },
+    })
+    applications.push(application)
+
+    const response = await application.inject({
+      method: 'POST', path: '/v1/search/catalog',
+      payload: {
+        schemaVersion: 'catalog-place-search.v1', query: '성수 라멘',
+        excludedTokenIds: ['attribute:bW9vZC5xdWlldA:2'],
+      },
+    })
+
+    expect(response.statusCode).toBe(200)
+    expect(observed).toEqual([{
+      query: '성수 라멘', excludedTokenIds: ['attribute:bW9vZC5xdWlldA:2'], limit: 20,
+    }])
+    expect(response.json()).toMatchObject({
+      schemaVersion: 'catalog-place-search.v1',
+      items: [{ placeId: '01992d20-0000-7000-8000-000000000101' }],
+    })
+    expect(JSON.stringify(response.json())).not.toMatch(/providerPlaceId|rawPayload|saved|wanted/i)
+  })
+
   it('serves anonymous public results and the data-defined taxonomy', async () => {
     const application = buildHttpApplication({
       search: {

@@ -17,8 +17,6 @@ export function SearchResultDetailPane({
 }>) {
   const {
     selected,
-    providerDetail,
-    detailState,
     mobileSurface,
     dismissDetail,
     showList,
@@ -88,50 +86,6 @@ export function SearchResultDetailPane({
             </div>
           </dl>
 
-          {selected.identity.kind === 'provider' && (
-            <section aria-live="polite" className={styles.providerSection}>
-              <div className={styles.providerHeading}>
-                <div>
-                  <p>공급자 정보</p>
-                  <strong>{selected.source.label}에서 방금 확인</strong>
-                </div>
-                {selected.source.externalUri !== undefined && (
-                  <a href={selected.source.externalUri} rel="noreferrer" target="_blank">
-                    {selected.source.label}에서 열기
-                  </a>
-                )}
-              </div>
-
-              {detailState === 'idle' && (
-                <p className={styles.detailStatus}>이 공급자는 검색 결과의 기본 정보만 제공합니다.</p>
-              )}
-              {detailState === 'loading' && <p className={styles.detailStatus}>최신 상세를 확인하는 중…</p>}
-              {detailState === 'unavailable' && <p className={styles.detailStatus}>상세 정보는 지금 불러올 수 없습니다.</p>}
-              {providerDetail !== undefined && (
-                <div className={styles.providerDetail}>
-                  {providerDetail.photos[0]?.mediaUri !== undefined && (
-                    <img alt={`${providerDetail.name} 공급자 사진`} src={providerDetail.photos[0].mediaUri} />
-                  )}
-                  <div>
-                    {providerDetail.rating !== undefined && (
-                      <strong>평점 {providerDetail.rating.toFixed(1)}{providerDetail.userRatingCount === undefined ? '' : ` · ${providerDetail.userRatingCount}개 평가`}</strong>
-                    )}
-                    {providerDetail.openingHours?.openNow !== undefined && (
-                      <span>{providerDetail.openingHours.openNow ? '현재 영업 중' : '현재 영업 종료'}</span>
-                    )}
-                    {providerDetail.phone !== undefined && <span>{providerDetail.phone}</span>}
-                  </div>
-                  <div className={styles.attributions} aria-label="정보 및 사진 출처">
-                    {[...providerDetail.attributions, ...providerDetail.photos.flatMap((photo) => photo.authorAttributions)].map((attribution, index) => (
-                      attribution.uri === undefined
-                        ? <span key={`${attribution.label}:${index}`}>{attribution.label}</span>
-                        : <a href={attribution.uri} key={`${attribution.label}:${index}`} rel="noreferrer" target="_blank">{attribution.label}</a>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </section>
-          )}
         </>
       )}
     </aside>

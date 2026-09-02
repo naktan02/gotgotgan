@@ -13,9 +13,10 @@ tests/        cursor, partial failure, session/expiry, 선택/승격, projection
 
 `PostgresLocalSearch`는 `search.place_documents`와 `search.member_place_signals`만 읽고 쓴다.
 다른 business schema를 조회하지 않는다. `createPlaceSearch`는 source별 continuation과
-complete/partial/unavailable 결과를 하나의 bounded envelope로 합친다. production composition은
-local source를 항상 두고, 완전한 deployment config group이 있는 NAVER/Kakao/Google 공식
-source만 추가한다. coordinator는 source별 budget과 round-robin merge를 사용하므로 한 source가
+complete/partial/unavailable 결과를 하나의 bounded envelope로 합친다. 사용자용 production
+composition에는 Local/Discovery Projection만 연결한다. NAVER/Kakao/Google Adapter는 수집·운영
+경계에서만 사용하며 제출 검색, 자동완성, 상세 HTTP 요청에서 호출하지 않는다. coordinator는
+source별 budget과 round-robin merge를 사용하므로 한 source가
 결과를 독점하지 않는다. cursor는 continuation과 exhausted 상태를 감추며 실패하거나 끝난
 source를 같은 continuation에서 반복 호출하지 않는다.
 
@@ -26,6 +27,14 @@ source를 같은 continuation에서 반복 호출하지 않는다.
 외부 결과에는 canonical `placeId`를 만들지 않는다. `resultId`는 검색 선택용이고, provider가
 문서화한 ID만 provider identity에 들어간다. raw 응답과 provider-specific 타입은 Providers
 모듈 밖으로 나오지 않는다.
+
+홈의 `catalog-place-search.v1`은 Local Search Projection 하나만 읽는 canonical-only Interface다.
+composition이 Area와 Taxonomy 모듈의 현재 active vocabulary를 Interface로 전달하면 Search가
+자연어를 결정론적으로 Area, 장소 유형, 속성, 잔여 query token으로 해석한다. 각 의미 token은
+정확한 `(key, version)`에 고정되고, 제외된 token은 검색 조건에서도 빠진다. Projection은 같은
+versioned reference를 저장하므로 label 문자열이나 Provider category를 검색 truth로 사용하지 않는다.
+응답은 Canonical Place summary와 현재 page의 map bounds만 제공하고 legacy saved/wanted 상태는
+포함하지 않는다.
 
 `PostgresPlaceSuggestions`는 10분 session, 15분 impression, 만료 가능한 Discovery 후보를 Search
 schema에만 저장한다. 후보 표시만으로 Canonical Place나 SourceObservation을 만들지 않는다. 명시적

@@ -214,6 +214,82 @@ export const placeSearchResponseSchema = z.object({
   sources: z.array(searchSourceOutcomeSchema).min(1).max(16),
 }).strict()
 
+const catalogSearchTokenIdSchema = z.string().min(1).max(512)
+const catalogVersionedReferenceSchema = z.object({
+  key: z.string().min(1).max(128),
+  version: z.number().int().positive(),
+}).strict()
+
+export const catalogSearchInterpretationTokenSchema = z.discriminatedUnion('kind', [
+  catalogVersionedReferenceSchema.extend({
+    tokenId: catalogSearchTokenIdSchema,
+    kind: z.literal('area'),
+    label: z.string().min(1).max(160),
+  }).strict(),
+  catalogVersionedReferenceSchema.extend({
+    tokenId: catalogSearchTokenIdSchema,
+    kind: z.literal('place-type'),
+    label: z.string().min(1).max(160),
+  }).strict(),
+  catalogVersionedReferenceSchema.extend({
+    tokenId: catalogSearchTokenIdSchema,
+    kind: z.literal('attribute'),
+    label: z.string().min(1).max(160),
+  }).strict(),
+  z.object({
+    tokenId: catalogSearchTokenIdSchema,
+    kind: z.literal('query'),
+    label: z.string().min(1).max(200),
+    normalizedQuery: z.string().min(1).max(200),
+  }).strict(),
+])
+
+export const catalogPlaceSearchRequestSchema = z.object({
+  schemaVersion: z.literal('catalog-place-search.v1'),
+  query: z.string().trim().max(200),
+  excludedTokenIds: z.array(catalogSearchTokenIdSchema).max(32).default([])
+    .refine((values) => new Set(values).size === values.length, {
+      message: 'Excluded interpretation tokens must be unique.',
+    }),
+  bounds: searchBoundsSchema.optional(),
+  cursor: z.string().min(1).max(2_048).optional(),
+  limit: z.number().int().min(1).max(50).default(20),
+}).strict()
+
+export const catalogPlaceSummarySchema = z.object({
+  placeId: uuidSchema,
+  name: z.string().min(1).max(300),
+  area: z.object({
+    label: z.string().min(1).max(300),
+    reference: catalogVersionedReferenceSchema.nullable(),
+  }).strict().nullable(),
+  location: z.object({
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+  }).strict().nullable(),
+  primaryTaxonomy: z.object({
+    key: z.string().min(1).max(128),
+    version: z.number().int().positive().nullable(),
+    label: z.string().min(1).max(160),
+  }).strict().nullable(),
+  taxonomyReferences: z.array(catalogVersionedReferenceSchema.extend({
+    kind: z.enum(['category', 'attribute']),
+  }).strict()).max(32),
+  evidenceStatus: z.enum(['verified', 'unverified', 'conflicted', 'stale']),
+  projectedAt: z.iso.datetime({ offset: true }),
+}).strict()
+
+export const catalogPlaceSearchResponseSchema = z.object({
+  schemaVersion: z.literal('catalog-place-search.v1'),
+  interpretation: z.object({
+    normalizedQuery: z.string().max(200),
+    tokens: z.array(catalogSearchInterpretationTokenSchema).max(32),
+  }).strict(),
+  items: z.array(catalogPlaceSummarySchema).max(50),
+  mapBounds: searchBoundsSchema.nullable(),
+  nextCursor: z.string().min(1).max(2_048).optional(),
+}).strict()
+
 export type ProviderKey = z.infer<typeof providerKeySchema>
 export type SearchBounds = z.infer<typeof searchBoundsSchema>
 export type PlaceSearchRequestInput = z.input<typeof placeSearchRequestSchema>
@@ -232,6 +308,11 @@ export type PlaceSuggestionSelectionResponse = z.infer<typeof placeSuggestionSel
 export type PlaceSuggestionMaterializationRequest = z.infer<typeof placeSuggestionMaterializationRequestSchema>
 export type PlaceSuggestionMaterializationResponse = z.infer<typeof placeSuggestionMaterializationResponseSchema>
 export type PlaceSearchResponse = z.infer<typeof placeSearchResponseSchema>
+export type CatalogSearchInterpretationToken = z.infer<typeof catalogSearchInterpretationTokenSchema>
+export type CatalogPlaceSearchRequestInput = z.input<typeof catalogPlaceSearchRequestSchema>
+export type CatalogPlaceSearchRequest = z.infer<typeof catalogPlaceSearchRequestSchema>
+export type CatalogPlaceSummary = z.infer<typeof catalogPlaceSummarySchema>
+export type CatalogPlaceSearchResponse = z.infer<typeof catalogPlaceSearchResponseSchema>
 export type ProviderPlaceDetailRequest = z.infer<typeof providerPlaceDetailRequestSchema>
 export type ProviderPlaceDetail = z.infer<typeof providerPlaceDetailSchema>
 export type TaxonomyNode = z.infer<typeof taxonomyNodeSchema>

@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   SearchBackendProblem,
-  getProviderPlaceDetail,
   getSearchTaxonomy,
   selectPlaceSuggestion,
   searchPlaces,
@@ -65,32 +64,6 @@ describe('search backend client', () => {
       status: 200, headers: { 'content-type': 'application/json' },
     }))
     await expect(getSearchTaxonomy({ PLACE_BACKEND_ORIGIN: 'http://backend.test:4010' }, fetcher)).resolves.toEqual(taxonomy)
-  })
-
-  it('loads provider details through the fixed backend without forwarding credentials', async () => {
-    const detail = {
-      schemaVersion: 'place-provider-detail.v1' as const,
-      providerKey: 'google' as const,
-      providerPlaceId: 'google-place-100',
-      name: '성수 라멘 연구소', address: null, location: null, categoryLabel: null,
-      photos: [], attributions: [{ label: 'Google Maps' }],
-      observedAt: '2026-08-26T10:00:00.000Z',
-    }
-    const observed: Array<{ input: URL; init: RequestInit }> = []
-    const fetcher: BackendFetcher = vi.fn(async (input, init) => {
-      observed.push({ input, init })
-      return Response.json(detail)
-    })
-
-    await expect(getProviderPlaceDetail({
-      schemaVersion: 'place-provider-detail.v1',
-      providerKey: 'google', providerPlaceId: 'google-place-100',
-    }, { PLACE_BACKEND_ORIGIN: 'http://backend.test:4010' }, fetcher)).resolves.toEqual(detail)
-    expect(observed[0]?.input).toEqual(new URL('http://backend.test:4010/v1/providers/place-details'))
-    expect(JSON.parse(String(observed[0]?.init.body))).toEqual({
-      schemaVersion: 'place-provider-detail.v1',
-      providerKey: 'google', providerPlaceId: 'google-place-100',
-    })
   })
 
   it('forwards only the provider-neutral suggestion session and validates selection', async () => {
