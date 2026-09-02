@@ -21,6 +21,8 @@ import {
   PostgresLibraryStore,
   PostgresPersonalLibraryWorkspace,
   PostgresPlaceFiling,
+  PostgresPublicCollectionDiscovery,
+  PostgresPublishedCollectionExchange,
   saveImportedPlace,
 } from '../../modules/library/index.js'
 import {
@@ -178,6 +180,20 @@ export async function createProductionHttpRuntime(
         },
       })),
     )
+    const publicCollectionDiscovery = new PostgresPublicCollectionDiscovery(
+      pool,
+      async (placeIds) => (await localSearch.getCatalogPlaceDocuments(placeIds)).map((document) => ({
+        placeId: document.placeId,
+        name: document.name,
+        areaLabel: document.area?.label ?? null,
+        location: document.location,
+        primaryTaxonomy: document.primaryTaxonomy === null
+          ? null
+          : { key: document.primaryTaxonomy.key, label: document.primaryTaxonomy.label },
+        taxonomyKeys: document.taxonomyReferences.map((reference) => reference.key),
+        evidence: { status: document.evidenceStatus, projectedAt: document.projectedAt },
+      })),
+    )
     const publicProfileStore = new PostgresPublicProfileStore(pool)
     const publicProfileSafetyStore = new PostgresPublicProfileSafetyStore(pool)
     const publicProfileAppealStore = new PostgresPublicProfileAppealStore(pool)
@@ -311,6 +327,10 @@ export async function createProductionHttpRuntime(
           filing: new PostgresPlaceFiling(pool),
           order: new PostgresCollectionOrder(pool),
           lifecycle: new PostgresCollectionLifecycle(pool),
+        },
+        publicCollections: {
+          discovery: publicCollectionDiscovery,
+          exchange: new PostgresPublishedCollectionExchange(pool),
         },
       },
       ...(connector === undefined ? {} : {

@@ -20,6 +20,14 @@ describe('library backend client', () => {
     })
     const signal = new AbortController().signal
 
+    await client.publicationCopyCommand('server-token', {
+      schemaVersion: 'published-collection-copy-command.v2',
+      commandId: tagB,
+      sourcePublicationId: placeId,
+      expectedPublicationVersion: 'collection-revision.v1.source',
+      target: { collectionId, name: '도쿄 실내 코스' },
+      selection: { kind: 'all' },
+    }, signal)
     await client.map('server-token', {
       scope: 'state', state: 'saved', tagIds: [tagA, tagB], tagMatch: 'any',
       areaKeys: [areaKey], taxonomyKeys: ['food.noodle.ramen'],
@@ -39,6 +47,7 @@ describe('library backend client', () => {
     await client.place('server-token', placeId, signal)
 
     expect(calls.map((call) => call.url)).toEqual([
+      'https://place-backend.example/v1/library/publication-copy-commands',
       `https://place-backend.example/v1/library/map?scope=state&west=126.9&south=37.5&east=127.1&north=37.6&zoom=12&state=saved&tagMatch=any&tagIds=${tagA}&tagIds=${tagB}&areaKeys=${areaKey}&taxonomyKeys=food.noodle.ramen`,
       `https://place-backend.example/v1/library/places?limit=25&cursor=next%2F%2B&state=wanted&tagMatch=any&tagIds=${tagA}&tagIds=${tagB}&areaKeys=${areaKey}&taxonomyKeys=food.noodle.ramen`,
       'https://place-backend.example/v1/library/place-facets',

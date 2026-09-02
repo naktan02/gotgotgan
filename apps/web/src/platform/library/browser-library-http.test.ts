@@ -30,6 +30,47 @@ function sessionRuntime() {
 }
 
 describe('browser library HTTP', () => {
+  it('forwards a revision-checked public Collection copy without browser authority fields', async () => {
+    const observed: unknown[] = []
+    const http = createBrowserLibraryHttp({
+      resolveAuthRuntime: sessionRuntime,
+      backend: backend(async (url, init) => {
+        expect(url.pathname).toBe('/v1/library/publication-copy-commands')
+        expect(new Headers(init.headers).get('authorization')).toBe('Bearer server-access-token')
+        observed.push(JSON.parse(String(init.body)))
+        return Response.json({
+          schemaVersion: 'published-collection-copy-command-result.v2',
+          outcome: 'accepted',
+          receipt: { commandId, status: 'applied' },
+          collectionId,
+          collectionRevision: 'collection-revision.v1.opaque',
+          copiedPlaceCount: 1,
+        }, { status: 201 })
+      }),
+      createCorrelationRef: () => 'unused',
+    })
+
+    const response = await http.publicationCopyCommand(new Request(
+      'https://place.example/api/library/publication-copy-commands',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          schemaVersion: 'published-collection-copy-command.v2',
+          commandId,
+          sourcePublicationId: placeId,
+          expectedPublicationVersion: 'collection-revision.v1.source',
+          target: { collectionId, name: '도쿄 실내 코스' },
+          selection: { kind: 'places', placeIds: [tagA] },
+        }),
+      },
+    ))
+
+    expect(response.status).toBe(201)
+    expect(observed).toHaveLength(1)
+    expect(JSON.stringify(observed[0])).not.toMatch(/memberId|ownerMembershipId/)
+  })
+
   it('requires a server-side session before calling the backend', async () => {
     const fetcher = vi.fn()
     const http = createBrowserLibraryHttp({

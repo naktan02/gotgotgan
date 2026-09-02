@@ -28,6 +28,10 @@ import {
   registerCollectionFirstHttpRoutes,
   type CollectionFirstHttpDependencies,
 } from './register-collection-first-http.js'
+import {
+  registerPublicCollectionHttpRoutes,
+  type PublicCollectionHttpDependencies,
+} from './register-public-collection-http.js'
 
 export type LibraryHttpDependencies = Readonly<{
   authorizer: ProductAuthorizer
@@ -35,6 +39,7 @@ export type LibraryHttpDependencies = Readonly<{
   queries: LibraryQueries
   now: () => Date
   collectionFirst?: Omit<CollectionFirstHttpDependencies, 'authorizer' | 'now'> | undefined
+  publicCollections?: Omit<PublicCollectionHttpDependencies, 'authorizer' | 'now'> | undefined
 }>
 
 export function registerLibraryHttpRoutes(application: FastifyInstance, dependencies: LibraryHttpDependencies): void {
@@ -47,6 +52,13 @@ export function registerLibraryHttpRoutes(application: FastifyInstance, dependen
       authorizer: dependencies.authorizer,
       now: dependencies.now,
       ...dependencies.collectionFirst,
+    })
+  }
+  if (dependencies.publicCollections !== undefined) {
+    registerPublicCollectionHttpRoutes(application, {
+      authorizer: dependencies.authorizer,
+      now: dependencies.now,
+      ...dependencies.publicCollections,
     })
   }
   application.post('/v1/library/commands', async (request, reply) => {

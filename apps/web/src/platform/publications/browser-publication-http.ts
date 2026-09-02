@@ -2,7 +2,9 @@ import { randomUUID } from 'node:crypto'
 
 import {
   getPublicCollection,
+  getPublicCollectionDirectory,
   getPublicCollectionMap,
+  getDiscoverableCollection,
   getPublicPlaceDetail,
   getPublicWriting,
   PublicPlaceNotFoundError,
@@ -15,11 +17,21 @@ import {
   publishedCollectionMapQuerySchema,
   publishedCollectionQuerySchema,
 } from '@place/contracts/http'
+import {
+  discoverableCollectionParamsV2Schema,
+  discoverableCollectionQueryV2Schema,
+  publicCollectionDirectoryQueryV2Schema,
+} from '@place/contracts/library'
 
 type Dependencies = Readonly<{
   getCollection: (
     publicationId: string,
     query: Parameters<typeof getPublicCollection>[1],
+  ) => Promise<unknown>
+  getDirectory: (query: Parameters<typeof getPublicCollectionDirectory>[0]) => Promise<unknown>
+  getDiscoverable: (
+    publicationId: string,
+    query: Parameters<typeof getDiscoverableCollection>[1],
   ) => Promise<unknown>
   getCollectionMap: (
     publicationId: string,
@@ -41,6 +53,20 @@ function queryValues(request: Request): Record<string, string> | undefined {
   for (const [key, value] of new URL(request.url).searchParams) {
     if (key in values) return undefined
     values[key] = value
+  }
+  return values
+}
+
+function directoryQueryValues(request: Request): Record<string, string | string[]> | undefined {
+  const repeated = new Set(['areaKeys', 'taxonomyKeys', 'topicKeys'])
+  const values: Record<string, string | string[]> = {}
+  for (const [key, value] of new URL(request.url).searchParams) {
+    if (repeated.has(key)) {
+      const current = values[key]
+      values[key] = Array.isArray(current) ? [...current, value] : [value]
+    } else if (key in values) {
+      return undefined
+    } else values[key] = value
   }
   return values
 }
@@ -100,6 +126,35 @@ export function createBrowserPublicationHttp(dependencies: Dependencies) {
   }
 
   return {
+    directory(request: Request): Promise<Response> {
+      const values = directoryQueryValues(request)
+      const query = publicCollectionDirectoryQueryV2Schema.safeParse(values)
+      if (!query.success) {
+        return Promise.resolve(problem(
+          400, 'PLACE_PUBLIC_COLLECTION_DIRECTORY_QUERY_INVALID',
+          'Public Collection directory query is invalid', false,
+          dependencies.createCorrelationRef(),
+        ))
+      }
+      return read(() => dependencies.getDirectory(query.data))
+    },
+    discoverable(publicationId: string, request: Request): Promise<Response> {
+      const identifier = discoverableCollectionParamsV2Schema.safeParse({ publicationId })
+      const query = discoverableCollectionQueryV2Schema.safeParse(queryValues(request))
+      if (!identifier.success) {
+        return Promise.resolve(problem(
+          404, 'PLACE_PUBLICATION_NOT_FOUND', 'Publication not found', false,
+          dependencies.createCorrelationRef(),
+        ))
+      }
+      if (!query.success) {
+        return Promise.resolve(problem(
+          400, 'PLACE_PUBLICATION_QUERY_INVALID', 'Publication query is invalid', false,
+          dependencies.createCorrelationRef(),
+        ))
+      }
+      return read(() => dependencies.getDiscoverable(identifier.data.publicationId, query.data))
+    },
     collection(publicationId: string, request: Request): Promise<Response> {
       const identifier = publicationIdentifierParamsSchema.safeParse({ publicationId })
       const values = queryValues(request)
@@ -154,6 +209,8 @@ export function createBrowserPublicationHttp(dependencies: Dependencies) {
 
 export const browserPublicationHttp = createBrowserPublicationHttp({
   getCollection: getPublicCollection,
+  getDirectory: getPublicCollectionDirectory,
+  getDiscoverable: getDiscoverableCollection,
   getCollectionMap: getPublicCollectionMap,
   getPlace: getPublicPlaceDetail,
   getWriting: getPublicWriting,

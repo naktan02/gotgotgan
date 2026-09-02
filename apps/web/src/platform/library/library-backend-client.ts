@@ -9,6 +9,7 @@ import type {
   PersonalLibraryWorkspaceRequestV2,
   PlaceFilingCommandRequestV2,
   PlaceFilingRequestV2,
+  PublishedCollectionCopyCommandRequestV2,
 } from '@place/contracts/library'
 
 import {
@@ -96,6 +97,13 @@ export function createLibraryBackendClient(config: LibraryBackendClientConfig = 
   }
 
   return {
+    publicationCopyCommand(
+      accessToken: string,
+      body: PublishedCollectionCopyCommandRequestV2,
+      signal: AbortSignal,
+    ) {
+      return send('/v1/library/publication-copy-commands', accessToken, signal, 'POST', body)
+    },
     collectionCommand(
       accessToken: string,
       body: CollectionLifecycleCommandRequestV2,

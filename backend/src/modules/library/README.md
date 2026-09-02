@@ -76,6 +76,19 @@ Place ID scope로 만들고 같은 주입 reader와 clustering policy를 사용�
 cluster를 반환한다. private/revoked publication은 목록과 지도 모두 같은 not-found 의미이며, 공개
 지도에도 membership, Rating, Tag, Visit, Writing, provenance를 투영하지 않는다.
 
+`PublicCollectionDiscovery` v2는 링크 공유용 unlisted read와 분리된다. `public` Collection이면서
+작성자 Profile도 `public`이고 moderation 상태가 `allowed`일 때만 디렉터리·상세·복사에 나타난다.
+검색, 지역, Taxonomy, 공개 주제와 정렬은 filter-bound opaque keyset cursor를 사용하고, 상세 cursor는
+Collection revision에서 만든 `publicationVersion`에 묶인다. 상세 read는 repeatable-read snapshot에서
+metadata와 순서를 읽으며, 변경 후 이전 cursor는 거절한다.
+
+v2 공개 목록 복사는 새 private Collection만 만든다. source Collection row와 공개 Profile row를 같은
+transaction에서 잠그고 `expectedPublicationVersion`을 검증한 뒤 Canonical Place ID와 공개 상대 순서만
+옮긴다. 부분 선택은 source membership을 전부 검증하며, operation receipt와 원본 position provenance도
+같이 commit한다. 이 Adapter에는 Rating, Tag, Visit, Writing, 개인 사진 table을 읽는 의존성이 없다.
+따라서 공개 상태가 취소되거나 Profile이 숨김·withheld된 경우 상세와 복사는 모두 일반화된 not-found로
+끝나며, 응답 유실 재시도는 같은 결과만 replay한다.
+
 facet 집계도 같은 public Place summary reader만 사용한다. 최근 saved Place 최대 2,000개와 지역·
 primary Taxonomy 상위 50개씩으로 제한하고 saved/sample/projected coverage를 반환한다. facet-filtered
 목록은 요청당 최대 500개 preference만 검사하며 남은 후보는 purpose-bound cursor로 이어 간다.

@@ -6,6 +6,12 @@ import {
   publishedWritingSchema,
 } from '@place/contracts/http'
 import { publicPlaceDetailResponseSchema } from '@place/contracts/places'
+import {
+  type DiscoverableCollectionQueryV2,
+  type PublicCollectionDirectoryQueryV2,
+  discoverableCollectionResponseV2Schema,
+  publicCollectionDirectoryResponseV2Schema,
+} from '@place/contracts/library'
 
 import { requestFixedBackend } from '../backend-http/fixed-backend'
 
@@ -66,6 +72,43 @@ export async function getPublicCollectionMap(
     environment,
   ))
   if (!parsed.success) throw new Error('Backend returned invalid collection map')
+  return parsed.data
+}
+
+function publicDirectoryParameters(query: PublicCollectionDirectoryQueryV2): URLSearchParams {
+  const parameters = new URLSearchParams({ sort: query.sort, limit: String(query.limit) })
+  if (query.q !== undefined) parameters.set('q', query.q)
+  if (query.cursor !== undefined) parameters.set('cursor', query.cursor)
+  for (const areaKey of query.areaKeys) parameters.append('areaKeys', areaKey)
+  for (const taxonomyKey of query.taxonomyKeys) parameters.append('taxonomyKeys', taxonomyKey)
+  for (const topicKey of query.topicKeys) parameters.append('topicKeys', topicKey)
+  return parameters
+}
+
+export async function getPublicCollectionDirectory(
+  query: PublicCollectionDirectoryQueryV2,
+  environment: Readonly<Record<string, string | undefined>> = process.env,
+) {
+  const parsed = publicCollectionDirectoryResponseV2Schema.safeParse(await requestProjection(
+    `/v1/public/collection-directory?${publicDirectoryParameters(query)}`,
+    environment,
+  ))
+  if (!parsed.success) throw new Error('Backend returned invalid public Collection directory')
+  return parsed.data
+}
+
+export async function getDiscoverableCollection(
+  publicationId: string,
+  query: DiscoverableCollectionQueryV2,
+  environment: Readonly<Record<string, string | undefined>> = process.env,
+) {
+  const parameters = new URLSearchParams({ limit: String(query.limit) })
+  if (query.cursor !== undefined) parameters.set('cursor', query.cursor)
+  const parsed = discoverableCollectionResponseV2Schema.safeParse(await requestProjection(
+    `/v1/public/discoverable-collections/${encodeURIComponent(publicationId)}?${parameters}`,
+    environment,
+  ))
+  if (!parsed.success) throw new Error('Backend returned invalid discoverable Collection')
   return parsed.data
 }
 

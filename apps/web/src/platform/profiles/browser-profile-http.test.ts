@@ -25,6 +25,35 @@ function sessionRuntime() {
 }
 
 describe('browser Public Profile HTTP', () => {
+  it('requires a browser session and forwards a validated public profile report', async () => {
+    const reportId = '01992d20-0000-7000-8000-000000000001'
+    const fetcher = vi.fn(async (url: URL, init: RequestInit) => {
+      expect(url.pathname).toBe('/v1/public/profiles/ramen-log/reports')
+      expect(new Headers(init.headers).get('authorization')).toBe('Bearer server-access-token')
+      expect(JSON.parse(String(init.body))).toEqual({ reportId, reason: 'spam' })
+      return Response.json({
+        schemaVersion: 'public-profile-report-result.v1', status: 'recorded',
+      }, { status: 201 })
+    })
+    const http = createBrowserProfileHttp({
+      resolveAuthRuntime: sessionRuntime,
+      backend: backend(fetcher),
+      createCorrelationRef: () => 'profile-ref',
+    })
+
+    const response = await http.report('ramen-log', new Request(
+      'https://place.example/api/public/profiles/ramen-log/reports',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ reportId, reason: 'spam' }),
+      },
+    ))
+
+    expect(response.status).toBe(201)
+    expect(fetcher).toHaveBeenCalledOnce()
+  })
+
   it('keeps bearer evidence server-side for settings', async () => {
     const fetcher = vi.fn(async (_url: URL, init: RequestInit) => {
       expect(new Headers(init.headers).get('authorization')).toBe('Bearer server-access-token')

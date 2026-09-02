@@ -31,6 +31,8 @@ import {
   placeFilingCommandResultV2Schema,
   placeFilingRequestV2Schema,
   placeFilingResponseV2Schema,
+  publishedCollectionCopyCommandRequestV2Schema,
+  publishedCollectionCopyCommandResultV2Schema,
 } from '@place/contracts/library'
 import { placeDetailResponseSchema } from '@place/contracts/places'
 
@@ -180,6 +182,20 @@ export function createBrowserLibraryHttp(dependencies: Dependencies) {
   }
 
   return {
+    async publicationCopyCommand(request: Request): Promise<Response> {
+      const body = await requestBody(request, publishedCollectionCopyCommandRequestV2Schema)
+      if (body === undefined) return invalid()
+      return invoke(
+        request,
+        (accessToken) => dependencies.backend.publicationCopyCommand(
+          accessToken,
+          body,
+          request.signal,
+        ),
+        publishedCollectionCopyCommandResultV2Schema,
+        [200, 201, 404, 409, 422],
+      )
+    },
     async collectionCommand(request: Request): Promise<Response> {
       const body = await requestBody(request, collectionLifecycleCommandRequestV2Schema)
       if (body === undefined) return invalid()

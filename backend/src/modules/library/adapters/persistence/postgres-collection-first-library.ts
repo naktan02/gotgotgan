@@ -8,7 +8,7 @@ import {
   encodeWorkspaceCollectionCursor,
   encodeWorkspaceFavoriteCursor,
 } from '../../application/collection-first-cursor.js'
-import { fingerprintLibraryCommand } from '../../application/fingerprint.js'
+import { collectionVersion, readCollectionRevision } from '../../application/collection-version.js'
 import {
   buildLibraryPlaceFacets,
   libraryFacetFilterScanLimit,
@@ -28,7 +28,6 @@ import type {
   CollectionOrderMove,
   CollectionOrderReceipt,
   CollectionWorkspaceSummary,
-  LibraryWriteRejection,
   LibraryWriteResult,
   OpaqueVersion,
   PersonalLibraryWorkspaceQuery,
@@ -36,6 +35,13 @@ import type {
   PlaceFilingReceipt,
 } from '../../domain/collection-first.js'
 import { InvalidLibraryQueryError, type LibraryPlaceSummary } from '../../domain/queries.js'
+import {
+  libraryOperationFingerprint,
+  lockLibraryOperation,
+  readPriorLibraryOperation,
+  recordAppliedLibraryOperation,
+  recordRejectedLibraryOperation,
+} from './postgres-library-operation-receipts.js'
 
 type CollectionRow = Readonly<{
   id: string
@@ -68,44 +74,6 @@ type FilterUniverseRow = Readonly<{
   favorite_place_count: number
 }>
 
-type OperationReceiptRow = Readonly<{
-  membership_id: string
-  operation_kind: string
-  operation_fingerprint: string
-  outcome: string
-  result: Record<string, unknown>
-}>
-
-const operationNamespace = 'gotgotgan.library.v2'
-
-function collectionVersion(collectionId: string, revision: string | number): OpaqueVersion {
-  const payload = Buffer.from(JSON.stringify({ v: 1, collectionId, revision: String(revision) }), 'utf8')
-    .toString('base64url')
-  return `collection-revision.v1.${payload}` as OpaqueVersion
-}
-
-function readCollectionRevision(
-  value: OpaqueVersion,
-  collectionId: string,
-): string | undefined {
-  const encoded = value.startsWith('collection-revision.v1.')
-    ? value.slice('collection-revision.v1.'.length)
-    : undefined
-  if (encoded === undefined) return undefined
-  try {
-    const parsed: unknown = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'))
-    if (
-      parsed === null || typeof parsed !== 'object' || Array.isArray(parsed) ||
-      (parsed as Record<string, unknown>).v !== 1 ||
-      (parsed as Record<string, unknown>).collectionId !== collectionId ||
-      !/^\d+$/.test(String((parsed as Record<string, unknown>).revision))
-    ) return undefined
-    return String((parsed as Record<string, unknown>).revision)
-  } catch {
-    return undefined
-  }
-}
-
 function collectionSummary(row: CollectionRow): CollectionWorkspaceSummary {
   return {
     collectionId: row.id,
@@ -127,105 +95,6 @@ async function summariesById(
   return new Map((await read(placeIds))
     .filter((summary) => requested.has(summary.placeId))
     .map((summary) => [summary.placeId, summary]))
-}
-
-function operationFingerprint(
-  kind: string,
-  memberId: string,
-  input: Record<string, unknown>,
-): string {
-  return fingerprintLibraryCommand({ namespace: operationNamespace, kind, memberId, input })
-}
-
-async function lockOperation(
-  client: PoolClient,
-  operationId: string,
-): Promise<void> {
-  await client.query(
-    "SELECT pg_advisory_xact_lock(hashtextextended('gotgotgan.library.v2:' || $1, 0))",
-    [operationId],
-  )
-}
-
-async function readPrior<Value>(
-  client: PoolClient,
-  input: Readonly<{
-    operationId: string
-    memberId: string
-    kind: string
-    fingerprint: string
-  }>,
-): Promise<LibraryWriteResult<Value> | undefined> {
-  const result = await client.query<OperationReceiptRow>(
-    `SELECT membership_id, operation_kind, operation_fingerprint, outcome, result
-     FROM library.operation_receipts_v2 WHERE operation_id = $1::uuid`,
-    [input.operationId],
-  )
-  const prior = result.rows[0]
-  if (prior === undefined) return undefined
-  if (
-    prior.membership_id !== input.memberId || prior.operation_kind !== input.kind ||
-    prior.operation_fingerprint !== input.fingerprint
-  ) {
-    return {
-      status: 'rejected', operationId: input.operationId,
-      rejection: { code: 'operation-id-reused' },
-    }
-  }
-  if (prior.outcome === 'applied') {
-    return {
-      status: 'replayed', operationId: input.operationId,
-      value: prior.result.value as Value,
-    }
-  }
-  return {
-    status: 'rejected', operationId: input.operationId,
-    rejection: prior.result.rejection as LibraryWriteRejection,
-  }
-}
-
-async function recordApplied<Value>(
-  client: PoolClient,
-  input: Readonly<{
-    operationId: string
-    memberId: string
-    kind: string
-    fingerprint: string
-    occurredAt: string
-    value: Value
-  }>,
-): Promise<LibraryWriteResult<Value>> {
-  await client.query(
-    `INSERT INTO library.operation_receipts_v2 (
-       operation_id, membership_id, operation_kind, operation_fingerprint,
-       outcome, result, occurred_at
-     ) VALUES ($1::uuid,$2::uuid,$3,$4,'applied',$5::jsonb,$6::timestamptz)`,
-    [input.operationId, input.memberId, input.kind, input.fingerprint,
-      JSON.stringify({ value: input.value }), input.occurredAt],
-  )
-  return { status: 'applied', operationId: input.operationId, value: input.value }
-}
-
-async function recordRejected<Value>(
-  client: PoolClient,
-  input: Readonly<{
-    operationId: string
-    memberId: string
-    kind: string
-    fingerprint: string
-    occurredAt: string
-    rejection: LibraryWriteRejection
-  }>,
-): Promise<LibraryWriteResult<Value>> {
-  await client.query(
-    `INSERT INTO library.operation_receipts_v2 (
-       operation_id, membership_id, operation_kind, operation_fingerprint,
-       outcome, result, occurred_at
-     ) VALUES ($1::uuid,$2::uuid,$3,$4,$5,$6::jsonb,$7::timestamptz)`,
-    [input.operationId, input.memberId, input.kind, input.fingerprint,
-      input.rejection.code, JSON.stringify({ rejection: input.rejection }), input.occurredAt],
-  )
-  return { status: 'rejected', operationId: input.operationId, rejection: input.rejection }
 }
 
 async function placeOverlay(
@@ -490,12 +359,12 @@ export class PostgresPlaceFiling implements PlaceFiling {
   async apply(mutation: PlaceFilingMutation): Promise<LibraryWriteResult<PlaceFilingReceipt>> {
     const kind = 'place-filing'
     const { context, ...payload } = mutation
-    const fingerprint = operationFingerprint(kind, context.memberId, payload)
+    const fingerprint = libraryOperationFingerprint(kind, context.memberId, payload)
     const client = await this.pool.connect()
     try {
       await client.query('BEGIN')
-      await lockOperation(client, context.operationId)
-      const prior = await readPrior<PlaceFilingReceipt>(client, {
+      await lockLibraryOperation(client, context.operationId)
+      const prior = await readPriorLibraryOperation<PlaceFilingReceipt>(client, {
         operationId: context.operationId, memberId: context.memberId, kind, fingerprint,
       })
       if (prior !== undefined) {
@@ -519,7 +388,7 @@ export class PostgresPlaceFiling implements PlaceFiling {
         [context.memberId, sorted.map((change) => change.collectionId)],
       )
       if (place.rows[0] === undefined || locked.rows.length !== sorted.length) {
-        const result = await recordRejected<PlaceFilingReceipt>(client, {
+        const result = await recordRejectedLibraryOperation<PlaceFilingReceipt>(client, {
           operationId: context.operationId, memberId: context.memberId, kind, fingerprint,
           occurredAt: context.occurredAt, rejection: { code: 'not-found' },
         })
@@ -530,7 +399,7 @@ export class PostgresPlaceFiling implements PlaceFiling {
       if (sorted.some((change) =>
         readCollectionRevision(change.expectedVersion, change.collectionId) !==
           revisions.get(change.collectionId))) {
-        const result = await recordRejected<PlaceFilingReceipt>(client, {
+        const result = await recordRejectedLibraryOperation<PlaceFilingReceipt>(client, {
           operationId: context.operationId, memberId: context.memberId, kind, fingerprint,
           occurredAt: context.occurredAt, rejection: { code: 'version-conflict' },
         })
@@ -596,7 +465,7 @@ export class PostgresPlaceFiling implements PlaceFiling {
         ...overlay,
         collections: responseCollections,
       }
-      const result = await recordApplied(client, {
+      const result = await recordAppliedLibraryOperation(client, {
         operationId: context.operationId, memberId: context.memberId, kind, fingerprint,
         occurredAt: context.occurredAt, value,
       })
@@ -617,12 +486,12 @@ export class PostgresCollectionOrder implements CollectionOrder {
   async move(input: CollectionOrderMove): Promise<LibraryWriteResult<CollectionOrderReceipt>> {
     const kind = 'collection-order'
     const { context, ...payload } = input
-    const fingerprint = operationFingerprint(kind, context.memberId, payload)
+    const fingerprint = libraryOperationFingerprint(kind, context.memberId, payload)
     const client = await this.pool.connect()
     try {
       await client.query('BEGIN')
-      await lockOperation(client, context.operationId)
-      const prior = await readPrior<CollectionOrderReceipt>(client, {
+      await lockLibraryOperation(client, context.operationId)
+      const prior = await readPriorLibraryOperation<CollectionOrderReceipt>(client, {
         operationId: context.operationId, memberId: context.memberId, kind, fingerprint,
       })
       if (prior !== undefined) {
@@ -636,7 +505,7 @@ export class PostgresCollectionOrder implements CollectionOrder {
       )
       const currentRevision = collection.rows[0]?.revision
       if (currentRevision === undefined) {
-        const result = await recordRejected<CollectionOrderReceipt>(client, {
+        const result = await recordRejectedLibraryOperation<CollectionOrderReceipt>(client, {
           operationId: context.operationId, memberId: context.memberId, kind, fingerprint,
           occurredAt: context.occurredAt, rejection: { code: 'not-found' },
         })
@@ -644,7 +513,7 @@ export class PostgresCollectionOrder implements CollectionOrder {
         return result
       }
       if (readCollectionRevision(input.expectedVersion, input.collectionId) !== currentRevision) {
-        const result = await recordRejected<CollectionOrderReceipt>(client, {
+        const result = await recordRejectedLibraryOperation<CollectionOrderReceipt>(client, {
           operationId: context.operationId, memberId: context.memberId, kind, fingerprint,
           occurredAt: context.occurredAt, rejection: { code: 'version-conflict' },
         })
@@ -657,7 +526,7 @@ export class PostgresCollectionOrder implements CollectionOrder {
         [input.collectionId, input.placeId],
       )
       if (current.rows[0] === undefined) {
-        const result = await recordRejected<CollectionOrderReceipt>(client, {
+        const result = await recordRejectedLibraryOperation<CollectionOrderReceipt>(client, {
           operationId: context.operationId, memberId: context.memberId, kind, fingerprint,
           occurredAt: context.occurredAt, rejection: { code: 'source-membership-missing' },
         })
@@ -679,7 +548,7 @@ export class PostgresCollectionOrder implements CollectionOrder {
           [input.collectionId, input.placement.placeId],
         )
         if (anchor.rows[0] === undefined) {
-          const result = await recordRejected<CollectionOrderReceipt>(client, {
+          const result = await recordRejectedLibraryOperation<CollectionOrderReceipt>(client, {
             operationId: context.operationId, memberId: context.memberId, kind, fingerprint,
             occurredAt: context.occurredAt, rejection: { code: 'anchor-not-found' },
           })
@@ -722,7 +591,7 @@ export class PostgresCollectionOrder implements CollectionOrder {
         placeId: input.placeId,
         version: collectionVersion(input.collectionId, updated.rows[0]!.revision),
       }
-      const result = await recordApplied(client, {
+      const result = await recordAppliedLibraryOperation(client, {
         operationId: context.operationId, memberId: context.memberId, kind, fingerprint,
         occurredAt: context.occurredAt, value,
       })
@@ -745,12 +614,12 @@ export class PostgresCollectionLifecycle implements CollectionLifecycle {
   ): Promise<LibraryWriteResult<CollectionLifecycleReceipt>> {
     const kind = `collection-${input.kind}`
     const { context, ...payload } = input
-    const fingerprint = operationFingerprint(kind, context.memberId, payload)
+    const fingerprint = libraryOperationFingerprint(kind, context.memberId, payload)
     const client = await this.pool.connect()
     try {
       await client.query('BEGIN')
-      await lockOperation(client, context.operationId)
-      const prior = await readPrior<CollectionLifecycleReceipt>(client, {
+      await lockLibraryOperation(client, context.operationId)
+      const prior = await readPriorLibraryOperation<CollectionLifecycleReceipt>(client, {
         operationId: context.operationId, memberId: context.memberId, kind, fingerprint,
       })
       if (prior !== undefined) {
@@ -770,7 +639,7 @@ export class PostgresCollectionLifecycle implements CollectionLifecycle {
           [input.collectionId, context.memberId, input.name, input.description, context.occurredAt],
         )
         if (created.rows[0] === undefined) {
-          const result = await recordRejected<CollectionLifecycleReceipt>(client, {
+          const result = await recordRejectedLibraryOperation<CollectionLifecycleReceipt>(client, {
             operationId: context.operationId, memberId: context.memberId, kind, fingerprint,
             occurredAt: context.occurredAt, rejection: { code: 'not-found' },
           })
@@ -792,7 +661,7 @@ export class PostgresCollectionLifecycle implements CollectionLifecycle {
         )
         const row = current.rows[0]
         if (row === undefined) {
-          const result = await recordRejected<CollectionLifecycleReceipt>(client, {
+          const result = await recordRejectedLibraryOperation<CollectionLifecycleReceipt>(client, {
             operationId: context.operationId, memberId: context.memberId, kind, fingerprint,
             occurredAt: context.occurredAt, rejection: { code: 'not-found' },
           })
@@ -800,7 +669,7 @@ export class PostgresCollectionLifecycle implements CollectionLifecycle {
           return result
         }
         if (readCollectionRevision(input.expectedVersion, input.collectionId) !== row.revision) {
-          const result = await recordRejected<CollectionLifecycleReceipt>(client, {
+          const result = await recordRejectedLibraryOperation<CollectionLifecycleReceipt>(client, {
             operationId: context.operationId, memberId: context.memberId, kind, fingerprint,
             occurredAt: context.occurredAt, rejection: { code: 'version-conflict' },
           })
@@ -853,7 +722,7 @@ export class PostgresCollectionLifecycle implements CollectionLifecycle {
           value = { collection: collectionSummary(updated.rows[0]!) }
         }
       }
-      const result = await recordApplied(client, {
+      const result = await recordAppliedLibraryOperation(client, {
         operationId: context.operationId, memberId: context.memberId, kind, fingerprint,
         occurredAt: context.occurredAt, value,
       })

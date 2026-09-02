@@ -67,6 +67,7 @@ import {
   collectionLifecycleCommandResultV2Schema,
   collectionOrderCommandRequestV2Schema,
   collectionOrderCommandResultV2Schema,
+  discoverableCollectionResponseV2Schema,
   libraryCommandResultSchema,
   libraryCollectionDetailResponseSchema,
   libraryCollectionListResponseSchema,
@@ -80,6 +81,9 @@ import {
   placeFilingCommandRequestV2Schema,
   placeFilingCommandResultV2Schema,
   placeFilingResponseV2Schema,
+  publicCollectionDirectoryResponseV2Schema,
+  publishedCollectionCopyCommandRequestV2Schema,
+  publishedCollectionCopyCommandResultV2Schema,
 } from '../library/index.js'
 import {
   placeDetailResponseSchema,
@@ -235,6 +239,24 @@ const boundedLimitParameter = {
 const publishedCollectionLimitParameter = {
   name: 'limit', in: 'query', required: false,
   schema: { type: 'integer', minimum: 1, maximum: 50, default: 50 },
+}
+
+const publicCollectionSearchParameter = {
+  name: 'q', in: 'query', required: false,
+  schema: { type: 'string', minLength: 1, maxLength: 120 },
+}
+
+const publicCollectionTopicKeysParameter = {
+  name: 'topicKeys', in: 'query', required: false, style: 'form', explode: true,
+  schema: {
+    type: 'array', maxItems: 10, uniqueItems: true,
+    items: { type: 'string', pattern: '^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$' },
+  },
+}
+
+const publicCollectionSortParameter = {
+  name: 'sort', in: 'query', required: false,
+  schema: { type: 'string', enum: ['recent', 'largest', 'name'], default: 'recent' },
 }
 
 const libraryPlaceStateParameter = {
@@ -698,6 +720,32 @@ const paths = {
       '503': ref('responses', 'BrowserBackendUnavailable'),
     }, { security: anonymous, parameters: [...libraryMapViewportParameters] }),
   },
+  '/api/public/collection-directory': {
+    get: operation('listDiscoverableCollectionsForBrowserV2', {
+      '200': described('Return moderation-aware public Collection discovery results', 'PublicCollectionDirectoryV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, {
+      security: anonymous,
+      parameters: [
+        publicCollectionSearchParameter, libraryAreaKeysParameter, libraryTaxonomyKeysParameter,
+        publicCollectionTopicKeysParameter, publicCollectionSortParameter,
+        boundedCursorParameter, boundedLimitParameter,
+      ],
+    }),
+  },
+  '/api/public/discoverable-collections/{publicationId}': {
+    parameters: [pathParameters.publicationId],
+    get: operation('getDiscoverableCollectionForBrowserV2', {
+      '200': described('Return a moderation-aware discoverable Collection', 'DiscoverableCollectionV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, {
+      security: anonymous,
+      parameters: [boundedCursorParameter, boundedLimitParameter],
+    }),
+  },
   '/api/public/writing/{publicationId}': {
     parameters: [pathParameters.publicationId],
     get: operation('getPublishedPlaceWritingForBrowser', {
@@ -771,6 +819,19 @@ const paths = {
       security: anonymous,
       parameters: [boundedCursorParameter, boundedLimitParameter],
     }),
+  },
+  '/api/public/profiles/{handle}/reports': {
+    parameters: [pathParameters.handle],
+    post: operation('reportPublicProfileForBrowser', {
+      '200': described('Return an existing Public Profile report outcome', 'PublicProfileReportResult'),
+      '201': described('Record a categorized Public Profile report', 'PublicProfileReportResult'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '409': ref('responses', 'ProductConflict'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, { security: browserSession, requestSchema: 'PublicProfileReportRequest' }),
   },
   '/v1/library/commands': { post: operation('applyPlaceLibraryCommand', {
     '200': described('Return an idempotently replayed command result', 'LibraryCommandResult'),
@@ -1072,6 +1133,19 @@ const paths = {
       '503': ref('responses', 'BrowserBackendUnavailable'),
     }, { security: browserSession, requestSchema: 'CollectionLifecycleCommandRequestV2' }),
   },
+  '/api/library/publication-copy-commands': {
+    post: operation('copyPublishedCollectionForBrowserV2', {
+      '200': described('Replay a published Collection copy', 'PublishedCollectionCopyCommandResultV2'),
+      '201': described('Copy public Place identities and order into a new private Collection', 'PublishedCollectionCopyCommandResultV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': described('Hide an unavailable or ineligible publication', 'PublishedCollectionCopyCommandResultV2'),
+      '409': described('Reject a changed publication or reused operation identity', 'PublishedCollectionCopyCommandResultV2'),
+      '422': described('Reject a selection outside the source publication', 'PublishedCollectionCopyCommandResultV2'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, { security: browserSession, requestSchema: 'PublishedCollectionCopyCommandRequestV2' }),
+  },
   '/v1/library/workspace': {
     get: operation('getPersonalLibraryWorkspaceV2', {
       '200': described(
@@ -1146,6 +1220,19 @@ const paths = {
       '422': described('Reject an invalid Collection lifecycle operation', 'CollectionLifecycleCommandResultV2'),
       '503': ref('responses', 'LibraryQueryUnavailable'),
     }, { security: bearer, requestSchema: 'CollectionLifecycleCommandRequestV2' }),
+  },
+  '/v1/library/publication-copy-commands': {
+    post: operation('copyPublishedCollectionV2', {
+      '200': described('Replay a published Collection copy', 'PublishedCollectionCopyCommandResultV2'),
+      '201': described('Copy public Place identities and order into a new private Collection', 'PublishedCollectionCopyCommandResultV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': described('Hide an unavailable or ineligible publication', 'PublishedCollectionCopyCommandResultV2'),
+      '409': described('Reject a changed publication or reused operation identity', 'PublishedCollectionCopyCommandResultV2'),
+      '422': described('Reject a selection outside the source publication', 'PublishedCollectionCopyCommandResultV2'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer, requestSchema: 'PublishedCollectionCopyCommandRequestV2' }),
   },
   '/v1/library/places/{placeId}': {
     parameters: [pathParameters.placeId],
@@ -1283,6 +1370,32 @@ const paths = {
       '400': ref('responses', 'ProductRequestInvalid'),
       '404': ref('responses', 'ProductNotFound'),
     }, { security: anonymous, parameters: [...libraryMapViewportParameters] }),
+  },
+  '/v1/public/collection-directory': {
+    get: operation('listDiscoverableCollectionsV2', {
+      '200': described('Return moderation-aware public Collection discovery results', 'PublicCollectionDirectoryV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, {
+      security: anonymous,
+      parameters: [
+        publicCollectionSearchParameter, libraryAreaKeysParameter, libraryTaxonomyKeysParameter,
+        publicCollectionTopicKeysParameter, publicCollectionSortParameter,
+        boundedCursorParameter, boundedLimitParameter,
+      ],
+    }),
+  },
+  '/v1/public/discoverable-collections/{publicationId}': {
+    parameters: [pathParameters.publicationId],
+    get: operation('getDiscoverableCollectionV2', {
+      '200': described('Return a moderation-aware discoverable Collection', 'DiscoverableCollectionV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, {
+      security: anonymous,
+      parameters: [boundedCursorParameter, boundedLimitParameter],
+    }),
   },
   '/v1/visits': { post: operation('recordPlaceVisit', {
     '201': described('Record an immutable visit occurrence', 'VisitRecordResult'),
@@ -1507,6 +1620,10 @@ const schemas: Readonly<Record<string, ZodType>> = {
   CollectionOrderCommandResultV2: collectionOrderCommandResultV2Schema,
   CollectionLifecycleCommandRequestV2: collectionLifecycleCommandRequestV2Schema,
   CollectionLifecycleCommandResultV2: collectionLifecycleCommandResultV2Schema,
+  PublicCollectionDirectoryV2: publicCollectionDirectoryResponseV2Schema,
+  DiscoverableCollectionV2: discoverableCollectionResponseV2Schema,
+  PublishedCollectionCopyCommandRequestV2: publishedCollectionCopyCommandRequestV2Schema,
+  PublishedCollectionCopyCommandResultV2: publishedCollectionCopyCommandResultV2Schema,
   VisitHistoryResponse: visitHistoryResponseSchema,
   WritingListResponse: writingListResponseSchema,
   WritingDetailResponse: writingDetailResponseSchema,

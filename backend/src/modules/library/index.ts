@@ -27,6 +27,7 @@ export type {
   PlaceFiling,
   PublishedCollectionExchange,
 } from './application/ports/collection-first.js'
+export type { PublicCollectionDiscovery } from './application/ports/public-collection-discovery.js'
 export {
   InvalidCollectionFirstInputError,
   type CollectionFavoritePlace,
@@ -79,6 +80,19 @@ export {
   PostgresPersonalLibraryWorkspace,
   PostgresPlaceFiling,
 } from './adapters/persistence/postgres-collection-first-library.js'
+export { PostgresPublicCollectionDiscovery } from './adapters/persistence/postgres-public-collection-discovery.js'
+export { PostgresPublishedCollectionExchange } from './adapters/persistence/postgres-published-collection-exchange.js'
+export type {
+  DiscoverableCollection,
+  DiscoverableCollectionQuery,
+  PublicCollectionDiscoveryPage,
+  PublicCollectionDiscoveryQuery,
+  PublicCollectionDiscoverySort,
+  PublicCollectionDiscoverySummary,
+  PublicCollectionOwner,
+  PublicCollectionPlace,
+  PublicCollectionTopic,
+} from './domain/public-collection-discovery.js'
 export {
   InvalidLibraryCursorError,
   InvalidLibraryQueryError,
@@ -109,3 +123,7 @@ export {
   registerCollectionFirstHttpRoutes,
   type CollectionFirstHttpDependencies,
 } from './transport/http/register-collection-first-http.js'
+export {
+  registerPublicCollectionHttpRoutes,
+  type PublicCollectionHttpDependencies,
+} from './transport/http/register-public-collection-http.js'
