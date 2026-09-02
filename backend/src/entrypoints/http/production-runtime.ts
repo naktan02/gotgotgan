@@ -15,8 +15,12 @@ import {
 } from '../../modules/access/index.js'
 import {
   InvalidLibraryCursorError,
+  asOpaqueVersion,
+  normalizeImportedCollectionMaterialization,
   PostgresCollectionLifecycle,
+  PostgresCollectionTransferReader,
   PostgresCollectionOrder,
+  PostgresImportedCollectionMaterializer,
   PostgresLibraryQueries,
   PostgresLibraryStore,
   PostgresPersonalLibraryWorkspace,
@@ -65,6 +69,10 @@ import {
 } from '../../modules/search/index.js'
 import { PostgresAreaCatalog } from '../../modules/areas/index.js'
 import { PostgresTaxonomyStore } from '../../modules/taxonomy/index.js'
+import {
+  PostgresProviderTransfers,
+  type ImportedCollectionMaterializerPort,
+} from '../../modules/transfers/index.js'
 import { PostgresVisitQueries, PostgresVisitStore } from '../../modules/visits/index.js'
 import { PostgresWritingQueries, PostgresWritingStore } from '../../modules/writing/index.js'
 import type { ProductAuthorizer } from '../../platform/http/product-authorization.js'
@@ -279,6 +287,33 @@ export async function createProductionHttpRuntime(
     })
     const taxonomyStore = new PostgresTaxonomyStore(pool)
     const areaCatalog = new PostgresAreaCatalog(pool)
+    const importedCollectionMaterializer = new PostgresImportedCollectionMaterializer(pool)
+    const transferMaterializer: ImportedCollectionMaterializerPort = {
+      materialize: (input) => importedCollectionMaterializer.materialize(
+        normalizeImportedCollectionMaterialization({
+          context: input.context,
+          source: input.source,
+          target: input.target.kind === 'new'
+            ? input.target
+            : { ...input.target, expectedVersion: asOpaqueVersion(input.target.expectedVersion) },
+          ...(input.expectedBindingVersion === undefined ? {} : {
+            expectedBindingVersion: asOpaqueVersion(input.expectedBindingVersion),
+          }),
+          items: input.items,
+        }),
+      ),
+    }
+    const providerTransfers = new PostgresProviderTransfers({
+      pool,
+      materializer: transferMaterializer,
+      collections: new PostgresCollectionTransferReader(pool),
+      // Provider-specific transfer adapters are configured independently. An empty map keeps
+      // production capability responses truthful until an approved integration is composed.
+      enabledConnectionAuthMethods: {},
+      sources: [],
+      targets: [],
+      now,
+    })
     const connector = config.connector === undefined
       ? undefined
       : createConnectorImportReceiver({
@@ -401,6 +436,10 @@ export async function createProductionHttpRuntime(
         },
       },
       taxonomy: { store: taxonomyStore },
+      transfers: {
+        authorizer: productAuthorizer,
+        transfers: providerTransfers,
+      },
       visits: {
         authorizer: productAuthorizer,
         store: visitStore,

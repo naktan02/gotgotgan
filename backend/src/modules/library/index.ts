@@ -82,6 +82,11 @@ export {
 } from './adapters/persistence/postgres-collection-first-library.js'
 export { PostgresPublicCollectionDiscovery } from './adapters/persistence/postgres-public-collection-discovery.js'
 export { PostgresPublishedCollectionExchange } from './adapters/persistence/postgres-published-collection-exchange.js'
+export { PostgresImportedCollectionMaterializer } from './adapters/persistence/postgres-imported-collection-materializer.js'
+export {
+  PostgresCollectionTransferReader,
+  type CollectionTransferSnapshot,
+} from './adapters/persistence/postgres-collection-transfer-reader.js'
 export type {
   DiscoverableCollection,
   DiscoverableCollectionQuery,

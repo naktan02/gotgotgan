@@ -10,6 +10,7 @@ const allowedDependencies = new Map([
   ['search', new Set(['primitives', 'providers'])],
   ['imports', new Set(['primitives', 'providers'])],
   ['connector', new Set(['primitives', 'providers'])],
+  ['transfers', new Set(['primitives', 'providers'])],
   ['place-reference', new Set(['primitives'])],
   ['places', new Set(['primitives', 'place-summary'])],
   ['profiles', new Set(['primitives'])],

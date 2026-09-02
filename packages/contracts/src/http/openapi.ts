@@ -133,6 +133,21 @@ import {
   providerPlaceDetailSchema,
   taxonomyProjectionSchema,
 } from '../search/index.js'
+import {
+  importPlanCommandRequestV2Schema,
+  importPlanCommandResultV2Schema,
+  importPlanV2Schema,
+  outboundTransferCommandRequestV2Schema,
+  outboundTransferCommandResultV2Schema,
+  outboundTransferV2Schema,
+  providerCapabilityListV2Schema,
+  providerConnectionCommandRequestV2Schema,
+  providerConnectionCommandResultV2Schema,
+  providerConnectionListV2Schema,
+  providerTargetListProjectionV2Schema,
+  sourceSnapshotDetailV2Schema,
+  sourceSnapshotListV2Schema,
+} from '../transfers/index.js'
 import { processStatusSchema } from './system.js'
 
 const anonymous: readonly unknown[] = []
@@ -201,6 +216,22 @@ const pathParameters = {
     name: 'batchId', in: 'path', required: true,
     schema: { type: 'string', format: 'uuid' },
   },
+  connectionId: {
+    name: 'connectionId', in: 'path', required: true,
+    schema: { type: 'string', format: 'uuid' },
+  },
+  snapshotId: {
+    name: 'snapshotId', in: 'path', required: true,
+    schema: { type: 'string', format: 'uuid' },
+  },
+  planId: {
+    name: 'planId', in: 'path', required: true,
+    schema: { type: 'string', format: 'uuid' },
+  },
+  transferId: {
+    name: 'transferId', in: 'path', required: true,
+    schema: { type: 'string', format: 'uuid' },
+  },
   collectionId: {
     name: 'collectionId', in: 'path', required: true,
     schema: { type: 'string', format: 'uuid' },
@@ -234,6 +265,11 @@ const boundedCursorParameter = {
 const boundedLimitParameter = {
   name: 'limit', in: 'query', required: false,
   schema: { type: 'integer', minimum: 1, maximum: 50, default: 20 },
+}
+
+const transferConnectionQueryParameter = {
+  name: 'connectionId', in: 'query', required: false,
+  schema: { type: 'string', format: 'uuid' },
 }
 
 const publishedCollectionLimitParameter = {
@@ -352,6 +388,133 @@ const importItemLimitParameter = {
   name: 'limit', in: 'query', required: false,
   schema: { type: 'integer', minimum: 1, maximum: 200, default: 200 },
 }
+
+const transferPaths: Readonly<Record<string, Record<string, unknown>>> = {
+  '/v2/transfers/provider-capabilities': {
+    get: operation('listProviderTransferCapabilitiesV2', {
+      '200': described('Return truthful provider-specific transfer capabilities', 'ProviderCapabilityListV2'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer }),
+  },
+  '/v2/transfers/provider-connections': {
+    get: operation('listProviderConnectionsV2', {
+      '200': described('Return credential-free provider connection lifecycle projections', 'ProviderConnectionListV2'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer }),
+  },
+  '/v2/transfers/provider-connection-commands': {
+    post: operation('applyProviderConnectionCommandV2', {
+      '200': described('Replay a provider connection command', 'ProviderConnectionCommandResultV2'),
+      '201': described('Apply a provider connection command', 'ProviderConnectionCommandResultV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': described('Hide an unavailable connection', 'ProviderConnectionCommandResultV2'),
+      '409': described('Reject a stale or reused command', 'ProviderConnectionCommandResultV2'),
+      '422': described('Reject a gated provider integration', 'ProviderConnectionCommandResultV2'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer, requestSchema: 'ProviderConnectionCommandRequestV2' }),
+  },
+  '/v2/transfers/provider-connections/{connectionId}/target-lists': {
+    parameters: [pathParameters.connectionId],
+    get: operation('listProviderTargetListsV2', {
+      '200': described('Return target list observation or an explicit unavailable projection', 'ProviderTargetListProjectionV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer }),
+  },
+  '/v2/transfers/source-snapshots': {
+    get: operation('listSourceSnapshotsV2', {
+      '200': described('Return immutable saved-place source snapshot summaries', 'SourceSnapshotListV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, {
+      security: bearer,
+      parameters: [transferConnectionQueryParameter, boundedCursorParameter, boundedLimitParameter],
+    }),
+  },
+  '/v2/transfers/source-snapshots/{snapshotId}': {
+    parameters: [pathParameters.snapshotId],
+    get: operation('getSourceSnapshotV2', {
+      '200': described('Return immutable observed facts and match state', 'SourceSnapshotDetailV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer }),
+  },
+  '/v2/transfers/import-plan-commands': {
+    post: operation('applyImportPlanCommandV2', {
+      '200': described('Replay an import plan command', 'ImportPlanCommandResultV2'),
+      '201': described('Create, decide, or explicitly approve an import plan', 'ImportPlanCommandResultV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': described('Hide an unavailable transfer resource', 'ImportPlanCommandResultV2'),
+      '409': described('Reject a stale plan, snapshot, Collection, or command', 'ImportPlanCommandResultV2'),
+      '422': described('Reject an unresolved or invalid plan selection', 'ImportPlanCommandResultV2'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer, requestSchema: 'ImportPlanCommandRequestV2' }),
+  },
+  '/v2/transfers/import-plans/{planId}': {
+    parameters: [pathParameters.planId],
+    get: operation('getImportPlanV2', {
+      '200': described('Return an import preview and materialization outcome', 'ImportPlanV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer }),
+  },
+  '/v2/transfers/outbound-transfer-commands': {
+    post: operation('applyOutboundTransferCommandV2', {
+      '200': described('Replay an outbound preview or approval command', 'OutboundTransferCommandResultV2'),
+      '201': described('Create a preview or record approval without claiming provider execution', 'OutboundTransferCommandResultV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': described('Hide an unavailable transfer resource', 'OutboundTransferCommandResultV2'),
+      '409': described('Reject changed source, target observation, or command identity', 'OutboundTransferCommandResultV2'),
+      '422': described('Reject an unavailable or unresolved preview', 'OutboundTransferCommandResultV2'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer, requestSchema: 'OutboundTransferCommandRequestV2' }),
+  },
+  '/v2/transfers/outbound-transfers/{transferId}': {
+    parameters: [pathParameters.transferId],
+    get: operation('getOutboundTransferV2', {
+      '200': described('Return a revision-bound outbound preview or approval state', 'OutboundTransferV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer }),
+  },
+}
+
+const transferBrowserPaths = Object.fromEntries(Object.entries(transferPaths).map(([path, item]) => {
+  const browserItem = Object.fromEntries(Object.entries(item).map(([key, value]) => {
+    if (!['get', 'post', 'put', 'patch', 'delete'].includes(key)) return [key, value]
+    const operationValue = value as Record<string, unknown>
+    return [key, {
+      ...operationValue,
+      operationId: `${String(operationValue.operationId)}ForBrowser`,
+      security: browserSession,
+    }]
+  }))
+  return [`/api${path}`, browserItem]
+}))
 
 const paths = {
   '/healthz': { get: operation('getPlaceHealth', {
@@ -1544,6 +1707,8 @@ const paths = {
     '200': described('Return the current provider-neutral taxonomy', 'TaxonomyProjection'),
     '503': ref('responses', 'ProductUnavailable'),
   }, { security: anonymous }) },
+  ...transferBrowserPaths,
+  ...transferPaths,
 }
 
 const schemas: Readonly<Record<string, ZodType>> = {
@@ -1658,6 +1823,19 @@ const schemas: Readonly<Record<string, ZodType>> = {
   PlaceSuggestionMaterializationResponse: placeSuggestionMaterializationResponseSchema,
   ProviderPlaceDetailRequest: providerPlaceDetailRequestSchema,
   ProviderPlaceDetail: providerPlaceDetailSchema,
+  ProviderCapabilityListV2: providerCapabilityListV2Schema,
+  ProviderConnectionListV2: providerConnectionListV2Schema,
+  ProviderConnectionCommandRequestV2: providerConnectionCommandRequestV2Schema,
+  ProviderConnectionCommandResultV2: providerConnectionCommandResultV2Schema,
+  ProviderTargetListProjectionV2: providerTargetListProjectionV2Schema,
+  SourceSnapshotListV2: sourceSnapshotListV2Schema,
+  SourceSnapshotDetailV2: sourceSnapshotDetailV2Schema,
+  ImportPlanCommandRequestV2: importPlanCommandRequestV2Schema,
+  ImportPlanCommandResultV2: importPlanCommandResultV2Schema,
+  ImportPlanV2: importPlanV2Schema,
+  OutboundTransferCommandRequestV2: outboundTransferCommandRequestV2Schema,
+  OutboundTransferCommandResultV2: outboundTransferCommandResultV2Schema,
+  OutboundTransferV2: outboundTransferV2Schema,
   TaxonomyProjection: taxonomyProjectionSchema,
   Problem: problemSchema,
 }

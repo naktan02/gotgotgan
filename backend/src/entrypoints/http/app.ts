@@ -17,6 +17,10 @@ import { registerPlaceHttpRoutes, type PlaceHttpDependencies } from '../../modul
 import { registerProfileHttpRoutes, type ProfileHttpDependencies } from '../../modules/profiles/index.js'
 import { registerSearchHttpRoutes, type SearchHttpDependencies } from '../../modules/search/index.js'
 import { registerTaxonomyHttpRoutes, type TaxonomyHttpDependencies } from '../../modules/taxonomy/index.js'
+import {
+  registerProviderTransferHttpRoutes,
+  type ProviderTransferHttpDependencies,
+} from '../../modules/transfers/index.js'
 import { registerVisitsHttpRoutes, type VisitsHttpDependencies } from '../../modules/visits/index.js'
 import { registerWritingHttpRoutes, type WritingHttpDependencies } from '../../modules/writing/index.js'
 
@@ -30,6 +34,7 @@ export type HttpApplicationOptions = Readonly<{
   profiles?: ProfileHttpDependencies
   search?: SearchHttpDependencies
   taxonomy?: TaxonomyHttpDependencies
+  transfers?: ProviderTransferHttpDependencies
   visits?: VisitsHttpDependencies
   writing?: WritingHttpDependencies
   readiness?: () => Promise<boolean>
@@ -68,6 +73,7 @@ export function buildHttpApplication(options: HttpApplicationOptions = {}): Fast
   if (options.profiles !== undefined) registerProfileHttpRoutes(application, options.profiles)
   if (options.search !== undefined) registerSearchHttpRoutes(application, options.search)
   if (options.taxonomy !== undefined) registerTaxonomyHttpRoutes(application, options.taxonomy)
+  if (options.transfers !== undefined) registerProviderTransferHttpRoutes(application, options.transfers)
   if (options.visits !== undefined) registerVisitsHttpRoutes(application, options.visits)
   if (options.writing !== undefined) registerWritingHttpRoutes(application, options.writing)
 

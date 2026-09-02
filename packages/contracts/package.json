@@ -40,6 +40,10 @@
       "types": "./dist/search/index.d.ts",
       "default": "./dist/search/index.js"
     },
+    "./transfers": {
+      "types": "./dist/transfers/index.d.ts",
+      "default": "./dist/transfers/index.js"
+    },
     "./visits": {
       "types": "./dist/visits/index.d.ts",
       "default": "./dist/visits/index.js"
