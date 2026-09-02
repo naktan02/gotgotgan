@@ -9,6 +9,7 @@ import {
 } from '../connector/index.js'
 
 import {
+  adminSessionSchema,
   authorityRoleChangeRequestSchema,
   authorityRoleChangeResultSchema,
   currentMembershipConsentsSchema,
@@ -326,6 +327,12 @@ const paths = {
     '303': described('Delete the server-side session and redirect locally'),
     '503': ref('responses', 'BrowserAuthUnavailable'),
   }) },
+  '/api/admin/session': { get: operation('getCurrentPlaceAdminSession', {
+    '200': described('Return the current authorized administrator session', 'AdminSession'),
+    '401': ref('responses', 'AuthenticationRequired'),
+    '403': ref('responses', 'AccessDenied'),
+    '503': ref('responses', 'BrowserBackendUnavailable'),
+  }, { security: browserSession }) },
   '/api/connector/grants': { post: operation('issuePlaceConnectorGrantForBrowser', {
     '200': described('Replay the operation with a rotated connector token', 'ConnectorGrant'),
     '201': described('Create an origin-bound connector operation', 'ConnectorGrant'),
@@ -1254,6 +1261,7 @@ const paths = {
 
 const schemas: Readonly<Record<string, ZodType>> = {
   ProcessStatus: processStatusSchema,
+  AdminSession: adminSessionSchema,
   ConnectorPublicOrigin: connectorPublicOriginSchema,
   ConnectorGrantRequest: connectorGrantRequestSchema,
   ConnectorGrant: connectorGrantSchema,

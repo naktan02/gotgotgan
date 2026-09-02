@@ -52,6 +52,13 @@ export const authorityRoleChangeResultSchema = z.object({
   authorityRole: authorityRoleSchema,
 }).strict()
 
+export const adminSessionSchema = z.object({
+  schemaVersion: z.literal('place-admin-session.v1'),
+  authorityRole: z.enum(['reviewer', 'administrator', 'owner']),
+  userGrade: z.string().min(1),
+  productTier: z.string().min(1),
+}).strict()
+
 export const problemSchema = z.object({
   type: z.string().min(1),
   title: z.string().min(1),

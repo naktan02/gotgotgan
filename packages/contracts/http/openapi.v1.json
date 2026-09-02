@@ -98,6 +98,38 @@
         }
       }
     },
+    "/api/admin/session": {
+      "get": {
+        "operationId": "getCurrentPlaceAdminSession",
+        "summary": "getCurrentPlaceAdminSession",
+        "security": [
+          {
+            "placeBrowserSession": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return the current authorized administrator session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSession"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "503": {
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
+          }
+        }
+      }
+    },
     "/api/connector/grants": {
       "post": {
         "operationId": "issuePlaceConnectorGrantForBrowser",
@@ -5314,7 +5346,8 @@
             "type": "string",
             "enum": [
               "place",
-              "place-web"
+              "place-web",
+              "place-admin-web"
             ]
           },
           "state": {
@@ -5329,6 +5362,38 @@
           "schemaVersion",
           "service",
           "state"
+        ],
+        "additionalProperties": false
+      },
+      "AdminSession": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "place-admin-session.v1"
+          },
+          "authorityRole": {
+            "type": "string",
+            "enum": [
+              "reviewer",
+              "administrator",
+              "owner"
+            ]
+          },
+          "userGrade": {
+            "type": "string",
+            "minLength": 1
+          },
+          "productTier": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "authorityRole",
+          "userGrade",
+          "productTier"
         ],
         "additionalProperties": false
       },

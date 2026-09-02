@@ -1,4 +1,5 @@
 export {
+  adminSessionSchema,
   authorityRoleChangeRequestSchema,
   authorityRoleChangeResultSchema,
   authorityRoleSchema,

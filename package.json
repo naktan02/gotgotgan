@@ -5,21 +5,27 @@
   "packageManager": "npm@10.9.8",
   "workspaces": [
     "apps/web",
+    "apps/admin-web",
     "apps/member-connector",
     "backend",
     "packages/*"
   ],
   "scripts": {
     "build:contracts": "npm run build --workspace @place/contracts",
+    "build:browser-auth": "npm run build --workspace @place/browser-auth",
     "generate:contracts": "npm run generate --workspace @place/contracts",
-    "build:web": "npm run build:contracts && npm run build --workspace @place/web",
+    "build:web": "npm run build:contracts && npm run build:browser-auth && npm run build --workspace @place/web",
+    "build:admin-web": "npm run build:contracts && npm run build:browser-auth && npm run build --workspace @place/admin-web",
     "build:backend": "npm run build:contracts && npm run build --workspace @place/backend",
     "build:member-connector": "npm run build:contracts && npm run build --workspace @place/member-connector",
-    "typecheck:web": "npm run build:contracts && npm run typecheck --workspace @place/web",
+    "typecheck:web": "npm run build:contracts && npm run build:browser-auth && npm run typecheck --workspace @place/web",
+    "typecheck:admin-web": "npm run build:contracts && npm run build:browser-auth && npm run typecheck --workspace @place/admin-web",
     "typecheck:backend": "npm run build:contracts && npm run typecheck --workspace @place/backend",
-    "validate:architecture": "node --test tests/architecture/*.test.mjs && node scripts/guard-contracts-architecture.mjs && node scripts/guard-frontend-architecture.mjs && node scripts/guard-backend-architecture.mjs && node scripts/guard-member-connector-architecture.mjs",
+    "validate:architecture": "node --test tests/architecture/*.test.mjs && node scripts/guard-contracts-architecture.mjs && node scripts/guard-frontend-architecture.mjs && node scripts/guard-admin-frontend-architecture.mjs && node scripts/guard-backend-architecture.mjs && node scripts/guard-member-connector-architecture.mjs",
     "check:docs": "node scripts/check-doc-links.mjs",
+    "check:browser-auth": "npm run check --workspace @place/browser-auth",
     "check:web": "npm run validate:architecture && npm run test --workspace @place/web && npm run typecheck:web && npm run build:web",
+    "check:admin-web": "npm run validate:architecture && npm run test --workspace @place/admin-web && npm run typecheck:admin-web && npm run build:admin-web",
     "check:backend": "npm run check --workspace @place/backend",
     "check:member-connector": "npm run build:contracts && npm run check --workspace @place/member-connector",
     "member-connector:login:naver": "npm run login:naver --workspace @place/member-connector",
@@ -44,7 +50,7 @@
     "test:database-recovery": "node --test backend/tests/integration/database-recovery.test.mjs",
     "test:e2e": "node scripts/run-e2e.mjs",
     "test:e2e:update": "node scripts/run-e2e.mjs --update-snapshots=all",
-    "check": "npm run check:docs && npm run check:contracts && npm run test:deployment && npm run check:member-connector && npm run check:web && npm run check:backend && npm run test:e2e"
+    "check": "npm run check:docs && npm run check:contracts && npm run test:deployment && npm run check:member-connector && npm run check:browser-auth && npm run check:web && npm run check:admin-web && npm run check:backend && npm run test:e2e"
   },
   "devDependencies": {
     "@naktan02/frontend-architecture": "file:.tools/naktan02-frontend-architecture-0.1.0.tgz",

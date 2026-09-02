@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  adminSessionSchema,
   browserPrivateNoteCommandRequestSchema,
   currentMembershipConsentsSchema,
   currentMembershipSchema,
@@ -44,6 +45,17 @@ describe('versioned product HTTP results', () => {
     expect(processStatusSchema.parse({
       schemaVersion: 'place-process-status.v1', service: 'place', state: 'ok',
     })).toMatchObject({ state: 'ok' })
+    expect(processStatusSchema.parse({
+      schemaVersion: 'place-process-status.v1', service: 'place-admin-web', state: 'ok',
+    })).toMatchObject({ service: 'place-admin-web' })
+    expect(adminSessionSchema.parse({
+      schemaVersion: 'place-admin-session.v1', authorityRole: 'administrator',
+      userGrade: 'operator', productTier: 'internal',
+    })).toMatchObject({ authorityRole: 'administrator' })
+    expect(adminSessionSchema.safeParse({
+      schemaVersion: 'place-admin-session.v1', authorityRole: 'member',
+      userGrade: 'newcomer', productTier: 'free',
+    }).success).toBe(false)
     expect(currentMembershipSchema.parse({
       schemaVersion: 'place-current-membership.v1', membershipId,
       authorityRole: 'member', userGrade: 'newcomer', productTier: 'free',
