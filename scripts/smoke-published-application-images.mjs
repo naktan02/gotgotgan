@@ -10,7 +10,7 @@ const execFileAsync = promisify(execFile)
 const commitPattern = /^[0-9a-f]{40}$/
 const webImagePattern = /^ghcr\.io\/naktan02\/place-web@sha256:[0-9a-f]{64}$/
 const backendImagePattern = /^ghcr\.io\/naktan02\/place-backend@sha256:[0-9a-f]{64}$/
-const sourceLabel = 'https://github.com/naktan02/place'
+const sourceLabel = 'https://github.com/naktan02/gotgotgan'
 
 async function docker(arguments_, { allowFailure = false } = {}) {
   try {

@@ -5,7 +5,7 @@ import process from 'node:process'
 import { isDeepStrictEqual } from 'node:util'
 import { fileURLToPath } from 'node:url'
 
-const repository = 'naktan02/place'
+const repository = 'naktan02/gotgotgan'
 const releaseId = 'place'
 const declarationPath = 'deploy/release-source.v1.json'
 const workflowPath = '.github/workflows/release-application.yml'

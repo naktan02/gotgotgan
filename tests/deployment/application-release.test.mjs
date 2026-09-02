@@ -191,7 +191,7 @@ test('release record contains both platform digests and independent evidence art
     input,
     JSON.stringify({
       schema_version: 'place-release-record-input.v1',
-      repository: 'naktan02/place',
+      repository: 'naktan02/gotgotgan',
       commit_sha: 'a'.repeat(40),
       run_id: 123,
       run_attempt: 2,
@@ -255,7 +255,7 @@ test('published-image smoke accepts only both Place platform digests', async () 
       if (format.includes('Labels')) {
         return {
           stdout: `${JSON.stringify({
-            'org.opencontainers.image.source': 'https://github.com/naktan02/place',
+            'org.opencontainers.image.source': 'https://github.com/naktan02/gotgotgan',
             'org.opencontainers.image.revision': 'a'.repeat(40),
           })}\n`,
         }

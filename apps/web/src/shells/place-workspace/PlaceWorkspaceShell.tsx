@@ -41,7 +41,7 @@ export function PlaceWorkspaceShell({
         >
           <span aria-hidden="true" className={styles.menuGlyph} />
         </button>
-        <span className={styles.wordmark}>Place</span>
+        <span className={styles.wordmark}>곳곳간</span>
         <span className={styles.stage}>{stageLabel}</span>
       </header>
 
@@ -84,11 +84,11 @@ export function PlaceWorkspaceShell({
       <main className={styles.main}>
         {children ?? (
           <section aria-labelledby="place-home-title" className={styles.intro}>
-            <p className={styles.eyebrow}>Place</p>
+            <p className={styles.eyebrow}>곳곳간</p>
             <h1 id="place-home-title">저장한 장소와 새로 찾을 장소를 한 흐름에서 관리합니다.</h1>
             <p>로컬 검색과 개인 기록을 먼저 연결하고, Provider 검색과 가져오기는 검증 가능한 소스로 순차 확장합니다.</p>
             <dl className={styles.statusList}>
-              <div><dt>권한</dt><dd>Place 소유 정책</dd></div>
+              <div><dt>권한</dt><dd>곳곳간 소유 정책</dd></div>
               <div><dt>검색</dt><dd>로컬 색인</dd></div>
               <div><dt>Provider</dt><dd>연결 전</dd></div>
             </dl>

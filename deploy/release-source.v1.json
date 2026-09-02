@@ -2,7 +2,7 @@
   "schema_version": "release-source.v1",
   "release_id": "place",
   "owner": {
-    "repository": "naktan02/place",
+    "repository": "naktan02/gotgotgan",
     "module_path": "deploy"
   },
   "delivery_kind": "runtime",

@@ -33,7 +33,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_EVENT_NAME" = "workflow_dispatch"
-          test "$GITHUB_REPOSITORY" = "naktan02/place"
+          test "$GITHUB_REPOSITORY" = "naktan02/gotgotgan"
           test "$GITHUB_REF" = "refs/heads/main"
           test "$(git rev-parse 'HEAD^{commit}')" = "$GITHUB_SHA"
           test -z "$(git status --porcelain --untracked-files=all)"
@@ -125,7 +125,7 @@ jobs:
             docker pull "${image}@${platform_digest}"
             docker image inspect --format '{{json .Config.Labels}}' "${image}@${platform_digest}" \
               | jq -e \
-                --arg source "https://github.com/naktan02/place" \
+                --arg source "https://github.com/naktan02/gotgotgan" \
                 --arg revision "$GITHUB_SHA" \
                 '.["org.opencontainers.image.source"] == $source and
                  .["org.opencontainers.image.revision"] == $revision' >/dev/null
@@ -147,7 +147,7 @@ jobs:
           provenance: mode=max,version=v1
           sbom: true
           labels: |
-            org.opencontainers.image.source=https://github.com/naktan02/place
+            org.opencontainers.image.source=https://github.com/naktan02/gotgotgan
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ env.TAG }}
             org.opencontainers.image.title=place-web
@@ -166,7 +166,7 @@ jobs:
           provenance: mode=max,version=v1
           sbom: true
           labels: |
-            org.opencontainers.image.source=https://github.com/naktan02/place
+            org.opencontainers.image.source=https://github.com/naktan02/gotgotgan
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ env.TAG }}
             org.opencontainers.image.title=place-backend

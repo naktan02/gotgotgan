@@ -1,10 +1,11 @@
-# Place
+# 곳곳간
 
-Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed documentation starts at
-[`docs/README.md`](docs/README.md).
+공유 도메인 용어는 [`CONTEXT.md`](CONTEXT.md)에 정의하고, 상세 문서는
+[`docs/README.md`](docs/README.md)에서 안내한다.
 
-Place is an independent personal place platform for provider-neutral place identity, source
-evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
+곳곳간은 공급자 중립 장소 식별자, 출처 근거, 개인 장소 목록, 방문, 기록, 가져오기, 공유와
+향후 Tool 접근을 소유하는 독립적인 개인 장소 플랫폼이다. 제품 표시명은 `곳곳간`, 저장소 slug는
+`gotgotgan`이며 호환성이 필요한 내부 도메인·계약 식별자는 `place`를 유지한다.
 
 Current delivery state: **source-only; Stages 6.5, 7.5–7.17, and 11A–11E2B3 complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,

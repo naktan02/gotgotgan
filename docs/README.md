@@ -1,10 +1,9 @@
-# Place documentation router
+# 곳곳간 문서 안내
 
-This directory is authoritative for repository-local product, architecture, domain, contracts, data,
-security, testing, and operations. Workspace-wide ownership and cross-project rules remain in
-`../../docs/`.
+이 디렉터리는 저장소 내부의 제품, 아키텍처, 도메인, 계약, 데이터, 보안, 테스트와 운영 문서의
+기준이다. 워크스페이스 전체 소유권과 프로젝트 간 규칙은 `../../docs/`에 둔다.
 
-Read only the routes required by the task, after repository `AGENTS.md` and `README.md`:
+저장소 `AGENTS.md`와 `README.md`를 읽은 뒤 작업에 필요한 경로만 읽는다.
 
 - Product scope, terminology, journeys, UI, or reference work: `product/README.md`.
 - Module placement, dependencies, processes, or failure behavior: `architecture/README.md`.
