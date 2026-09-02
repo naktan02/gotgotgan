@@ -50,6 +50,10 @@ async function expectInsufficientPrivilege(client, sql) {
   await assert.rejects(client.query(sql), (error) => error?.code === '42501')
 }
 
+async function expectDatabaseError(client, sql, code) {
+  await assert.rejects(client.query(sql), (error) => error?.code === code)
+}
+
 async function waitForAuthenticatedConnection(connectionString) {
   let lastError
   for (let attempt = 0; attempt < 40; attempt += 1) {
@@ -798,6 +802,112 @@ test('database preparation confines runtime authority and persists Place access 
       has_copy_items: true,
     })
 
+    const canonicalKnowledgeContract = await administratorClient.query(`
+      SELECT
+        to_regclass('places.canonical_place_fact_assertion_batches') IS NOT NULL
+          AS has_assertion_batches,
+        to_regclass('places.canonical_place_profile_revisions') IS NOT NULL
+          AS has_profile_revisions,
+        to_regclass('areas.area_identities') IS NOT NULL AS has_area_identities,
+        to_regclass('areas.area_node_versions') IS NOT NULL AS has_area_versions,
+        to_regclass('taxonomy.provider_category_mapping_versions') IS NOT NULL
+          AS has_provider_category_mappings,
+        to_regclass('places.canonical_place_profile_taxonomy') IS NOT NULL
+          AS has_profile_taxonomy,
+        to_regclass('places.canonical_place_profile_areas') IS NOT NULL
+          AS has_profile_areas,
+        to_regclass('media.place_media_sources') IS NOT NULL AS has_media_sources,
+        to_regclass('media.media_rights_revisions') IS NOT NULL AS has_media_rights,
+        to_regclass('places.canonical_place_profile_media') IS NOT NULL
+          AS has_profile_media,
+        to_regclass('media.current_displayable_place_media') IS NOT NULL
+          AS has_displayable_media_view,
+        EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'places'
+            AND table_name = 'canonical_place_fact_assertion_batches'
+            AND column_name = 'rights_profile_key'
+        ) AS has_versioned_rights_profile_key,
+        EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'places'
+            AND table_name = 'canonical_place_fact_assertions'
+            AND column_name = 'opening_hours_value'
+        ) AS has_opening_hours_assertion,
+        EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'places'
+            AND table_name = 'canonical_place_fact_assertions'
+            AND column_name = 'confidence'
+        ) AND NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'places'
+            AND table_name = 'canonical_place_fact_assertion_batches'
+            AND column_name = 'confidence'
+        ) AS has_assertion_specific_confidence,
+        EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'places'
+            AND table_name = 'canonical_place_profile_revisions'
+            AND column_name = 'opening_hours'
+        ) AS has_opening_hours_profile,
+        NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'places'
+            AND table_name = 'canonical_place_profile_revisions'
+            AND column_name = 'time_zone'
+        ) AS has_no_legacy_time_zone_fact,
+        EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'areas' AND table_name = 'area_node_versions'
+            AND column_name = 'default_language_tag'
+        ) AS has_area_default_language,
+        EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'areas' AND table_name = 'area_node_versions'
+            AND column_name = 'previous_version'
+        ) AS has_area_revision_link,
+        NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conrelid = 'places.canonical_place_profile_operations'::regclass
+            AND contype = 'f'
+            AND confrelid = 'places.canonical_places'::regclass
+        ) AS operation_request_place_is_not_foreign_keyed,
+        EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conrelid = 'places.canonical_place_profile_operations'::regclass
+            AND contype = 'f'
+            AND confrelid = 'places.canonical_place_profile_revisions'::regclass
+        ) AS applied_operation_references_profile,
+        obj_description(
+          'places.canonical_place_fact_assertion_batches'::regclass, 'pg_class'
+        ) AS assertion_batch_comment,
+        (
+          SELECT string_agg(pg_get_constraintdef(oid), ' ' ORDER BY conname)
+          FROM pg_constraint
+          WHERE conrelid = 'places.canonical_place_fact_assertions'::regclass
+            AND contype = 'c'
+        ) AS assertion_checks,
+        pg_get_viewdef('media.current_displayable_place_media'::regclass, true)
+          AS displayable_media_definition
+    `)
+    const knowledgeContract = canonicalKnowledgeContract.rows[0]
+    for (const [key, value] of Object.entries(knowledgeContract)) {
+      if (key.endsWith('_comment') || key.endsWith('_checks') || key.endsWith('_definition')) continue
+      assert.equal(value, true, `${key} must be present`)
+    }
+    assert.match(knowledgeContract.assertion_batch_comment, /one subject and one immutable Source Observation/)
+    assert.match(knowledgeContract.assertion_checks, /'name'/)
+    assert.match(knowledgeContract.assertion_checks, /'opening-hours'/)
+    assert.match(knowledgeContract.assertion_checks, /'taxonomy'/)
+    assert.match(knowledgeContract.assertion_checks, /'area'/)
+    assert.match(knowledgeContract.assertion_checks, /'media'/)
+    assert.doesNotMatch(knowledgeContract.assertion_checks, /'time-zone'/)
+    assert.match(knowledgeContract.displayable_media_definition, /state = 'allowed'/)
+    assert.match(knowledgeContract.displayable_media_definition, /current_rights_revision/)
+
     await expectInsufficientPrivilege(
       runtimeClient,
       `UPDATE library.import_source_list_bindings
@@ -830,6 +940,465 @@ test('database preparation confines runtime authority and persists Place access 
       )
     `)
     assert.match(JSON.stringify(planResult.rows[0]), /canonical_places_location_gist/)
+
+    await runtimeClient.query(`
+      INSERT INTO places.canonical_place_profile_operations (
+        operation_id, operation_fingerprint, canonical_place_id,
+        expected_previous_revision, resulting_revision, outcome, rejection_code,
+        rationale, result, occurred_at
+      ) VALUES (
+        '018f47c2-4a14-7c03-b8d5-6d91791e0516', repeat('6', 64),
+        '018f47c2-4a14-7c03-b8d5-6d91791e0fff', NULL, NULL, 'rejected',
+        'place-unavailable',
+        'Place availability check failed during profile publication.',
+        '{"code":"place-unavailable"}'::jsonb, '2026-08-25T12:10:00.000Z'
+      )
+    `)
+    const unavailableReceipt = await runtimeClient.query(`
+      SELECT outcome, rejection_code
+      FROM places.canonical_place_profile_operations
+      WHERE operation_id = '018f47c2-4a14-7c03-b8d5-6d91791e0516'
+    `)
+    assert.deepEqual(unavailableReceipt.rows[0], {
+      outcome: 'rejected',
+      rejection_code: 'place-unavailable',
+    })
+
+    await runtimeClient.query(`
+      INSERT INTO ingestion.source_observations (
+        id, provider_key, external_place_id, acquisition_kind, payload_checksum,
+        parser_version, observed_at, acquired_at, facts, confidence, fingerprint
+      ) VALUES (
+        '018f47c2-4a14-7c03-b8d5-6d91791e0510', 'google', 'provider-place-1',
+        'documented-api', repeat('a', 64), 'provider-parser.v1',
+        '2026-08-25T12:00:00.000Z', '2026-08-25T12:01:00.000Z',
+        '{}'::jsonb, 0.950, repeat('b', 64)
+      )
+    `)
+    await expectDatabaseError(
+      runtimeClient,
+      `INSERT INTO places.canonical_place_fact_assertion_batches (
+         id, subject_kind, provider_key, external_place_id, source_observation_id,
+         rights_profile_key, asserted_by_kind, asserted_by_reference,
+         observed_at, fingerprint, recorded_at
+       ) VALUES (
+         '018f47c2-4a14-7c03-b8d5-6d91791e0520', 'provider-identity',
+         'naver', 'different-place', '018f47c2-4a14-7c03-b8d5-6d91791e0510',
+         'provider.standard.v1', 'policy', 'integration-test',
+         '2026-08-25T12:00:00.000Z',
+         repeat('c', 64), '2026-08-25T12:02:00.000Z'
+       )`,
+      '23514',
+    )
+    await expectDatabaseError(
+      runtimeClient,
+      `INSERT INTO places.canonical_place_fact_assertion_batches (
+         id, subject_kind, canonical_place_id, source_observation_id,
+         rights_profile_key, asserted_by_kind, asserted_by_reference,
+         observed_at, fingerprint, recorded_at
+       ) VALUES (
+         '018f47c2-4a14-7c03-b8d5-6d91791e0521', 'canonical-place',
+         '018f47c2-4a14-7c03-b8d5-6d91791e4d7f',
+         '018f47c2-4a14-7c03-b8d5-6d91791e0510', 'provider.standard',
+         'policy', 'integration-test',
+         '2026-08-25T12:00:00.000Z',
+         repeat('d', 64), '2026-08-25T12:02:00.000Z'
+       )`,
+      '23514',
+    )
+
+    await runtimeClient.query(`
+      INSERT INTO places.canonical_place_fact_assertion_batches (
+        id, subject_kind, canonical_place_id, source_observation_id,
+        rights_profile_key, asserted_by_kind, asserted_by_reference,
+        observed_at, fingerprint, recorded_at
+      ) VALUES (
+        '018f47c2-4a14-7c03-b8d5-6d91791e0511', 'canonical-place',
+        '018f47c2-4a14-7c03-b8d5-6d91791e4d7f',
+        '018f47c2-4a14-7c03-b8d5-6d91791e0510', 'provider.standard.v1',
+        'policy', 'integration-test',
+        '2026-08-25T12:00:00.000Z',
+        repeat('e', 64), '2026-08-25T12:02:00.000Z'
+      )
+    `)
+    await runtimeClient.query(`
+      INSERT INTO places.canonical_place_fact_assertions (
+        id, batch_id, fact_kind, text_value, confidence, fingerprint, created_at
+      ) VALUES (
+        '018f47c2-4a14-7c03-b8d5-6d91791e0512',
+        '018f47c2-4a14-7c03-b8d5-6d91791e0511', 'name', '통합 테스트 장소',
+        0.930, repeat('f', 64), '2026-08-25T12:02:00.000Z'
+      )
+    `)
+    await expectDatabaseError(
+      runtimeClient,
+      `INSERT INTO places.canonical_place_fact_assertions (
+         id, batch_id, fact_kind, opening_hours_value, confidence, fingerprint, created_at
+       ) VALUES (
+         '018f47c2-4a14-7c03-b8d5-6d91791e0522',
+         '018f47c2-4a14-7c03-b8d5-6d91791e0511', 'opening-hours',
+         '{"timeZone":"Asia/Seoul","weeklyPeriods":[]}'::jsonb,
+         0.810, repeat('0', 64), '2026-08-25T12:02:00.000Z'
+       )`,
+      '23514',
+    )
+    await runtimeClient.query(`
+      INSERT INTO places.canonical_place_fact_assertions (
+        id, batch_id, fact_kind, opening_hours_value, confidence, fingerprint, created_at
+      ) VALUES (
+        '018f47c2-4a14-7c03-b8d5-6d91791e0513',
+        '018f47c2-4a14-7c03-b8d5-6d91791e0511', 'opening-hours',
+        '{"timeZone":"Asia/Seoul","weeklyPeriods":[{"opens":{"dayOfWeek":"monday","localTime":"09:00"},"closes":{"dayOfWeek":"monday","localTime":"18:00"}}]}'::jsonb,
+        0.870, repeat('1', 64), '2026-08-25T12:02:00.000Z'
+      )
+    `)
+    await runtimeClient.query(`
+      INSERT INTO places.canonical_place_fact_assertions (
+        id, batch_id, fact_kind, taxonomy_value, confidence, fingerprint, created_at
+      ) VALUES (
+        '018f47c2-4a14-7c03-b8d5-6d91791e0523',
+        '018f47c2-4a14-7c03-b8d5-6d91791e0511', 'taxonomy',
+        '{"key":"food.ramen","version":1,"role":"primary"}'::jsonb,
+        0.840, repeat('2', 64), '2026-08-25T12:02:00.000Z'
+      );
+      INSERT INTO places.canonical_place_fact_assertions (
+        id, batch_id, fact_kind, area_value, confidence, fingerprint, created_at
+      ) VALUES (
+        '018f47c2-4a14-7c03-b8d5-6d91791e0524',
+        '018f47c2-4a14-7c03-b8d5-6d91791e0511', 'area',
+        '{"key":"area:seoul","version":1,"role":"primary"}'::jsonb,
+        0.880, repeat('3', 64), '2026-08-25T12:02:00.000Z'
+      );
+      INSERT INTO places.canonical_place_fact_assertions (
+        id, batch_id, fact_kind, media_value, confidence, fingerprint, created_at
+      ) VALUES (
+        '018f47c2-4a14-7c03-b8d5-6d91791e0525',
+        '018f47c2-4a14-7c03-b8d5-6d91791e0511', 'media',
+        '{"externalUri":"https://example.invalid/transient-photo","size":{"width":1200,"height":800},"rightsState":"attribution-required","requiredAttributions":[{"label":"Provider source","uri":"https://example.invalid/source"}]}'::jsonb,
+        0.760, repeat('4', 64), '2026-08-25T12:02:00.000Z'
+      )
+    `)
+    await runtimeClient.query(`
+      INSERT INTO taxonomy.node_versions (
+        node_key, version, parent_key, label, kind, active, effective_at
+      ) VALUES (
+        'food.ramen', 1, NULL, '라멘', 'category', true,
+        '2026-08-25T12:00:00.000Z'
+      );
+      INSERT INTO areas.area_identities (area_key, created_at) VALUES
+        ('area:kr', '2026-08-25T12:00:00.000Z'),
+        ('area:seoul', '2026-08-25T12:00:00.000Z'),
+        ('area:invalid-language', '2026-08-25T12:00:00.000Z'),
+        ('area:inactive-country', '2026-08-25T12:00:00.000Z'),
+        ('area:inactive-child', '2026-08-25T12:00:00.000Z');
+      INSERT INTO areas.area_node_versions (
+        area_key, version, previous_version, parent_area_key, country_code, kind,
+        localized_names, default_language_tag, active, effective_at, fingerprint
+      ) VALUES
+        ('area:kr', 1, NULL, NULL, 'KR', 'country', '{"ko":"대한민국"}',
+         'ko', true, '2026-08-25T12:00:00.000Z', repeat('a', 64)),
+        ('area:seoul', 1, NULL, 'area:kr', 'KR', 'locality', '{"ko":"서울"}',
+         'ko', true, '2026-08-25T12:00:00.000Z', repeat('b', 64)),
+        ('area:inactive-country', 1, NULL, NULL, 'ZZ', 'country',
+         '{"en":"Inactive"}', 'en', false, '2026-08-25T12:00:00.000Z', repeat('c', 64));
+      INSERT INTO media.place_media_sources (
+        media_id, canonical_place_id, source_observation_id, source_assertion_id,
+        source_kind, provider_key, provider_media_identity, media_type, width, height,
+        observed_at, source_fingerprint, created_at
+      ) VALUES (
+        '018f47c2-4a14-7c03-b8d5-6d91791e0515',
+        '018f47c2-4a14-7c03-b8d5-6d91791e4d7f',
+        '018f47c2-4a14-7c03-b8d5-6d91791e0510',
+        '018f47c2-4a14-7c03-b8d5-6d91791e0525', 'provider-media',
+        'google', 'photos/opaque-media-1', 'image', 1200, 800,
+        '2026-08-25T12:00:00.000Z', repeat('7', 64), '2026-08-25T12:05:00.000Z'
+      )
+    `)
+
+    await runtimeClient.query('BEGIN')
+    try {
+      await runtimeClient.query(`
+        INSERT INTO places.canonical_place_profile_revisions (
+          canonical_place_id, revision, operation_id, expected_previous_revision,
+          display_name, opening_hours, operational_status,
+          policy_version, rationale, published_by_kind, published_by_reference,
+          published_at, fingerprint
+        ) VALUES (
+          '018f47c2-4a14-7c03-b8d5-6d91791e4d7f', 1,
+          '018f47c2-4a14-7c03-b8d5-6d91791e0514', NULL, '통합 테스트 장소',
+          '{"timeZone":"Asia/Seoul","weeklyPeriods":[{"opens":{"dayOfWeek":"monday","localTime":"09:00"},"closes":{"dayOfWeek":"monday","localTime":"18:00"}}]}'::jsonb,
+          NULL, 'catalog-policy.v1', 'Selected verified provider evidence.',
+          'policy', 'integration-test',
+          '2026-08-25T12:03:00.000Z', repeat('2', 64)
+        );
+        INSERT INTO places.canonical_place_profile_evidence (
+          canonical_place_id, profile_revision, fact_kind, assertion_id, evidence_role
+        ) VALUES
+          ('018f47c2-4a14-7c03-b8d5-6d91791e4d7f', 1, 'name',
+           '018f47c2-4a14-7c03-b8d5-6d91791e0512', 'selected'),
+          ('018f47c2-4a14-7c03-b8d5-6d91791e4d7f', 1, 'opening-hours',
+           '018f47c2-4a14-7c03-b8d5-6d91791e0513', 'selected');
+        INSERT INTO places.canonical_place_profile_taxonomy (
+          canonical_place_id, profile_revision, node_key, node_version,
+          assignment_role, ordinal, source_assertion_id
+        ) VALUES (
+          '018f47c2-4a14-7c03-b8d5-6d91791e4d7f', 1,
+          'food.ramen', 1, 'primary', 0,
+          '018f47c2-4a14-7c03-b8d5-6d91791e0523'
+        );
+        INSERT INTO places.canonical_place_profile_areas (
+          canonical_place_id, profile_revision, area_key, area_version,
+          assignment_role, ordinal, source_assertion_id
+        ) VALUES (
+          '018f47c2-4a14-7c03-b8d5-6d91791e4d7f', 1,
+          'area:seoul', 1, 'primary', 0,
+          '018f47c2-4a14-7c03-b8d5-6d91791e0524'
+        );
+        INSERT INTO places.canonical_place_profile_media (
+          canonical_place_id, profile_revision, media_id, source_assertion_id, ordinal
+        ) VALUES (
+          '018f47c2-4a14-7c03-b8d5-6d91791e4d7f', 1,
+          '018f47c2-4a14-7c03-b8d5-6d91791e0515',
+          '018f47c2-4a14-7c03-b8d5-6d91791e0525', 0
+        );
+        INSERT INTO places.canonical_place_profile_operations (
+          operation_id, operation_fingerprint, canonical_place_id,
+          expected_previous_revision, resulting_revision, outcome, acceptance_status,
+          rationale, result, occurred_at
+        ) VALUES (
+          '018f47c2-4a14-7c03-b8d5-6d91791e0514', repeat('3', 64),
+          '018f47c2-4a14-7c03-b8d5-6d91791e4d7f', NULL, 1, 'accepted', 'applied',
+          'Selected verified provider evidence.',
+          '{"status":"published"}'::jsonb, '2026-08-25T12:03:00.000Z'
+        );
+        SELECT places.activate_canonical_place_profile(
+          '018f47c2-4a14-7c03-b8d5-6d91791e4d7f', NULL, 1
+        );
+      `)
+      await runtimeClient.query('COMMIT')
+    } catch (error) {
+      await runtimeClient.query('ROLLBACK')
+      throw error
+    }
+
+    await runtimeClient.query('BEGIN')
+    try {
+      await runtimeClient.query(`
+        INSERT INTO places.canonical_place_profile_revisions (
+          canonical_place_id, revision, operation_id, expected_previous_revision,
+          display_name, opening_hours, operational_status,
+          policy_version, rationale, published_by_kind, published_by_reference,
+          published_at, fingerprint
+        ) VALUES (
+          '018f47c2-4a14-7c03-b8d5-6d91791e4d7f', 2,
+          '018f47c2-4a14-7c03-b8d5-6d91791e0517', 1, '통합 테스트 장소',
+          '{"timeZone":"Asia/Seoul","weeklyPeriods":[{"opens":{"dayOfWeek":"monday","localTime":"09:00"},"closes":{"dayOfWeek":"monday","localTime":"20:00"}}]}'::jsonb,
+          NULL, 'catalog-policy.v1', 'Selected updated opening hours.',
+          'policy', 'integration-test',
+          '2026-08-25T12:04:00.000Z', repeat('4', 64)
+        );
+        INSERT INTO places.canonical_place_profile_evidence (
+          canonical_place_id, profile_revision, fact_kind, assertion_id, evidence_role
+        ) VALUES
+          ('018f47c2-4a14-7c03-b8d5-6d91791e4d7f', 2, 'name',
+           '018f47c2-4a14-7c03-b8d5-6d91791e0512', 'selected'),
+          ('018f47c2-4a14-7c03-b8d5-6d91791e4d7f', 2, 'opening-hours',
+           '018f47c2-4a14-7c03-b8d5-6d91791e0513', 'selected');
+        INSERT INTO places.canonical_place_profile_operations (
+          operation_id, operation_fingerprint, canonical_place_id,
+          expected_previous_revision, resulting_revision, outcome, acceptance_status,
+          rationale, result, occurred_at
+        ) VALUES (
+          '018f47c2-4a14-7c03-b8d5-6d91791e0517', repeat('5', 64),
+          '018f47c2-4a14-7c03-b8d5-6d91791e4d7f', 1, 2, 'accepted', 'applied',
+          'Selected updated opening hours.',
+          '{"status":"published"}'::jsonb, '2026-08-25T12:04:00.000Z'
+        )
+      `)
+      await expectDatabaseError(
+        runtimeClient,
+        `SELECT places.activate_canonical_place_profile(
+           '018f47c2-4a14-7c03-b8d5-6d91791e4d7f', 1, 2
+         )`,
+        '23514',
+      )
+    } finally {
+      await runtimeClient.query('ROLLBACK')
+    }
+
+    await runtimeClient.query(`
+      INSERT INTO media.media_rights_revisions (
+        media_id, revision, state, basis, attribution_required, valid_from,
+        decided_by_kind, decided_by_reference, decided_at, fingerprint
+      ) VALUES (
+        '018f47c2-4a14-7c03-b8d5-6d91791e0515', 1, 'pending', 'unknown', false,
+        '2026-08-25T12:00:00.000Z', 'policy', 'integration-test',
+        '2026-08-25T12:05:00.000Z', repeat('8', 64)
+      );
+      SELECT media.activate_media_rights(
+        '018f47c2-4a14-7c03-b8d5-6d91791e0515', 1
+      );
+    `)
+    const pendingMedia = await runtimeClient.query(`
+      SELECT media_id FROM media.current_displayable_place_media
+      WHERE media_id = '018f47c2-4a14-7c03-b8d5-6d91791e0515'
+    `)
+    assert.equal(pendingMedia.rowCount, 0)
+    await expectDatabaseError(
+      runtimeClient,
+      `INSERT INTO media.place_media_sources (
+         media_id, canonical_place_id, source_observation_id, source_assertion_id,
+         source_kind, provider_key, provider_media_identity, media_type,
+         observed_at, source_fingerprint, created_at
+       ) VALUES (
+         '018f47c2-4a14-7c03-b8d5-6d91791e0526',
+         '018f47c2-4a14-7c03-b8d5-6d91791e4d7f',
+         '018f47c2-4a14-7c03-b8d5-6d91791e0510',
+         '018f47c2-4a14-7c03-b8d5-6d91791e0525', 'provider-media',
+         'naver', 'photos/provider-mismatch', 'image',
+         '2026-08-25T12:00:00.000Z', repeat('6', 64),
+         '2026-08-25T12:05:00.000Z'
+       )`,
+      '23514',
+    )
+
+    await runtimeClient.query(`
+      INSERT INTO media.media_rights_revisions (
+        media_id, revision, state, allowed_surfaces, basis,
+        attribution_required, valid_from, decided_by_kind,
+        decided_by_reference, decided_at, fingerprint
+      ) VALUES (
+        '018f47c2-4a14-7c03-b8d5-6d91791e0515', 2, 'allowed',
+        ARRAY['place-detail'], 'provider-terms', true,
+        '2026-08-25T12:00:00.000Z', 'policy', 'integration-test',
+        '2026-08-25T12:06:00.000Z', repeat('9', 64)
+      )
+    `)
+    await expectDatabaseError(
+      runtimeClient,
+      `SELECT media.activate_media_rights(
+         '018f47c2-4a14-7c03-b8d5-6d91791e0515', 2
+       )`,
+      '23514',
+    )
+    await runtimeClient.query(`
+      INSERT INTO media.media_rights_attributions (
+        media_id, rights_revision, ordinal, label, uri
+      ) VALUES (
+        '018f47c2-4a14-7c03-b8d5-6d91791e0515', 2, 0,
+        'Provider source', 'https://example.invalid/source'
+      );
+      SELECT media.activate_media_rights(
+        '018f47c2-4a14-7c03-b8d5-6d91791e0515', 2
+      );
+    `)
+    const displayableMedia = await runtimeClient.query(`
+      SELECT provider_key, provider_media_identity, allowed_surfaces,
+             attribution_required, attributions
+      FROM media.current_displayable_place_media
+      WHERE media_id = '018f47c2-4a14-7c03-b8d5-6d91791e0515'
+    `)
+    assert.equal(displayableMedia.rowCount, 1)
+    assert.equal(displayableMedia.rows[0].provider_key, 'google')
+    assert.equal(displayableMedia.rows[0].provider_media_identity, 'photos/opaque-media-1')
+    assert.deepEqual(displayableMedia.rows[0].allowed_surfaces, ['place-detail'])
+    assert.equal(displayableMedia.rows[0].attribution_required, true)
+    assert.deepEqual(displayableMedia.rows[0].attributions, [
+      { label: 'Provider source', uri: 'https://example.invalid/source' },
+    ])
+    await expectDatabaseError(
+      runtimeClient,
+      `INSERT INTO media.place_media_sources (
+         media_id, canonical_place_id, source_observation_id, source_assertion_id, source_kind,
+         provider_key, provider_media_identity, media_type,
+         observed_at, source_fingerprint, created_at
+       ) VALUES (
+         '018f47c2-4a14-7c03-b8d5-6d91791e0518',
+         '018f47c2-4a14-7c03-b8d5-6d91791e4d7f',
+         '018f47c2-4a14-7c03-b8d5-6d91791e0510',
+         '018f47c2-4a14-7c03-b8d5-6d91791e0525', 'provider-media',
+         'google', 'https://temporary.example/photo.jpg', 'image',
+         '2026-08-25T12:00:00.000Z', repeat('0', 64), '2026-08-25T12:05:00.000Z'
+       )`,
+      '23514',
+    )
+    await expectDatabaseError(
+      runtimeClient,
+      `INSERT INTO areas.area_node_versions (
+         area_key, version, previous_version, parent_area_key, country_code, kind,
+         localized_names, default_language_tag, active, effective_at, fingerprint
+       ) VALUES (
+         'area:invalid-language', 1, NULL, 'area:kr', 'KR', 'locality',
+         '{"ko":"잘못된 기본 언어"}', 'en', true,
+         '2026-08-25T12:00:00.000Z', repeat('d', 64)
+       )`,
+      '23514',
+    )
+    await expectDatabaseError(
+      runtimeClient,
+      `INSERT INTO places.canonical_place_profile_areas (
+         canonical_place_id, profile_revision, area_key, area_version,
+         assignment_role, ordinal, source_assertion_id
+       ) VALUES (
+         '018f47c2-4a14-7c03-b8d5-6d91791e4d7f', 1,
+         'area:seoul', 1, 'primary', 1,
+         '018f47c2-4a14-7c03-b8d5-6d91791e0524'
+       )`,
+      '23514',
+    )
+    await expectDatabaseError(
+      runtimeClient,
+      `INSERT INTO areas.area_node_versions (
+         area_key, version, previous_version, parent_area_key, country_code, kind,
+         localized_names, default_language_tag, active, effective_at, fingerprint
+       ) VALUES (
+         'area:seoul', 3, 2, 'area:kr', 'KR', 'locality', '{"ko":"서울"}',
+         'ko', true, '2026-08-25T12:01:00.000Z', repeat('e', 64)
+       )`,
+      '23503',
+    )
+    await expectDatabaseError(
+      runtimeClient,
+      `INSERT INTO areas.area_node_versions (
+         area_key, version, previous_version, parent_area_key, country_code, kind,
+         localized_names, default_language_tag, active, effective_at, fingerprint
+       ) VALUES (
+         'area:inactive-child', 1, NULL, 'area:inactive-country', 'ZZ', 'locality',
+         '{"en":"Child"}', 'en', true,
+         '2026-08-25T12:00:00.000Z', repeat('f', 64)
+       )`,
+      '23514',
+    )
+
+    await expectInsufficientPrivilege(
+      runtimeClient,
+      `UPDATE places.canonical_places
+       SET location = ST_SetSRID(ST_MakePoint(0, 0), 4326)::geography
+       WHERE id = '018f47c2-4a14-7c03-b8d5-6d91791e4d7f'`,
+    )
+    await expectInsufficientPrivilege(
+      runtimeClient,
+      `UPDATE places.canonical_place_fact_assertion_batches
+       SET asserted_by_reference = 'forged'`,
+    )
+    await expectInsufficientPrivilege(
+      runtimeClient,
+      `DELETE FROM places.canonical_place_profile_operations
+       WHERE operation_id = '018f47c2-4a14-7c03-b8d5-6d91791e0516'`,
+    )
+    await expectInsufficientPrivilege(
+      runtimeClient,
+      `UPDATE media.place_media_sources SET current_rights_revision = 1
+       WHERE media_id = '018f47c2-4a14-7c03-b8d5-6d91791e0515'`,
+    )
+    await expectInsufficientPrivilege(
+      runtimeClient,
+      'UPDATE areas.area_node_versions SET active = false',
+    )
+    await expectInsufficientPrivilege(
+      runtimeClient,
+      'UPDATE taxonomy.provider_category_mapping_versions SET active = false',
+    )
 
     await expectInsufficientPrivilege(
       runtimeClient,

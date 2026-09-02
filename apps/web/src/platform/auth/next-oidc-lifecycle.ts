@@ -8,7 +8,7 @@ import {
 import {
   placeWebBrowserAuth,
   placeWebBrowserAuthConfig,
-} from './place-browser-auth-application'
+} from './place-browser-auth-application.ts'
 
 type PlaceNextOidcLifecycleDependencies = Omit<
   NextOidcLifecycleDependencies,

@@ -48,6 +48,18 @@ import한다. Connector는 `@place/contracts/connector`만 사용한다. `http/o
 subpath는 이를 재사용하거나 기존 위치에서 재-export하며 Contracts architecture guard가
 Imports/Connector에서 Search·HTTP로 향하는 역방향 의존성을 거부한다.
 
+`@place/contracts/catalog`는 NAVER·Google·Kakao 같은 수집 소스의 raw payload가 아니라 정규화된
+사실 assertion만 받는다. Assertion은 Provider Place Identity 또는 Canonical Place를 subject로
+삼고, 불변 batch 안에서 관측 ID·관측 시각·신뢰도·권리 profile을 보존한다. 현재 profile은 근거
+assertion과 정책 버전, 낙관적 revision을 동반한 명령으로만 발행한다. 장소의 영업 상태는
+Canonical identity의 병합·redirect·retirement 상태와 서로 다른 축이다.
+
+수집 미디어 assertion은 외부 URI와 크기, 권리 상태, 필요한 출처 표기, 선택적인 만료 시각을
+보존한다. Canonical profile은 이를 직접 노출하지 않고 stable `mediaReferenceId`만 선택한다. 별도의
+public display schema만 `displayUri`를 가지며 `display-allowed` 또는 출처 표기가 있는
+`attribution-required`만 통과시킨다. 따라서 운영 검수용 외부 URI와 권리 미확인 증거를 공개
+화면에서 우연히 노출할 수 없다.
+
 `@place/contracts/places`는 `place-detail.v1`을 소유한다. `available`/`redirected`는 공개 Canonical
 Place 사실과 선택적인 회원 개인 상태를 분리한다. 인증된 회원의 Canonical Place에 공개 Search
 문서가 아직 없으면 `pending`이 개인 상태만 반환하며 이름·좌표·Taxonomy 같은 공개 사실을 꾸며 넣지

@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./catalog": {
+      "types": "./dist/catalog/index.d.ts",
+      "default": "./dist/catalog/index.js"
+    },
     "./connector": {
       "types": "./dist/connector/index.d.ts",
       "default": "./dist/connector/index.js"

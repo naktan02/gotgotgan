@@ -3,7 +3,7 @@ import {
   type OidcBffConfig,
 } from '@place/browser-auth'
 
-import { placeWebBrowserAuthConfig } from './place-browser-auth-application'
+import { placeWebBrowserAuthConfig } from './place-browser-auth-application.ts'
 
 export type {
   BrowserSession,

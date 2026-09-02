@@ -3,7 +3,7 @@ import {
   type OidcProcessRuntimeConfig as SharedOidcProcessRuntimeConfig,
 } from '@place/browser-auth'
 
-import { placeWebBrowserAuthConfig } from './place-browser-auth-application'
+import { placeWebBrowserAuthConfig } from './place-browser-auth-application.ts'
 
 export type OidcDatabaseConfig = SharedOidcProcessRuntimeConfig['database']
 export type OidcProcessRuntimeConfig = Omit<

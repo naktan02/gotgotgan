@@ -4,9 +4,8 @@ ADRs record durable repository-local decisions. Copy `template.md`, assign the n
 status and date, link evidence, name consequences and supersession conditions, and update routed docs.
 
 현재 최신 결정은
-[`0021-make-collection-membership-the-favorite-truth.md`](0021-make-collection-membership-the-favorite-truth.md)이며,
-사용자 소유 Collection membership을 즐겨찾기의 유일한 권위 사실로 삼고 기존 `saved`/`wanted`를
-호환 경계로 퇴역시킨다.
+[`0022-publish-canonical-place-profiles-from-evidence.md`](0022-publish-canonical-place-profiles-from-evidence.md)이며,
+Provider-neutral assertion 원장에서 근거가 명시된 Canonical Place Profile revision을 발행한다.
 
 Stage 7 결정은 `0011-connected-import-pipeline-and-provider-isolation.md`에 기록한다. 연결 계정
 작업, Provider parser 격리, 암호화 캡처, 명시적 검토와 Library 반영 경계를 정의한다.
@@ -50,3 +49,5 @@ Stage 7 결정은 `0011-connected-import-pipeline-and-provider-isolation.md`에 
   slug `gotgotgan`을 채택하고 호환성이 필요한 내부 `place` 식별자를 유지한다.
 - `0021-make-collection-membership-the-favorite-truth.md`: 사용자 소유 Collection membership을
   즐겨찾기의 유일한 기준으로 삼고 Collection-first Interface와 v1 전환 게이트를 정의한다.
+- `0022-publish-canonical-place-profiles-from-evidence.md`: 정규화 assertion 원장, 불변 Profile,
+  Area·Taxonomy exact version과 fail-closed Media 권리를 하나의 발행 경계로 정의한다.

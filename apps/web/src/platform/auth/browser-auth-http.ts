@@ -1,4 +1,4 @@
-import { placeWebBrowserAuth } from './place-browser-auth-application'
+import { placeWebBrowserAuth } from './place-browser-auth-application.ts'
 
 export {
   createBrowserAuthHttp,

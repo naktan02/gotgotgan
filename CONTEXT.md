@@ -18,6 +18,8 @@ domain meaning rather than storage or framework structure.
 | Public Projection | The fields a Place policy deliberately exposes without membership. | The underlying record or private fields. |
 | Access Decision | An allow or deny result produced by Place policy with a stable reason and audit-safe evidence. | UI visibility or Gateway routing. |
 | Canonical Place | Provider-independent identity for a real-world place managed by Place. | Provider listing or source observation. |
+| Canonical Place Profile | The current accepted, provider-neutral facts used to describe one Canonical Place, with an immutable revision and explicit provenance. | Raw provider payload, Source Observation, or Search projection. |
+| Place Operational Status | Whether a real-world place is operating, temporarily closed, permanently closed, or not yet known. | Canonical Place retirement, which means the identity itself is no longer independently valid. |
 | Source Observation | Time-bound evidence acquired from a provider and retained with provenance. | A command to overwrite a Canonical Place. |
 | Provider Place Identity | A stable provider key and provider-owned external place identifier that may link to one Canonical Place at a time. | Canonical Place identity or a provider account. |
 | Place Candidate | A normalized interpretation derived from one Source Observation and awaiting a resolution outcome. | Canonical Place or verified Place knowledge. |
@@ -32,12 +34,12 @@ domain meaning rather than storage or framework structure.
 | Provider Place Detail Job | 회원·ImportBatch·브라우저 profile 없이 Provider Place Identity 하나의 상세 증거를 수집·정규화하는 lease/retry 작업. | Place Fulfillment Job이나 Canonical 동일 장소 판정. |
 | Place Redirect | A durable reference from a merged Canonical Place to the surviving Canonical Place. | Deletion or alias text. |
 | Place Lineage | Immutable merge or split history that explains how Canonical Place identity and provider links changed. | Current Place state. |
-| Personal Library | A member's Place-owned organization of saved/wanted state, collections, tags, and personal ratings. | Canonical Place data. |
-| Collection | A member-owned, ordered grouping of Canonical Place references. An imported provider folder may initialize one, but it remains Place-owned and independently renameable. | Taxonomy Node or a provider folder itself. |
+| Personal Library | A member's Place-owned organization of Collections, Favorite Places, tags, and personal ratings. | Canonical Place data, Visit history, or a provider account. |
+| Collection | A member-created favorite category: an owned, ordered grouping of Canonical Place references. An imported provider list may initialize or map to one, but it remains Place-owned and independently renameable. | Taxonomy Node, system `saved/wanted` bucket, or a provider folder itself. |
+| Favorite Place | A Canonical Place included in at least one of a member's Collections. It is derived from Collection membership rather than stored as a separate saved/wanted boolean. | Visit, Personal Rating, or provider-side favorite state. |
 | Source List | A provider-owned folder or saved-list identity observed during import, including its source name and order. | A Place Collection or provider-neutral category. |
 | Collection Import Provenance | The member-scoped mapping from one Provider connection and Source List to the Place Collection created for it. | Shared ownership or permission to overwrite the Collection name. |
 | Collection Place Import Provenance | 한 Collection membership이 어떤 Provider 연결·Source List·Source Item·Provider Place Identity에서 왔는지 나타내는 회원 범위 출처. | Canonical Place identity 또는 Provider 폴더 자체. |
-| Place Preferences | The member-owned saved, wanted, and current personal-rating values for one Canonical Place. The values are independent and `visited` is not stored here. | Visit history or provider rating. |
 | Personal Rating | A member's current 0.1-to-5.0 evaluation of a Canonical Place, with private change history. | Provider rating or public aggregate. |
 | Visit | A repeatable occurrence connecting a member to a Canonical Place. | Saved/wanted state. |
 | Note | Short Place-owned writing that may reference a place and has explicit visibility. | Entry. |
@@ -55,6 +57,8 @@ domain meaning rather than storage or framework structure.
 | Collection Copy | A new member-owned collection populated from a disclosed projection with source provenance. | Shared mutable ownership or copying private metadata. |
 | Place Reference | An opaque, versioned cross-product reference resolved through a Place contract. | Foreign-key or direct database access. |
 | Taxonomy Node | A versioned provider-neutral category or attribute used to classify Canonical Places. | Provider category text or a fixed restaurant/cafe/travel top-level enum. |
+| Area Node | A versioned provider-neutral geographic area in a containment hierarchy, used to classify and filter Canonical Places. | A free-form provider address or map viewport. |
+| Canonical Media Reference | A stable opaque media identity selected for a Canonical Place; current display rights, attribution, surface, validity, and edge delivery URI are resolved separately. | Copied provider binary, personal photo, transient Provider URL, or permission to display by itself. |
 | Local Search Projection | The bounded, discoverable Place facts and viewer-specific signals prepared for local search. It may lag its owners and never becomes canonical truth. | Canonical Place, Source Observation, or direct cross-module table access. |
 | Search Source Outcome | One search source's complete, partial, or unavailable contribution to a provider-neutral result envelope. | A failure state for the entire search request. |
 | Search Cursor | An opaque continuation identity for the exact ordered search state. | Page number or a database offset exposed to callers. |

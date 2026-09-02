@@ -1,5 +1,6 @@
 # 계약 원본
 
+- `catalog/`: Provider-neutral 사실 assertion, 미디어 권리, Canonical Place profile 발행 계약
 - `http/`: Access와 개인 콘텐츠 HTTP schema, OpenAPI operation metadata
 - `search/`: `place-search.v1`, `place-taxonomy.v1` request/response schema
 - `providers/`: Provider 식별 primitive
