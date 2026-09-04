@@ -17,11 +17,11 @@ Canonical Place와 회원 Library에 반영한다. 이 Worker는 외부 Provider
 이 수명주기와 분리되어 있으며 실제 NAVER 상세 경로 관찰 전에는 활성화하지 않는다. 회원 PC Connector의
 NAVER 목록 수집 Adapter는 별도 browser artifact에 있으며 Worker나 Docker에 포함되지 않는다.
 
-회원 PC용 `member-connector`는 배포 Web/Backend/Worker나 Docker 수평 확장 단위가 아니다. 목표 runtime은
-현재 browser profile에 설치되는 하나의 다중 브라우저·다중 Provider 확장이다. 이벤트가 있을 때만
-Provider tab/network/memory resource를 만들고 완료·취소·실패 때 listener, tab, 요청과 메모리를 닫는다.
-Provider별 확장, 사용자별 서버, localhost daemon, native-messaging host를 MVP에 추가하지 않는다.
-Browser 산출물은 별도 release artifact이며 production image나 Compose service가 아니다.
+회원 PC용 `member-connector`는 배포 Web/Backend/Worker나 Docker 수평 확장 단위가 아니다. 특정 확장
+프로그램을 필수 runtime으로 정하지 않고 실행 호스트 Adapter가 profile·창·network·memory 수명주기를
+소유한다. 완료·취소·실패 때 listener, 창, 요청과 메모리를 닫는다. 현재 WebExtension은 선택형
+source-only Adapter이고 desktop shell과 개발 중인 browser-control 프로젝트는 채택 전이다. 회원 기기
+산출물은 production Docker image나 Compose service가 아니다.
 
 현재 WXT 기반 source는 Chromium Manifest V3와 Firefox Manifest V3 산출물을 결정적으로 만든다.
 Chromium 산출물은 Chrome·Edge·Whale이 공유하며 browser Adapter가 Whale을 Chrome보다 먼저 식별한다.

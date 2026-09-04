@@ -1,6 +1,6 @@
 # 0012: 기존 브라우저 세션을 쓰는 하나의 다중 Provider Connector를 둔다
 
-- 상태: accepted
+- 상태: superseded by ADR 0024
 - 날짜: 2026-08-26
 
 ## 배경

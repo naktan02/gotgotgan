@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { NaverSavedPlaceSnapshotNormalizer } from './naver-saved-place-snapshot-normalizer.js'
+import { NaverSavedPlaceSnapshotNormalizer } from '../saved-place-snapshot-normalizer.js'
 
 describe('NAVER immutable snapshot normalizer', () => {
   it('maps the existing collector page to the provider-neutral v2 snapshot payload', () => {

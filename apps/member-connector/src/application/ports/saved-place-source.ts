@@ -5,6 +5,23 @@ export type SavedPlaceCapturePayload = Readonly<{
   payload: string
 }>
 
+export type SavedPlaceSourceFailure =
+  | 'permission-denied'
+  | 'provider-drift'
+  | 'provider-unavailable'
+  | 'reauth-required'
+
+export class SavedPlaceSourceError extends Error {
+  constructor(
+    readonly code: SavedPlaceSourceFailure,
+    readonly retryable: boolean,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'SavedPlaceSourceError'
+  }
+}
+
 export interface SavedPlaceSource {
   readonly providerKey: ConnectorProviderKey
   collect(input: Readonly<{

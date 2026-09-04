@@ -1,8 +1,8 @@
 import { connectorCaptureChunkPayloadV2Schema } from '@place/contracts/transfers'
 import { z } from 'zod'
 
-import type { SavedPlaceSnapshotNormalizer } from '../../../application/import-snapshot/index.js'
-import type { SavedPlaceCapturePayload } from '../../../application/ports/saved-place-source.js'
+import type { SavedPlaceSnapshotNormalizer } from '../../../../application/import-snapshot/index.js'
+import type { SavedPlaceCapturePayload } from '../../../../application/ports/saved-place-source.js'
 
 const bookmarkSchema = z.object({
   bookmarkId: z.string().min(1).max(512),

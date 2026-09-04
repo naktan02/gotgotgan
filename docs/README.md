@@ -26,9 +26,9 @@ parser, 암호화 artifact replay, preview/review API, Web BFF와 반응형 검�
 민감정보 비노출, DB 삭제 표식과 암호화 파일 삭제를 검증한다. 현재 전용 Chrome profile을 사용하는
 로컬 커넥터의 로그인·취소·종료, 값 없는 네트워크 구조 보고서, current·legacy NAVER schema를 격리한
 전체 폴더·bookmark pagination 수집기는 source-only 진단 CLI다. 평소 로그인 session을 재사용하지
-못하므로 주 회원 흐름으로 사용하지 않는다. ADR 0012는 `apps/member-connector`에 현재 browser profile을
-쓰는 하나의 다중 브라우저·다중 Provider 확장을 두고 NAVER·Kakao·Google을 Adapter로 격리하도록
-결정했다. Versioned Connector 계약, provider-neutral application Interface, browser/upload Adapter와
+못하므로 주 회원 흐름으로 사용하지 않는다. ADR 0024는 `apps/member-connector`를 특정 확장에 묶지 않는
+host-neutral 경계로 바꾸고 NAVER·Kakao·Google의 획득 전략과 실행 호스트를 Adapter로 격리한다.
+Versioned Connector 계약, provider-neutral application Interface, 선택형 browser/upload Adapter와
 Chromium·Firefox Manifest V3 build 검증은 source-only다. Chrome·Edge·Whale은 Chromium 산출물을
 공유하지만 Whale 실설치 evidence는 아직 없다. Provider host permission, 실제 Provider Adapter, 공개
 BFF capture route와 Backend receiver는 NAVER에 대해 source-only로 연결됐다. grant rotation,

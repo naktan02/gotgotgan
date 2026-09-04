@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  NaverExtensionSavedPlaceSource,
+  NaverApiSavedPlaceSource,
   NaverProviderSession,
-} from './naver-extension-saved-library.js'
-import { NaverSavedPlaceCollector } from './naver-saved-place-collector.js'
+} from '../saved-place-source.js'
+import { NaverSavedPlaceCollector } from '../saved-place-collector.js'
 
 function json(body: unknown) {
   return {
@@ -14,7 +14,7 @@ function json(body: unknown) {
   }
 }
 
-describe('NAVER extension saved-library adapter', () => {
+describe('NAVER API saved-library adapter', () => {
   it('preserves stable folder identity and both folder and bookmark order', async () => {
     const client = {
       get: async ({ url }: { url: URL }) => url.pathname.endsWith('/folders')
@@ -36,7 +36,7 @@ describe('NAVER extension saved-library adapter', () => {
       maximumResponseBytes: 1_048_576,
       delayMilliseconds: 0,
     })
-    const source = new NaverExtensionSavedPlaceSource(collector, client)
+    const source = new NaverApiSavedPlaceSource(collector, client)
     const captures = []
     for await (const capture of source.collect({ signal: AbortSignal.timeout(1_000) })) {
       captures.push(JSON.parse(capture.payload))
@@ -78,6 +78,13 @@ describe('NAVER extension saved-library adapter', () => {
     await expect(session.probe({ signal: AbortSignal.timeout(1_000) })).resolves.toBe('reauth-required')
   })
 
+  it('leaves API availability to the source instead of blocking future acquisition strategies', async () => {
+    const session = new NaverProviderSession({
+      get: async () => ({ status: 404, contentType: 'application/json', body: new Uint8Array() }),
+    })
+    await expect(session.probe({ signal: AbortSignal.timeout(1_000) })).resolves.toBe('active')
+  })
+
   it('emits one provider-valid finalizable capture for an empty saved library', async () => {
     const client = {
       get: async () => json({ folderList: [], totalCount: 0 }),
@@ -91,7 +98,7 @@ describe('NAVER extension saved-library adapter', () => {
       maximumResponseBytes: 1_048_576,
       delayMilliseconds: 0,
     })
-    const source = new NaverExtensionSavedPlaceSource(collector, client)
+    const source = new NaverApiSavedPlaceSource(collector, client)
     const captures = []
     for await (const capture of source.collect({ signal: AbortSignal.timeout(1_000) })) {
       captures.push({ ...capture, payload: JSON.parse(capture.payload) })

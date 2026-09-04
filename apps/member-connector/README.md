@@ -1,20 +1,20 @@
 # 회원 로컬 커넥터
 
-`member-connector`는 회원 PC에서 실행하는 Place 소유 Connector 경계다. 최종 형태는 사용자가 현재
-로그인한 브라우저 profile을 재사용하는 하나의 다중 브라우저·다중 Provider 확장이다. NAVER·Kakao·
-Google은 별도 확장이 아니라 Provider Adapter로 추가한다. 캡처는 짧은 수명의 일회성 Place grant로만
-제출하며 Provider cookie·token·profile 경로를 서버로 보내지 않는다.
+`member-connector`는 회원 기기에서 실행하는 곳곳간 소유 Connector 경계다. 확장 프로그램을 필수로
+두지 않으며 NAVER·Kakao·Google의 검증된 API·DOM·명시적 캡처 전략과 실행 호스트를 각각 Adapter로
+분리한다. 캡처는 짧은 수명의 일회성 곳곳간 grant로만 제출하며 Provider cookie·token·profile 경로를
+서버로 보내지 않는다.
 
-현재는 provider-neutral application 경계, WebExtensions browser Adapter, NAVER read Provider Adapter,
+현재는 provider-neutral application 경계, 선택형 WebExtensions browser Adapter, NAVER API Provider Adapter,
 v2 immutable snapshot·승인 기반 export coordinator, WXT entrypoint와 Chromium·Firefox build 검증을
 source-only로 구현했다. Backend v2 receiver와 실행 control-plane, 회원 session 전용 grant BFF는
 존재하지만 Connector capability BFF와 v2 page bridge는 아직 조립되지 않았다. 비추출 AES-GCM key를
 주입받는 암호화 snapshot spool, durable outbound
 attempt spool, 암호화 reconciliation vault와 v2 HTTP Adapter는 source-only로 구현했지만 WebExtension
 storage만으로 재시작 가능한 안전한 key 보관을 증명하지 못했다. 또한 검증된 account fingerprint
-Adapter, 전용 Connector origin, 실제 Provider write Adapter가 없다. 따라서 확장은 제거된 v1 capture
-경로로 우회하지 않고 현재 지원 Provider를 빈 목록으로 알린다. 실설치 배포와 로그인된 NAVER session
-검증은 `integration-gated`다.
+Adapter, 전용 Connector origin, 실제 Provider write Adapter가 없다. 따라서 어떤 실행 호스트도 제거된
+v1 capture 경로로 우회하지 않고 현재 지원 Provider를 빈 목록으로 알린다. production 실행 호스트
+채택과 로그인된 NAVER session 검증은 `integration-gated`다.
 
 전용 Playwright profile을 쓰는 기존 로그인·비식별 네트워크 관찰·NAVER 전체 저장 목록 bounded
 수집기는 진단 CLI로 남아 있다. 실관찰에서 평소 브라우저의 로그인 상태를 재사용하지 못했으므로 주
@@ -22,8 +22,8 @@ Adapter, 전용 Connector origin, 실제 Provider write Adapter가 없다. 따�
 
 ## 구현 구조
 
-사용하지 않는 Kakao·Google·Safari leaf는 미리 만들지 않고 첫 동작 capability와 fixture가 생길 때
-생성한다. 현재 확장 경로는 다음과 같다.
+사용하지 않는 Kakao·Google·DOM·OCR leaf는 미리 만들지 않고 첫 동작 capability와 fixture가 생길 때
+생성한다. 현재 Connector 경로는 다음과 같다.
 
 ```text
 src/
@@ -55,7 +55,9 @@ src/
   adapters/
     browser/webextensions/     tab·message·permission·cancel·resource close
       transfer-storage/        versioned AEAD snapshot/attempt/vault Adapter
-    providers/naver/           session 검사·folder/bookmark schema·전체 pagination
+    providers/naver/
+      api/                     내부 JSON session·folder/bookmark schema·전체 pagination
+      snapshot/                v2 snapshot 정규화
     place/capture-upload/      공개 BFF와 일회성 Connector grant만
     place/transfer-control/    분리된 member-session/capability v2 HTTP Adapter
   entrypoints/
@@ -89,7 +91,7 @@ consume 수량에서는 제외한다. runtime composition은 durable local seal,
 durable spool, secure vault, Backend control을 모두 제공한 Provider만 등록할 수 있다. 현재 production
 catalog는 NAVER `integration-gated`, Google·Kakao `unavailable`이며 실제 Provider write Adapter는 없다.
 자세한 결정은
-[`../../docs/adr/0012-cross-browser-member-connector.md`](../../docs/adr/0012-cross-browser-member-connector.md)를 따른다.
+[`../../docs/adr/0024-make-member-acquisition-host-neutral.md`](../../docs/adr/0024-make-member-acquisition-host-neutral.md)를 따른다.
 
 `outbound-export/index.ts`가 이 module의 유일한 공개 Interface다. 승인, 실행 phase, journal/recovery,
 reconciliation 파일은 같은 실행 수명주기의 내부 역할이며 다른 application workflow가 직접 import하지
@@ -171,8 +173,8 @@ src/
   acquisition/
     adapters/playwright/  first-party 페이지 안의 credential-including JSON fetch와 context 수명주기
     tests/                응답 크기·종료와 진단 조립 테스트
-  adapters/providers/naver/
-    naver-saved-place-collector.ts  확장·CLI가 공유하는 schema·pagination leaf
+  adapters/providers/naver/api/
+    saved-place-collector.ts  실행 호스트들이 공유하는 schema·pagination leaf
   observation/
     application/   응답 값을 버리고 origin·경로 틀·JSON 키/타입만 만드는 use case와 port
     adapters/

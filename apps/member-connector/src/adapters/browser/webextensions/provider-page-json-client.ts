@@ -1,4 +1,7 @@
-import type { AuthenticatedJsonClient } from '../../../application/ports/authenticated-json-client.js'
+import {
+  AuthenticatedJsonClientError,
+  type AuthenticatedJsonClient,
+} from '../../../application/ports/authenticated-json-client.js'
 
 type OriginPermissionApi = Readonly<{
   contains(permission: Readonly<{ origins: string[] }>): Promise<boolean>
@@ -36,8 +39,12 @@ type ProviderScriptingApi = Readonly<{
   }>): Promise<readonly Readonly<{ result?: ProviderPageResponse | undefined }>[]>
 }>
 
-export class BrowserOriginPermissionDeniedError extends Error {
+export class BrowserOriginPermissionDeniedError extends AuthenticatedJsonClientError {
   override readonly name = 'BrowserOriginPermissionDeniedError'
+
+  constructor(message: string) {
+    super('permission-denied', message)
+  }
 }
 
 function wait(milliseconds: number, signal: AbortSignal): Promise<void> {

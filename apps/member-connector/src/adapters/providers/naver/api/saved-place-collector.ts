@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import type { AuthenticatedJsonClient } from '../../../application/ports/authenticated-json-client.js'
+import type { AuthenticatedJsonClient } from '../../../../application/ports/authenticated-json-client.js'
 
 const identifierSchema = z.union([
   z.string().min(1).max(512),

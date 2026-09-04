@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { NaverSavedPlaceCollector } from '../../adapters/providers/naver/naver-saved-place-collector.js'
+import { NaverSavedPlaceCollector } from '../../adapters/providers/naver/api/saved-place-collector.js'
 
 function json(body: unknown) {
   return {

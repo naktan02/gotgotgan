@@ -80,16 +80,17 @@ Migration `000043`은 freshness가 지난 상세를 기존 Job 교체 없이 새
 운영 Runner/Pack 배포와 live 재검증은 아직 남아 있어 활성화는 configuration-gated다. CAPTCHA·영수증
 인증은 우회하거나 자동 답변하지 않고 해당 작업을 보류한다. 가져온 장소는
 상세 대기 중에도 NAVER·Google Maps·카카오맵에서 열 수 있다.
-회원 PC용 `apps/member-connector`는 현재 로그인된 browser profile을 재사용하는 하나의 다중
-브라우저·다중 Provider 확장으로 진행한다. NAVER·Kakao·Google은 Provider Adapter로 격리하고
+회원 기기용 `apps/member-connector`는 확장을 필수로 두지 않는 host-neutral 경계로 진행한다.
+NAVER·Kakao·Google은 Provider Adapter로 격리하고
 일회성 grant로만 캡처를 제출한다. Versioned handshake/grant/batch/receipt 계약, provider-neutral
-수집 application Interface, WebExtensions Adapter, 고정 공개-origin upload Adapter와 Chromium·Firefox
+수집 application Interface, 선택형 WebExtensions Adapter, 고정 공개-origin upload Adapter와 Chromium·Firefox
 Manifest V3 build 검증은 source-only로 구현했다. Chrome·Edge·Whale은 Chromium 산출물 하나를
 공유하지만 실제 Whale 설치는 아직 검증하지 않았다. 실제 Provider Adapter·host permission·공개 BFF
 route와 Backend grant/capture receiver·ImportBatch 연결은 NAVER에 대해 source-only로 구현했다. grant
 token digest, origin·sequence·상한·checksum, 암호화 원본, 정규화 Item과 Fulfillment intent를 실제
-PostGIS로 검증했다. 실제 Whale 설치와 로그인된 NAVER session smoke는 아직 남아 있다. 기존 전용
-Chrome profile 로그인, 비식별 관찰과 NAVER 전체 pagination 수집은 진단·fixture/replay·E2E·fallback으로만 남긴다.
+PostGIS로 검증했다. production 실행 호스트와 로그인된 NAVER session smoke는 아직 남아 있다. 기존 전용
+Chrome profile 로그인, 비식별 관찰과 NAVER 전체 pagination 수집은 진단·fixture/replay·E2E로만 남긴다.
+향후 DOM·명시적 캡처/OCR이나 browser-control은 ADR 0024의 동일 Source 경계 뒤에 추가한다.
 
 Stage 8A는 Backend 내부 `resolution` 모듈과 Migration `000022`를 추가한다. Provider Place Identity별
 최신 관찰을 다국어 원문 보존 comparison representation으로 투영하고, PostGIS 거리·`pg_trgm`

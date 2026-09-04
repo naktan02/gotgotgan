@@ -1,14 +1,16 @@
-import { ConnectorOperationError } from '../../../application/collect-saved-library.js'
-import type { AuthenticatedJsonClient } from '../../../application/ports/authenticated-json-client.js'
-import type { ProviderSession } from '../../../application/ports/provider-session.js'
+import {
+  AuthenticatedJsonClientError,
+  type AuthenticatedJsonClient,
+} from '../../../../application/ports/authenticated-json-client.js'
+import type { ProviderSession } from '../../../../application/ports/provider-session.js'
 import type {
   SavedPlaceCapturePayload,
   SavedPlaceSource,
-} from '../../../application/ports/saved-place-source.js'
-import { BrowserOriginPermissionDeniedError } from '../../browser/webextensions/provider-page-json-client.js'
+} from '../../../../application/ports/saved-place-source.js'
+import { SavedPlaceSourceError } from '../../../../application/ports/saved-place-source.js'
 import {
   NaverSavedPlaceCollector,
-} from './naver-saved-place-collector.js'
+} from './saved-place-collector.js'
 
 const apiBaseUrl = 'https://pages.map.naver.com/save-pages/api/maps-bookmark/v3/'
 
@@ -21,21 +23,27 @@ function optionalCompactText(value: string | undefined, maximum: number): string
   return compactText(value, maximum)
 }
 
-function mappedError(error: unknown): ConnectorOperationError {
-  if (error instanceof BrowserOriginPermissionDeniedError) {
-    return new ConnectorOperationError('permission-denied', false, error.message)
+function mappedError(error: unknown): SavedPlaceSourceError {
+  if (error instanceof AuthenticatedJsonClientError) {
+    if (error.code === 'permission-denied') {
+      return new SavedPlaceSourceError('permission-denied', false, error.message)
+    }
+    if (error.code === 'response-too-large') {
+      return new SavedPlaceSourceError('provider-drift', false, error.message)
+    }
+    return new SavedPlaceSourceError('provider-unavailable', true, error.message)
   }
   const message = error instanceof Error ? error.message : ''
   if (message.includes('requires user action')) {
-    return new ConnectorOperationError('reauth-required', false, message)
+    return new SavedPlaceSourceError('reauth-required', false, message)
   }
   if (message.includes('temporarily unavailable')) {
-    return new ConnectorOperationError('provider-unavailable', true, message)
+    return new SavedPlaceSourceError('provider-unavailable', true, message)
   }
   if (message.includes('schema changed')) {
-    return new ConnectorOperationError('provider-drift', false, message)
+    return new SavedPlaceSourceError('provider-drift', false, message)
   }
-  return new ConnectorOperationError('provider-unavailable', true, 'NAVER collection failed.')
+  return new SavedPlaceSourceError('provider-unavailable', true, 'NAVER collection failed.')
 }
 
 export class NaverProviderSession implements ProviderSession {
@@ -65,14 +73,16 @@ export class NaverProviderSession implements ProviderSession {
         response.status >= 200 && response.status < 300 &&
         response.contentType.toLowerCase().includes('json')
       ) return 'active' as const
-      return 'unavailable' as const
+      // The session port reports authentication only. Endpoint availability and schema drift belong
+      // to the source Adapter so a future DOM/manual strategy is not blocked by this API preflight.
+      return 'active' as const
     } catch (error) {
       throw mappedError(error)
     }
   }
 }
 
-export class NaverExtensionSavedPlaceSource implements SavedPlaceSource {
+export class NaverApiSavedPlaceSource implements SavedPlaceSource {
   readonly providerKey = 'naver' as const
 
   constructor(
