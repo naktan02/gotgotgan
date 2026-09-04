@@ -61,6 +61,12 @@ export function createConnectorTransferBackendClient(config: ConnectorTransferBa
     send(pathname, `Bearer ${token}`, signal, 'POST', body)
   return Object.freeze({
     publicOrigin,
+    ready: () => request(new URL('/readyz', origin), {
+      cache: 'no-store',
+      credentials: 'omit',
+      redirect: 'error',
+      signal: AbortSignal.timeout(config.timeoutMilliseconds),
+    }),
     issueImportGrant: (
       token: string, body: ConnectorImportGrantRequestV2, signal: AbortSignal,
     ) => memberPost('/v2/transfers/connector-import-grants', token, body, signal),

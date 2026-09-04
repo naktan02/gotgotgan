@@ -20,7 +20,8 @@ npm run test:e2e
 
 ## 전체 로컬 스택
 
-로컬 스택은 하나의 `place` Compose 프로젝트 아래 `postgres`, `backend`, `web`을 둔다.
+로컬 스택은 하나의 `place` Compose 프로젝트 아래 `postgres`, `backend`, `web`을 두고, 필요할 때
+별도 `admin-web` 형제 컨테이너를 `admin` profile로 추가한다.
 Identity와 Gateway의 소스나 데이터베이스를 가져오지 않고, 실행 중인 공통 Identity의 공개 OIDC
 계약만 사용한다. 기본 주소는 코드에 고정하지 않으며 아래 실행 환경에서 주입한다.
 
@@ -115,6 +116,25 @@ docker compose --env-file .runtime/local/compose.env `
 확인은 `http://localhost:3000/readyz`, `http://localhost:3001/healthz`,
 `http://localhost:3001/readyz`에서 수행한다. Web만 브라우저 진입점이며 Backend의 공개 포트는
 로컬 진단용이다. 운영 구성은 Backend를 Gateway나 브라우저에 노출하지 않는다.
+
+### 선택: source-only Admin Web
+
+`prepare:local`은 `.runtime/local/database.env`에 Admin image/listener와 기본 host port `3002`도
+기록하지만 Admin Identity client나 비밀은 만들지 않는다. 다음 명령은 Admin container build와
+`/healthz`만 확인하는 source-only smoke다.
+
+```powershell
+docker compose --env-file .runtime/local/database.env `
+  -f deploy/compose.yml `
+  -f deploy/compose.local.yml `
+  --profile admin up -d --build --wait admin-web
+```
+
+`http://localhost:3002/healthz`는 `200`이어야 한다. 이 모드의 `/readyz=503`은 OIDC와 Backend
+bridge를 의도적으로 활성화하지 않았다는 뜻이다. 인증된 Admin runtime에는 사용자 Web과 별개인
+`deploy/identity/admin-oidc-client.json` provisioning, Admin client secret, Admin session keyring,
+Admin DB URL secret이 필요하다. 현재 로컬 provisioner는 이 두 번째 Identity client를 준비하지
+않으므로 해당 통합은 별도 운영 준비 전까지 integration-gated다.
 
 Docker Desktop 재시작처럼 Web과 PostgreSQL이 동시에 시작되면 Web의 OIDC 수명주기는
 `compose.env`의 bounded startup retry 정책 안에서 데이터베이스 연결을 다시 시도한다. 그동안

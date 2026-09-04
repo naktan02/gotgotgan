@@ -59,3 +59,24 @@ or bearer to the browser. Web `/readyz` checks both activated runtimes and maps 
 database failure to a sanitized 503. Mounted deployment secrets, Identity
 provisioning, and Gateway validation remain required before callback activation. An operator must
 not substitute direct secret values or process memory for login transactions or sessions.
+
+## Admin Web 런타임
+
+Admin Web은 member Web의 route나 표시 모드가 아니라 별도 Next process다. Listener는
+`PLACE_ADMIN_WEB_HOST`와 `PLACE_ADMIN_WEB_PORT`로 주입하고, 인증 수명주기는 동일한 검증 로직을
+사용하되 독립된 `PLACE_ADMIN` prefix와 cookie/storage namespace를 사용한다. 운영 활성화에는 다음
+보호 파일이 모두 필요하다.
+
+- `PLACE_ADMIN_DATABASE_URL_FILE`;
+- `PLACE_ADMIN_OIDC_CLIENT_SECRET_FILE`; and
+- `PLACE_ADMIN_OIDC_ENCRYPTION_KEYRING_FILE`.
+
+issuer, client ID, callback, post-login path, scopes, transaction/session TTL, bounded DB pool,
+startup retry, cleanup 설정도 모두 `PLACE_ADMIN_OIDC_*` 이름으로 별도 주입한다. Backend 호출에는
+credential-free `PLACE_BACKEND_ORIGIN`과 `PLACE_ADMIN_BACKEND_TIMEOUT_MILLISECONDS`만 사용하며,
+브라우저에 Backend 주소나 bearer를 공개하지 않는다.
+
+`PLACE_ADMIN_OIDC_RUNTIME_ENABLED=true`와 완전한 secret/configuration group이 있을 때만 Admin
+`/readyz`가 인증 저장소와 Backend readiness를 함께 검증한다. 기본 source-only 모드는
+`/healthz=200`, `/readyz=503`으로 실패 폐쇄한다. production Compose healthcheck는 `/readyz`를
+사용하므로 부분 구성이나 member Web client/secret의 재사용으로 활성화할 수 없다.

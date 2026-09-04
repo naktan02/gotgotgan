@@ -2,9 +2,11 @@
 
 import type { PlaceMapRenderer } from '@/platform/maps/public'
 
+import { CollectionManagementPanel } from '../collection-management/CollectionManagementPanel'
 import { PersonalLibraryMap } from '../library-map/PersonalLibraryMap'
 import { PersonalPlaceDetail } from '../personal-place-detail/PersonalPlaceDetail'
 import { PlaceFilingEditor } from '../place-filing/PlaceFilingEditor'
+import { TagManagementPanel } from '../tag-management/TagManagementPanel'
 import styles from './collection-workspace.module.css'
 import { useCollectionLibraryWorkflow, type CollectionLibraryWorkflow } from './collection-library-workflow'
 
@@ -141,7 +143,11 @@ export function CollectionLibraryView({
               <header className={styles.collectionHeader}>
                 <div className={styles.cover} aria-hidden="true">{workflow.selectedCollection?.name.slice(0, 1)}</div>
                 <div className={styles.collectionIdentity}>
-                  <span>{workflow.selectedCollection?.visibility === 'private' ? '비공개 카테고리' : '공개 설정됨'}</span>
+                  <span>{workflow.selectedCollection?.visibility === 'private'
+                    ? '비공개 카테고리'
+                    : workflow.selectedCollection?.visibility === 'unlisted'
+                      ? '링크 공개 카테고리'
+                      : '전체 공개 카테고리'}</span>
                   <h2>{workflow.selectedCollection?.name ?? '카테고리 선택'}</h2>
                   <p>{workflow.selectedCollection?.description ?? '이 카테고리에 담은 장소를 목록과 지도에서 관리합니다.'}</p>
                   <small>장소 {workflow.selectedCollection?.placeCount ?? 0}개</small>
@@ -167,6 +173,20 @@ export function CollectionLibraryView({
               </header>
 
               {workflow.collectionMessage !== undefined && <div className={styles.inlineError} role="alert">{workflow.collectionMessage}</div>}
+
+              {workflow.selectedCollection !== undefined && (
+                <div aria-label="카테고리와 태그 관리" className={styles.managementBar}>
+                  <CollectionManagementPanel
+                    collection={workflow.selectedCollection}
+                    onAccessFailure={workflow.handleAccessFailure}
+                    onChanged={workflow.refresh}
+                  />
+                  <TagManagementPanel
+                    onAccessFailure={workflow.handleAccessFailure}
+                    onChanged={workflow.handleTagsChanged}
+                  />
+                </div>
+              )}
 
               <div className={styles.filters} aria-label="장소 필터">
                 <label>

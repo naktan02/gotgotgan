@@ -30,6 +30,10 @@ test('local runtime preparation is secret-safe, resumable, and origin-bound', as
       'utf8',
     )
     assert.match(databaseEnvironment, /^PLACE_DATA_NETWORK=place-data-local$/m)
+    assert.match(databaseEnvironment, /^PLACE_ADMIN_WEB_IMAGE=place-admin-web-local$/m)
+    assert.match(databaseEnvironment, /^PLACE_ADMIN_WEB_HOST=0\.0\.0\.0$/m)
+    assert.match(databaseEnvironment, /^PLACE_ADMIN_WEB_PORT=3000$/m)
+    assert.match(databaseEnvironment, /^PLACE_ADMIN_WEB_PUBLISHED_PORT=3002$/m)
     assert.doesNotMatch(databaseEnvironment, /postgresql:\/\//)
 
     const adminPasswordPath = path.join(
@@ -56,6 +60,7 @@ test('local runtime preparation is secret-safe, resumable, and origin-bound', as
       'utf8',
     )
     assert.match(composeEnvironment, /^PLACE_WEB_PUBLISHED_PORT=3000$/m)
+    assert.match(composeEnvironment, /^PLACE_ADMIN_WEB_PUBLISHED_PORT=3002$/m)
     assert.match(composeEnvironment, /^PLACE_CONNECTOR_PUBLIC_ORIGIN=http:\/\/localhost:3000$/m)
     assert.match(composeEnvironment, /^PLACE_OIDC_ISSUER=http:\/\/identity\.localhost$/m)
     assert.match(composeEnvironment, /^PLACE_OIDC_CLIENT_ID=place-local-client-id$/m)

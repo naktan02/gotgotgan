@@ -19,6 +19,7 @@ jobs:
       packages: write
     env:
       WEB_IMAGE: ghcr.io/naktan02/place-web
+      ADMIN_WEB_IMAGE: ghcr.io/naktan02/place-admin-web
       BACKEND_IMAGE: ghcr.io/naktan02/place-backend
       TAG: sha-${{ github.sha }}
     steps:
@@ -98,10 +99,11 @@ jobs:
             fi
           }
           printf 'web_exists=%s\n' "$(tag_exists place-web)" >> "$GITHUB_OUTPUT"
+          printf 'admin_web_exists=%s\n' "$(tag_exists place-admin-web)" >> "$GITHUB_OUTPUT"
           printf 'backend_exists=%s\n' "$(tag_exists place-backend)" >> "$GITHUB_OUTPUT"
 
       - name: Verify every pre-existing checkpoint belongs to this source commit
-        if: steps.state.outputs.web_exists == 'true' || steps.state.outputs.backend_exists == 'true'
+        if: steps.state.outputs.web_exists == 'true' || steps.state.outputs.admin_web_exists == 'true' || steps.state.outputs.backend_exists == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -131,6 +133,7 @@ jobs:
                  .["org.opencontainers.image.revision"] == $revision' >/dev/null
           }
           verify_existing "$WEB_IMAGE" "${{ steps.state.outputs.web_exists }}"
+          verify_existing "$ADMIN_WEB_IMAGE" "${{ steps.state.outputs.admin_web_exists }}"
           verify_existing "$BACKEND_IMAGE" "${{ steps.state.outputs.backend_exists }}"
 
       - name: Build and publish the missing Web checkpoint
@@ -152,6 +155,25 @@ jobs:
             org.opencontainers.image.version=${{ env.TAG }}
             org.opencontainers.image.title=place-web
 
+      - name: Build and publish the missing Admin Web checkpoint
+        if: steps.state.outputs.admin_web_exists != 'true'
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: Dockerfile
+          target: admin-web-runtime
+          platforms: linux/amd64
+          pull: true
+          push: true
+          tags: ${{ env.ADMIN_WEB_IMAGE }}:${{ env.TAG }}
+          provenance: mode=max,version=v1
+          sbom: true
+          labels: |
+            org.opencontainers.image.source=https://github.com/naktan02/gotgotgan
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ env.TAG }}
+            org.opencontainers.image.title=place-admin-web
+
       - name: Build and publish the missing Backend checkpoint
         if: steps.state.outputs.backend_exists != 'true'
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
@@ -171,7 +193,7 @@ jobs:
             org.opencontainers.image.version=${{ env.TAG }}
             org.opencontainers.image.title=place-backend
 
-      - name: Verify registry bytes and extract both evidence sets
+      - name: Verify registry bytes and extract all three evidence sets
         id: evidence
         shell: bash
         run: |
@@ -181,6 +203,7 @@ jobs:
           inspect_image() {
             local artifact="$1"
             local image="$2"
+            local output_prefix="$3"
             local directory="$release_directory/$artifact"
             install -d "$directory"
             docker buildx imagetools inspect "${image}:${TAG}" --raw \
@@ -206,19 +229,21 @@ jobs:
               --output-directory "$directory/evidence"
             local platform_digest
             platform_digest="$(jq -er '.platform_digest' "$directory/evidence/metadata.json")"
-            printf '%s_index_digest=%s\n' "${artifact#place-}" "$index_digest" >> "$GITHUB_OUTPUT"
-            printf '%s_platform_digest=%s\n' "${artifact#place-}" "$platform_digest" >> "$GITHUB_OUTPUT"
+            printf '%s_index_digest=%s\n' "$output_prefix" "$index_digest" >> "$GITHUB_OUTPUT"
+            printf '%s_platform_digest=%s\n' "$output_prefix" "$platform_digest" >> "$GITHUB_OUTPUT"
           }
-          inspect_image place-web "$WEB_IMAGE"
-          inspect_image place-backend "$BACKEND_IMAGE"
+          inspect_image place-web "$WEB_IMAGE" web
+          inspect_image place-admin-web "$ADMIN_WEB_IMAGE" admin_web
+          inspect_image place-backend "$BACKEND_IMAGE" backend
           printf 'built_at=%s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
 
-      - name: Pull and smoke only the two published platform digests
+      - name: Pull and smoke only the three published platform digests
         shell: bash
         run: |
           set -euo pipefail
           node scripts/smoke-published-application-images.mjs \
             --web-image "$WEB_IMAGE@${{ steps.evidence.outputs.web_platform_digest }}" \
+            --admin-web-image "$ADMIN_WEB_IMAGE@${{ steps.evidence.outputs.admin_web_platform_digest }}" \
             --backend-image "$BACKEND_IMAGE@${{ steps.evidence.outputs.backend_platform_digest }}" \
             --commit "$GITHUB_SHA" \
             --output "$RUNNER_TEMP/place-release/published-image-smoke.v1.json"
@@ -240,6 +265,28 @@ jobs:
         with:
           name: place-web-provenance-${{ github.sha }}
           path: ${{ runner.temp }}/place-release/place-web/evidence/provenance
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+          retention-days: 90
+
+      - name: Upload Admin Web SBOM evidence
+        id: admin-web-sbom
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: place-admin-web-sbom-${{ github.sha }}
+          path: ${{ runner.temp }}/place-release/place-admin-web/evidence/sbom
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+          retention-days: 90
+
+      - name: Upload Admin Web provenance evidence
+        id: admin-web-provenance
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: place-admin-web-provenance-${{ github.sha }}
+          path: ${{ runner.temp }}/place-release/place-admin-web/evidence/provenance
           if-no-files-found: error
           compression-level: 0
           overwrite: false
@@ -286,6 +333,7 @@ jobs:
             --arg commit_sha "$GITHUB_SHA" \
             --arg built_at "${{ steps.evidence.outputs.built_at }}" \
             --arg web_directory "$RUNNER_TEMP/place-release/place-web/evidence" \
+            --arg admin_web_directory "$RUNNER_TEMP/place-release/place-admin-web/evidence" \
             --arg backend_directory "$RUNNER_TEMP/place-release/place-backend/evidence" \
             --argjson run_id "$GITHUB_RUN_ID" \
             --argjson run_attempt "$GITHUB_RUN_ATTEMPT" \
@@ -293,6 +341,10 @@ jobs:
             --arg web_sbom_digest "${{ steps.web-sbom.outputs.artifact-digest }}" \
             --argjson web_provenance_id "${{ steps.web-provenance.outputs.artifact-id }}" \
             --arg web_provenance_digest "${{ steps.web-provenance.outputs.artifact-digest }}" \
+            --argjson admin_web_sbom_id "${{ steps.admin-web-sbom.outputs.artifact-id }}" \
+            --arg admin_web_sbom_digest "${{ steps.admin-web-sbom.outputs.artifact-digest }}" \
+            --argjson admin_web_provenance_id "${{ steps.admin-web-provenance.outputs.artifact-id }}" \
+            --arg admin_web_provenance_digest "${{ steps.admin-web-provenance.outputs.artifact-digest }}" \
             --argjson backend_sbom_id "${{ steps.backend-sbom.outputs.artifact-id }}" \
             --arg backend_sbom_digest "${{ steps.backend-sbom.outputs.artifact-digest }}" \
             --argjson backend_provenance_id "${{ steps.backend-provenance.outputs.artifact-id }}" \
@@ -310,6 +362,12 @@ jobs:
                   evidence_directory: $web_directory,
                   sbom: {artifact_id: $web_sbom_id, sha256: $web_sbom_digest},
                   provenance: {artifact_id: $web_provenance_id, sha256: $web_provenance_digest}
+                },
+                {
+                  artifact_id: "place-admin-web",
+                  evidence_directory: $admin_web_directory,
+                  sbom: {artifact_id: $admin_web_sbom_id, sha256: $admin_web_sbom_digest},
+                  provenance: {artifact_id: $admin_web_provenance_id, sha256: $admin_web_provenance_digest}
                 },
                 {
                   artifact_id: "place-backend",

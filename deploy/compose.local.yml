@@ -6,6 +6,13 @@ services:
     ports:
       - "${PLACE_WEB_PUBLISHED_PORT:?PLACE_WEB_PUBLISHED_PORT is required}:${PLACE_WEB_PORT:?PLACE_WEB_PORT is required}"
 
+  admin-web:
+    build:
+      context: ..
+      target: admin-web-runtime
+    ports:
+      - "${PLACE_ADMIN_WEB_PUBLISHED_PORT:?PLACE_ADMIN_WEB_PUBLISHED_PORT is required}:${PLACE_ADMIN_WEB_PORT:?PLACE_ADMIN_WEB_PORT is required}"
+
   backend:
     build:
       context: ..

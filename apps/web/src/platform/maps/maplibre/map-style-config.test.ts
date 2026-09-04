@@ -13,13 +13,18 @@ describe('MapLibre style runtime configuration', () => {
     )).toBe('/api/maps/style')
   })
 
-  it('allows same-origin paths and HTTPS styles only', () => {
+  it('allows query-free same-origin paths and public OpenFreeMap styles only', () => {
     expect(resolvePlaceMapStyleUrl('/maps/style.json', undefined)).toBe('/maps/style.json')
-    expect(resolvePlaceMapStyleUrl('https://maps.example/style.json', undefined)).toBe(
-      'https://maps.example/style.json',
+    expect(resolvePlaceMapStyleUrl('https://tiles.openfreemap.org/styles/bright', undefined)).toBe(
+      'https://tiles.openfreemap.org/styles/bright',
     )
     expect(() => resolvePlaceMapStyleUrl('http://maps.example/style.json', undefined)).toThrow()
+    expect(() => resolvePlaceMapStyleUrl('https://maps.example/style.json', undefined)).toThrow()
     expect(() => resolvePlaceMapStyleUrl('//maps.example/style.json', undefined)).toThrow()
+    expect(() => resolvePlaceMapStyleUrl('/maps/style.json?token=secret', undefined)).toThrow()
+    expect(() => resolvePlaceMapStyleUrl(
+      'https://tiles.openfreemap.org/styles/liberty?token=secret', undefined,
+    )).toThrow()
     expect(() => resolvePlaceMapStyleUrl('https://user:secret@maps.example/style.json', undefined)).toThrow()
   })
 })

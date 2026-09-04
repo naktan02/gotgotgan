@@ -11,6 +11,7 @@ import type {
 import type { PlaceMapRendererProperties } from '../place-map-interface'
 import { replaceAccessibleMarkers } from './accessible-place-markers'
 import { readInitialCameraLocation } from './initial-camera-location'
+import { configurePlaceMapProjection } from './map-projection'
 import { centerForBounds, readMapViewport } from './map-viewport'
 import {
   CLUSTER_LAYER_ID,
@@ -77,7 +78,7 @@ export function MapLibrePlaceMap({
       map.on('load', () => {
         if (cancelled) return
         loaded = true
-        map.setProjection({ type: 'globe' })
+        configurePlaceMapProjection(map)
         const current = featuresRef.current
         installPlaceSource(map, createPlaceFeatureCollection(
           current.markers,

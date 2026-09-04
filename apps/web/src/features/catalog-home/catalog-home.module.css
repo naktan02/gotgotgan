@@ -55,9 +55,6 @@
 .selectedCard h2 { margin: 4px 0 5px; overflow: hidden; color: #222b37; font-size: 17px; text-overflow: ellipsis; white-space: nowrap; }
 .selectedCard p { margin: 0; color: #6d7785; font-size: 11px; }
 .fileButton { align-self: center; min-height: 38px; padding: 0 15px; border: 0; border-radius: 9px; background: #1768e5; color: #fff; font: 750 12px/1 inherit; pointer-events: auto; }
-.directionLinks { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 7px; }
-.directionLinks a { min-height: 32px; display: inline-flex; align-items: center; padding: 0 10px; border: 1px solid #dce2eb; border-radius: 8px; background: #fff; color: #285f9f; font-size: 11px; font-weight: 700; text-decoration: none; pointer-events: auto; }
-.directionLinks a:hover, .directionLinks a:focus-visible { border-color: #82acec; outline: none; background: #f2f7ff; }
 .collectionPicker { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 7px; padding-top: 10px; border-top: 1px solid #e7ebf0; pointer-events: auto; }
 .collectionPicker button { min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 10px; border: 1px solid #dce2eb; border-radius: 8px; background: #fff; color: #364150; font: 650 11px/1 inherit; }
 .collectionPicker small { color: #89929f; font-weight: 500; }

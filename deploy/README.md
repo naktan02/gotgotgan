@@ -1,20 +1,25 @@
 # Deployment declarations
 
 `application-runtime.json` is the source-only machine-readable process and exposure contract. Web is
-the only future Gateway-facing process; Backend and Worker stay internal. Browser-to-Backend and
-cross-project database connections are forbidden.
+the only public Gateway-facing process. Admin Web is a separately deployable restricted Gateway
+candidate, while Backend and Worker stay internal. Browser-to-Backend and cross-project database
+connections are forbidden.
 
-`compose.yml` is the port-free product base. It accepts only deployment-injected Web and Backend
-image references and keeps all Place processes under one product-owned Compose project:
+`compose.yml` is the port-free product base. It accepts only deployment-injected Web, Admin Web, and
+Backend image references and keeps all Place processes under one product-owned Compose project and
+its default network:
 
 - `web`: standalone Next.js runtime;
+- `admin-web`: opt-in `admin` profile with a standalone Next.js runtime;
 - `backend`: Fastify HTTP runtime with explicit `source-only` or `production` mode; and
 - `worker-check`: opt-in verification profile for the separately runnable worker artifact; and
 - `worker-capture-sweep`: opt-in maintenance profile for one bounded expiry sweep.
 
 `compose.local.yml`만 Docker build target과 명시적 standalone host port를 추가하며 Web integration과
-Backend transport는 기본적으로 source-only다. `compose.production.yml`은 Backend production
-composition과 Web OIDC·membership·Import·Connector BFF를 활성화한다. Backend와 선택적 보존 정리
+Backend transport는 기본적으로 source-only다. Admin Web은 `admin` profile을 선택했을 때 별도
+`admin-web-runtime` target과 기본 host port `3002`를 사용한다. `compose.production.yml`은 Backend
+production composition과 Web OIDC·membership·Import·Connector BFF를 활성화한다. 별도
+`compose.admin.production.yml`은 Admin OIDC와 Backend bridge를 실패 폐쇄로 활성화한다. Backend와 선택적 보존 정리
 Worker는 같은 보호 capture keyring과 외부 private capture volume을 사용한다. Backend host port를
 게시하지 않고 live Provider acquisition이나 상세 보강 Worker를 활성화하지 않는다. 주소, 파일,
 Pool 상한, timeout, issuer/audience/scope, Connector TTL·용량 상한과 policy는 모두 배포 입력이다.
@@ -22,23 +27,26 @@ Pool 상한, timeout, issuer/audience/scope, Connector TTL·용량 상한과 pol
 Production image inputs must be immutable coordinates in the form
 `<registry>/<repository>@sha256:<64 lowercase hex>`. Run `npm run plan:deployment` before an
 activation or rollback. It requires `PLACE_DEPLOYMENT_OPERATION`, `PLACE_RELEASE_REVISION`,
-`PLACE_WEB_IMAGE`, and `PLACE_BACKEND_IMAGE`. Rollback additionally requires the deployed release
-revision and images through `PLACE_DEPLOYED_RELEASE_REVISION`, `PLACE_DEPLOYED_WEB_IMAGE`, and
-`PLACE_DEPLOYED_BACKEND_IMAGE`. The sanitized plan binds the two images as one Place application
+`PLACE_WEB_IMAGE`, `PLACE_ADMIN_WEB_IMAGE`, and `PLACE_BACKEND_IMAGE`. Rollback additionally requires
+the deployed release revision and all three images through `PLACE_DEPLOYED_RELEASE_REVISION`,
+`PLACE_DEPLOYED_WEB_IMAGE`, `PLACE_DEPLOYED_ADMIN_WEB_IMAGE`, and
+`PLACE_DEPLOYED_BACKEND_IMAGE`. The sanitized plan binds the three images as one Place application
 unit and always preserves the database; migration rollback is application-only. This planner proves
 selection and rollback intent, not publication provenance. A release still needs independently
 verified digest, SBOM, provenance, and successful published-digest smoke evidence.
 
 `release-source.v1.json` is the producer declaration for the one Place release revision. It binds
-the `web-runtime` target to `place-web` and the `backend-runtime` target to `place-backend`, with the
-Backend image also owning Worker and migration entrypoints. Its deployment state remains
+the `web-runtime` target to `place-web`, `admin-web-runtime` to `place-admin-web`, and
+`backend-runtime` to `place-backend`, with the Backend image also owning Worker and migration
+entrypoints. Its deployment state remains
 `source-only`; it does not claim a Kustomize/Helm package, Gateway route, Identity client, or active
 environment.
 
 `.github/workflows/release-application.yml` is manual-only. It accepts only the current clean `main`
 commit after the matching push CI succeeds, publishes `sha-<full-commit>` tags, resolves the
 registry index back to exact `linux/amd64` platform digests, validates separate SBOM/provenance
-evidence for both images, and runs the Web, Backend, and Worker check from those published digests.
+evidence for all three images, and runs the Web, Admin Web, Backend, and Worker checks from those
+published digests.
 It then creates one checksum-bound `release-record.v1`; it has no GitOps, cluster, Gateway, or
 deployment credential. A rerun never replaces a tag. If one image was published before a later
 step failed, the workflow verifies that existing image's source/revision labels, publishes only the
@@ -63,6 +71,22 @@ Identity/Gateway gates.
 PostGIS 준비 순서, 그리고 종료 후 제거되는 `database-prepare` 수명주기 작업이다. Web과 Backend는 기존
 `compose.production.yml`의 실제 OIDC·membership·Import·Connector 조립을 그대로 사용하므로
 로컬 전용 대체 인증이나 우회 API를 만들지 않는다.
+
+Admin Web은 같은 Compose 프로젝트의 형제 컨테이너지만 기본 stack 기동에는 포함되지 않는다.
+`prepare:local`은 사용자 Web용 Identity client 하나만 준비하며 Admin client를 복제하거나 같은
+client secret·세션 keyring을 재사용하지 않는다. 따라서 아래 source-only 확인은 가능하지만 인증된
+Admin 기동은 별도 `place-admin` Identity client, client secret, Admin OIDC keyring과 DB URL secret이
+보호된 sink에 준비될 때까지 integration-gated다.
+
+```powershell
+docker compose --env-file .runtime/local/database.env `
+  -f deploy/compose.yml `
+  -f deploy/compose.local.yml `
+  --profile admin up -d --build --wait admin-web
+```
+
+source-only Admin은 `http://localhost:3002/healthz`만 정상이다. OIDC와 Backend bridge가 없으므로
+`/readyz`의 `503 unavailable`은 의도된 실패 폐쇄 상태다.
 
 전체 순서와 명령은 [`../docs/operations/local-development.md`](../docs/operations/local-development.md)에
 있다. `.runtime/local/database.env`는 데이터베이스 준비 단계에, OIDC client secret 전달 후
@@ -89,10 +113,28 @@ integration overlay connects only Backend to the external `identity-services` ne
 PostGIS do not join it. Disabled mode preserves standalone development, while enabled verification
 fails closed.
 
-`identity/oidc-client.json` is the Place-owned, unprovisioned Identity input. The provisioner expands
+`identity/oidc-client.json` is the Place-owned, unprovisioned member Identity input. The provisioner expands
 `PLACE_PUBLIC_ORIGIN`, delivers the generated client ID/secret through the approved secret sink, and
 runs only after callback routes, shared session storage, Gateway routing, health validation, and
 rollback are ready. The manifest contains no credential and does not activate Identity.
+
+`identity/admin-oidc-client.json` is a second, unprovisioned confidential client. Its
+`PLACE_ADMIN_PUBLIC_ORIGIN`, client ID, client secret, callback, cookies, transaction/session storage,
+and encryption keyring are independent from member Web. Production Admin composition is explicit:
+
+```powershell
+docker compose --env-file <protected-production-env> `
+  -f deploy/compose.yml `
+  -f deploy/compose.production.yml `
+  -f deploy/compose.admin.production.yml `
+  --profile admin up -d --wait backend web admin-web
+```
+
+The Admin overlay requires `PLACE_ADMIN_DATABASE_URL_FILE`,
+`PLACE_ADMIN_OIDC_CLIENT_SECRET_FILE`, and `PLACE_ADMIN_OIDC_ENCRYPTION_KEYRING_FILE`; omitted or
+partial Admin OIDC configuration prevents activation. Admin Web joins the same Compose default
+network for server-to-server Backend calls and the existing private `place-data` network only for its
+session database.
 
 `database-runtime.json` and `compose.database.yml` declare the source-only Place-owned physical
 PostGIS runtime. The database Compose file remains under the `place` project, publishes no host port,
@@ -120,6 +162,7 @@ volume에만 저장한다.
 
 ```powershell
 docker build --target web-runtime --tag place-web-source .
+docker build --target admin-web-runtime --tag place-admin-web-source .
 docker build --target backend-runtime --tag place-backend-source .
 ```
 

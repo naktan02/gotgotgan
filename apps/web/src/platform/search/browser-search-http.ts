@@ -24,6 +24,7 @@ import {
 } from './search-backend-client'
 import {
   CATALOG_MAP_REQUEST_MAX_BYTES,
+  CATALOG_SEARCH_REQUEST_MAX_BYTES,
   readBoundedSearchJson,
 } from './bounded-search-json'
 
@@ -138,7 +139,14 @@ export function createBrowserSearchHttp(dependencies: Dependencies) {
     },
 
     async catalog(request: Request): Promise<Response> {
-      const body = await payload(request, catalogPlaceSearchRequestSchema)
+      let raw: unknown
+      try {
+        raw = await readBoundedSearchJson(request, CATALOG_SEARCH_REQUEST_MAX_BYTES)
+      } catch {
+        return invalid('PLACE_CATALOG_SEARCH_REQUEST_INVALID', '카탈로그 검색 조건이 올바르지 않습니다.')
+      }
+      const parsed = catalogPlaceSearchRequestSchema.safeParse(raw)
+      const body = parsed.success ? parsed.data : undefined
       if (body === undefined) {
         return invalid('PLACE_CATALOG_SEARCH_REQUEST_INVALID', '카탈로그 검색 조건이 올바르지 않습니다.')
       }

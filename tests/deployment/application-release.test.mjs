@@ -88,7 +88,12 @@ async function releaseFixture(platformCharacter = 'b') {
 }
 
 async function inspectFixture(artifactId, image) {
-  const fixture = await releaseFixture(artifactId === 'place-web' ? 'b' : 'd')
+  const platformCharacters = {
+    'place-web': 'b',
+    'place-admin-web': 'd',
+    'place-backend': 'e',
+  }
+  const fixture = await releaseFixture(platformCharacters[artifactId])
   const output = path.join(fixture.directory, artifactId)
   await execFileAsync(
     process.execPath,
@@ -115,7 +120,7 @@ async function inspectFixture(artifactId, image) {
   return { ...fixture, output }
 }
 
-test('release source fixes two images, four process roles, and source-only deployment', async () => {
+test('release source fixes three images, five process roles, and source-only deployment', async () => {
   const { stdout, stderr } = await execFileAsync(
     process.execPath,
     [releaseCli, 'verify-source', '--repository-root', repositoryRoot],
@@ -128,11 +133,11 @@ test('release source fixes two images, four process roles, and source-only deplo
   assert.equal(source.release_id, 'place')
   assert.deepEqual(
     source.artifacts.map(({ artifact_id }) => artifact_id),
-    ['place-web', 'place-backend'],
+    ['place-web', 'place-admin-web', 'place-backend'],
   )
   assert.deepEqual(
     source.runtime.workloads.map(({ role_id }) => role_id),
-    ['web', 'backend', 'worker', 'migration'],
+    ['web', 'admin-web', 'backend', 'worker', 'migration'],
   )
   assert.deepEqual(source.deployment, { state: 'source-only' })
 })
@@ -179,9 +184,10 @@ test('release evidence binds one linux/amd64 subject to both SBOM and provenance
   )
 })
 
-test('release record contains both platform digests and independent evidence artifacts', async () => {
-  const [web, backend] = await Promise.all([
+test('release record contains all three platform digests and independent evidence artifacts', async () => {
+  const [web, adminWeb, backend] = await Promise.all([
     inspectFixture('place-web', 'ghcr.io/naktan02/place-web'),
+    inspectFixture('place-admin-web', 'ghcr.io/naktan02/place-admin-web'),
     inspectFixture('place-backend', 'ghcr.io/naktan02/place-backend'),
   ])
   const input = path.join(web.directory, 'record-input.json')
@@ -204,10 +210,16 @@ test('release record contains both platform digests and independent evidence art
           provenance: { artifact_id: 12, sha256: checksum('2') },
         },
         {
-          artifact_id: 'place-backend',
-          evidence_directory: backend.output,
+          artifact_id: 'place-admin-web',
+          evidence_directory: adminWeb.output,
           sbom: { artifact_id: 13, sha256: checksum('3') },
           provenance: { artifact_id: 14, sha256: checksum('4') },
+        },
+        {
+          artifact_id: 'place-backend',
+          evidence_directory: backend.output,
+          sbom: { artifact_id: 15, sha256: checksum('5') },
+          provenance: { artifact_id: 16, sha256: checksum('6') },
         },
       ],
     }),
@@ -235,17 +247,23 @@ test('release record contains both platform digests and independent evidence art
     [
       { id: 'place-web', digest: web.platformDigest, sbom: 11, provenance: 12 },
       {
-        id: 'place-backend',
-        digest: backend.platformDigest,
+        id: 'place-admin-web',
+        digest: adminWeb.platformDigest,
         sbom: 13,
         provenance: 14,
+      },
+      {
+        id: 'place-backend',
+        digest: backend.platformDigest,
+        sbom: 15,
+        provenance: 16,
       },
     ],
   )
   assert.notEqual(record.artifacts[0].sbom.location.artifact_id, record.artifacts[1].sbom.location.artifact_id)
 })
 
-test('published-image smoke accepts only both Place platform digests', async () => {
+test('published-image smoke accepts only all three Place platform digests', async () => {
   const module = await import(pathToFileURL(smokeScript))
   const calls = []
   const runDocker = async (arguments_) => {
@@ -266,23 +284,32 @@ test('published-image smoke accepts only both Place platform digests', async () 
   }
   const output = path.join(await mkdtemp(path.join(os.tmpdir(), 'place-smoke-')), 'smoke.json')
   const webImage = `ghcr.io/naktan02/place-web@${digest('b')}`
-  const backendImage = `ghcr.io/naktan02/place-backend@${digest('c')}`
+  const adminWebImage = `ghcr.io/naktan02/place-admin-web@${digest('c')}`
+  const backendImage = `ghcr.io/naktan02/place-backend@${digest('d')}`
 
   await module.smokePublishedApplicationImages(
-    { webImage, backendImage, commit: 'a'.repeat(40), output },
+    { webImage, adminWebImage, backendImage, commit: 'a'.repeat(40), output },
     runDocker,
   )
-  assert.equal(calls.filter(([command]) => command === 'pull').length, 2)
+  assert.equal(calls.filter(([command]) => command === 'pull').length, 3)
   assert.equal(
     calls.some((arguments_) => arguments_.includes('ghcr.io/naktan02/place-web:latest')),
     false,
   )
-  assert.equal(JSON.parse(await readFile(output, 'utf8')).releaseRevision, `place@${'a'.repeat(40)}`)
+  const evidence = JSON.parse(await readFile(output, 'utf8'))
+  assert.equal(evidence.releaseRevision, `place@${'a'.repeat(40)}`)
+  assert.deepEqual(evidence.images.adminWeb, {
+    reference: adminWebImage,
+    healthPath: '/healthz',
+    readinessPath: '/readyz',
+    sourceOnlyReadiness: 'unavailable',
+  })
 
   await assert.rejects(
     module.smokePublishedApplicationImages(
       {
         webImage: 'ghcr.io/naktan02/place-web:latest',
+        adminWebImage,
         backendImage,
         commit: 'a'.repeat(40),
         output,
@@ -303,8 +330,14 @@ test('manual release workflow gates on same-commit CI and has no deployment auth
   assert.doesNotMatch(triggerBlock, /^  push:/m)
   assert.match(workflow, /actions\/workflows\/ci\.yml\/runs/)
   assert.match(workflow, /head_sha=\$GITHUB_SHA/)
-  assert.match(workflow, /provenance: mode=max,version=v1/g)
-  assert.match(workflow, /sbom: true/g)
+  assert.equal(workflow.match(/provenance: mode=max,version=v1/g)?.length, 3)
+  assert.equal(workflow.match(/sbom: true/g)?.length, 3)
+  assert.match(workflow, /ADMIN_WEB_IMAGE: ghcr\.io\/naktan02\/place-admin-web/)
+  assert.match(workflow, /target: admin-web-runtime/)
+  assert.match(workflow, /--admin-web-image/)
+  assert.match(workflow, /place-admin-web-sbom-/)
+  assert.match(workflow, /place-admin-web-provenance-/)
+  assert.match(workflow, /artifact_id: "place-admin-web"/)
   assert.match(workflow, /smoke-published-application-images\.mjs/)
   assert.doesNotMatch(workflow, /kubeconfig|kubectl|argocd|promotion-request/i)
 })

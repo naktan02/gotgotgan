@@ -4,9 +4,10 @@ import type {
   PlaceFilingCommandRequestV2,
   PlaceFilingResponseV2,
 } from '@place/contracts/library'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { PlaceFilingProblem, placeFilingHttp } from './place-filing-http'
+import { createPlaceFilingRequestGuard } from './place-filing-request-guard'
 
 type FilingMessage = Readonly<{
   tone: 'info' | 'success' | 'warning' | 'error'
@@ -26,7 +27,12 @@ export function usePlaceFilingWorkflow(
   const [message, setMessage] = useState<FilingMessage | undefined>()
   const [retryRequest, setRetryRequest] = useState<PlaceFilingCommandRequestV2 | undefined>()
   const desiredRef = useRef(desired)
+  const requestGuard = useRef(createPlaceFilingRequestGuard())
   desiredRef.current = desired
+
+  useLayoutEffect(() => {
+    requestGuard.current.activate(placeId)
+  }, [placeId])
 
   const load = useCallback(async (
     nextPlaceId: string,
@@ -35,9 +41,11 @@ export function usePlaceFilingWorkflow(
     preserveDraft = false,
     signal?: AbortSignal,
   ) => {
+    const request = requestGuard.current.start(nextPlaceId)
     append ? setLoadingMore(true) : setLoading(true)
     try {
       const page = await placeFilingHttp.read(nextPlaceId, cursor, signal)
+      if (!requestGuard.current.isCurrent(request)) return
       setFiling((current) => append && current !== undefined ? {
         ...page,
         collections: [...current.collections, ...page.collections],
@@ -55,6 +63,7 @@ export function usePlaceFilingWorkflow(
         ])
       })
     } catch (reason) {
+      if (!requestGuard.current.isCurrent(request)) return
       if (reason instanceof DOMException && reason.name === 'AbortError') return
       const status = reason instanceof PlaceFilingProblem ? reason.status : 503
       if (status === 401 || status === 403) onAccessFailure(status)
@@ -67,8 +76,10 @@ export function usePlaceFilingWorkflow(
             : '카테고리 목록을 불러오지 못했습니다.',
       })
     } finally {
-      setLoading(false)
-      setLoadingMore(false)
+      if (requestGuard.current.isCurrent(request)) {
+        setLoading(false)
+        setLoadingMore(false)
+      }
     }
   }, [onAccessFailure])
 
@@ -94,10 +105,15 @@ export function usePlaceFilingWorkflow(
 
   const execute = useCallback(async (request: PlaceFilingCommandRequestV2) => {
     if (placeId === undefined || saving) return
+    const operationPlaceId = placeId
     setSaving(true)
     setMessage(undefined)
     try {
       const result = await placeFilingHttp.command(request)
+      if (!requestGuard.current.isActive(operationPlaceId)) {
+        if (result.outcome === 'accepted') await onApplied()
+        return
+      }
       if (result.outcome === 'accepted') {
         setRetryRequest(undefined)
         setMessage({
@@ -128,6 +144,7 @@ export function usePlaceFilingWorkflow(
             : '선택한 변경을 적용할 수 없습니다. 최신 목록을 확인해 주세요.',
       })
     } catch (reason) {
+      if (!requestGuard.current.isActive(operationPlaceId)) return
       if (reason instanceof DOMException && reason.name === 'AbortError') return
       const status = reason instanceof PlaceFilingProblem ? reason.status : 503
       if (status === 401 || status === 403) onAccessFailure(status)

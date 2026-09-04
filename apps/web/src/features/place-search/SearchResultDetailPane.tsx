@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from 'react'
 
+import { ExternalDirectionActions } from '../../platform/maps/public'
+
 import styles from './search-detail.module.css'
 import type {
   SearchCanonicalPlaceDetailRenderer,
@@ -85,7 +87,7 @@ export function SearchResultDetailPane({
               <dd>{selected.location.latitude.toFixed(5)}, {selected.location.longitude.toFixed(5)}</dd>
             </div>
           </dl>
-
+          <ExternalDirectionActions destination={selected} />
         </>
       )}
     </aside>

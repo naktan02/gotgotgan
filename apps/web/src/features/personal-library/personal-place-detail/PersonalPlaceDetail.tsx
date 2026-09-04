@@ -1,5 +1,7 @@
 'use client'
 
+import { ExternalDirectionActions } from '../../../platform/maps/public'
+
 import { PersonalNotes } from './notes/PersonalNotes'
 import { PersonalOrganizationEditor } from './organization/PersonalOrganizationEditor'
 import { PersonalRatingEditor } from './rating/PersonalRatingEditor'
@@ -76,6 +78,7 @@ export function PersonalPlaceDetail({
                 : `${selectedPlace.location.latitude.toFixed(5)}, ${selectedPlace.location.longitude.toFixed(5)}`}</dd>
             </div>
           </dl>
+          <ExternalDirectionActions destination={selectedPlace} />
         </>
       )}
 

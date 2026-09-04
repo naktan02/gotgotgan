@@ -25,6 +25,7 @@ import {
 } from '../backend-http/fixed-backend'
 import {
   CATALOG_MAP_RESPONSE_MAX_BYTES,
+  CATALOG_SEARCH_RESPONSE_MAX_BYTES,
   readBoundedSearchJson,
 } from './bounded-search-json'
 
@@ -80,7 +81,7 @@ export async function searchCatalogPlaces(
       ? AbortSignal.timeout(5_000)
       : AbortSignal.any([signal, AbortSignal.timeout(5_000)]),
   }, environment, fetcher)
-  const payload = await responseJson(response)
+  const payload = await readBoundedSearchJson(response, CATALOG_SEARCH_RESPONSE_MAX_BYTES)
   if (!response.ok) {
     const problem = safeProblem(payload)
     if (problem !== undefined) {

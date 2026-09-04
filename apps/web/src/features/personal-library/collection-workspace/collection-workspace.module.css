@@ -106,6 +106,7 @@
 .deleteConfirm button:first-of-type { border-color: #efc5c5; color: #a63f3f; }
 
 .inlineError { border-bottom: 1px solid #f2d0d0; background: #fff4f4; padding: 9px 14px; color: #a13f3f; font-size: 11px; }
+.managementBar { display: grid; flex: none; grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 1px solid #e3e8ef; }
 .filters { display: flex; flex: none; min-height: 55px; align-items: center; gap: 7px; padding: 9px 12px; border-bottom: 1px solid #e3e8ef; overflow-x: auto; }
 .filters label, .filterGroup { display: flex; flex: none; align-items: center; gap: 5px; }
 .filters label > span, .filterGroup > span { color: #758094; font-size: 9px; font-weight: 700; }

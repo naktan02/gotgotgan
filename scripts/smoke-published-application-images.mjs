@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 const execFileAsync = promisify(execFile)
 const commitPattern = /^[0-9a-f]{40}$/
 const webImagePattern = /^ghcr\.io\/naktan02\/place-web@sha256:[0-9a-f]{64}$/
+const adminWebImagePattern = /^ghcr\.io\/naktan02\/place-admin-web@sha256:[0-9a-f]{64}$/
 const backendImagePattern = /^ghcr\.io\/naktan02\/place-backend@sha256:[0-9a-f]{64}$/
 const sourceLabel = 'https://github.com/naktan02/gotgotgan'
 
@@ -24,6 +25,7 @@ async function docker(arguments_, { allowFailure = false } = {}) {
 function validate(options) {
   if (
     !webImagePattern.test(options.webImage) ||
+    !adminWebImagePattern.test(options.adminWebImage) ||
     !backendImagePattern.test(options.backendImage) ||
     !commitPattern.test(options.commit) ||
     typeof options.output !== 'string' ||
@@ -58,7 +60,7 @@ async function inspectImage(image, commit, runDocker) {
   }
 }
 
-async function waitForReadiness(container, port, path_, runDocker) {
+async function waitForStatus(container, port, path_, expectedStatus, runDocker) {
   for (let attempt = 0; attempt < 30; attempt += 1) {
     try {
       await runDocker([
@@ -66,29 +68,33 @@ async function waitForReadiness(container, port, path_, runDocker) {
         container,
         'node',
         '-e',
-        `fetch('http://127.0.0.1:${port}${path_}').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))`,
+        `fetch('http://127.0.0.1:${port}${path_}').then(r=>{if(r.status!==${expectedStatus})process.exit(1)}).catch(()=>process.exit(1))`,
       ])
       return
     } catch {
       await delay(250)
     }
   }
-  throw new Error(`${container} did not become ready`)
+  throw new Error(`${container} did not return the expected status`)
 }
 
 export async function smokePublishedApplicationImages(options, runDocker = docker) {
   validate(options)
   const suffix = `${process.pid}-${Date.now()}`
   const webContainer = `place-web-release-smoke-${suffix}`
+  const adminWebContainer = `place-admin-web-release-smoke-${suffix}`
   const backendContainer = `place-backend-release-smoke-${suffix}`
   await Promise.all([
     runDocker(['image', 'rm', '--force', options.webImage], { allowFailure: true }),
+    runDocker(['image', 'rm', '--force', options.adminWebImage], { allowFailure: true }),
     runDocker(['image', 'rm', '--force', options.backendImage], { allowFailure: true }),
   ])
   await runDocker(['pull', options.webImage])
+  await runDocker(['pull', options.adminWebImage])
   await runDocker(['pull', options.backendImage])
   await Promise.all([
     inspectImage(options.webImage, options.commit, runDocker),
+    inspectImage(options.adminWebImage, options.commit, runDocker),
     inspectImage(options.backendImage, options.commit, runDocker),
   ])
 
@@ -121,6 +127,28 @@ export async function smokePublishedApplicationImages(options, runDocker = docke
       'run',
       '--detach',
       '--name',
+      adminWebContainer,
+      '--pull',
+      'never',
+      '--read-only',
+      '--cap-drop',
+      'ALL',
+      '--security-opt',
+      'no-new-privileges',
+      '--tmpfs',
+      '/tmp',
+      '--env',
+      'HOSTNAME=0.0.0.0',
+      '--env',
+      'PORT=3000',
+      '--env',
+      'PLACE_ADMIN_OIDC_RUNTIME_ENABLED=false',
+      options.adminWebImage,
+    ])
+    await runDocker([
+      'run',
+      '--detach',
+      '--name',
       backendContainer,
       '--pull',
       'never',
@@ -140,8 +168,10 @@ export async function smokePublishedApplicationImages(options, runDocker = docke
       options.backendImage,
     ])
     await Promise.all([
-      waitForReadiness(webContainer, 3000, '/readyz', runDocker),
-      waitForReadiness(backendContainer, 8080, '/readyz', runDocker),
+      waitForStatus(webContainer, 3000, '/readyz', 200, runDocker),
+      waitForStatus(adminWebContainer, 3000, '/healthz', 200, runDocker),
+      waitForStatus(adminWebContainer, 3000, '/readyz', 503, runDocker),
+      waitForStatus(backendContainer, 8080, '/readyz', 200, runDocker),
     ])
     await runDocker([
       'run',
@@ -161,6 +191,7 @@ export async function smokePublishedApplicationImages(options, runDocker = docke
   } finally {
     await Promise.all([
       runDocker(['rm', '--force', webContainer], { allowFailure: true }),
+      runDocker(['rm', '--force', adminWebContainer], { allowFailure: true }),
       runDocker(['rm', '--force', backendContainer], { allowFailure: true }),
     ])
   }
@@ -170,6 +201,12 @@ export async function smokePublishedApplicationImages(options, runDocker = docke
     releaseRevision: `place@${options.commit}`,
     images: {
       web: { reference: options.webImage, readinessPath: '/readyz' },
+      adminWeb: {
+        reference: options.adminWebImage,
+        healthPath: '/healthz',
+        readinessPath: '/readyz',
+        sourceOnlyReadiness: 'unavailable',
+      },
       backend: { reference: options.backendImage, readinessPath: '/readyz' },
     },
     workerCheck: 'passed',
@@ -193,6 +230,7 @@ async function main() {
   const values = cliOptions(process.argv.slice(2))
   await smokePublishedApplicationImages({
     webImage: values.get('--web-image'),
+    adminWebImage: values.get('--admin-web-image'),
     backendImage: values.get('--backend-image'),
     commit: values.get('--commit'),
     output: values.get('--output'),

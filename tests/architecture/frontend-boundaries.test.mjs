@@ -7,12 +7,12 @@ import { fileURLToPath } from 'node:url'
 
 import { inspectFrontendArchitecture } from '@naktan02/frontend-architecture'
 import { frontendArchitecturePolicy } from '../../scripts/frontend-architecture-policy.mjs'
+import { inspectFrontendLayout } from '../../scripts/lib/frontend-layout.mjs'
 
 const roots = []
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
 const moduleSourcePattern = /\.(?:ts|tsx)$/
-const layoutSourcePattern = /\.(?:css|ts|tsx)$/
 const testSourcePattern = /\.(?:test|spec)\.(?:css|ts|tsx)$/
 const importPattern = /(?:from\s+|import\s*(?:\(\s*)?)['"]([^'"]+)['"]/g
 
@@ -22,10 +22,6 @@ function normalize(relativePath) {
 
 function isProductionModule(name) {
   return moduleSourcePattern.test(name) && !name.endsWith('.d.ts') && !testSourcePattern.test(name)
-}
-
-function isProductionLayoutSource(name) {
-  return layoutSourcePattern.test(name) && !name.endsWith('.d.ts') && !testSourcePattern.test(name)
 }
 
 function isTestSupportDirectory(name) {
@@ -76,37 +72,6 @@ async function inspectFeaturePublicSeams(root) {
   return violations
 }
 
-async function inspectFrontendLayout(root) {
-  const violations = []
-
-  async function inspectDirectory(directory) {
-    const entries = await readdir(directory, { withFileTypes: true })
-    const directSources = entries.filter(
-      (entry) => entry.isFile() && isProductionLayoutSource(entry.name),
-    )
-    const relativeDirectory = normalize(path.relative(root, directory)) || '.'
-    if (directSources.length > 12) {
-      violations.push(
-        `${relativeDirectory}: ${directSources.length} direct production sources exceed the 12-file layout review gate`,
-      )
-    }
-    for (const entry of directSources) {
-      const target = path.join(directory, entry.name)
-      const contents = await readFile(target, 'utf8')
-      if (contents.split(/\r?\n/).length > 500) {
-        violations.push(
-          `${normalize(path.relative(root, target))}: production source exceeds the 500-line layout review gate`,
-        )
-      }
-    }
-    await Promise.all(entries
-      .filter((entry) => entry.isDirectory() && !isTestSupportDirectory(entry.name))
-      .map((entry) => inspectDirectory(path.join(directory, entry.name))))
-  }
-
-  await inspectDirectory(root)
-  return violations
-}
 async function fixture(files) {
   const root = await mkdtemp(path.join(tmpdir(), 'place-frontend-architecture-'))
   roots.push(root)
@@ -183,8 +148,10 @@ test('enforces web layout review gates without counting test support', async () 
   assert.ok(!violations.some((value) => value.startsWith('features/library/tests/large.test.ts')))
 })
 
-test('web production sources use public feature seams and reviewed layouts', async () => {
-  const root = path.join(repositoryRoot, 'apps/web/src')
-  assert.deepEqual(await inspectFeaturePublicSeams(root), [])
-  assert.deepEqual(await inspectFrontendLayout(root), [])
+test('member and admin production sources use reviewed layouts', async () => {
+  const memberRoot = path.join(repositoryRoot, 'apps/web/src')
+  const adminRoot = path.join(repositoryRoot, 'apps/admin-web/src')
+  assert.deepEqual(await inspectFeaturePublicSeams(memberRoot), [])
+  assert.deepEqual(await inspectFrontendLayout(memberRoot), [])
+  assert.deepEqual(await inspectFrontendLayout(adminRoot), [])
 })

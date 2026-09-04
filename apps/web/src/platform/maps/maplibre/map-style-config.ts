@@ -2,13 +2,15 @@ const OPEN_FREE_MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 const LOCAL_E2E_STYLE_URL = '/api/maps/style'
 
 function isSafeRelativeStyleUrl(value: string): boolean {
-  return value.startsWith('/') && !value.startsWith('//') && !/[\\\u0000-\u001f]/u.test(value)
+  return value.startsWith('/') && !value.startsWith('//') &&
+    !/[\\?#\u0000-\u001f]/u.test(value)
 }
 
 function isSafeHttpsStyleUrl(value: string): boolean {
   try {
     const url = new URL(value)
-    return url.protocol === 'https:' && url.username === '' && url.password === ''
+    return url.origin === 'https://tiles.openfreemap.org' &&
+      url.username === '' && url.password === '' && url.search === '' && url.hash === ''
   } catch {
     return false
   }
@@ -24,7 +26,7 @@ export function resolvePlaceMapStyleUrl(
   }
   const value = configured.trim()
   if (value.length > 2_048 || (!isSafeRelativeStyleUrl(value) && !isSafeHttpsStyleUrl(value))) {
-    throw new Error('PLACE_MAP_STYLE_URL must be a same-origin path or an HTTPS URL')
+    throw new Error('PLACE_MAP_STYLE_URL must be a same-origin path or a public OpenFreeMap URL')
   }
   return value
 }

@@ -2,7 +2,7 @@
 
 import { Component, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
 
-import { buildExternalDirectionLinks, type PlaceMapRenderer } from '../../platform/maps/public'
+import { ExternalDirectionActions, type PlaceMapRenderer } from '../../platform/maps/public'
 
 import {
   catalogQuickTypes,
@@ -200,9 +200,6 @@ function SelectedPlaceCard({ PlaceFilingRenderer, workflow }: Readonly<{
   workflow: CatalogHomeWorkflow
 }>) {
   if (workflow.selected === undefined) return null
-  const directionLinks = workflow.selected.location === null
-    ? []
-    : buildExternalDirectionLinks({ name: workflow.selected.name, location: workflow.selected.location })
   return (
     <section aria-label="선택한 장소" className={styles.selectedCard}>
       <div>
@@ -216,14 +213,7 @@ function SelectedPlaceCard({ PlaceFilingRenderer, workflow }: Readonly<{
         onClick={() => workflow.setCollectionPickerOpen(!workflow.collectionPickerOpen)}
         type="button"
       >컬렉션 선택</button>
-      {directionLinks.length > 0 && <nav aria-label="외부 지도 길찾기" className={styles.directionLinks}>
-        {directionLinks.map((link) => <a
-          href={link.href}
-          key={link.provider}
-          rel="external noopener noreferrer"
-          target="_blank"
-        >{link.label}</a>)}
-      </nav>}
+      <ExternalDirectionActions destination={workflow.selected} />
       <CollectionChooser PlaceFilingRenderer={PlaceFilingRenderer} workflow={workflow} />
     </section>
   )

@@ -26,6 +26,27 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  admin-web:
+    profiles: [admin]
+    image: ${PLACE_ADMIN_WEB_IMAGE:?PLACE_ADMIN_WEB_IMAGE is required}
+    environment:
+      HOSTNAME: ${PLACE_ADMIN_WEB_HOST:?PLACE_ADMIN_WEB_HOST is required}
+      PORT: ${PLACE_ADMIN_WEB_PORT:?PLACE_ADMIN_WEB_PORT is required}
+      PLACE_ADMIN_OIDC_RUNTIME_ENABLED: ${PLACE_ADMIN_OIDC_RUNTIME_ENABLED:-false}
+    expose:
+      - "${PLACE_ADMIN_WEB_PORT:?PLACE_ADMIN_WEB_PORT is required}"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:'+process.env.PORT+'/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    restart: unless-stopped
+
   backend:
     image: ${PLACE_BACKEND_IMAGE:?PLACE_BACKEND_IMAGE is required}
     environment:

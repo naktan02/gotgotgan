@@ -13,6 +13,7 @@ import {
   collectionLibraryHttp,
 } from './collection-library-http'
 import { usePlaceFilingWorkflow } from '../place-filing/place-filing-workflow'
+import { createLibraryMapRequestGuard } from '../library-map/library-map-request-guard'
 
 type PageStatus = 'loading' | 'ready' | 'authentication-required' | 'forbidden' | 'not-found' | 'unavailable' | 'error'
 type MobileSurface = 'collections' | 'list' | 'map' | 'detail'
@@ -55,6 +56,7 @@ export function useCollectionLibraryWorkflow() {
   const [collectionMessage, setCollectionMessage] = useState<string | undefined>()
   const [deleteArmed, setDeleteArmed] = useState(false)
   const requestSequence = useRef(0)
+  const mapRequests = useRef(createLibraryMapRequestGuard())
 
   const accessFailure = useCallback((status: number) => {
     setPageStatus(status === 401 ? 'authentication-required' : 'forbidden')
@@ -162,10 +164,11 @@ export function useCollectionLibraryWorkflow() {
   useEffect(() => {
     setMapProjection(undefined)
     if (selectedCollectionId === undefined) {
+      mapRequests.current.invalidate()
       setMapStatus('idle')
       return
     }
-    const controller = new AbortController()
+    const request = mapRequests.current.start()
     const timeout = window.setTimeout(() => {
       setMapStatus('loading')
       collectionLibraryHttp.map({
@@ -176,10 +179,12 @@ export function useCollectionLibraryWorkflow() {
         east: mapViewport.bounds.east,
         north: mapViewport.bounds.north,
         zoom: mapViewport.zoom,
-      }, controller.signal).then((projection) => {
+      }, request.signal).then((projection) => {
+        if (!mapRequests.current.isCurrent(request)) return
         setMapProjection(projection)
         setMapStatus('ready')
       }).catch((reason) => {
+        if (!mapRequests.current.isCurrent(request)) return
         if (reason instanceof DOMException && reason.name === 'AbortError') return
         const status = reason instanceof CollectionLibraryProblem ? reason.status : 503
         if (status === 401 || status === 403) accessFailure(status)
@@ -188,11 +193,18 @@ export function useCollectionLibraryWorkflow() {
     }, 150)
     return () => {
       window.clearTimeout(timeout)
-      controller.abort()
+      mapRequests.current.cancel(request)
     }
   }, [accessFailure, mapViewport, revision, selectedCollectionId])
 
   const refresh = useCallback(async () => {
+    setRevision((current) => current + 1)
+  }, [])
+
+  const handleTagsChanged = useCallback(async (deletedTagId?: string) => {
+    if (deletedTagId !== undefined) {
+      setTagIds((current) => current.filter((tagId) => tagId !== deletedTagId))
+    }
     setRevision((current) => current + 1)
   }, [])
 
@@ -319,6 +331,8 @@ export function useCollectionLibraryWorkflow() {
     collectionMessage,
     deleteArmed,
     filing,
+    handleAccessFailure: accessFailure,
+    handleTagsChanged,
     selectCollection: (collectionId: string) => {
       setSelectedCollectionId(collectionId)
       setSelectedPlaceId(undefined)

@@ -72,6 +72,19 @@ describe('browser search HTTP', () => {
     expect(configured.backend.catalogMap).not.toHaveBeenCalled()
   })
 
+  it('rejects an oversized catalog list request before backend dispatch', async () => {
+    const configured = dependencies()
+    const response = await createBrowserSearchHttp(configured).catalog(new Request(
+      'https://place.example/api/search/catalog',
+      {
+        method: 'POST', body: '{}',
+        headers: { 'content-type': 'application/json', 'content-length': String(32 * 1_024 + 1) },
+      },
+    ))
+    expect(response.status).toBe(400)
+    expect(configured.backend.catalog).not.toHaveBeenCalled()
+  })
+
   it('dispatches an antimeridian catalog list viewport instead of reporting it unavailable', async () => {
     const configured = dependencies()
     const bounds = { west: 170, south: -20, east: -170, north: 20 }

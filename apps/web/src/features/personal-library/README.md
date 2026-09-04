@@ -8,6 +8,12 @@
 지역·Taxonomy 선택지는 같은 v2 workspace의 Collection-first `availableFilters`를 사용한다. Tag 보조
 요청이 실패해도 workspace 전체를 지우지 않는다.
 
+선택한 카테고리의 공개 범위·공유 링크·장소 순서·장소 제외는
+`collection-management`가 소유한다. 공개 범위는 opaque revision을 요구하는 lifecycle v2 command를,
+순서와 제외는 기존 Library command 계약을 전용 same-origin client 뒤에서 사용한다. 태그 목록과
+생성·이름 변경·2단계 확인 삭제는 `tag-management`가 독립적으로 읽고 변경한 뒤 workspace 필터를
+갱신한다.
+
 `place-filing/place-filing-workflow.ts`는 여러 카테고리 membership을 한 원자 command로 변경한다.
 현재 읽은 페이지의 선택만 전송하고, version conflict에서는 선택을 보존한 채 최신 revision을 다시
 읽는다. 응답 유실 재시도는 동일한 command ID와 payload를 사용한다. 카테고리 생성·수정·삭제도
@@ -24,6 +30,8 @@ provider-neutral `PlaceMapRenderer`로 주입되어 목록, 상세, 카테고리
 직계 형제는 다음처럼 같은 추상화 수준의 하위 모듈이다.
 
 - `collection-workspace`: 카테고리 선택·필터·장소 목록을 조립하는 화면과 workflow/client
+- `collection-management`: 선택 카테고리의 공개·공유·장소 순서와 membership 제거
+- `tag-management`: 개인 태그 목록·생성·이름 변경·확인 삭제
 - `place-filing`: 한 장소의 여러 카테고리 membership을 원자적으로 편집하는 제어
 - `library-map`: Library map projection을 provider-neutral 지도 Interface로 변환하는 Adapter
 - `personal-place-detail`: 평점·태그·방문·메모를 조립하는 개인 장소 상세
@@ -32,8 +40,9 @@ provider-neutral `PlaceMapRenderer`로 주입되어 목록, 상세, 카테고리
 `personal-place-detail`의 `rating`, `organization`, `visits`, `notes`는 서로 다른 수명주기와
 실패 복구를 가져 동급 하위 모듈로 둔다. 외부 호출자는 구현 파일을 직접 import하지 않는다. 새
 workflow도 루트에 평면 파일을 추가하지 않고 가장 가까운 소유 하위 모듈에 배치한다.
-`collection-workspace`는 화면 조립을 위해 세 leaf 모듈을 사용할 수 있지만, `place-filing`,
-`library-map`, `personal-place-detail`은 `collection-workspace`나 서로의 내부 구현을 import하지 않는다.
+`collection-workspace`는 화면 조립을 위해 leaf 모듈을 사용할 수 있지만, `collection-management`,
+`tag-management`, `place-filing`, `library-map`, `personal-place-detail`은 `collection-workspace`나
+서로의 내부 구현을 import하지 않는다.
 
 검증된 비활성 v1 화면과 호환 계층은 새 구조에 보관하지 않고 제거했다. 필요한 새 기능은 기존 코드를
 되살리는 대신 위의 동급 하위 모듈 중 실제 소유자에 추가한다.

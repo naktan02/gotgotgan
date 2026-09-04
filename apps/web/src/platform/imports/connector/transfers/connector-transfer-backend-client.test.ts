@@ -6,6 +6,25 @@ const operationId = '01992d20-7000-7000-8000-000000000101'
 const manifestId = '01992d20-7000-7000-8000-000000000102'
 
 describe('connector transfer backend client', () => {
+  it('checks readiness through one fixed credential-free route', async () => {
+    const request = vi.fn(async (_input: URL, _init: RequestInit) =>
+      new Response(null, { status: 200 }))
+    const client = createConnectorTransferBackendClient({
+      origin: 'http://backend.internal:4010',
+      publicOrigin: 'https://place.example',
+      timeoutMilliseconds: 5_000,
+      request,
+    })
+
+    await expect(client.ready()).resolves.toMatchObject({ status: 200 })
+    const [url, init] = request.mock.calls[0]!
+    expect(url.toString()).toBe('http://backend.internal:4010/readyz')
+    expect(new Headers(init.headers).has('authorization')).toBe(false)
+    expect(init).toMatchObject({
+      cache: 'no-store', credentials: 'omit', redirect: 'error',
+    })
+  })
+
   it('uses only reviewed paths, configured origins, and allowlisted headers', async () => {
     const request = vi.fn(async (_input: URL, _init: RequestInit) =>
       Response.json({ ok: true }))

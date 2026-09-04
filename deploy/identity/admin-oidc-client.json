@@ -1,0 +1,19 @@
+{
+  "serviceId": "place-admin",
+  "displayName": "Place Admin",
+  "applicationName": "Place Admin Web",
+  "applicationType": "web",
+  "authMethod": "basic",
+  "redirectUris": [
+    "${PLACE_ADMIN_PUBLIC_ORIGIN}/api/auth/oidc/callback"
+  ],
+  "postLogoutRedirectUris": [
+    "${PLACE_ADMIN_PUBLIC_ORIGIN}/"
+  ],
+  "additionalOrigins": [],
+  "devMode": false,
+  "accessTokenType": "jwt",
+  "includeUserInfoInIdToken": false,
+  "assertRolesInAccessToken": false,
+  "assertRolesInIdToken": false
+}

@@ -4,6 +4,7 @@ import {
   SearchBackendProblem,
   getSearchTaxonomy,
   searchCatalogMap,
+  searchCatalogPlaces,
   selectPlaceSuggestion,
   searchPlaces,
   suggestPlaces,
@@ -93,6 +94,28 @@ describe('search backend client', () => {
     )).rejects.toThrow('Search JSON')
     await expect(searchCatalogMap(
       mapRequest, { PLACE_BACKEND_ORIGIN: 'http://backend.test:4010' }, compressed,
+    )).rejects.toThrow('Search JSON')
+  })
+
+  it('fails closed on oversized or compressed catalog list responses', async () => {
+    const catalogRequest = {
+      schemaVersion: 'catalog-place-search.v1' as const,
+      query: '라멘', excludedTokenIds: [], limit: 20,
+    }
+    const oversized: BackendFetcher = vi.fn(async () => new Response('{}', {
+      headers: {
+        'content-type': 'application/json',
+        'content-length': String(1_024 * 1_024 + 1),
+      },
+    }))
+    const compressed: BackendFetcher = vi.fn(async () => new Response('{}', {
+      headers: { 'content-type': 'application/json', 'content-encoding': 'gzip' },
+    }))
+    await expect(searchCatalogPlaces(
+      catalogRequest, { PLACE_BACKEND_ORIGIN: 'http://backend.test:4010' }, oversized,
+    )).rejects.toThrow('Search JSON')
+    await expect(searchCatalogPlaces(
+      catalogRequest, { PLACE_BACKEND_ORIGIN: 'http://backend.test:4010' }, compressed,
     )).rejects.toThrow('Search JSON')
   })
 

@@ -61,25 +61,35 @@ fail startup. The acquisition Worker remains `not-integrated` and no browser pro
 created by this HTTP-only stage. Web Import BFF readiness is independently activated and checks the
 fixed internal Backend origin without exposing it to the browser.
 
-`deploy/application-runtime.json` fixes Web as the only future Gateway-facing process. Backend and
-Worker remain internal; browsers cannot select or call Backend directly. The Compose base publishes
-no host ports, `compose.local.yml` adds explicit standalone ports, and `compose.production.yml`
-mounts symbolic secret/config roles and the Place data network without embedding an address or
-credential.
+`deploy/application-runtime.json` fixes member Web as the only public Gateway-facing process and
+Admin Web as a separate restricted Gateway candidate. Backend and Worker remain internal; browsers
+cannot select or call Backend directly. Admin Web is not a conditional view inside member Web: it is
+an opt-in sibling container in the same `place` Compose project and default network. The Compose base
+publishes no host ports, `compose.local.yml` adds explicit standalone ports, and the production
+overlays mount symbolic secret/config roles and the Place data network without embedding an address
+or credential.
 
-One digest-pinned multi-stage Dockerfile produces separate `web-runtime` and `backend-runtime`
-targets. The worker uses the backend image with a different command. Local Compose alone owns those
-build targets. The port-free base and production overlay consume injected immutable image
-coordinates, while the deployment planner binds Web and Backend to one source revision and preserves
-the database during application-only rollback. Compose requires every host and port from deployment
-configuration. Worker `--check` stays in the verification profile; snapshot materialization is an
+One digest-pinned multi-stage Dockerfile produces separate `web-runtime`, `admin-web-runtime`, and
+`backend-runtime` targets. The worker uses the backend image with a different command. Local Compose
+alone owns those build targets. The port-free base and production overlays consume injected
+immutable image coordinates, while the deployment planner binds Web, Admin Web, and Backend to one
+source revision and rolls back all three together while preserving the database. Compose requires
+every host and port from deployment configuration. Worker `--check` stays in the verification
+profile; snapshot materialization is an
 active internal process, while capture expiry cleanup is an operator-invoked maintenance profile and
 is not a scheduler or live acquisition activation.
-The producer release declaration binds those two targets and four process roles to one
+The producer release declaration binds those three targets and five process roles to one
 `place@<commit>` revision while retaining `source-only` deployment state. The manual release
 workflow owns GHCR publication, BuildKit SBOM/provenance extraction, published-platform-digest
 smoke, and the checksum-bound release record. It has no promotion or environment authority.
 Existing commit tags are immutable checkpoints: a retry verifies any existing image before building
-only the missing image, then regenerates evidence for the complete pair.
+only the missing image, then regenerates evidence for the complete release unit.
+
+Admin authentication does not reuse member Web state. `PLACE_ADMIN_*` OIDC configuration, the Admin
+client secret, Admin encryption keyring, callback, cookies, and session namespace are independent;
+only the credential-free internal Backend origin is shared. `compose.admin.production.yml` enables
+that runtime only with a complete protected configuration and uses `/readyz` for activation. A
+source-only Admin image smoke deliberately disables OIDC, so it proves `/healthz=200` and the
+fail-closed `/readyz=503` state rather than claiming production readiness.
 The separate `compose.database.yml` remains in the same `place` Compose project, publishes no host
 port, and requires an injected private data network, volume, administrator identity, and secret file.

@@ -21,7 +21,6 @@ describe('Place map Renderer Interface', () => {
           schemaVersion: 'library-map-projection.v1',
           scope: {
             kind: 'collection', collectionId: '01992d20-0000-7000-8000-000000000011',
-            tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: [],
           },
           viewport: {
             bounds: { west: 126.9, south: 37.5, east: 127.1, north: 37.6 }, zoom: 12,

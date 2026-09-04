@@ -3,6 +3,8 @@
 import type { PublicPlaceDetailResponse } from '@place/contracts/places'
 import { useEffect, useState } from 'react'
 
+import { ExternalDirectionActions } from '../../platform/maps/public'
+
 import {
   PublishedCollectionHttpProblem,
   publishedCollectionHttp,
@@ -88,6 +90,7 @@ export function PublishedPlaceDetail({
               </dd>
             </div>
           </dl>
+          <ExternalDirectionActions destination={state.detail} />
         </div>
       )}
     </section>
