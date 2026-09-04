@@ -339,7 +339,7 @@ async function installCollectionLibraryFixture(page: Page, options: LibraryFixtu
 
 async function openRamenDetail(page: Page) {
   await page.getByRole('button', { name: /서울 라멘/ }).first().click()
-  await page.getByRole('button', { name: /멘야 하루/ }).click()
+  await page.getByRole('button', { name: /멘야 하루 쇼유라멘/ }).click()
   await expect(page.getByRole('complementary', { name: '선택한 장소 상세' })).toBeVisible()
 }
 

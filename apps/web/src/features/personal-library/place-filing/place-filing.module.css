@@ -1,0 +1,42 @@
+.filingEditor {
+  --filing-accent: #1768e5;
+  margin-top: 20px;
+  border-top: 1px solid #e3e8ef;
+  padding-top: 18px;
+}
+
+.filingHeading { display: flex; align-items: start; justify-content: space-between; gap: 10px; }
+.filingHeading h3 { margin: 0; font-size: 15px; }
+.filingHeading p { margin: 4px 0 0; color: #707b8c; font-size: 10px; }
+.filingHeading > span { color: #7c8796; font-size: 10px; }
+.filingChoices { display: grid; gap: 6px; margin-top: 12px; }
+.filingChoices label { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; min-height: 44px; align-items: center; gap: 8px; border: 1px solid #dbe2ec; border-radius: 8px; padding: 0 10px; }
+.filingChoices input { width: 17px; height: 17px; accent-color: var(--filing-accent); }
+.filingChoices span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 700; }
+.filingChoices small { color: #7b8798; font-size: 9px; }
+.filingActions { display: flex; align-items: center; justify-content: space-between; gap: 9px; margin-top: 10px; }
+.filingActions span { color: #718096; font-size: 10px; }
+.filingActions button { min-height: 40px; border: 0; border-radius: 8px; background: var(--filing-accent); color: #fff; padding: 0 12px; font-size: 11px; font-weight: 750; }
+.filingActions button:disabled { opacity: .5; }
+.filingEmpty { color: #7c8796; font-size: 11px; }
+.secondaryButton { min-height: 38px; margin-top: 9px; border: 1px solid #d4dce7; border-radius: 8px; background: #fff; color: #536176; padding: 0 10px; font-size: 10px; }
+.filing_info, .filing_success, .filing_warning, .filing_error { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; border-radius: 8px; padding: 9px; font-size: 10px; }
+.filing_info { background: #f0f5fb; color: #47607f; }
+.filing_success { background: #ebf8f1; color: #26744b; }
+.filing_warning { background: #fff8e7; color: #8a671c; }
+.filing_error { background: #fff0f0; color: #a13f3f; }
+.filing_error button { border: 0; background: transparent; color: inherit; text-decoration: underline; }
+
+.filingEditor button:focus-visible,
+.filingEditor input:focus-visible {
+  outline: 3px solid #86b8ff;
+  outline-offset: 1px;
+}
+
+@media (max-width: 720px) {
+  .filingChoices label,
+  .filingActions button,
+  .secondaryButton {
+    min-height: 44px;
+  }
+}

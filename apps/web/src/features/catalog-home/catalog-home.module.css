@@ -63,7 +63,6 @@
 .collectionPicker small { color: #89929f; font-weight: 500; }
 .pickerState { grid-column: 1 / -1; margin: 0; padding: 10px; border-radius: 8px; background: #f4f7fb; color: #687383; font-size: 11px; pointer-events: auto; }
 .pickerState a { color: #1768e5; font-weight: 750; }
-.collectionMessage { grid-column: 1 / -1; min-height: 14px; color: #246d49 !important; }
 .mobileSwitch { display: none; }
 .srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 

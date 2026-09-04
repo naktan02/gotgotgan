@@ -1,4 +1,9 @@
-export { CatalogHomeSearch, CatalogHomeView, CatalogHomeWorkspace } from './CatalogHome'
+export {
+  CatalogHomeSearch,
+  CatalogHomeView,
+  CatalogHomeWorkspace,
+  type CatalogHomePlaceFilingRenderer,
+} from './CatalogHome'
 export {
   CatalogHomeProvider,
   catalogQuickTypes,

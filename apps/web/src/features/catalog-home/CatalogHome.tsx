@@ -1,10 +1,9 @@
 'use client'
 
-import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { Component, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
 
 import { buildExternalDirectionLinks, type PlaceMapRenderer } from '../../platform/maps/public'
 
-import { PlaceFilingControl } from '../personal-library/public/place-filing'
 import {
   catalogQuickTypes,
   type CatalogHomePlace,
@@ -16,6 +15,12 @@ import styles from './catalog-home.module.css'
 const evidenceLabels = {
   verified: '검증됨', unverified: '검토 전', conflicted: '정보 충돌', stale: '갱신 필요',
 } as const
+
+export type CatalogHomePlaceFilingRenderer = ComponentType<Readonly<{
+  onAccessFailure: (status: number) => void
+  onApplied: () => Promise<unknown>
+  placeId: string | undefined
+}>>
 
 export function CatalogHomeSearch() {
   const workflow = useCatalogHome()
@@ -60,7 +65,10 @@ function MapAlternative({ message }: Readonly<{ message: string }>) {
   )
 }
 
-function CollectionChooser({ workflow }: Readonly<{ workflow: CatalogHomeWorkflow }>) {
+function CollectionChooser({ PlaceFilingRenderer, workflow }: Readonly<{
+  PlaceFilingRenderer: CatalogHomePlaceFilingRenderer
+  workflow: CatalogHomeWorkflow
+}>) {
   if (!workflow.collectionPickerOpen) return null
   if (workflow.collectionState === 'loading') return <p className={styles.pickerState}>컬렉션을 불러오는 중입니다.</p>
   if (workflow.collectionState === 'signed-out') {
@@ -70,7 +78,7 @@ function CollectionChooser({ workflow }: Readonly<{ workflow: CatalogHomeWorkflo
   if (workflow.collections.length === 0) return <p className={styles.pickerState}><a href="/library">내 곳곳간</a>에서 컬렉션을 먼저 만들어 주세요.</p>
   return (
     <div aria-label="정리할 컬렉션 선택" className={styles.collectionPicker}>
-      <PlaceFilingControl
+      <PlaceFilingRenderer
         onAccessFailure={workflow.onFilingAccessFailure}
         onApplied={workflow.onFilingApplied}
         placeId={workflow.selected?.placeId}
@@ -187,7 +195,10 @@ function SearchResults({ workflow }: Readonly<{ workflow: CatalogHomeWorkflow }>
   )
 }
 
-function SelectedPlaceCard({ workflow }: Readonly<{ workflow: CatalogHomeWorkflow }>) {
+function SelectedPlaceCard({ PlaceFilingRenderer, workflow }: Readonly<{
+  PlaceFilingRenderer: CatalogHomePlaceFilingRenderer
+  workflow: CatalogHomeWorkflow
+}>) {
   if (workflow.selected === undefined) return null
   const directionLinks = workflow.selected.location === null
     ? []
@@ -213,13 +224,14 @@ function SelectedPlaceCard({ workflow }: Readonly<{ workflow: CatalogHomeWorkflo
           target="_blank"
         >{link.label}</a>)}
       </nav>}
-      <CollectionChooser workflow={workflow} />
+      <CollectionChooser PlaceFilingRenderer={PlaceFilingRenderer} workflow={workflow} />
     </section>
   )
 }
 
-export function CatalogHomeView({ MapRenderer, workflow }: Readonly<{
+export function CatalogHomeView({ MapRenderer, PlaceFilingRenderer, workflow }: Readonly<{
   MapRenderer: PlaceMapRenderer
+  PlaceFilingRenderer: CatalogHomePlaceFilingRenderer
   workflow: CatalogHomeWorkflow
 }>) {
   const initialCameraMode = workflow.searchState === 'idle' &&
@@ -272,13 +284,22 @@ export function CatalogHomeView({ MapRenderer, workflow }: Readonly<{
               zoom={workflow.viewport.zoom}
             />
           </MapBoundary>
-          <SelectedPlaceCard workflow={workflow} />
+          <SelectedPlaceCard PlaceFilingRenderer={PlaceFilingRenderer} workflow={workflow} />
         </section>
       </div>
     </div>
   )
 }
 
-export function CatalogHomeWorkspace({ MapRenderer }: Readonly<{ MapRenderer: PlaceMapRenderer }>) {
-  return <CatalogHomeView MapRenderer={MapRenderer} workflow={useCatalogHome()} />
+export function CatalogHomeWorkspace({ MapRenderer, PlaceFilingRenderer }: Readonly<{
+  MapRenderer: PlaceMapRenderer
+  PlaceFilingRenderer: CatalogHomePlaceFilingRenderer
+}>) {
+  return (
+    <CatalogHomeView
+      MapRenderer={MapRenderer}
+      PlaceFilingRenderer={PlaceFilingRenderer}
+      workflow={useCatalogHome()}
+    />
+  )
 }

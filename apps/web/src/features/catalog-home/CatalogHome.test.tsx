@@ -14,6 +14,10 @@ function FakeMap({
   return <div data-initial-camera-mode={initialCameraMode} data-map>{markers.length} markers · {description}</div>
 }
 
+function FakePlaceFiling() {
+  return <div>주입된 컬렉션 정리</div>
+}
+
 const noOperation = () => undefined
 const place = {
   placeId: '550e8400-e29b-41d4-a716-446655440000',
@@ -35,7 +39,7 @@ const workflow: CatalogHomeWorkflow = {
   searchError: undefined,
   nextCursor: undefined,
   paginationState: 'idle',
-  collections: [],
+  collections: [{ collectionId: 'collection-1', name: '전시 후보', placeCount: 2 }],
   collectionState: 'ready',
   collectionPickerOpen: true,
   recentlyFiled: [],
@@ -63,10 +67,17 @@ const workflow: CatalogHomeWorkflow = {
 
 describe('Catalog Home view', () => {
   it('keeps the result and Collection chooser available when coordinates are absent', () => {
-    const markup = renderToStaticMarkup(<CatalogHomeView MapRenderer={FakeMap} workflow={workflow} />)
+    const markup = renderToStaticMarkup(
+      <CatalogHomeView
+        MapRenderer={FakeMap}
+        PlaceFilingRenderer={FakePlaceFiling}
+        workflow={workflow}
+      />,
+    )
 
     expect(markup).toContain('좌표 없는 전시 공간')
     expect(markup).toContain('컬렉션 선택')
+    expect(markup).toContain('주입된 컬렉션 정리')
     expect(markup).toContain('현재 결과에는 표시할 좌표가 없습니다')
     expect(markup).toContain('data-map')
     expect(markup).toContain('data-initial-camera-mode="supplied-bounds"')
@@ -85,7 +96,13 @@ describe('Catalog Home view', () => {
       searchState: 'idle',
     }
 
-    const markup = renderToStaticMarkup(<CatalogHomeView MapRenderer={FakeMap} workflow={idleWorkflow} />)
+    const markup = renderToStaticMarkup(
+      <CatalogHomeView
+        MapRenderer={FakeMap}
+        PlaceFilingRenderer={FakePlaceFiling}
+        workflow={idleWorkflow}
+      />,
+    )
 
     expect(markup).toContain('data-initial-camera-mode="granted-current-location"')
   })

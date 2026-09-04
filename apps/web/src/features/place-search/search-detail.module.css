@@ -23,7 +23,7 @@
 .providerDetail img { width: 100px; height: 75px; border-radius: var(--radius-control); object-fit: cover; }
 .providerDetail > div { display: grid; align-content: start; gap: 4px; }
 .providerDetail span { color: var(--muted); font-size: 12px; }
-.attributions { grid-column: 1 / -1; display: flex !important; flex-wrap: wrap; gap: 6px 12px !important; color: var(--muted); font-size: 11px; }
+.providerDetail > .attributions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 12px; color: var(--muted); font-size: 11px; }
 .desktopClose:focus-visible, .mobileBack:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
 
 @media (max-width: 720px) {
