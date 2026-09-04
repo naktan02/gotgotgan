@@ -1,13 +1,17 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
-import type { PlaceMapRendererProperties } from '@/platform/maps/place-map-interface'
+import type { PlaceMapRendererProperties } from '@/platform/maps/public'
 
 import { CatalogHomeView } from './CatalogHome'
 import type { CatalogHomeWorkflow } from './catalog-home-workflow'
 
-function FakeMap({ markers }: PlaceMapRendererProperties) {
-  return <div data-map>{markers.length} markers</div>
+function FakeMap({
+  description,
+  initialCameraMode = 'supplied-bounds',
+  markers,
+}: PlaceMapRendererProperties) {
+  return <div data-initial-camera-mode={initialCameraMode} data-map>{markers.length} markers · {description}</div>
 }
 
 const noOperation = () => undefined
@@ -36,6 +40,10 @@ const workflow: CatalogHomeWorkflow = {
   collectionPickerOpen: true,
   recentlyFiled: [],
   viewport: { zoom: 11, bounds: { west: 126, south: 37, east: 128, north: 38 } },
+  mapMarkers: [],
+  mapClusters: [],
+  mapState: 'unavailable',
+  mapDescription: '현재 결과에는 표시할 좌표가 없습니다.',
   mobileSurface: 'list',
   changeDraftQuery: noOperation,
   submitSearch: noOperation,
@@ -46,6 +54,7 @@ const workflow: CatalogHomeWorkflow = {
   onFilingApplied: async () => undefined,
   onFilingAccessFailure: noOperation,
   setViewport: noOperation,
+  selectMapCluster: noOperation,
   searchViewport: noOperation,
   loadMore: noOperation,
   showList: noOperation,
@@ -59,8 +68,25 @@ describe('Catalog Home view', () => {
     expect(markup).toContain('좌표 없는 전시 공간')
     expect(markup).toContain('컬렉션 선택')
     expect(markup).toContain('현재 결과에는 표시할 좌표가 없습니다')
-    expect(markup).not.toContain('data-map')
+    expect(markup).toContain('data-map')
+    expect(markup).toContain('data-initial-camera-mode="supplied-bounds"')
     expect(markup).not.toContain('저장됨')
     expect(markup).not.toContain('가고 싶음')
+  })
+
+  it('opts into granted current location only for the empty idle Home camera', () => {
+    const idleWorkflow: CatalogHomeWorkflow = {
+      ...workflow,
+      draftQuery: '',
+      submittedQuery: '',
+      selectedQuickType: null,
+      items: [],
+      selected: undefined,
+      searchState: 'idle',
+    }
+
+    const markup = renderToStaticMarkup(<CatalogHomeView MapRenderer={FakeMap} workflow={idleWorkflow} />)
+
+    expect(markup).toContain('data-initial-camera-mode="granted-current-location"')
   })
 })

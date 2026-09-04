@@ -41,12 +41,12 @@ state, PKCE verifier, or an internal backend origin.
 아니라 사용자의 “이 영역 검색” 동작으로 확정한다. partial, loading, empty, error 상태는 결과와
 분리해 읽을 수 있어야 하며 새 검색의 실패가 이전 pagination이나 source 경고를 남겨서는 안 된다.
 
-현재 `DeterministicPlaceMap`은 실제 좌표·bounds interaction을 검증하는 renderer adapter이다.
-live tile은 연결되지 않았다. Stage 6 공식 검색 결과는 행에서 출처와 원문 링크를 표시하고,
+운영 화면은 `MapLibrePlaceMap`, 결정적 좌표·bounds interaction 검증은 test 전용
+`DeterministicPlaceMap` Adapter가 담당한다. Stage 6 공식 검색 결과는 행에서 출처와 원문 링크를 표시하고,
 Google 결과만 선택 후 상세·사진을 지연 조회해 provider rating과 attribution을 표시한다.
 NAVER/Kakao에 없는 상세나 사진을 꾸며내지 않으며 외부 결과를 canonical Place로 보이지 않는다.
-향후 live map adapter는 feature state나 search contract를 역참조하게 만들지 않고 `platform/maps`
-경계에서 교체한다. 4개 viewport와 상태별 screenshot을 검토했으며 세부 visual polish는 이
+MapLibre lifecycle과 OpenFreeMap style은 feature state나 search contract를 역참조하지 않고
+`platform/maps` 경계에 머문다. 4개 viewport와 상태별 screenshot을 검토했으며 세부 visual polish는 이
 동작·privacy 기준을 보존하는 범위에서 계속 변경할 수 있다.
 
 ## Stage 7.14 Library workspace review
@@ -58,9 +58,9 @@ NAVER/Kakao에 없는 상세나 사진을 꾸며내지 않으며 외부 결과�
 
 `PersonalLibraryBrowseView`는 panel transition과 focus continuity를 소유하고 기존 preference,
 organization, Visit, Note workflow를 조립한다. `PersonalLibraryMap`은 Library row를 provider-neutral
-marker projection으로 바꾸며, `DeterministicPlaceMap`은 더 이상 Search result 계약을 요구하지 않는다.
-따라서 live NAVER map SDK는 이 구조나 feature state를 바꾸지 않고 platform renderer에서 교체할 수
-있다. 모바일에서 상세 뒤로 가기는 선택 행에 초점을 돌려주며 desktop, mobile Playwright가 이를
+marker projection으로 바꾸며 test Adapter는 Search result 계약을 요구하지 않는다. MapLibre SDK
+lifecycle은 이 구조나 feature state를 바꾸지 않고 platform renderer에 남는다. 모바일에서 상세 뒤로
+가기는 선택 행에 초점을 돌려주며 desktop, mobile Playwright가 이를
 검증한다.
 
 ## Stage 7.15 Search workspace alignment
@@ -74,14 +74,14 @@ attribution을 한 연속 surface에서 보여준다.
 mobile은 목록과 지도를 명시적으로 전환하고 결과나 marker 선택 시 전체 폭 상세로 이동한다. 상세
 뒤로 가기는 query, Taxonomy, bounds, pagination, 선택을 유지하고 선택 행으로 focus를 복원한다.
 desktop close만 선택을 해제해 지도 공간을 다시 넓힌다. 1180px 이하 desktop은 상세가 열릴 때 map을
-숨기며, live map SDK, Provider credential 또는 새로운 Backend 계약은 추가하지 않는다.
+숨기며 Provider credential은 지도 Adapter에 추가하지 않는다.
 
 후속 구조 보강에서 workflow의 넓은 반환값을 모든 panel에 전달하던 결합을 제거했다.
 `search-workspace-interface.ts`가 controls/results/detail/map/layout Interface를 명시하고 각 panel은
 자기 Interface만 받는다. 검색 세션 상태는 한 깊은 workflow에 남아 있으므로 일관성을 잃지 않으며,
 CSS는 workspace 배치와 controls/results/detail 표현 소유로 분리됐다. provider-neutral 지도 타입도
-`platform/maps/place-map-interface.ts`에 있어 deterministic renderer를 live renderer로 교체해도
-Search와 Library projection은 바뀌지 않는다. 이 보강은 화면 픽셀과 동작을 변경하지 않았다.
+`platform/maps` 공개 seam에 있어 test와 운영 Adapter를 교체해도 Search와 Library projection은
+바뀌지 않는다. 이 보강은 화면 픽셀과 동작을 변경하지 않았다.
 
 frontend architecture guards, 114 Web tests, typecheck, production build와 14개 Search
 desktop/mobile Playwright case 및 기존 screenshot baseline이 모두 통과했다.
@@ -96,8 +96,8 @@ component나 상태를 import하지 않는다.
 
 화면에는 Backend가 실제로 해석한 지역·장소 유형·속성·검색어 token만 칩으로 표시한다. 사용자가
 칩을 제거하거나 “이 지역에서 보기”를 누른 경우에만 해당 조건으로 다시 요청하며, 새 요청은 이전
-요청을 취소한다. 지도는 좌표가 있는 결과만 표현하고 지도 장애나 좌표 부재가 목록과 Collection
-membership 생성을 막지 않는다. 즐겨찾기의 유일한 진실은 Collection membership이며 Provider
+요청을 취소한다. 지도는 별도 bounded viewport projection의 marker·cluster만 표현하고 지도 데이터나
+SDK 장애가 목록과 Collection membership 생성을 막지 않는다. 즐겨찾기의 유일한 진실은 Collection membership이며 Provider
 검색·상세·원문 평점은 이 workflow와 공개 BFF에 포함하지 않는다. 서비스별 저장 목록 가져오기는
 설정, 원천 데이터 수집과 검수는 별도 Admin application의 책임이다.
 
@@ -119,8 +119,8 @@ Personal Library의 목록과 지도는 같은 state/Collection/Tag/지역/Taxon
 결과 row를 재사용하지 않는다. 목록은 cursor page, 지도는 `bounds + zoom` projection이다. 현재
 viewport의 모든 projected Place는 개별 marker 또는 count-bearing cluster로 표현되며, 넓은 화면에서도
 임의 row limit으로 일부 장소를 숨기지 않는다. cluster 선택은 해당 bounds로 확대하고 marker 선택은
-목록 page에 없어도 기존 canonical detail을 지연 조회한다. deterministic renderer가 pan/zoom/cluster
-Interface를 검증하며 NAVER live SDK와 credential은 아직 연결하지 않는다.
+목록 page에 없어도 기존 canonical detail을 지연 조회한다. test Adapter가 pan/zoom/cluster Interface를
+검증하고 운영 MapLibre Adapter에는 Provider SDK나 credential을 연결하지 않는다.
 
 ## Stage 11C Public Collection list/map composition
 
@@ -131,8 +131,8 @@ Interface를 검증하며 NAVER live SDK와 credential은 아직 연결하지 �
 
 `PublishedCollectionExperience`는 목록 pagination·viewport request·선택을 숨기는 깊은 module이고,
 `PublishedCollectionPlaces`는 행 표현만 소유한다. route는 초기 데이터, app wrapper는 map Adapter를
-주입한다. Search·Personal Library·publication 어느 feature도 `DeterministicPlaceMap`을 직접 import하지
-않으므로 live Provider map은 platform renderer 하나로 교체할 수 있다.
+주입한다. Search·Personal Library·publication 어느 feature도 test Adapter를 직접 import하지 않으며
+운영 MapLibre 구현은 platform renderer 하나에 격리된다.
 
 ## Stage 11D Selected public Place detail
 

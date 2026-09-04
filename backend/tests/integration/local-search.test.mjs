@@ -24,6 +24,7 @@ test('local search is indexed, cursor-bounded, taxonomy-driven, and member-isola
     const searchModule = await import('../../dist/modules/search/index.js')
     const taxonomyModule = await import('../../dist/modules/taxonomy/index.js')
     const local = new searchModule.PostgresLocalSearch(database.pool)
+    const catalogMap = new searchModule.PostgresCatalogMapSearch(database.pool)
     const taxonomyStore = new taxonomyModule.PostgresTaxonomyStore(database.pool)
     const search = searchModule.createPlaceSearch({ sources: [local] })
 
@@ -108,6 +109,77 @@ test('local search is indexed, cursor-bounded, taxonomy-driven, and member-isola
       limit: 20,
     })
     assert.equal(wrongCatalogVersion.items.length, 0)
+    for (const [index, longitude] of [179, 179.5, -179].entries()) {
+      await searchModule.projectLocalPlace({
+        placeId: `01992d20-0000-7000-8000-00000000015${index}`,
+        sourceVersion: 1,
+        name: `dateline cafe ${index}`,
+        areaLabel: '날짜변경선',
+        areaReference: { key: 'global.dateline', version: 1 },
+        latitude: index,
+        longitude,
+        primaryTaxonomy: { key: 'drink.coffee', label: '카페' },
+        taxonomyKeys: ['drink.coffee'],
+        taxonomyReferences: [{ key: 'drink.coffee', version: 1, kind: 'category' }],
+        evidenceStatus: 'verified',
+        projectedAt,
+      }, local)
+    }
+    const crossingMapQuery = {
+      query: 'dateline',
+      areaReferences: [],
+      taxonomyReferenceGroups: [],
+      viewport: { west: 170, south: -10, east: -170, north: 10 },
+      zoom: 2,
+      maxFeatures: 384,
+    }
+    const crossingCatalog = await local.searchCatalog({
+      query: 'dateline', taxonomyReferences: [], limit: 20,
+      bounds: crossingMapQuery.viewport,
+    })
+    assert.deepEqual(crossingCatalog.items.map((item) => item.name), [
+      'dateline cafe 0', 'dateline cafe 1', 'dateline cafe 2',
+    ])
+    const eastCatalog = await local.searchCatalog({
+      query: 'dateline', taxonomyReferences: [], limit: 20,
+      bounds: { west: 170, south: -10, east: 180, north: 10 },
+    })
+    assert.deepEqual(eastCatalog.items.map((item) => item.name), [
+      'dateline cafe 0', 'dateline cafe 1',
+    ])
+    const wideMap = await catalogMap.projectCatalogMap(crossingMapQuery)
+    assert.equal(wideMap.mode, 'clusters')
+    assert.equal(wideMap.matchingPlaceCount, 3)
+    assert.equal(wideMap.features.reduce((sum, feature) => sum + feature.placeCount, 0), 3)
+    assert.ok(wideMap.features.length <= 384)
+    const detailedMap = await catalogMap.projectCatalogMap({ ...crossingMapQuery, zoom: 14 })
+    assert.equal(detailedMap.mode, 'places')
+    assert.deepEqual(detailedMap.features.map((feature) => feature.kind), [
+      'place', 'place', 'place',
+    ])
+    const eastSideMap = await catalogMap.projectCatalogMap({
+      ...crossingMapQuery,
+      viewport: { west: 170, south: -10, east: 180, north: 10 },
+      zoom: 14,
+    })
+    assert.equal(eastSideMap.matchingPlaceCount, 2)
+    const fullWorldMap = await catalogMap.projectCatalogMap({
+      ...crossingMapQuery,
+      viewport: { west: -180, south: -85.051129, east: 180, north: 85.051129 },
+    })
+    assert.equal(fullWorldMap.matchingPlaceCount, 3)
+    assert.equal(fullWorldMap.features.reduce(
+      (sum, feature) => sum + feature.placeCount,
+      0,
+    ), 3)
+    const densityFallback = await catalogMap.projectCatalogMap({
+      ...crossingMapQuery,
+      zoom: 14,
+      maxFeatures: 1,
+    })
+    assert.equal(densityFallback.mode, 'clusters')
+    assert.equal(densityFallback.features.length, 1)
+    assert.equal(densityFallback.features[0].placeCount, 3)
     const parentFiltered = await local.searchCatalog({
       query: '',
       areaReference: { key: 'kr.seoul', version: 1 },

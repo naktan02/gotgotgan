@@ -2,7 +2,7 @@
 
 import type { FormEvent } from 'react'
 
-import type { PlaceMapBounds, PlaceMapRenderer } from '@/platform/maps/place-map-interface'
+import type { PlaceMapBounds, PlaceMapRenderer } from '@/platform/maps/public'
 
 import type {
   DiscoveryCollection,

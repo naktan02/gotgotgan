@@ -1,4 +1,6 @@
 import {
+  catalogPlaceMapRequestSchema,
+  catalogPlaceMapResponseSchema,
   catalogPlaceSearchRequestSchema,
   catalogPlaceSearchResponseSchema,
   placeSearchRequestSchema,
@@ -10,6 +12,7 @@ import type {
   CatalogPlaceSearchInput,
   CatalogPlaceSearchPage,
 } from '../../domain/catalog-home-search.js'
+import type { CatalogPlaceMapInput, CatalogPlaceMapResponse } from '../../domain/catalog-map.js'
 import { InvalidSearchCursorError, type PlaceSearchPage, type PlaceSearchQuery } from '../../domain/model.js'
 import {
   resolveOptionalProductMember,
@@ -29,6 +32,7 @@ function usesPersonalFilters(query: PlaceSearchQuery): boolean {
 export type SearchHttpDependencies = Readonly<{
   search: (query: PlaceSearchQuery) => Promise<PlaceSearchPage>
   catalog?: (query: CatalogPlaceSearchInput) => Promise<CatalogPlaceSearchPage>
+  catalogMap?: (query: CatalogPlaceMapInput) => Promise<CatalogPlaceMapResponse>
   authorizer?: ProductAuthorizer
   suggestions?: SuggestionHttpDependencies
 }>
@@ -78,6 +82,35 @@ export function registerSearchHttpRoutes(
           503,
           'PLACE_CATALOG_SEARCH_UNAVAILABLE',
           'Catalog search is temporarily unavailable',
+          true,
+        )
+      }
+    })
+  }
+  if (dependencies.catalogMap !== undefined) {
+    application.post('/v1/search/catalog/map', async (request, reply) => {
+      const parsed = catalogPlaceMapRequestSchema.safeParse(request.body)
+      if (!parsed.success) {
+        return sendProductProblem(
+          request,
+          reply,
+          400,
+          'PLACE_CATALOG_MAP_REQUEST_INVALID',
+          'Catalog map request is invalid',
+        )
+      }
+      try {
+        const response = catalogPlaceMapResponseSchema.parse(
+          await dependencies.catalogMap!(parsed.data),
+        )
+        return reply.header('cache-control', 'no-store').status(200).send(response)
+      } catch {
+        return sendProductProblem(
+          request,
+          reply,
+          503,
+          'PLACE_CATALOG_MAP_UNAVAILABLE',
+          'Catalog map is temporarily unavailable',
           true,
         )
       }

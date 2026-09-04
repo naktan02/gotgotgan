@@ -27,6 +27,7 @@ export {
   createCatalogPlaceSearch,
   interpretCatalogSearch,
 } from './application/search-catalog-places.js'
+export { createCatalogPlaceMapSearch } from './application/search-catalog-map.js'
 export type {
   CatalogPlaceSearchInput,
   CatalogPlaceSearchPage,
@@ -37,6 +38,16 @@ export type {
 } from './domain/catalog-home-search.js'
 export type { CatalogPlaceSearchSource } from './application/ports/catalog-place-search-source.js'
 export type { CatalogSearchVocabulary } from './application/ports/catalog-search-vocabulary.js'
+export type { CatalogPlaceMapSource } from './application/ports/catalog-place-map-source.js'
+export {
+  catalogMapDetailZoom,
+  maximumCatalogMapFeatures,
+  type CatalogMapViewport,
+  type CatalogPlaceMapFeature,
+  type CatalogPlaceMapInput,
+  type CatalogPlaceMapQuery,
+  type CatalogPlaceMapResponse,
+} from './domain/catalog-map.js'
 export { createPlaceSuggestions } from './application/suggest-places.js'
 export {
   createPlaceSuggestionSelection,
@@ -64,6 +75,7 @@ export type {
 } from './application/ports/place-suggestion-source.js'
 export type { PlaceSuggestionStore } from './application/ports/place-suggestion-store.js'
 export { PostgresLocalSearch } from './adapters/persistence/postgres-local-search.js'
+export { PostgresCatalogMapSearch } from './adapters/persistence/postgres-catalog-map-search.js'
 export { PostgresPlaceSuggestions } from './adapters/persistence/postgres-place-suggestions.js'
 export {
   registerSearchHttpRoutes,

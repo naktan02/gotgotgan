@@ -62,6 +62,8 @@ export {
   type WritingCommandRequest,
 } from './content.js'
 export {
+  browserMapStyleSchema,
   processStatusSchema,
+  type BrowserMapStyle,
   type ProcessStatus,
 } from './system.js'

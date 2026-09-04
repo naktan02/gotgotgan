@@ -79,7 +79,7 @@ export {
   PostgresCollectionOrder,
   PostgresPersonalLibraryWorkspace,
   PostgresPlaceFiling,
-} from './adapters/persistence/postgres-collection-first-library.js'
+} from './adapters/persistence/collection-first/index.js'
 export { PostgresPublicCollectionDiscovery } from './adapters/persistence/postgres-public-collection-discovery.js'
 export { PostgresPublishedCollectionExchange } from './adapters/persistence/postgres-published-collection-exchange.js'
 export { PostgresImportedCollectionMaterializer } from './adapters/persistence/postgres-imported-collection-materializer.js'

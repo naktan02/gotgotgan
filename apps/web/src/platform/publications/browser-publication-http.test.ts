@@ -100,16 +100,25 @@ describe('browser publication HTTP', () => {
     expect(JSON.stringify(await response.json())).not.toContain('internal address')
   })
 
-  it('validates map bounds before calling the Backend', async () => {
+  it('forwards antimeridian map bounds and rejects an empty longitude interval', async () => {
     const configured = dependencies()
     const publicationId = '01992d20-0000-7000-8000-000000000001'
-    const response = await createBrowserPublicationHttp(configured).collectionMap(
+    const http = createBrowserPublicationHttp(configured)
+    const crossing = await http.collectionMap(
       publicationId,
       new Request(`http://place.test/api/public/collections/${publicationId}/map?west=127&south=37.5&east=126&north=37.6&zoom=12`),
     )
+    const empty = await http.collectionMap(
+      publicationId,
+      new Request(`http://place.test/api/public/collections/${publicationId}/map?west=127&south=37.5&east=127&north=37.6&zoom=12`),
+    )
 
-    expect(response.status).toBe(400)
-    expect(configured.getCollectionMap).not.toHaveBeenCalled()
+    expect(crossing.status).toBe(200)
+    expect(configured.getCollectionMap).toHaveBeenCalledWith(publicationId, {
+      west: 127, south: 37.5, east: 126, north: 37.6, zoom: 12,
+    })
+    expect(empty.status).toBe(400)
+    expect(configured.getCollectionMap).toHaveBeenCalledOnce()
   })
 
   it('validates public Place identity and preserves retired semantics', async () => {

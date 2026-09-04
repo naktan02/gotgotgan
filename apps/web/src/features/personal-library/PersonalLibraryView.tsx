@@ -4,7 +4,7 @@ import styles from './personal-library.module.css'
 import { PersonalLibraryBrowseView } from './PersonalLibraryBrowseView'
 import { PersonalLibraryManagementView } from './PersonalLibraryManagementView'
 import type { PersonalLibraryWorkflow } from './personal-library-workflow'
-import type { PlaceMapRenderer } from '@/platform/maps/place-map-interface'
+import type { PlaceMapRenderer } from '@/platform/maps/public'
 
 export function PersonalLibraryView({
   mapRenderer,

@@ -165,10 +165,16 @@ describe('bounded Library HTTP queries', () => {
       bounds: { west: 126.9, south: 37.5, east: 127.1, north: 37.6 },
       zoom: 12,
     })
-    expect((await app.inject({
+    const crossingMap = await app.inject({
       method: 'GET',
-      url: `/v1/public/collections/${publicationId}/map?west=127.1&south=37.5&east=126.9&north=37.6&zoom=12`,
-    })).statusCode).toBe(400)
+      url: `/v1/public/collections/${publicationId}/map?west=170&south=-20&east=-170&north=20&zoom=12.5`,
+    })
+    expect(crossingMap.statusCode).toBe(200)
+    expect(getPublishedCollectionMap).toHaveBeenLastCalledWith({
+      publicationId,
+      bounds: { west: 170, south: -20, east: -170, north: 20 },
+      zoom: 12.5,
+    })
     await app.close()
   })
 
@@ -266,8 +272,8 @@ describe('bounded Library HTTP queries', () => {
       viewport: { bounds: input.bounds, zoom: input.zoom },
       features: [{
         kind: 'cluster', clusterId: 'z12-x1-y1', count: 3,
-        location: { latitude: 37.55, longitude: 126.93 },
-        bounds: { west: 126.92, south: 37.54, east: 126.94, north: 37.56 },
+        location: { latitude: 1, longitude: 179 },
+        bounds: input.bounds,
       }],
       coverage: { representedPlaceCount: 3, unprojectedPlaceCount: 0, complete: true },
     }))
@@ -275,7 +281,7 @@ describe('bounded Library HTTP queries', () => {
     const tagId = '01992d20-3000-7000-8000-000000000401'
     const response = await app.inject({
       method: 'GET',
-      url: `/v1/library/map?scope=state&state=saved&tagIds=${tagId}&tagMatch=any&west=126.9&south=37.5&east=127.1&north=37.6&zoom=12`,
+      url: `/v1/library/map?scope=state&state=saved&tagIds=${tagId}&tagMatch=any&west=170&south=-20&east=-170&north=20&zoom=12.5`,
       headers: { authorization: 'Bearer good' },
     })
 
@@ -291,8 +297,8 @@ describe('bounded Library HTTP queries', () => {
         kind: 'state', state: 'saved', tagIds: [tagId], tagMatch: 'any',
         areaKeys: [], taxonomyKeys: [],
       },
-      bounds: { west: 126.9, south: 37.5, east: 127.1, north: 37.6 },
-      zoom: 12,
+      bounds: { west: 170, south: -20, east: -170, north: 20 },
+      zoom: 12.5,
     })
     await app.close()
   })
@@ -303,7 +309,12 @@ describe('bounded Library HTTP queries', () => {
 
     expect((await app.inject({
       method: 'GET',
-      url: '/v1/library/map?scope=state&west=127.1&south=37.5&east=126.9&north=37.6&zoom=12',
+      url: '/v1/library/map?scope=state&west=10&south=-20&east=10&north=20&zoom=12',
+      headers,
+    })).statusCode).toBe(400)
+    expect((await app.inject({
+      method: 'GET',
+      url: '/v1/library/map?scope=state&west=170&south=-85.05113&east=-170&north=20&zoom=12',
       headers,
     })).statusCode).toBe(400)
     expect((await app.inject({

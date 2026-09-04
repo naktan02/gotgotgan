@@ -18,16 +18,16 @@ import type {
   LibraryPlaceSummary,
 } from '../../domain/queries.js'
 import { InvalidLibraryQueryError } from '../../domain/queries.js'
-import { getPostgresLibraryPlaceOrganization } from './postgres-library-place-organization-query.js'
-import { getPostgresLibraryMapProjection } from './postgres-library-map-query.js'
 import {
   getPostgresLibraryPlaceFacets,
+  getPostgresLibraryPlaceOrganization,
   listPostgresLibraryPlaces,
-} from './postgres-library-place-queries.js'
+} from './queries/index.js'
 import {
-  getPostgresPublishedCollection,
+  getPostgresLibraryMapProjection,
   getPostgresPublishedCollectionMap,
-} from './postgres-published-collection-queries.js'
+} from './map/index.js'
+import { getPostgresPublishedCollection } from './postgres-published-collection-queries.js'
 
 type CollectionRow = Readonly<{
   id: string

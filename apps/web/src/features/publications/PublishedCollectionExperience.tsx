@@ -9,47 +9,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   PlaceMapCluster,
   PlaceMapRenderer,
-  PlaceMapViewport,
-} from '@/platform/maps/place-map-interface'
+} from '@/platform/maps/public'
 import { publishedCollectionHttp } from '@/platform/publications/published-collection-http'
 
 import { PublishedCollectionActions } from './PublishedCollectionActions'
 import { PublishedCollectionPlaces } from './PublishedCollectionPlaces'
 import { PublishedPlaceDetail } from './PublishedPlaceDetail'
+import { createPublishedMapInitialViewport } from './published-map-initial-viewport'
 import styles from './publication.module.css'
-
-function initialViewport(collection: PublishedCollection): PlaceMapViewport {
-  const locations = collection.places.flatMap((item) => (
-    item.place?.location == null ? [] : [item.place.location]
-  ))
-  if (locations.length === 0) {
-    return { bounds: { west: -180, south: -85, east: 180, north: 85 }, zoom: 2 }
-  }
-  const longitudes = locations.map((location) => location.longitude)
-  const latitudes = locations.map((location) => location.latitude)
-  const west = Math.min(...longitudes)
-  const east = Math.max(...longitudes)
-  const south = Math.min(...latitudes)
-  const north = Math.max(...latitudes)
-  const longitudePadding = Math.max((east - west) * 0.15, 0.01)
-  const latitudePadding = Math.max((north - south) * 0.15, 0.01)
-  const span = Math.max(east - west, north - south)
-  const zoom = span > 40 ? 2
-    : span > 10 ? 4
-      : span > 2 ? 6
-        : span > 0.5 ? 8
-          : span > 0.1 ? 10
-            : span > 0.02 ? 12 : 14
-  return {
-    bounds: {
-      west: Math.max(-180, west - longitudePadding),
-      south: Math.max(-90, south - latitudePadding),
-      east: Math.min(180, east + longitudePadding),
-      north: Math.min(90, north + latitudePadding),
-    },
-    zoom,
-  }
-}
 
 export function PublishedCollectionExperience({
   initialCollection,
@@ -62,7 +29,11 @@ export function PublishedCollectionExperience({
   const [nextCursor, setNextCursor] = useState(initialCollection.nextCursor)
   const [loadingMore, setLoadingMore] = useState(false)
   const [listError, setListError] = useState<string>()
-  const [viewport, setViewport] = useState(() => initialViewport(initialCollection))
+  const [viewport, setViewport] = useState(() => createPublishedMapInitialViewport(
+    initialCollection.places.flatMap((item) => (
+      item.place?.location == null ? [] : [item.place.location]
+    )),
+  ))
   const [projection, setProjection] = useState<PublishedCollectionMap>()
   const [mapLoading, setMapLoading] = useState(true)
   const [mapError, setMapError] = useState<string>()

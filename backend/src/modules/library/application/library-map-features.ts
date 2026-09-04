@@ -18,31 +18,48 @@ function withinBounds(
   location: NonNullable<LibraryPlaceSummary['location']>,
   bounds: LibraryMapBounds,
 ): boolean {
-  return location.longitude >= bounds.west && location.longitude <= bounds.east &&
-    location.latitude >= bounds.south && location.latitude <= bounds.north
+  const longitudeMatches = bounds.west < bounds.east
+    ? location.longitude >= bounds.west && location.longitude <= bounds.east
+    : location.longitude >= bounds.west || location.longitude <= bounds.east
+  return longitudeMatches && location.latitude >= bounds.south && location.latitude <= bounds.north
+}
+
+function longitudeSpan(bounds: LibraryMapBounds): number {
+  return bounds.west < bounds.east
+    ? bounds.east - bounds.west
+    : 360 - bounds.west + bounds.east
+}
+
+function unwrapLongitude(longitude: number, bounds: LibraryMapBounds): number {
+  return bounds.west > bounds.east && longitude < bounds.west ? longitude + 360 : longitude
+}
+
+function normalizeLongitude(longitude: number): number {
+  if (longitude > 180) return longitude - 360
+  if (longitude < -180) return longitude + 360
+  return longitude
 }
 
 function clusterBounds(
-  places: readonly LocatedLibraryPlaceSummary[],
   viewport: LibraryMapBounds,
+  column: number,
+  row: number,
   columns: number,
   rows: number,
 ): LibraryMapBounds {
-  const longitudes = places.map((place) => place.location.longitude)
-  const latitudes = places.map((place) => place.location.latitude)
-  const longitudePadding = Math.max(
-    (Math.max(...longitudes) - Math.min(...longitudes)) * 0.15,
-    (viewport.east - viewport.west) / columns / 4,
-  )
-  const latitudePadding = Math.max(
-    (Math.max(...latitudes) - Math.min(...latitudes)) * 0.15,
-    (viewport.north - viewport.south) / rows / 4,
-  )
+  const longitudeStep = longitudeSpan(viewport) / columns
+  const latitudeStep = (viewport.north - viewport.south) / rows
   return {
-    west: Math.max(viewport.west, Math.min(...longitudes) - longitudePadding),
-    south: Math.max(viewport.south, Math.min(...latitudes) - latitudePadding),
-    east: Math.min(viewport.east, Math.max(...longitudes) + longitudePadding),
-    north: Math.min(viewport.north, Math.max(...latitudes) + latitudePadding),
+    west: column === 0
+      ? viewport.west
+      : normalizeLongitude(viewport.west + column * longitudeStep),
+    south: row === rows - 1
+      ? viewport.south
+      : viewport.north - (row + 1) * latitudeStep,
+    east: column === columns - 1
+      ? viewport.east
+      : normalizeLongitude(viewport.west + (column + 1) * longitudeStep),
+    north: row === 0 ? viewport.north : viewport.north - row * latitudeStep,
   }
 }
 
@@ -55,7 +72,7 @@ export function projectLibraryMapFeatures(input: Readonly<{
     .filter((place): place is LocatedLibraryPlaceSummary => place.location !== null)
     .filter((place) => withinBounds(place.location, input.bounds))
   const { columns, rows } = gridSize(input.zoom)
-  const longitudeSpan = input.bounds.east - input.bounds.west
+  const viewportLongitudeSpan = longitudeSpan(input.bounds)
   const latitudeSpan = input.bounds.north - input.bounds.south
   const cells = new Map<string, {
     column: number
@@ -65,7 +82,8 @@ export function projectLibraryMapFeatures(input: Readonly<{
 
   for (const place of uniquePlaces) {
     const column = Math.min(columns - 1, Math.floor(
-      ((place.location.longitude - input.bounds.west) / longitudeSpan) * columns,
+      ((unwrapLongitude(place.location.longitude, input.bounds) - input.bounds.west) /
+        viewportLongitudeSpan) * columns,
     ))
     const row = Math.min(rows - 1, Math.floor(
       ((input.bounds.north - place.location.latitude) / latitudeSpan) * rows,
@@ -91,13 +109,15 @@ export function projectLibraryMapFeatures(input: Readonly<{
       }
       return {
         kind: 'cluster',
-        clusterId: `z${input.zoom}-x${cell.column}-y${cell.row}`,
+        clusterId: `z${Math.floor(input.zoom)}-x${cell.column}-y${cell.row}`,
         count: ordered.length,
         location: {
           latitude: ordered.reduce((sum, item) => sum + item.location.latitude, 0) / ordered.length,
-          longitude: ordered.reduce((sum, item) => sum + item.location.longitude, 0) / ordered.length,
+          longitude: normalizeLongitude(ordered.reduce((sum, item) => (
+            sum + unwrapLongitude(item.location.longitude, input.bounds)
+          ), 0) / ordered.length),
         },
-        bounds: clusterBounds(ordered, input.bounds, columns, rows),
+        bounds: clusterBounds(input.bounds, cell.column, cell.row, columns, rows),
       }
     })
 }

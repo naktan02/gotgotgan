@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  createCatalogPlaceMapSearch,
   createCatalogPlaceSearch,
   interpretCatalogSearch,
   type CatalogPlaceSearchQuery,
@@ -31,6 +32,62 @@ const place: CatalogPlaceSummary = {
 }
 
 describe('canonical catalog home search', () => {
+  it('reuses catalog interpretation and rejects incomplete map source coverage', async () => {
+    const observed: unknown[] = []
+    const mapSearch = createCatalogPlaceMapSearch({
+      source: {
+        projectCatalogMap: async (query) => {
+          observed.push(query)
+          return {
+            mode: 'places',
+            features: [{
+              kind: 'place', featureId: `place:${place.placeId}`, placeId: place.placeId,
+              name: place.name, location: place.location!, areaLabel: place.area!.label,
+              primaryTaxonomy: { key: 'place.cafe', label: '카페' }, placeCount: 1,
+            }],
+            matchingPlaceCount: 1,
+          }
+        },
+      },
+      vocabulary: {
+        listAreas: async () => areas,
+        listTaxonomies: async () => taxonomies,
+      },
+    })
+    const viewport = { west: 170, south: -20, east: -170, north: 20 }
+    const response = await mapSearch({
+      query: '성수 조용한 카페', excludedTokenIds: [], viewport, zoom: 14, maxFeatures: 384,
+    })
+
+    expect(observed).toEqual([expect.objectContaining({
+      query: '',
+      areaReferences: [{ key: 'kr.seoul.seongsu', version: 3 }],
+      taxonomyReferenceGroups: [
+        [{ key: 'place.cafe', version: 4, kind: 'category' }],
+        [{ key: 'mood.quiet', version: 2, kind: 'attribute' }],
+      ],
+      viewport,
+    })])
+    expect(response.coverage).toEqual({
+      matchingPlaceCount: 1, representedPlaceCount: 1, complete: true,
+    })
+    expect(response.interpretation.tokens.map((token) => token.kind)).toEqual([
+      'area', 'place-type', 'attribute',
+    ])
+
+    const incomplete = createCatalogPlaceMapSearch({
+      source: {
+        projectCatalogMap: async () => ({
+          mode: 'clusters', features: [], matchingPlaceCount: 1,
+        }),
+      },
+      vocabulary: { listAreas: async () => [], listTaxonomies: async () => [] },
+    })
+    await expect(incomplete({
+      query: '', excludedTokenIds: [], viewport, zoom: 1, maxFeatures: 384,
+    })).rejects.toThrow('incomplete coverage')
+  })
+
   it('deterministically interprets versioned Area, place type, attribute, and residual query', () => {
     const first = interpretCatalogSearch(
       '성수에서 작업하기 좋은 조용한 카페',

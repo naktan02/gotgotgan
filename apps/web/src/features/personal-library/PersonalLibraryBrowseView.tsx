@@ -5,7 +5,7 @@ import { PersonalLibraryListPane } from './PersonalLibraryListPane'
 import { PersonalLibraryMap } from './PersonalLibraryMap'
 import styles from './personal-library-browse.module.css'
 import type { PersonalLibraryWorkflow } from './personal-library-workflow'
-import type { PlaceMapRenderer } from '@/platform/maps/place-map-interface'
+import type { PlaceMapRenderer } from '@/platform/maps/public'
 
 export function PersonalLibraryBrowseView({
   mapRenderer,

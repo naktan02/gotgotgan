@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
-import type { PlaceMapRenderer } from '@/platform/maps/place-map-interface'
+import type { PlaceMapRenderer } from '@/platform/maps/public'
 
 import { PersonalLibraryMap } from './PersonalLibraryMap'
 

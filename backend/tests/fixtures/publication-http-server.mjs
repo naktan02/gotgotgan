@@ -381,6 +381,78 @@ async function searchCatalog(request, response) {
   })
 }
 
+async function searchCatalogMap(request, response) {
+  let body
+  try { body = await readJson(request) } catch {
+    sendJson(response, 400, { code: 'PLACE_CATALOG_MAP_REQUEST_INVALID' }, 'application/problem+json')
+    return
+  }
+  const query = String(body.query ?? '').normalize('NFKC').replace(/\s+/g, ' ').trim()
+  const excludedTokenIds = Array.isArray(body.excludedTokenIds) ? body.excludedTokenIds : []
+  const interpreted = [
+    ...(query.includes('성수') ? [catalogTokens.seongsu] : []),
+    ...(query.includes('라멘') ? [catalogTokens.ramen] : []),
+    ...(query.includes('카페') ? [catalogTokens.cafe] : []),
+  ]
+  const activeTokens = interpreted.filter((token) => !excludedTokenIds.includes(token.tokenId))
+  let items = query === '없음' ? [] : catalogSearchItems
+  if (activeTokens.includes(catalogTokens.seongsu)) {
+    items = items.filter((item) => item.area?.reference?.key === catalogTokens.seongsu.key)
+  }
+  const activePlaceType = activeTokens.find((token) => token.kind === 'place-type')
+  if (activePlaceType !== undefined) {
+    items = items.filter((item) => item.taxonomyReferences.some((reference) => reference.key === activePlaceType.key))
+  }
+  const viewport = body.viewport
+  const longitudeMatches = (longitude) => viewport.west < viewport.east
+    ? longitude >= viewport.west && longitude <= viewport.east
+    : longitude >= viewport.west || longitude <= viewport.east
+  items = items.filter((item) =>
+    longitudeMatches(item.location.longitude) &&
+    item.location.latitude >= viewport.south && item.location.latitude <= viewport.north)
+  const clustered = Number(body.zoom) < 12 && items.length > 0
+  const features = clustered ? [{
+    kind: 'cluster',
+    featureId: `fixture-cluster:${body.zoom}`,
+    location: {
+      latitude: items.reduce((sum, item) => sum + item.location.latitude, 0) / items.length,
+      longitude: items.reduce((sum, item) => sum + item.location.longitude, 0) / items.length,
+    },
+    bounds: {
+      west: Math.min(...items.map((item) => item.location.longitude)) - 0.01,
+      south: Math.min(...items.map((item) => item.location.latitude)) - 0.01,
+      east: Math.max(...items.map((item) => item.location.longitude)) + 0.01,
+      north: Math.max(...items.map((item) => item.location.latitude)) + 0.01,
+    },
+    placeCount: items.length,
+  }] : items.map((item) => ({
+    kind: 'place',
+    featureId: `place:${item.placeId}`,
+    placeId: item.placeId,
+    name: item.name,
+    location: item.location,
+    areaLabel: item.area?.label ?? null,
+    primaryTaxonomy: item.primaryTaxonomy === null ? null : {
+      key: item.primaryTaxonomy.key,
+      label: item.primaryTaxonomy.label,
+    },
+    placeCount: 1,
+  }))
+  sendJson(response, 200, {
+    schemaVersion: 'catalog-place-map.v1',
+    interpretation: { normalizedQuery: query, tokens: activeTokens },
+    viewport,
+    zoom: body.zoom,
+    mode: clustered ? 'clusters' : 'places',
+    features,
+    coverage: {
+      matchingPlaceCount: items.length,
+      representedPlaceCount: items.length,
+      complete: true,
+    },
+  })
+}
+
 async function suggest(request, response) {
   let body
   try { body = await readJson(request) } catch {
@@ -421,6 +493,10 @@ const server = createServer(async (request, response) => {
   const requestUrl = new URL(request.url ?? '/', `http://${host}:${port}`)
   if (request.method === 'POST' && request.url === '/v1/search/catalog') {
     await searchCatalog(request, response)
+    return
+  }
+  if (request.method === 'POST' && request.url === '/v1/search/catalog/map') {
+    await searchCatalogMap(request, response)
     return
   }
   if (request.method === 'POST' && request.url === '/v1/search/places') {

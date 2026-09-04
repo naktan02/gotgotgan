@@ -227,51 +227,74 @@ export function createCatalogPlaceSearch(dependencies: Readonly<{
   vocabulary: CatalogSearchVocabulary
 }>) {
   return async (input: CatalogPlaceSearchInput): Promise<CatalogPlaceSearchPage> => {
-    const [areas, taxonomies] = await Promise.all([
-      dependencies.vocabulary.listAreas(),
-      dependencies.vocabulary.listTaxonomies(),
-    ])
-    const interpretation = interpretCatalogSearch(
-      input.query,
-      input.excludedTokenIds,
-      areas,
-      taxonomies,
-    )
-    const areaReferences = interpretation.areaReference === undefined
-      ? []
-      : areas.filter(({ key }) => (
-        descendantKeys(interpretation.areaReference!.key, areas).has(key)
-      )).map(({ key, version }) => ({ key, version }))
-    const taxonomyByKey = new Map(taxonomies.map((node) => [node.key, node]))
-    const taxonomyReferenceGroups = interpretation.taxonomyReferences.map((reference) => {
-      const selected = taxonomyByKey.get(reference.key)
-      if (selected?.kind !== 'category') {
-        return [{ ...reference, kind: selected?.kind ?? 'attribute' as const }]
-      }
-      const descendants = descendantKeys(selected.key, taxonomies)
-      return taxonomies.filter((node) => node.kind === 'category' && descendants.has(node.key))
-        .map(({ key, version, kind }) => ({ key, version, kind }))
-    })
+    const resolved = await resolveCatalogSearch(input, dependencies.vocabulary)
     const page = await dependencies.source.searchCatalog({
-      query: interpretation.normalizedQuery,
-      taxonomyReferences: interpretation.taxonomyReferences,
-      taxonomyReferenceGroups,
+      query: resolved.interpretation.normalizedQuery,
+      taxonomyReferences: resolved.interpretation.taxonomyReferences,
+      taxonomyReferenceGroups: resolved.taxonomyReferenceGroups,
       limit: input.limit,
-      ...(interpretation.areaReference === undefined
+      ...(resolved.interpretation.areaReference === undefined
         ? {}
-        : { areaReference: interpretation.areaReference, areaReferences }),
+        : {
+          areaReference: resolved.interpretation.areaReference,
+          areaReferences: resolved.areaReferences,
+        }),
       ...(input.bounds === undefined ? {} : { bounds: input.bounds }),
       ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
     })
     return {
       schemaVersion: 'catalog-place-search.v1',
       interpretation: {
-        normalizedQuery: interpretation.normalizedQuery,
-        tokens: interpretation.tokens,
+        normalizedQuery: resolved.interpretation.normalizedQuery,
+        tokens: resolved.interpretation.tokens,
       },
       items: page.items,
       mapBounds: resultBounds(page.items),
       ...(page.nextCursor === undefined ? {} : { nextCursor: page.nextCursor }),
     }
+  }
+}
+
+export async function resolveCatalogSearch(
+  input: Readonly<{ query: string; excludedTokenIds: readonly string[] }>,
+  vocabulary: CatalogSearchVocabulary,
+): Promise<Readonly<{
+  interpretation: CatalogSearchInterpretation
+  areaReferences: readonly Readonly<{ key: string; version: number }>[]
+  taxonomyReferenceGroups: readonly (readonly Readonly<{
+    key: string
+    version: number
+    kind: 'category' | 'attribute'
+  }>[])[]
+}>> {
+  const [areas, taxonomies] = await Promise.all([
+    vocabulary.listAreas(),
+    vocabulary.listTaxonomies(),
+  ])
+  const interpretation = interpretCatalogSearch(
+    input.query,
+    input.excludedTokenIds,
+    areas,
+    taxonomies,
+  )
+  const areaReferences = interpretation.areaReference === undefined
+    ? []
+    : areas.filter(({ key }) => (
+      descendantKeys(interpretation.areaReference!.key, areas).has(key)
+    )).map(({ key, version }) => ({ key, version }))
+  const taxonomyByKey = new Map(taxonomies.map((node) => [node.key, node]))
+  const taxonomyReferenceGroups = interpretation.taxonomyReferences.map((reference) => {
+    const selected = taxonomyByKey.get(reference.key)
+    if (selected?.kind !== 'category') {
+      return [{ ...reference, kind: selected?.kind ?? 'attribute' as const }]
+    }
+    const descendants = descendantKeys(selected.key, taxonomies)
+    return taxonomies.filter((node) => node.kind === 'category' && descendants.has(node.key))
+      .map(({ key, version, kind }) => ({ key, version, kind }))
+  })
+  return {
+    interpretation,
+    areaReferences,
+    taxonomyReferenceGroups,
   }
 }

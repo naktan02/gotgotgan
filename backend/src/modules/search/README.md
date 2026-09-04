@@ -36,6 +36,14 @@ versioned reference를 저장하므로 label 문자열이나 Provider category�
 응답은 Canonical Place summary와 현재 page의 map bounds만 제공하고 legacy saved/wanted 상태는
 포함하지 않는다.
 
+`catalog-place-map.v1`은 목록 pagination과 분리된 viewport projection이다. 목록 검색과 같은
+해석 Interface를 재사용하므로 Area·Taxonomy·잔여 query 의미가 갈라지지 않는다. Web Mercator
+위도와 zoom을 계약에서 제한하고, `west > east`는 날짜변경선을 가로지르는 viewport로 해석한다.
+넓은 범위나 feature budget을 넘는 고밀도 범위는 PostgreSQL이 최대 384개 grid cell로 집계하고,
+상세 zoom에서 budget 안의 결과만 개별 Canonical Place로 반환한다. coverage의 matching 수와 모든
+feature의 place 수 합계는 같은 repeatable-read snapshot에서 정확히 일치하며 임의 row limit으로
+장소를 숨기지 않는다.
+
 `PostgresPlaceSuggestions`는 10분 session, 15분 impression, 만료 가능한 Discovery 후보를 Search
 schema에만 저장한다. 후보 표시만으로 Canonical Place나 SourceObservation을 만들지 않는다. 명시적
 선택은 composition이 주입한 observation recorder를, 개인 기능에 필요한 승격은 주입한

@@ -5,6 +5,25 @@ import { describe, expect, it } from 'vitest'
 import { buildContractArtifacts } from '../src/generate.js'
 
 describe('generated contract artifacts', () => {
+  it('publishes matching anonymous catalog map browser and backend operations', () => {
+    const openApi = JSON.parse(
+      buildContractArtifacts().get('http/openapi.v1.json') ?? '{}',
+    ) as Readonly<{ paths?: Readonly<Record<string, Readonly<{ post?: unknown }>>> }>
+    const browser = openApi.paths?.['/api/search/catalog/map']?.post as
+      Readonly<Record<string, unknown>> | undefined
+    const backend = openApi.paths?.['/v1/search/catalog/map']?.post as
+      Readonly<Record<string, unknown>> | undefined
+
+    expect(browser).toBeDefined()
+    expect(backend).toBeDefined()
+    expect(browser?.requestBody).toEqual(backend?.requestBody)
+    const browserResponses = browser?.responses as Readonly<Record<string, unknown>> | undefined
+    const backendResponses = backend?.responses as Readonly<Record<string, unknown>> | undefined
+    expect(browserResponses?.['200']).toEqual(backendResponses?.['200'])
+    expect(browser?.security).toEqual([])
+    expect(backend?.security).toEqual([])
+  })
+
   it('match the committed OpenAPI and PlaceReference publications', async () => {
     const generated = buildContractArtifacts()
     const [openApi, placeReference] = await Promise.all([

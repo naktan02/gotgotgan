@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
-import type { PlaceMapRendererProperties } from '@/platform/maps/place-map-interface'
+import type { PlaceMapRendererProperties } from '@/platform/maps/public'
 
 import { PublicCollectionDiscoveryView } from './PublicCollectionDiscovery'
 import type { PublicCollectionDiscoveryWorkflow } from './public-collection-discovery-workflow'

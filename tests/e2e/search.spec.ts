@@ -7,7 +7,10 @@ const webUrl = new URL(configuredBaseUrl)
 const backendOrigin = `http://${webUrl.hostname}:${Number(webUrl.port) + 1}`
 
 async function submitSearch(page: import('@playwright/test').Page, query: string) {
-  const input = page.getByLabel('곳곳간 카탈로그 검색')
+  const input = page.getByRole('textbox', {
+    name: '곳곳간 카탈로그 검색',
+    exact: true,
+  })
   await input.fill(query)
   await input.press('Enter')
 }
@@ -60,9 +63,9 @@ test('searches only the canonical catalog and keeps list and map selection coord
   expect(apiResponse.status()).toBe(200)
   const apiBody = JSON.stringify(await apiResponse.json())
   expect(apiBody).not.toMatch(/providerPlaceId|Google Maps|NAVER|Kakao/)
-  await expect(page.locator('body')).not.toContainText('Google Maps')
-  await expect(page.locator('body')).not.toContainText('NAVER')
-  await expect(page.locator('body')).not.toContainText('Kakao')
+  await expect(page.getByRole('link', { name: 'Google Maps로 길찾기' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'NAVER로 길찾기' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '카카오맵으로 길찾기' })).toBeVisible()
 })
 
 test('switches between the catalog list and map on mobile without losing selection', async ({ page }, testInfo) => {
@@ -85,10 +88,42 @@ test('switches between the catalog list and map on mobile without losing selecti
   await expect(results.nth(0)).toHaveAttribute('aria-pressed', 'true')
 })
 
+test('uses the local MapLibre style and expands a server cluster into accessible markers', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'desktop MapLibre projection coverage')
+  const unexpectedExternalRequests: string[] = []
+  page.on('request', (request) => {
+    const url = new URL(request.url())
+    if ((url.protocol === 'http:' || url.protocol === 'https:') &&
+      (url.hostname !== webUrl.hostname || url.port !== webUrl.port)) {
+      unexpectedExternalRequests.push(request.url())
+    }
+  })
+
+  await page.goto('/')
+  const style = await page.request.get('/api/maps/style')
+  expect(style.status()).toBe(200)
+  expect((await style.json()).sources).toEqual({})
+  await submitSearch(page, '성수 라멘')
+  await expect(page.getByRole('button', { name: '조용한 라멘 연구소 지도에서 선택' })).toBeVisible()
+
+  const zoomOut = page.locator('.maplibregl-ctrl-zoom-out')
+  await zoomOut.click()
+  const mapRegion = page.getByRole('region', { name: '곳곳간 카탈로그 검색 지도' })
+  await expect.poll(async () => Number(await mapRegion.getAttribute('data-place-map-zoom'))).toBeLessThan(12)
+  await page.getByRole('button', { name: '이 지역에서 보기' }).click()
+  const cluster = page.getByRole('button', { name: '2개 장소 묶음 확대' })
+  await expect(cluster).toBeVisible()
+  await cluster.click()
+  await expect(page.getByRole('button', { name: '성수 골목 쇼유라멘 지도에서 선택' })).toBeVisible()
+  expect(unexpectedExternalRequests).toEqual([])
+})
+
 test('redirects the retired search workspace to Home', async ({ page }) => {
   await page.goto('/search')
   await expect(page).toHaveURL(/\/$/)
-  await expect(page.getByLabel('곳곳간 카탈로그 검색')).toBeVisible()
+  await expect(
+    page.getByRole('textbox', { name: '곳곳간 카탈로그 검색', exact: true }),
+  ).toBeVisible()
   await expect(page.getByText('장소 찾기', { exact: true })).toHaveCount(0)
 })
 

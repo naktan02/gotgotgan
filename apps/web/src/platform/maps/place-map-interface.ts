@@ -12,6 +12,8 @@ export type PlaceMapViewport = Readonly<{
   zoom: number
 }>
 
+export type PlaceMapInitialCameraMode = 'supplied-bounds' | 'granted-current-location'
+
 export type PlaceMapMarker = Readonly<{
   id: string
   label: string
@@ -30,6 +32,7 @@ export type PlaceMapRendererProperties = Readonly<{
   bounds: PlaceMapBounds
   clusters?: readonly PlaceMapCluster[]
   description?: string
+  initialCameraMode?: PlaceMapInitialCameraMode
   markers: readonly PlaceMapMarker[]
   moveLabel?: string
   selectedMarkerId?: string

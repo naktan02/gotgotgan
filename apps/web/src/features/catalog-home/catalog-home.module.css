@@ -49,16 +49,19 @@
 .mapAlternative > span { display: grid; width: 52px; height: 52px; place-items: center; margin-bottom: 12px; border-radius: 50%; background: #fff; color: #1768e5; font-size: 26px; box-shadow: 0 5px 18px rgb(46 71 104 / 10%); }
 .mapAlternative strong { color: #344153; font-size: 15px; }
 .mapAlternative p { max-width: 420px; margin: 7px 0 0; font-size: 12px; line-height: 1.6; }
-.selectedCard { position: absolute; z-index: 5; right: 20px; bottom: 20px; left: 20px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 18px; padding: 17px; border: 1px solid rgb(213 221 232 / 90%); border-radius: 14px; background: rgb(255 255 255 / 96%); box-shadow: 0 10px 30px rgb(42 57 79 / 17%); }
+.selectedCard { position: absolute; z-index: 5; right: 20px; bottom: 20px; left: 20px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 18px; padding: 17px; border: 1px solid rgb(213 221 232 / 90%); border-radius: 14px; background: rgb(255 255 255 / 96%); box-shadow: 0 10px 30px rgb(42 57 79 / 17%); pointer-events: none; }
 .selectedCard > div:first-child { min-width: 0; }
 .selectedCard span { color: #1768e5; font-size: 10px; font-weight: 750; }
 .selectedCard h2 { margin: 4px 0 5px; overflow: hidden; color: #222b37; font-size: 17px; text-overflow: ellipsis; white-space: nowrap; }
 .selectedCard p { margin: 0; color: #6d7785; font-size: 11px; }
-.fileButton { align-self: center; min-height: 38px; padding: 0 15px; border: 0; border-radius: 9px; background: #1768e5; color: #fff; font: 750 12px/1 inherit; }
-.collectionPicker { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 7px; padding-top: 10px; border-top: 1px solid #e7ebf0; }
+.fileButton { align-self: center; min-height: 38px; padding: 0 15px; border: 0; border-radius: 9px; background: #1768e5; color: #fff; font: 750 12px/1 inherit; pointer-events: auto; }
+.directionLinks { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 7px; }
+.directionLinks a { min-height: 32px; display: inline-flex; align-items: center; padding: 0 10px; border: 1px solid #dce2eb; border-radius: 8px; background: #fff; color: #285f9f; font-size: 11px; font-weight: 700; text-decoration: none; pointer-events: auto; }
+.directionLinks a:hover, .directionLinks a:focus-visible { border-color: #82acec; outline: none; background: #f2f7ff; }
+.collectionPicker { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 7px; padding-top: 10px; border-top: 1px solid #e7ebf0; pointer-events: auto; }
 .collectionPicker button { min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 10px; border: 1px solid #dce2eb; border-radius: 8px; background: #fff; color: #364150; font: 650 11px/1 inherit; }
 .collectionPicker small { color: #89929f; font-weight: 500; }
-.pickerState { grid-column: 1 / -1; margin: 0; padding: 10px; border-radius: 8px; background: #f4f7fb; color: #687383; font-size: 11px; }
+.pickerState { grid-column: 1 / -1; margin: 0; padding: 10px; border-radius: 8px; background: #f4f7fb; color: #687383; font-size: 11px; pointer-events: auto; }
 .pickerState a { color: #1768e5; font-weight: 750; }
 .collectionMessage { grid-column: 1 / -1; min-height: 14px; color: #246d49 !important; }
 .mobileSwitch { display: none; }

@@ -133,6 +133,18 @@ describe('versioned product HTTP results', () => {
     expect(publishedCollectionMapQuerySchema.parse({
       west: '126.9', south: '37.5', east: '127.1', north: '37.6', zoom: '12',
     })).toEqual({ west: 126.9, south: 37.5, east: 127.1, north: 37.6, zoom: 12 })
+    expect(publishedCollectionMapQuerySchema.parse({
+      west: '170', south: '-20', east: '-170', north: '20', zoom: '12.5',
+    })).toEqual({ west: 170, south: -20, east: -170, north: 20, zoom: 12.5 })
+    expect(publishedCollectionMapQuerySchema.safeParse({
+      west: -180, south: -85.051129, east: 180, north: 85.051129, zoom: 0,
+    }).success).toBe(true)
+    expect(publishedCollectionMapQuerySchema.safeParse({
+      west: 10, south: -20, east: 10, north: 20, zoom: 12,
+    }).success).toBe(false)
+    expect(publishedCollectionMapQuerySchema.safeParse({
+      west: 180, south: -20, east: -180, north: 20, zoom: 12,
+    }).success).toBe(false)
     expect(publishedCollectionMapSchema.parse({
       schemaVersion: 'place-published-collection-map.v1', publicationId,
       viewport: {

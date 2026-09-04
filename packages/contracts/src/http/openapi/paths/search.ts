@@ -14,6 +14,14 @@ export const searchPaths = {
     '400': ref('responses', 'ProductRequestInvalid'),
     '503': ref('responses', 'BrowserBackendUnavailable'),
   }, { security: anonymous, requestSchema: 'CatalogPlaceSearchRequest' }) },
+  '/api/search/catalog/map': { post: operation('projectCanonicalPlaceCatalogMapForBrowser', {
+    '200': described(
+      'Return exact viewport coverage as bounded canonical places or server-side clusters',
+      'CatalogPlaceMapResponse',
+    ),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '503': ref('responses', 'BrowserBackendUnavailable'),
+  }, { security: anonymous, requestSchema: 'CatalogPlaceMapRequest' }) },
   '/api/search/suggestions': { post: operation('suggestPlacesForBrowser', {
     '200': described('Return provider-neutral query-as-you-type candidates', 'PlaceSuggestionsResponse'),
     '400': ref('responses', 'ProductRequestInvalid'),
@@ -44,6 +52,14 @@ export const searchPaths = {
     '400': ref('responses', 'ProductRequestInvalid'),
     '503': ref('responses', 'ProductUnavailable'),
   }, { security: anonymous, requestSchema: 'CatalogPlaceSearchRequest' }) },
+  '/v1/search/catalog/map': { post: operation('projectCanonicalPlaceCatalogMap', {
+    '200': described(
+      'Return exact viewport coverage as bounded canonical places or server-side clusters',
+      'CatalogPlaceMapResponse',
+    ),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '503': ref('responses', 'ProductUnavailable'),
+  }, { security: anonymous, requestSchema: 'CatalogPlaceMapRequest' }) },
   '/v1/search/suggestions': { post: operation('suggestPlaces', {
     '200': described('Return bounded local projection suggestions', 'PlaceSuggestionsResponse'),
     '400': ref('responses', 'ProductRequestInvalid'),

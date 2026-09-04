@@ -1,8 +1,8 @@
 'use client'
 
 import { CollectionLibrary } from '@/features/personal-library/public'
-import { DeterministicPlaceMap } from '@/platform/maps/DeterministicPlaceMap'
+import { MapLibrePlaceMap } from '@/platform/maps/public'
 
 export function PlaceLibraryWorkspace() {
-  return <CollectionLibrary mapRenderer={DeterministicPlaceMap} />
+  return <CollectionLibrary mapRenderer={MapLibrePlaceMap} />
 }

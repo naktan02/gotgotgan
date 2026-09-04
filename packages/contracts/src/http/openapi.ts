@@ -120,6 +120,8 @@ import {
   writingListResponseSchema,
 } from '../writing/index.js'
 import {
+  catalogPlaceMapRequestSchema,
+  catalogPlaceMapResponseSchema,
   catalogPlaceSearchRequestSchema,
   catalogPlaceSearchResponseSchema,
   placeSearchRequestSchema,
@@ -174,7 +176,7 @@ import {
   transferOperationSummaryV2Schema,
   transferOperationV2Schema,
 } from '../transfers/index.js'
-import { processStatusSchema } from './system.js'
+import { browserMapStyleSchema, processStatusSchema } from './system.js'
 
 import { ref } from './openapi/model.js'
 import { accessAndCommunityPaths } from './openapi/paths/access-and-community.js'
@@ -196,6 +198,7 @@ const paths = {
 }
 
 const schemas: Readonly<Record<string, ZodType>> = {
+  BrowserMapStyle: browserMapStyleSchema,
   ProcessStatus: processStatusSchema,
   AdminSession: adminSessionSchema,
   ConnectorPublicOrigin: connectorPublicOriginSchema,
@@ -299,6 +302,8 @@ const schemas: Readonly<Record<string, ZodType>> = {
   PlaceSearchResponse: placeSearchResponseSchema,
   CatalogPlaceSearchRequest: catalogPlaceSearchRequestSchema,
   CatalogPlaceSearchResponse: catalogPlaceSearchResponseSchema,
+  CatalogPlaceMapRequest: catalogPlaceMapRequestSchema,
+  CatalogPlaceMapResponse: catalogPlaceMapResponseSchema,
   PlaceSuggestionsRequest: placeSuggestionsRequestSchema,
   PlaceSuggestionsResponse: placeSuggestionsResponseSchema,
   PlaceSuggestionSelectionRequest: placeSuggestionSelectionRequestSchema,

@@ -196,10 +196,10 @@ export const placeCursorParameter = {
 
 export const libraryMapViewportParameters = [
   { name: 'west', in: 'query', required: true, schema: { type: 'number', minimum: -180, maximum: 180 } },
-  { name: 'south', in: 'query', required: true, schema: { type: 'number', minimum: -90, maximum: 90 } },
+  { name: 'south', in: 'query', required: true, schema: { type: 'number', minimum: -85.051129, maximum: 85.051129 } },
   { name: 'east', in: 'query', required: true, schema: { type: 'number', minimum: -180, maximum: 180 } },
-  { name: 'north', in: 'query', required: true, schema: { type: 'number', minimum: -90, maximum: 90 } },
-  { name: 'zoom', in: 'query', required: true, schema: { type: 'integer', minimum: 0, maximum: 22 } },
+  { name: 'north', in: 'query', required: true, schema: { type: 'number', minimum: -85.051129, maximum: 85.051129 } },
+  { name: 'zoom', in: 'query', required: true, schema: { type: 'number', minimum: 0, maximum: 22 } },
 ] as const
 
 export const writingKindParameter = {

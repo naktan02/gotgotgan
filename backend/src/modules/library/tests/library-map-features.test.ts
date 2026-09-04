@@ -18,6 +18,47 @@ function place(index: number, latitude: number, longitude: number): LibraryPlace
 }
 
 describe('Library map feature projection', () => {
+  it('keeps exact crossing coverage and stable integer buckets at fractional zoom', () => {
+    const crossing = { west: 170, south: -10, east: -170, north: 10 }
+    const features = projectLibraryMapFeatures({
+      bounds: crossing,
+      zoom: 12.5,
+      places: [
+        place(1, 1, 179.1),
+        place(2, 1.01, 179.11),
+        place(3, 2, -179.1),
+        place(4, 2, 0),
+      ],
+    })
+    const represented = features.reduce((count, feature) => (
+      count + (feature.kind === 'place' ? 1 : feature.count)
+    ), 0)
+
+    expect(represented).toBe(3)
+    expect(features).toHaveLength(2)
+    expect(features).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'cluster', clusterId: expect.stringMatching(/^z12-/), count: 2 }),
+      expect.objectContaining({ kind: 'place', placeId: 'place-3' }),
+    ]))
+    const cluster = features.find((feature) => feature.kind === 'cluster')
+    expect(cluster?.location.longitude).toBeGreaterThan(179)
+    if (cluster?.kind === 'cluster') {
+      expect(cluster.bounds.west).not.toBe(cluster.bounds.east)
+      expect(cluster.bounds.south).toBeLessThan(cluster.bounds.north)
+    }
+  })
+
+  it('accepts a full-world viewport without dropping edge longitudes', () => {
+    const features = projectLibraryMapFeatures({
+      bounds: { west: -180, south: -85.051129, east: 180, north: 85.051129 },
+      zoom: 18.25,
+      places: [place(1, 0, -180), place(2, 0, 180)],
+    })
+    expect(features.reduce((count, feature) => (
+      count + (feature.kind === 'place' ? 1 : feature.count)
+    ), 0)).toBe(2)
+  })
+
   it('represents nearby places as one count-bearing cluster', () => {
     const features = projectLibraryMapFeatures({
       bounds,

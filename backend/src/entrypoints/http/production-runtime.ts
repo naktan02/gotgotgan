@@ -49,11 +49,13 @@ import {
   PostgresPublicProfileStore,
 } from '../../modules/profiles/index.js'
 import {
+  createCatalogPlaceMapSearch,
   createCatalogPlaceSearch,
   createPlaceSearch,
   createPlaceSuggestionMaterialization,
   createPlaceSuggestionSelection,
   createPlaceSuggestions,
+  PostgresCatalogMapSearch,
   PostgresLocalSearch,
   PostgresPlaceSuggestions,
   projectLocalPlace,
@@ -280,6 +282,14 @@ export async function createProductionHttpRuntime(
     })
     const taxonomyStore = new PostgresTaxonomyStore(pool)
     const areaCatalog = new PostgresAreaCatalog(pool)
+    const catalogVocabulary = {
+      listAreas: () => areaCatalog.listCurrent(),
+      listTaxonomies: async () => (await taxonomyStore.listCurrent())
+        .filter((node) => node.active)
+        .map(({ key, version, parentKey, label, kind }) => ({
+          key, version, parentKey, label, kind,
+        })),
+    }
     const providerTransfers = new PostgresProviderTransfers({
       pool,
       collections: new PostgresCollectionTransferReader(pool),
@@ -380,14 +390,11 @@ export async function createProductionHttpRuntime(
         search: createPlaceSearch({ sources: [localSearch] }),
         catalog: createCatalogPlaceSearch({
           source: localSearch,
-          vocabulary: {
-            listAreas: () => areaCatalog.listCurrent(),
-            listTaxonomies: async () => (await taxonomyStore.listCurrent())
-              .filter((node) => node.active)
-              .map(({ key, version, parentKey, label, kind }) => ({
-                key, version, parentKey, label, kind,
-              })),
-          },
+          vocabulary: catalogVocabulary,
+        }),
+        catalogMap: createCatalogPlaceMapSearch({
+          source: new PostgresCatalogMapSearch(pool),
+          vocabulary: catalogVocabulary,
         }),
         suggestions: {
           suggest,

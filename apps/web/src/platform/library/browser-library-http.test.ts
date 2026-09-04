@@ -200,7 +200,7 @@ describe('browser library HTTP', () => {
       expect(response.status).toBe(400)
     }
     expect((await http.map(new Request(
-      'https://place.example/api/library/map?scope=state&west=127.1&south=37.5&east=126.9&north=37.6&zoom=12',
+      'https://place.example/api/library/map?scope=state&west=127.1&south=37.5&east=127.1&north=37.6&zoom=12',
     ))).status).toBe(400)
     expect(resolveAuthRuntime).not.toHaveBeenCalled()
   })

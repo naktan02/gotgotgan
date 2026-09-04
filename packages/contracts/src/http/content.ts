@@ -1,7 +1,15 @@
 import { z } from 'zod'
 
 import { placeSummarySchema } from '../place-summary/index.js'
-import { uuidSchema } from '../primitives.js'
+import {
+  isNonEmptyMapViewport,
+  mapLocationSchema,
+  mapQueryViewportFields,
+  mapQueryZoomSchema,
+  mapViewportSchema,
+  mapZoomSchema,
+  uuidSchema,
+} from '../primitives.js'
 
 export { uuidSchema } from '../primitives.js'
 export const sharedVisibilitySchema = z.enum(['unlisted', 'public'])
@@ -234,27 +242,15 @@ export const publicationIdentifierParamsSchema = z.object({
 export const placeIdentifierParamsSchema = z.object({ placeId: uuidSchema }).strict()
 
 const publicationCursorSchema = z.string().min(1).max(2_048)
-const longitudeSchema = z.coerce.number().finite().min(-180).max(180)
-const latitudeSchema = z.coerce.number().finite().min(-90).max(90)
-const validMapBounds = (bounds: Readonly<{
-  west: number
-  south: number
-  east: number
-  north: number
-}>) => bounds.west < bounds.east && bounds.south < bounds.north
-
 export const publishedCollectionQuerySchema = z.object({
   cursor: publicationCursorSchema.optional(),
   limit: z.coerce.number().int().min(1).max(50).default(50),
 }).strict()
 
 export const publishedCollectionMapQuerySchema = z.object({
-  west: longitudeSchema,
-  south: latitudeSchema,
-  east: longitudeSchema,
-  north: latitudeSchema,
-  zoom: z.coerce.number().int().min(0).max(22),
-}).strict().refine(validMapBounds, 'map bounds must have positive width and height')
+  ...mapQueryViewportFields,
+  zoom: mapQueryZoomSchema,
+}).strict().refine(isNonEmptyMapViewport, 'map viewport must be non-empty')
 
 export const publishedCollectionSchema = z.object({
   schemaVersion: z.literal('place-published-collection.v3'),
@@ -272,25 +268,20 @@ export const publishedCollectionSchema = z.object({
   updatedAt: z.iso.datetime(),
 }).strict()
 
-const publishedCollectionMapBoundsSchema = z.object({
-  west: longitudeSchema,
-  south: latitudeSchema,
-  east: longitudeSchema,
-  north: latitudeSchema,
-}).strict().refine(validMapBounds, 'map bounds must have positive width and height')
+const publishedCollectionMapBoundsSchema = mapViewportSchema
 
 const publishedCollectionMapFeatureSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('place'),
     placeId: uuidSchema,
     label: z.string().min(1).max(300),
-    location: z.object({ latitude: latitudeSchema, longitude: longitudeSchema }).strict(),
+    location: mapLocationSchema,
   }).strict(),
   z.object({
     kind: z.literal('cluster'),
     clusterId: z.string().min(1).max(160),
     count: z.number().int().min(2),
-    location: z.object({ latitude: latitudeSchema, longitude: longitudeSchema }).strict(),
+    location: mapLocationSchema,
     bounds: publishedCollectionMapBoundsSchema,
   }).strict(),
 ])
@@ -300,7 +291,7 @@ export const publishedCollectionMapSchema = z.object({
   publicationId: uuidSchema,
   viewport: z.object({
     bounds: publishedCollectionMapBoundsSchema,
-    zoom: z.number().int().min(0).max(22),
+    zoom: mapZoomSchema,
   }).strict(),
   features: z.array(publishedCollectionMapFeatureSchema).max(500),
   coverage: z.object({

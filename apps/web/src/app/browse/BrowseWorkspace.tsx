@@ -4,11 +4,11 @@ import {
   PublicCollectionDiscovery,
   publicCollectionDiscoveryGateway,
 } from '@/features/public-discovery/public'
-import { DeterministicPlaceMap } from '@/platform/maps/DeterministicPlaceMap'
+import { MapLibrePlaceMap } from '@/platform/maps/public'
 
 export function BrowseWorkspace() {
   return <PublicCollectionDiscovery
     gateway={publicCollectionDiscoveryGateway}
-    mapRenderer={DeterministicPlaceMap}
+    mapRenderer={MapLibrePlaceMap}
   />
 }

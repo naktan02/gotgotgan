@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  catalogPlaceMapRequestSchema,
+  catalogPlaceMapResponseSchema,
   catalogPlaceSearchRequestSchema,
   catalogPlaceSearchResponseSchema,
+  placeSearchRequestSchema,
   placeSuggestionMaterializationResponseSchema,
   placeSuggestionSelectionResponseSchema,
   placeSuggestionsResponseSchema,
@@ -11,12 +14,89 @@ import {
 } from '../src/search/index.js'
 
 describe('provider-neutral search contracts', () => {
+  it('bounds map features while preserving exact antimeridian viewport coverage', () => {
+    const request = catalogPlaceMapRequestSchema.parse({
+      schemaVersion: 'catalog-place-map.v1',
+      query: '도쿄 관광지',
+      viewport: { west: 170, south: -20, east: -170, north: 20 },
+      zoom: 4.5,
+    })
+    expect(request.maxFeatures).toBe(384)
+    expect(catalogPlaceMapRequestSchema.safeParse({
+      ...request,
+      viewport: { west: -180, south: -85.051129, east: 180, north: 85.051129 },
+    }).success).toBe(true)
+    expect(catalogPlaceMapRequestSchema.safeParse({
+      ...request,
+      viewport: { west: 10, south: -20, east: 10, north: 20 },
+    }).success).toBe(false)
+    expect(catalogPlaceMapRequestSchema.safeParse({
+      ...request,
+      viewport: { west: 170, south: -85.05113, east: -170, north: 20 },
+    }).success).toBe(false)
+    expect(catalogPlaceMapRequestSchema.safeParse({
+      ...request,
+      viewport: { west: 180, south: -20, east: -180, north: 20 },
+    }).success).toBe(false)
+    expect(catalogPlaceMapRequestSchema.safeParse({
+      ...request,
+      maxFeatures: 385,
+    }).success).toBe(false)
+
+    const response = catalogPlaceMapResponseSchema.parse({
+      schemaVersion: 'catalog-place-map.v1',
+      interpretation: { normalizedQuery: '', tokens: [] },
+      viewport: request.viewport,
+      zoom: request.zoom,
+      mode: 'clusters',
+      features: [{
+        kind: 'cluster',
+        featureId: 'cluster:4:0:0',
+        location: { latitude: 1, longitude: 179 },
+        bounds: { west: 170, south: -20, east: -170, north: 20 },
+        placeCount: 12,
+      }],
+      coverage: {
+        matchingPlaceCount: 12,
+        representedPlaceCount: 12,
+        complete: true,
+      },
+    })
+    expect(response.coverage.complete).toBe(true)
+    expect(catalogPlaceMapResponseSchema.safeParse({
+      ...response,
+      coverage: { ...response.coverage, matchingPlaceCount: 13 },
+    }).success).toBe(false)
+  })
+
   it('keeps home catalog search canonical-only and version-pins interpreted meaning', () => {
     const request = catalogPlaceSearchRequestSchema.parse({
       schemaVersion: 'catalog-place-search.v1',
       query: '성수 조용한 라멘',
       excludedTokenIds: ['attribute:bW9vZC5xdWlldA:2'],
+      bounds: { west: 170, south: -20, east: -170, north: 20 },
     })
+    expect(request.bounds).toEqual({ west: 170, south: -20, east: -170, north: 20 })
+    expect(catalogPlaceSearchRequestSchema.safeParse({
+      ...request,
+      bounds: { west: -180, south: -85.051129, east: 180, north: 85.051129 },
+    }).success).toBe(true)
+    expect(catalogPlaceSearchRequestSchema.safeParse({
+      ...request,
+      bounds: { west: 180, south: -20, east: -180, north: 20 },
+    }).success).toBe(false)
+    expect(catalogPlaceSearchRequestSchema.safeParse({
+      ...request,
+      bounds: { west: 10, south: -20, east: 10, north: 20 },
+    }).success).toBe(false)
+    expect(catalogPlaceSearchRequestSchema.safeParse({
+      ...request,
+      bounds: { west: 170, south: -85.05113, east: -170, north: 20 },
+    }).success).toBe(false)
+    expect(placeSearchRequestSchema.safeParse({
+      schemaVersion: 'place-search.v1', query: '',
+      bounds: { west: 170, south: -20, east: -170, north: 20 },
+    }).success).toBe(false)
     const response = catalogPlaceSearchResponseSchema.parse({
       schemaVersion: 'catalog-place-search.v1',
       interpretation: {

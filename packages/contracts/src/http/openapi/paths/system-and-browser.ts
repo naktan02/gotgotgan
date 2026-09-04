@@ -26,6 +26,12 @@ export const systemAndBrowserPaths = {
     '200': described('Process can accept traffic', 'ProcessStatus'),
     '503': described('One or more required process dependencies are unavailable', 'ProcessStatus'),
   }) },
+  '/api/maps/style': { get: operation('getPlaceMapStyleForBrowser', {
+    '200': described(
+      'Return the same-origin minimal MapLibre style used by deterministic runtimes',
+      'BrowserMapStyle',
+    ),
+  }, { security: anonymous }) },
   '/api/auth/oidc/start': { get: operation('startPlaceBrowserLogin', {
     '302': described('Redirect to the configured Identity authorization endpoint'),
     '503': ref('responses', 'BrowserAuthUnavailable'),

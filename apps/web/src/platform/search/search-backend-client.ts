@@ -1,5 +1,7 @@
 import { problemSchema } from '@place/contracts/http'
 import {
+  catalogPlaceMapRequestSchema,
+  catalogPlaceMapResponseSchema,
   catalogPlaceSearchRequestSchema,
   catalogPlaceSearchResponseSchema,
   placeSearchRequestSchema,
@@ -9,6 +11,7 @@ import {
   placeSuggestionsRequestSchema,
   placeSuggestionsResponseSchema,
   taxonomyProjectionSchema,
+  type CatalogPlaceMapRequestInput,
   type PlaceSearchRequestInput,
   type CatalogPlaceSearchRequestInput,
   type PlaceSuggestionSelectionRequest,
@@ -20,6 +23,10 @@ import {
   type BackendEnvironment,
   type BackendFetcher,
 } from '../backend-http/fixed-backend'
+import {
+  CATALOG_MAP_RESPONSE_MAX_BYTES,
+  readBoundedSearchJson,
+} from './bounded-search-json'
 
 export class SearchBackendProblem extends Error {
   override readonly name = 'SearchBackendProblem'
@@ -84,6 +91,34 @@ export async function searchCatalogPlaces(
     throw new Error('Catalog search Backend is unavailable')
   }
   return catalogPlaceSearchResponseSchema.parse(payload)
+}
+
+export async function searchCatalogMap(
+  request: CatalogPlaceMapRequestInput,
+  environment: BackendEnvironment = process.env,
+  fetcher: BackendFetcher = fetch,
+  signal?: AbortSignal,
+) {
+  const body = catalogPlaceMapRequestSchema.parse(request)
+  const response = await requestFixedBackend('/v1/search/catalog/map', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: signal === undefined
+      ? AbortSignal.timeout(5_000)
+      : AbortSignal.any([signal, AbortSignal.timeout(5_000)]),
+  }, environment, fetcher)
+  const payload = await readBoundedSearchJson(response, CATALOG_MAP_RESPONSE_MAX_BYTES)
+  if (!response.ok) {
+    const problem = safeProblem(payload)
+    if (problem !== undefined) {
+      throw new SearchBackendProblem(
+        problem.status, problem.code, problem.title, problem.retryable, problem.correlationRef,
+      )
+    }
+    throw new Error('Catalog map Backend is unavailable')
+  }
+  return catalogPlaceMapResponseSchema.parse(payload)
 }
 
 export async function searchPlaces(

@@ -4,7 +4,7 @@ import type {
   PlaceMapCluster,
   PlaceMapRenderer,
   PlaceMapViewport,
-} from '@/platform/maps/place-map-interface'
+} from '@/platform/maps/public'
 
 export function PersonalLibraryMap({
   error,

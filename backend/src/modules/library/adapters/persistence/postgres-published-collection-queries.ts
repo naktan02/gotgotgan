@@ -4,9 +4,7 @@ import {
   decodePublishedCollectionCursor,
   encodePublishedCollectionCursor,
 } from '../../application/library-cursor.js'
-import { projectLibraryMapFeatures } from '../../application/library-map-features.js'
 import type { LibraryQueries } from '../../application/library-queries.js'
-import type { LibraryMapPlaceReader } from '../../application/ports/library-map-place-reader.js'
 import type { LibraryPlaceSummaryReader } from '../../application/ports/library-place-summary-reader.js'
 import type { LibraryPlaceSummary } from '../../domain/queries.js'
 import { InvalidLibraryQueryError } from '../../domain/queries.js'
@@ -25,24 +23,10 @@ type PublishedCollectionPlaceRow = Readonly<{
   position: number
 }>
 
-type PublishedCollectionMapRow = PublishedCollectionMetadataRow & Readonly<{
-  place_ids: string[]
-}>
-
 function requireBoundedLimit(limit: number): void {
   if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
     throw new InvalidLibraryQueryError('Published Collection limit must be between 1 and 50.')
   }
-}
-
-function requireViewport(input: Parameters<LibraryQueries['getPublishedCollectionMap']>[0]): void {
-  const { bounds, zoom } = input
-  if (
-    !Number.isInteger(zoom) || zoom < 0 || zoom > 22 ||
-    ![bounds.west, bounds.south, bounds.east, bounds.north].every(Number.isFinite) ||
-    bounds.west < -180 || bounds.east > 180 || bounds.west >= bounds.east ||
-    bounds.south < -90 || bounds.north > 90 || bounds.south >= bounds.north
-  ) throw new InvalidLibraryQueryError('Published Collection map viewport is invalid.')
 }
 
 async function summariesById(
@@ -125,58 +109,5 @@ export async function getPostgresPublishedCollection(
       }),
     } : {}),
     updatedAt,
-  }
-}
-
-export async function getPostgresPublishedCollectionMap(
-  pool: Pool,
-  readMapPlaces: LibraryMapPlaceReader,
-  input: Parameters<LibraryQueries['getPublishedCollectionMap']>[0],
-) {
-  requireViewport(input)
-  const result = await pool.query<PublishedCollectionMapRow>(
-    `
-      SELECT
-        collection.id,
-        collection.name,
-        collection.description,
-        collection.visibility,
-        count(place.canonical_place_id)::int AS place_count,
-        collection.updated_at,
-        coalesce(
-          array_agg(place.canonical_place_id ORDER BY place.position, place.canonical_place_id)
-            FILTER (WHERE place.canonical_place_id IS NOT NULL),
-          ARRAY[]::uuid[]
-        ) AS place_ids
-      FROM library.collections AS collection
-      LEFT JOIN library.collection_places AS place ON place.collection_id = collection.id
-      WHERE collection.publication_id = $1::uuid
-        AND collection.visibility IN ('unlisted', 'public')
-      GROUP BY collection.id
-    `,
-    [input.publicationId],
-  )
-  const collection = result.rows[0]
-  if (collection === undefined) return undefined
-  const read = await readMapPlaces({ placeIds: collection.place_ids, bounds: input.bounds })
-  const requested = new Set(collection.place_ids)
-  const features = projectLibraryMapFeatures({
-    places: read.places.filter((place) => requested.has(place.placeId)),
-    bounds: input.bounds,
-    zoom: input.zoom,
-  })
-  const representedPlaceCount = features.reduce((count, feature) => (
-    count + (feature.kind === 'place' ? 1 : feature.count)
-  ), 0)
-  return {
-    schemaVersion: 'place-published-collection-map.v1' as const,
-    publicationId: input.publicationId,
-    viewport: { bounds: input.bounds, zoom: input.zoom },
-    features,
-    coverage: {
-      representedPlaceCount,
-      unprojectedPlaceCount: read.unprojectedPlaceCount,
-      complete: read.unprojectedPlaceCount === 0,
-    },
   }
 }

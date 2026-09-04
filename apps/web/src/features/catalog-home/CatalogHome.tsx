@@ -2,7 +2,7 @@
 
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 
-import type { PlaceMapRenderer } from '@/platform/maps/place-map-interface'
+import { buildExternalDirectionLinks, type PlaceMapRenderer } from '../../platform/maps/public'
 
 import { PlaceFilingControl } from '../personal-library/public/place-filing'
 import {
@@ -189,6 +189,9 @@ function SearchResults({ workflow }: Readonly<{ workflow: CatalogHomeWorkflow }>
 
 function SelectedPlaceCard({ workflow }: Readonly<{ workflow: CatalogHomeWorkflow }>) {
   if (workflow.selected === undefined) return null
+  const directionLinks = workflow.selected.location === null
+    ? []
+    : buildExternalDirectionLinks({ name: workflow.selected.name, location: workflow.selected.location })
   return (
     <section aria-label="선택한 장소" className={styles.selectedCard}>
       <div>
@@ -202,6 +205,14 @@ function SelectedPlaceCard({ workflow }: Readonly<{ workflow: CatalogHomeWorkflo
         onClick={() => workflow.setCollectionPickerOpen(!workflow.collectionPickerOpen)}
         type="button"
       >컬렉션 선택</button>
+      {directionLinks.length > 0 && <nav aria-label="외부 지도 길찾기" className={styles.directionLinks}>
+        {directionLinks.map((link) => <a
+          href={link.href}
+          key={link.provider}
+          rel="external noopener noreferrer"
+          target="_blank"
+        >{link.label}</a>)}
+      </nav>}
       <CollectionChooser workflow={workflow} />
     </section>
   )
@@ -211,9 +222,12 @@ export function CatalogHomeView({ MapRenderer, workflow }: Readonly<{
   MapRenderer: PlaceMapRenderer
   workflow: CatalogHomeWorkflow
 }>) {
-  const markers = workflow.items.flatMap((place) => place.location === null ? [] : [{
-    id: place.placeId, label: place.name, location: place.location,
-  }])
+  const initialCameraMode = workflow.searchState === 'idle' &&
+    workflow.draftQuery.length === 0 &&
+    workflow.submittedQuery.length === 0 &&
+    workflow.selectedQuickType === null
+    ? 'granted-current-location'
+    : 'supplied-bounds'
   return (
     <div className={styles.home}>
       <section aria-label="검색 조건" className={styles.filterBar}>
@@ -242,25 +256,22 @@ export function CatalogHomeView({ MapRenderer, workflow }: Readonly<{
         </aside>
         <section aria-label="카탈로그 지도와 선택한 장소" className={workflow.mobileSurface === 'map' ? styles.mapPane : `${styles.mapPane} ${styles.mobileHidden}`}>
           <button className={styles.viewportButton} disabled={workflow.searchState === 'loading'} onClick={workflow.searchViewport} type="button">이 지역에서 보기</button>
-          {markers.length === 0 ? (
-            <MapAlternative message={workflow.items.length > 0
-              ? '현재 결과에는 표시할 좌표가 없습니다. 목록에서 장소를 선택하고 컬렉션에 정리할 수 있어요.'
-              : '검색하면 좌표가 있는 장소가 지도에 표시됩니다.'} />
-          ) : (
-            <MapBoundary>
-              <MapRenderer
-                ariaLabel="곳곳간 카탈로그 검색 지도"
-                bounds={workflow.viewport.bounds}
-                description="곳곳간 내부 통합 장소 카탈로그 결과"
-                markers={markers}
-                onSelect={workflow.selectPlace}
-                onViewportChange={workflow.setViewport}
-                selectedMarkerId={workflow.selected?.placeId}
-                title="카탈로그 장소"
-                zoom={workflow.viewport.zoom}
-              />
-            </MapBoundary>
-          )}
+          <MapBoundary>
+            <MapRenderer
+              ariaLabel="곳곳간 카탈로그 검색 지도"
+              bounds={workflow.viewport.bounds}
+              clusters={workflow.mapClusters}
+              description={workflow.mapDescription}
+              initialCameraMode={initialCameraMode}
+              markers={workflow.mapMarkers}
+              onClusterSelect={workflow.selectMapCluster}
+              onSelect={workflow.selectPlace}
+              onViewportChange={workflow.setViewport}
+              selectedMarkerId={workflow.selected?.placeId}
+              title="카탈로그 장소"
+              zoom={workflow.viewport.zoom}
+            />
+          </MapBoundary>
           <SelectedPlaceCard workflow={workflow} />
         </section>
       </div>

@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto'
 
 import {
+  catalogPlaceMapRequestSchema,
   catalogPlaceSearchRequestSchema,
   placeSearchRequestSchema,
   placeSuggestionSelectionRequestSchema,
   placeSuggestionsRequestSchema,
+  type CatalogPlaceMapRequestInput,
   type PlaceSearchRequestInput,
   type CatalogPlaceSearchRequestInput,
   type PlaceSuggestionSelectionRequest,
@@ -14,14 +16,20 @@ import {
 import {
   getSearchTaxonomy,
   SearchBackendProblem,
+  searchCatalogMap,
   searchCatalogPlaces,
   searchPlaces,
   selectPlaceSuggestion,
   suggestPlaces,
 } from './search-backend-client'
+import {
+  CATALOG_MAP_REQUEST_MAX_BYTES,
+  readBoundedSearchJson,
+} from './bounded-search-json'
 
 type SearchBackend = Readonly<{
   catalog?: (request: CatalogPlaceSearchRequestInput, signal: AbortSignal) => Promise<unknown>
+  catalogMap?: (request: CatalogPlaceMapRequestInput, signal: AbortSignal) => Promise<unknown>
   places: (request: PlaceSearchRequestInput, signal: AbortSignal) => Promise<unknown>
   suggestions: (request: PlaceSuggestionsRequestInput, signal: AbortSignal) => Promise<unknown>
   selectSuggestion: (request: PlaceSuggestionSelectionRequest, signal: AbortSignal) => Promise<unknown>
@@ -104,6 +112,31 @@ export function createBrowserSearchHttp(dependencies: Dependencies) {
   }
 
   return {
+    async catalogMap(request: Request): Promise<Response> {
+      let raw: unknown
+      try {
+        raw = await readBoundedSearchJson(request, CATALOG_MAP_REQUEST_MAX_BYTES)
+      } catch {
+        return invalid('PLACE_CATALOG_MAP_REQUEST_INVALID', '카탈로그 지도 조건이 올바르지 않습니다.')
+      }
+      const parsed = catalogPlaceMapRequestSchema.safeParse(raw)
+      const body = parsed.success ? parsed.data : undefined
+      if (body === undefined) {
+        return invalid('PLACE_CATALOG_MAP_REQUEST_INVALID', '카탈로그 지도 조건이 올바르지 않습니다.')
+      }
+      if (dependencies.backend.catalogMap === undefined) {
+        return unavailable('PLACE_CATALOG_MAP_UNAVAILABLE', '카탈로그 지도를 잠시 사용할 수 없습니다.')
+      }
+      try {
+        return success(await dependencies.backend.catalogMap(body, request.signal))
+      } catch (error) {
+        return failure(
+          error, (status) => status === 400 ? 400 : 503,
+          'PLACE_CATALOG_MAP_UNAVAILABLE', '카탈로그 지도를 잠시 사용할 수 없습니다.',
+        )
+      }
+    },
+
     async catalog(request: Request): Promise<Response> {
       const body = await payload(request, catalogPlaceSearchRequestSchema)
       if (body === undefined) {
@@ -176,6 +209,7 @@ export function createBrowserSearchHttp(dependencies: Dependencies) {
 
 export const browserSearchHttp = createBrowserSearchHttp({
   backend: {
+    catalogMap: (request, signal) => searchCatalogMap(request, process.env, fetch, signal),
     catalog: (request, signal) => searchCatalogPlaces(request, process.env, fetch, signal),
     places: (request, signal) => searchPlaces(request, process.env, fetch, signal),
     suggestions: (request, signal) => suggestPlaces(request, process.env, fetch, signal),

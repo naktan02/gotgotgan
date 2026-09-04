@@ -11,7 +11,7 @@ import {
   collectionLibraryHttp,
 } from '@/features/personal-library/public'
 import type { FamilyNavigation } from '@/platform/family-navigation/family-navigation'
-import { DeterministicPlaceMap } from '@/platform/maps/DeterministicPlaceMap'
+import { MapLibrePlaceMap } from '@/platform/maps/public'
 import { PlaceWorkspaceShell } from '@/shells/place-workspace/PlaceWorkspaceShell'
 
 const homeLibrary: CatalogHomeLibrary = {
@@ -49,7 +49,7 @@ export function CatalogHomeApplication({
   return (
     <CatalogHomeProvider initialQuery={initialQuery} library={homeLibrary}>
       <PlaceWorkspaceShell familyNavigation={familyNavigation} topbarSearch={<CatalogHomeSearch />}>
-        <CatalogHomeWorkspace MapRenderer={DeterministicPlaceMap} />
+        <CatalogHomeWorkspace MapRenderer={MapLibrePlaceMap} />
       </PlaceWorkspaceShell>
     </CatalogHomeProvider>
   )

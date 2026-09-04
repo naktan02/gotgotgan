@@ -4,7 +4,7 @@ test('renders the 곳곳간 shell and treats Family Services as a collapsible de
   await page.goto('/')
 
   await expect(page.getByRole('link', { name: '곳곳간 홈' })).toBeVisible()
-  await expect(page.getByLabel('곳곳간 카탈로그 검색')).toBeVisible()
+  await expect(page.getByRole('textbox', { name: '곳곳간 카탈로그 검색', exact: true })).toBeVisible()
   await expect(page.getByRole('link', { name: '로그인' })).toBeVisible()
 
   const menuButton = page.getByRole('button', { name: '메뉴 열기' })

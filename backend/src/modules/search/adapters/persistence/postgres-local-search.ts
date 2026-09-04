@@ -21,6 +21,11 @@ import type {
   CatalogPlaceSearchQuery,
   CatalogPlaceSummary,
 } from '../../domain/catalog-home-search.js'
+import {
+  PostgresSearchProjectionReader,
+  type CatalogSearchRow,
+  toCatalogPlaceSummary,
+} from './postgres-search-projection-reader.js'
 
 type LocalCursor = Readonly<{ score: number; placeId: string }>
 type CatalogCursor = LocalCursor & Readonly<{ version: 1; queryFingerprint: string }>
@@ -43,109 +48,6 @@ type SearchRow = Readonly<{
   projected_at: string
   score: number
 }>
-
-type PlaceDocumentRow = Readonly<{
-  place_id: string
-  source_version: number
-  display_name: string
-  area_label: string | null
-  area_key: string | null
-  area_version: number | string | null
-  latitude: number
-  longitude: number
-  primary_taxonomy_key: string | null
-  primary_taxonomy_label: string | null
-  taxonomy_keys: string[]
-  taxonomy_references: unknown
-  evidence_status: PlaceSearchResult['evidenceStatus']
-  projected_at: Date | string
-}>
-
-type CatalogSearchRow = Readonly<{
-  place_id: string
-  display_name: string
-  area_label: string | null
-  area_key: string | null
-  area_version: number | string | null
-  latitude: number | null
-  longitude: number | null
-  primary_taxonomy_key: string | null
-  primary_taxonomy_label: string | null
-  taxonomy_references: unknown
-  evidence_status: CatalogPlaceSummary['evidenceStatus']
-  projected_at: Date | string
-  score: number
-}>
-
-type ProjectedDocumentCountRow = Readonly<{ projected_place_count: number }>
-
-function rowToDocument(row: PlaceDocumentRow): LocalPlaceSearchDocument {
-  const references = parseTaxonomyReferences(row.taxonomy_references)
-  return {
-    placeId: row.place_id,
-    sourceVersion: row.source_version,
-    name: row.display_name,
-    areaLabel: row.area_label,
-    areaReference: row.area_key === null || row.area_version === null
-      ? null
-      : { key: row.area_key, version: Number(row.area_version) },
-    latitude: row.latitude,
-    longitude: row.longitude,
-    primaryTaxonomy: row.primary_taxonomy_key === null || row.primary_taxonomy_label === null
-      ? null
-      : { key: row.primary_taxonomy_key, label: row.primary_taxonomy_label },
-    taxonomyKeys: row.taxonomy_keys,
-    taxonomyReferences: references,
-    evidenceStatus: row.evidence_status,
-    projectedAt: new Date(row.projected_at).toISOString(),
-  }
-}
-
-function parseTaxonomyReferences(value: unknown): readonly Readonly<{
-  key: string
-  version: number
-  kind: 'category' | 'attribute'
-}>[] {
-  if (!Array.isArray(value)) throw new Error('Stored Taxonomy references are invalid.')
-  return value.map((reference) => {
-    if (
-      typeof reference !== 'object' || reference === null ||
-      !('key' in reference) || typeof reference.key !== 'string' ||
-      !('version' in reference) || typeof reference.version !== 'number' ||
-      !('kind' in reference) ||
-      (reference.kind !== 'category' && reference.kind !== 'attribute')
-    ) throw new Error('Stored Taxonomy references are invalid.')
-    return { key: reference.key, version: reference.version, kind: reference.kind }
-  })
-}
-
-function rowToCatalogSummary(row: CatalogSearchRow): CatalogPlaceSummary {
-  const taxonomyReferences = parseTaxonomyReferences(row.taxonomy_references)
-  const primaryVersion = taxonomyReferences.find((reference) => (
-    reference.kind === 'category' && reference.key === row.primary_taxonomy_key
-  ))?.version ?? null
-  return {
-    placeId: row.place_id,
-    name: row.display_name,
-    area: row.area_label === null
-      ? null
-      : {
-        label: row.area_label,
-        reference: row.area_key === null || row.area_version === null
-          ? null
-          : { key: row.area_key, version: Number(row.area_version) },
-      },
-    location: row.latitude === null || row.longitude === null
-      ? null
-      : { latitude: row.latitude, longitude: row.longitude },
-    primaryTaxonomy: row.primary_taxonomy_key === null || row.primary_taxonomy_label === null
-      ? null
-      : { key: row.primary_taxonomy_key, version: primaryVersion, label: row.primary_taxonomy_label },
-    taxonomyReferences,
-    evidenceStatus: row.evidence_status,
-    projectedAt: new Date(row.projected_at).toISOString(),
-  }
-}
 
 function decodeLocalCursor(value: string | undefined): LocalCursor | undefined {
   if (value === undefined) return undefined
@@ -245,8 +147,11 @@ export class PostgresLocalSearch implements
   LocalSearchProjectionStore,
   LocalPlaceDocumentReader {
   readonly sourceKey = 'local'
+  private readonly projectionReader: PostgresSearchProjectionReader
 
-  constructor(private readonly pool: Pool) {}
+  constructor(private readonly pool: Pool) {
+    this.projectionReader = new PostgresSearchProjectionReader(pool)
+  }
 
   async upsertPlace(document: LocalPlaceSearchDocument): Promise<void> {
     const searchText = [
@@ -319,92 +224,19 @@ export class PostgresLocalSearch implements
   }
 
   async getPlaceDocument(placeId: string): Promise<LocalPlaceSearchDocument | undefined> {
-    return (await this.getPlaceDocuments([placeId]))[0]
+    return this.projectionReader.getPlaceDocument(placeId)
   }
 
   async getPlaceDocuments(placeIds: readonly string[]): Promise<readonly LocalPlaceSearchDocument[]> {
-    if (placeIds.length === 0) return []
-    const result = await this.pool.query<PlaceDocumentRow>(
-      `
-        SELECT
-          place_id,
-          source_version,
-          display_name,
-          area_label,
-          area_key,
-          area_version,
-          ST_Y(location) AS latitude,
-          ST_X(location) AS longitude,
-          primary_taxonomy_key,
-          primary_taxonomy_label,
-          taxonomy_keys,
-          taxonomy_references,
-          evidence_status,
-          projected_at
-        FROM search.place_documents
-        WHERE place_id = ANY($1::uuid[])
-          AND location IS NOT NULL
-      `,
-      [placeIds],
-    )
-    return result.rows.map(rowToDocument)
+    return this.projectionReader.getPlaceDocuments(placeIds)
   }
 
   async getCatalogPlaceDocuments(placeIds: readonly string[]): Promise<readonly CatalogPlaceSummary[]> {
-    if (placeIds.length === 0) return []
-    const result = await this.pool.query<CatalogSearchRow>(
-      `SELECT place_id, display_name, area_label, area_key, area_version,
-              ST_Y(location) AS latitude, ST_X(location) AS longitude,
-              primary_taxonomy_key, primary_taxonomy_label, taxonomy_references,
-              evidence_status, projected_at, 0::double precision AS score
-       FROM search.place_documents
-       WHERE place_id = ANY($1::uuid[])`,
-      [placeIds],
-    )
-    return result.rows.map(rowToCatalogSummary)
+    return this.projectionReader.getCatalogPlaceDocuments(placeIds)
   }
 
   async getPlaceDocumentsInBounds(placeIds: readonly string[], bounds: SearchBounds) {
-    const requested = [...new Set(placeIds)]
-    if (requested.length === 0) return { documents: [], unprojectedPlaceCount: 0 }
-    const [documents, coverage] = await Promise.all([
-      this.pool.query<PlaceDocumentRow>(
-        `
-          SELECT
-            place_id,
-            source_version,
-            display_name,
-            area_label,
-            area_key,
-            area_version,
-            ST_Y(location) AS latitude,
-            ST_X(location) AS longitude,
-            primary_taxonomy_key,
-            primary_taxonomy_label,
-            taxonomy_keys,
-            taxonomy_references,
-            evidence_status,
-            projected_at
-          FROM search.place_documents
-          WHERE place_id = ANY($1::uuid[])
-            AND location && ST_MakeEnvelope($2, $3, $4, $5, 4326)
-        `,
-        [requested, bounds.west, bounds.south, bounds.east, bounds.north],
-      ),
-      this.pool.query<ProjectedDocumentCountRow>(
-        `
-          SELECT count(*)::int AS projected_place_count
-          FROM search.place_documents
-          WHERE place_id = ANY($1::uuid[])
-            AND location IS NOT NULL
-        `,
-        [requested],
-      ),
-    ])
-    return {
-      documents: documents.rows.map(rowToDocument),
-      unprojectedPlaceCount: requested.length - (coverage.rows[0]?.projected_place_count ?? 0),
-    }
+    return this.projectionReader.getPlaceDocumentsInBounds(placeIds, bounds)
   }
 
   async search(query: Omit<PlaceSearchQuery, 'cursor'> & Readonly<{ cursor?: string }>): Promise<SearchSourcePage> {
@@ -519,7 +351,21 @@ export class PostgresLocalSearch implements
             END::double precision AS score
           FROM search.place_documents AS document
           WHERE ($1 = '' OR document.search_text % $1 OR document.search_text LIKE '%' || $1 || '%')
-            AND ($3::double precision IS NULL OR document.location && ST_MakeEnvelope($3, $4, $5, $6, 4326))
+            AND (
+              $3::double precision IS NULL
+              OR ($3::double precision < $5::double precision AND document.location && ST_MakeEnvelope(
+                $3::double precision, $4::double precision,
+                $5::double precision, $6::double precision, 4326
+              ))
+              OR ($3::double precision > $5::double precision AND (
+                document.location && ST_MakeEnvelope(
+                  $3::double precision, $4::double precision, 180, $6::double precision, 4326
+                )
+                OR document.location && ST_MakeEnvelope(
+                  -180, $4::double precision, $5::double precision, $6::double precision, 4326
+                )
+              ))
+            )
             AND ($7::jsonb = '[]'::jsonb OR EXISTS (
               SELECT 1
               FROM jsonb_array_elements($7::jsonb) AS area(reference)
@@ -558,7 +404,7 @@ export class PostgresLocalSearch implements
     const rows = hasMore ? result.rows.slice(0, query.limit) : result.rows
     const last = rows.at(-1)
     return {
-      items: rows.map(rowToCatalogSummary),
+      items: rows.map(toCatalogPlaceSummary),
       ...(hasMore && last !== undefined
         ? {
           nextCursor: encodeCatalogCursor({

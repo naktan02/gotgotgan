@@ -2,52 +2,37 @@ import { z } from 'zod'
 
 import { placeSummarySchema } from '../places/index.js'
 import { uuidSchema } from '../primitives.js'
+import {
+  libraryAreaFacetKeySchema as areaFacetKeySchema,
+  libraryAreaKeysSchema as areaKeysSchema,
+  libraryCollectionRevisionV2Schema,
+  libraryCursorSchema as cursorSchema,
+  libraryOperationReceiptV2Schema,
+  libraryOperationRejectionV2Schema,
+  libraryPageLimitSchema as pageLimitSchema,
+  libraryPlaceStateSchema,
+  libraryTagIdsSchema as tagIdsSchema,
+  libraryTagMatchSchema,
+  libraryTaxonomyFacetKeySchema as taxonomyFacetKeySchema,
+  libraryTaxonomyKeysSchema as taxonomyKeysSchema,
+} from './contract-primitives.js'
 
-const cursorSchema = z.string().min(1).max(2_048)
-const pageLimitSchema = z.coerce.number().int().min(1).max(50).default(20)
-const tagIdsSchema = z.preprocess(
-  (value) => value === undefined ? [] : typeof value === 'string' ? [value] : value,
-  z.array(uuidSchema).max(20).refine(
-    (tagIds) => new Set(tagIds).size === tagIds.length,
-    'tagIds must be unique',
-  ).transform((tagIds) => [...tagIds].sort()),
-)
-const areaFacetKeySchema = z.string().regex(/^area_[A-Za-z0-9_-]{22}$/)
-const taxonomyFacetKeySchema = z.string().min(1).max(128)
-const areaKeysSchema = z.preprocess(
-  (value) => value === undefined ? [] : typeof value === 'string' ? [value] : value,
-  z.array(areaFacetKeySchema).max(10).refine(
-    (keys) => new Set(keys).size === keys.length,
-    'areaKeys must be unique',
-  ).transform((keys) => [...keys].sort()),
-)
-const taxonomyKeysSchema = z.preprocess(
-  (value) => value === undefined ? [] : typeof value === 'string' ? [value] : value,
-  z.array(taxonomyFacetKeySchema).max(10).refine(
-    (keys) => new Set(keys).size === keys.length,
-    'taxonomyKeys must be unique',
-  ).transform((keys) => [...keys].sort()),
-)
-
-const longitudeSchema = z.coerce.number().finite().min(-180).max(180)
-const latitudeSchema = z.coerce.number().finite().min(-90).max(90)
-const libraryMapViewportFields = {
-  west: longitudeSchema,
-  south: latitudeSchema,
-  east: longitudeSchema,
-  north: latitudeSchema,
-  zoom: z.coerce.number().int().min(0).max(22),
-}
-
-const validMapBounds = (bounds: Readonly<{
-  west: number
-  south: number
-  east: number
-  north: number
-}>) => bounds.west < bounds.east && bounds.south < bounds.north
-
-export const libraryPlaceStateSchema = z.enum(['saved', 'wanted', 'rated'])
-export const libraryTagMatchSchema = z.enum(['all', 'any'])
+export {
+  libraryCollectionRevisionV2Schema,
+  libraryOperationReceiptV2Schema,
+  libraryOperationRejectionV2Schema,
+  libraryPlaceStateSchema,
+  libraryTagMatchSchema,
+} from './contract-primitives.js'
+export type {
+  LibraryCollectionRevisionV2,
+  LibraryOperationReceiptV2,
+  LibraryOperationRejectionV2,
+  LibraryPlaceState,
+  LibraryTagMatch,
+} from './contract-primitives.js'
+export * from './map.js'
+export * from './public-collections.js'
 
 export const libraryPlaceListQuerySchema = z.object({
   state: libraryPlaceStateSchema.default('saved'),
@@ -80,23 +65,6 @@ export const libraryPlaceOrganizationQuerySchema = z.object({
 }).strict()
 
 export const libraryPlaceFacetsQuerySchema = z.object({}).strict()
-
-export const libraryMapQuerySchema = z.discriminatedUnion('scope', [
-  z.object({
-    scope: z.literal('state'),
-    state: libraryPlaceStateSchema.default('saved'),
-    tagIds: tagIdsSchema,
-    tagMatch: libraryTagMatchSchema.default('all'),
-    areaKeys: areaKeysSchema,
-    taxonomyKeys: taxonomyKeysSchema,
-    ...libraryMapViewportFields,
-  }).strict(),
-  z.object({
-    scope: z.literal('collection'),
-    collectionId: uuidSchema,
-    ...libraryMapViewportFields,
-  }).strict(),
-]).refine(validMapBounds, 'map bounds must have positive width and height')
 
 export const libraryCollectionIdentifierParamsSchema = z.object({
   collectionId: uuidSchema,
@@ -166,83 +134,6 @@ export const libraryPlaceFacetsResponseSchema = z.object({
     label: z.string().min(1).max(160),
   })).max(50),
 }).strict()
-
-const libraryMapBoundsSchema = z.object({
-  west: longitudeSchema,
-  south: latitudeSchema,
-  east: longitudeSchema,
-  north: latitudeSchema,
-}).strict().refine(validMapBounds, 'map bounds must have positive width and height')
-
-const libraryMapScopeSchema = z.discriminatedUnion('kind', [
-  z.object({
-    kind: z.literal('state'),
-    state: libraryPlaceStateSchema,
-    tagIds: z.array(uuidSchema).max(20),
-    tagMatch: libraryTagMatchSchema,
-    areaKeys: z.array(areaFacetKeySchema).max(10),
-    taxonomyKeys: z.array(taxonomyFacetKeySchema).max(10),
-  }).strict(),
-  z.object({
-    kind: z.literal('collection'),
-    collectionId: uuidSchema,
-  }).strict(),
-])
-
-const libraryMapFeatureSchema = z.discriminatedUnion('kind', [
-  z.object({
-    kind: z.literal('place'),
-    placeId: uuidSchema,
-    label: z.string().min(1).max(300),
-    location: z.object({
-      latitude: latitudeSchema,
-      longitude: longitudeSchema,
-    }).strict(),
-  }).strict(),
-  z.object({
-    kind: z.literal('cluster'),
-    clusterId: z.string().min(1).max(160),
-    count: z.number().int().min(2),
-    location: z.object({
-      latitude: latitudeSchema,
-      longitude: longitudeSchema,
-    }).strict(),
-    bounds: libraryMapBoundsSchema,
-  }).strict(),
-])
-
-export const libraryMapResponseSchema = z.object({
-  schemaVersion: z.literal('library-map-projection.v1'),
-  scope: libraryMapScopeSchema,
-  viewport: z.object({
-    bounds: libraryMapBoundsSchema,
-    zoom: z.number().int().min(0).max(22),
-  }).strict(),
-  features: z.array(libraryMapFeatureSchema).max(500),
-  coverage: z.object({
-    representedPlaceCount: z.number().int().nonnegative(),
-    unprojectedPlaceCount: z.number().int().nonnegative(),
-    complete: z.boolean(),
-  }).strict(),
-}).strict().superRefine((projection, context) => {
-  const represented = projection.features.reduce((count, feature) => (
-    count + (feature.kind === 'place' ? 1 : feature.count)
-  ), 0)
-  if (represented !== projection.coverage.representedPlaceCount) {
-    context.addIssue({
-      code: 'custom',
-      path: ['coverage', 'representedPlaceCount'],
-      message: 'representedPlaceCount must equal the places represented by all features',
-    })
-  }
-  if (projection.coverage.complete !== (projection.coverage.unprojectedPlaceCount === 0)) {
-    context.addIssue({
-      code: 'custom',
-      path: ['coverage', 'complete'],
-      message: 'complete must reflect whether the active scope has unprojected places',
-    })
-  }
-})
 
 const collectionSummarySchema = z.object({
   collectionId: uuidSchema,
@@ -314,8 +205,6 @@ export const libraryPlaceOrganizationResponseSchema = z.object({
  * favorite when it belongs to at least one member-owned Collection; Personal Rating remains an
  * independent annotation and filter.
  */
-export const libraryCollectionRevisionV2Schema = z.string().min(1).max(2_048)
-
 export const personalLibraryFavoriteScopeV2Schema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('all') }).strict(),
   z.object({
@@ -424,46 +313,6 @@ export const placeFilingResponseV2Schema = z.object({
   }).strict()).max(50),
   nextCursor: cursorSchema.optional(),
 }).strict()
-
-/**
- * Receipt for one idempotent Library operation. `commandId` retains the existing HTTP command
- * convention while identifying the operation whose result was applied or replayed.
- */
-export const libraryOperationReceiptV2Schema = z.object({
-  commandId: uuidSchema,
-  status: z.enum(['applied', 'replayed']),
-}).strict()
-
-export const libraryOperationRejectionV2Schema = z.discriminatedUnion('code', [
-  z.object({
-    code: z.literal('not-found'),
-  }).strict(),
-  z.object({
-    code: z.literal('version-conflict'),
-  }).strict(),
-  z.object({
-    code: z.literal('operation-id-reused'),
-  }).strict(),
-  z.object({
-    code: z.literal('invalid-selection'),
-  }).strict(),
-  z.object({
-    code: z.literal('anchor-not-found'),
-  }).strict(),
-  z.object({
-    code: z.literal('source-membership-missing'),
-  }).strict(),
-  z.object({
-    code: z.literal('collection-limit-exceeded'),
-    limit: z.number().int().positive().optional(),
-  }).strict(),
-  z.object({
-    code: z.literal('binding-version-conflict'),
-  }).strict(),
-  z.object({
-    code: z.literal('publication-changed'),
-  }).strict(),
-])
 
 export const placeFilingDesiredStateV2Schema = z.enum(['included', 'excluded'])
 
@@ -599,161 +448,12 @@ export const collectionLifecycleCommandResultV2Schema = z.discriminatedUnion('ou
   }).strict(),
 ])
 
-/**
- * Public Collection discovery is deliberately separate from unlisted link sharing. Only
- * Collections owned by an allowed public profile may appear in this projection.
- */
-export const publicCollectionTopicV2Schema = z.object({
-  key: z.string().regex(/^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/),
-  label: z.string().trim().min(1).max(80),
-}).strict()
-
-const publicCollectionTopicKeysV2Schema = z.preprocess(
-  (value) => value === undefined ? [] : typeof value === 'string' ? [value] : value,
-  z.array(publicCollectionTopicV2Schema.shape.key).max(10).refine(
-    (keys) => new Set(keys).size === keys.length,
-    'topicKeys must be unique',
-  ).transform((keys) => [...keys].sort()),
-)
-
-export const publicCollectionDirectoryQueryV2Schema = z.object({
-  q: z.string().trim().min(1).max(120).optional(),
-  areaKeys: areaKeysSchema,
-  taxonomyKeys: taxonomyKeysSchema,
-  topicKeys: publicCollectionTopicKeysV2Schema,
-  sort: z.enum(['recent', 'largest', 'name']).default('recent'),
-  cursor: cursorSchema.optional(),
-  limit: pageLimitSchema,
-}).strict()
-
-const publicCollectionOwnerV2Schema = z.object({
-  handle: z.string().min(3).max(30),
-  displayName: z.string().min(1).max(50),
-}).strict()
-
-const publicCollectionPlaceV2Schema = z.object({
-  placeId: uuidSchema,
-  position: z.number().int().nonnegative(),
-  place: placeSummarySchema.nullable(),
-}).strict()
-
-const publicCollectionDiscoveryFacetV2Schema = z.object({
-  key: z.string().min(1).max(128),
-  label: z.string().min(1).max(300),
-  count: z.number().int().positive(),
-}).strict()
-
-const publicCollectionDiscoverySummaryV2Schema = z.object({
-  publicationId: uuidSchema,
-  publicationVersion: libraryCollectionRevisionV2Schema,
-  name: z.string().min(1).max(120),
-  description: z.string().max(2_000).nullable(),
-  placeCount: z.number().int().nonnegative(),
-  updatedAt: z.iso.datetime({ offset: true }),
-  owner: publicCollectionOwnerV2Schema,
-  topics: z.array(publicCollectionTopicV2Schema).max(8),
-  previewPlaces: z.array(publicCollectionPlaceV2Schema).max(6),
-}).strict()
-
-export const publicCollectionDirectoryResponseV2Schema = z.object({
-  schemaVersion: z.literal('public-collection-directory.v2'),
-  filter: z.object({
-    q: z.string().min(1).max(120).nullable(),
-    areaKeys: z.array(areaFacetKeySchema).max(10),
-    taxonomyKeys: z.array(taxonomyFacetKeySchema).max(10),
-    topicKeys: z.array(publicCollectionTopicV2Schema.shape.key).max(10),
-    sort: z.enum(['recent', 'largest', 'name']),
-  }).strict(),
-  items: z.array(publicCollectionDiscoverySummaryV2Schema).max(50),
-  nextCursor: cursorSchema.optional(),
-  availableFilters: z.object({
-    areas: z.array(publicCollectionDiscoveryFacetV2Schema.extend({ key: areaFacetKeySchema })).max(50),
-    taxonomies: z.array(publicCollectionDiscoveryFacetV2Schema.extend({
-      key: taxonomyFacetKeySchema,
-      label: z.string().min(1).max(160),
-    })).max(50),
-    topics: z.array(publicCollectionDiscoveryFacetV2Schema.extend({
-      key: publicCollectionTopicV2Schema.shape.key,
-      label: z.string().min(1).max(80),
-    })).max(50),
-  }).strict(),
-}).strict()
-
-export const discoverableCollectionParamsV2Schema = z.object({
-  publicationId: uuidSchema,
-}).strict()
-
-export const discoverableCollectionQueryV2Schema = z.object({
-  cursor: cursorSchema.optional(),
-  limit: pageLimitSchema,
-}).strict()
-
-export const discoverableCollectionResponseV2Schema = z.object({
-  schemaVersion: z.literal('discoverable-collection.v2'),
-  publicationId: uuidSchema,
-  publicationVersion: libraryCollectionRevisionV2Schema,
-  name: z.string().min(1).max(120),
-  description: z.string().max(2_000).nullable(),
-  placeCount: z.number().int().nonnegative(),
-  updatedAt: z.iso.datetime({ offset: true }),
-  owner: publicCollectionOwnerV2Schema,
-  topics: z.array(publicCollectionTopicV2Schema).max(8),
-  places: z.array(publicCollectionPlaceV2Schema).max(50),
-  nextCursor: cursorSchema.optional(),
-}).strict()
-
-const publishedCollectionCopyTargetV2Schema = z.object({
-  collectionId: uuidSchema,
-  name: z.string().trim().min(1).max(120),
-}).strict()
-
-const publishedCollectionCopySelectionV2Schema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('all') }).strict(),
-  z.object({
-    kind: z.literal('places'),
-    placeIds: z.array(uuidSchema).min(1).max(500).refine(
-      (placeIds) => new Set(placeIds).size === placeIds.length,
-      'placeIds must be unique',
-    ),
-  }).strict(),
-])
-
-export const publishedCollectionCopyCommandRequestV2Schema = z.object({
-  schemaVersion: z.literal('published-collection-copy-command.v2'),
-  commandId: uuidSchema,
-  sourcePublicationId: uuidSchema,
-  expectedPublicationVersion: libraryCollectionRevisionV2Schema,
-  target: publishedCollectionCopyTargetV2Schema,
-  selection: publishedCollectionCopySelectionV2Schema,
-}).strict()
-
-export const publishedCollectionCopyCommandResultV2Schema = z.discriminatedUnion('outcome', [
-  z.object({
-    schemaVersion: z.literal('published-collection-copy-command-result.v2'),
-    outcome: z.literal('accepted'),
-    receipt: libraryOperationReceiptV2Schema,
-    collectionId: uuidSchema,
-    collectionRevision: libraryCollectionRevisionV2Schema,
-    copiedPlaceCount: z.number().int().nonnegative(),
-  }).strict(),
-  z.object({
-    schemaVersion: z.literal('published-collection-copy-command-result.v2'),
-    outcome: z.literal('rejected'),
-    commandId: uuidSchema,
-    rejection: libraryOperationRejectionV2Schema,
-  }).strict(),
-])
-
-export type LibraryPlaceState = z.infer<typeof libraryPlaceStateSchema>
-export type LibraryTagMatch = z.infer<typeof libraryTagMatchSchema>
 export type LibraryPlacePreferencesResponse = z.infer<typeof libraryPlacePreferencesResponseSchema>
 export type LibraryCommandResult = z.infer<typeof libraryCommandResultSchema>
 export type LibraryPlaceListQuery = z.infer<typeof libraryPlaceListQuerySchema>
 export type LibraryPlaceListResponse = z.infer<typeof libraryPlaceListResponseSchema>
 export type LibraryPlaceFacetsResponse = z.infer<typeof libraryPlaceFacetsResponseSchema>
 export type LibraryPlaceFacetsQuery = z.infer<typeof libraryPlaceFacetsQuerySchema>
-export type LibraryMapQuery = z.infer<typeof libraryMapQuerySchema>
-export type LibraryMapResponse = z.infer<typeof libraryMapResponseSchema>
 export type LibraryCollectionListQuery = z.infer<typeof libraryCollectionListQuerySchema>
 export type LibraryCollectionListResponse = z.infer<typeof libraryCollectionListResponseSchema>
 export type LibraryCollectionDetailQuery = z.infer<typeof libraryCollectionDetailQuerySchema>
@@ -762,7 +462,6 @@ export type LibraryTagListQuery = z.infer<typeof libraryTagListQuerySchema>
 export type LibraryTagListResponse = z.infer<typeof libraryTagListResponseSchema>
 export type LibraryPlaceOrganizationQuery = z.infer<typeof libraryPlaceOrganizationQuerySchema>
 export type LibraryPlaceOrganizationResponse = z.infer<typeof libraryPlaceOrganizationResponseSchema>
-export type LibraryCollectionRevisionV2 = z.infer<typeof libraryCollectionRevisionV2Schema>
 export type PersonalLibraryFavoriteScopeV2 = z.infer<typeof personalLibraryFavoriteScopeV2Schema>
 export type PersonalLibraryRatingFilterV2 = z.infer<typeof personalLibraryRatingFilterV2Schema>
 export type PersonalLibraryOverlayV2 = z.infer<typeof personalLibraryOverlayV2Schema>
@@ -772,8 +471,6 @@ export type PersonalLibraryWorkspaceHttpQueryV2 = z.infer<typeof personalLibrary
 export type PersonalLibraryWorkspaceResponseV2 = z.infer<typeof personalLibraryWorkspaceResponseV2Schema>
 export type PlaceFilingRequestV2 = z.infer<typeof placeFilingRequestV2Schema>
 export type PlaceFilingResponseV2 = z.infer<typeof placeFilingResponseV2Schema>
-export type LibraryOperationReceiptV2 = z.infer<typeof libraryOperationReceiptV2Schema>
-export type LibraryOperationRejectionV2 = z.infer<typeof libraryOperationRejectionV2Schema>
 export type PlaceFilingDesiredStateV2 = z.infer<typeof placeFilingDesiredStateV2Schema>
 export type PlaceFilingCommandRequestV2 = z.infer<typeof placeFilingCommandRequestV2Schema>
 export type PlaceFilingCommandResultV2 = z.infer<typeof placeFilingCommandResultV2Schema>
@@ -782,14 +479,3 @@ export type CollectionOrderCommandRequestV2 = z.infer<typeof collectionOrderComm
 export type CollectionOrderCommandResultV2 = z.infer<typeof collectionOrderCommandResultV2Schema>
 export type CollectionLifecycleCommandRequestV2 = z.infer<typeof collectionLifecycleCommandRequestV2Schema>
 export type CollectionLifecycleCommandResultV2 = z.infer<typeof collectionLifecycleCommandResultV2Schema>
-export type PublicCollectionTopicV2 = z.infer<typeof publicCollectionTopicV2Schema>
-export type PublicCollectionDirectoryQueryV2 = z.infer<typeof publicCollectionDirectoryQueryV2Schema>
-export type PublicCollectionDirectoryResponseV2 = z.infer<typeof publicCollectionDirectoryResponseV2Schema>
-export type DiscoverableCollectionQueryV2 = z.infer<typeof discoverableCollectionQueryV2Schema>
-export type DiscoverableCollectionResponseV2 = z.infer<typeof discoverableCollectionResponseV2Schema>
-export type PublishedCollectionCopyCommandRequestV2 = z.infer<
-  typeof publishedCollectionCopyCommandRequestV2Schema
->
-export type PublishedCollectionCopyCommandResultV2 = z.infer<
-  typeof publishedCollectionCopyCommandResultV2Schema
->

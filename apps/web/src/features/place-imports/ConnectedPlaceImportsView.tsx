@@ -7,7 +7,7 @@ import type {
   PlaceImportItem,
 } from '@place/contracts/imports'
 
-import { buildProviderOpenLinks } from '@/platform/maps/provider-open-links'
+import { buildProviderOpenLinks } from '../../platform/maps/public'
 
 import styles from './connected-place-imports.module.css'
 import type {

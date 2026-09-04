@@ -1,7 +1,10 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 
+import 'maplibre-gl/dist/maplibre-gl.css'
 import './globals.css'
+
+import { resolvePlaceMapStyleUrl } from '@/platform/maps/public'
 
 export const metadata: Metadata = {
   title: '곳곳간',
@@ -9,9 +12,13 @@ export const metadata: Metadata = {
 }
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+  const mapStyleUrl = resolvePlaceMapStyleUrl(
+    process.env.PLACE_MAP_STYLE_URL,
+    process.env.PLACE_WEB_E2E_BASE_URL,
+  )
   return (
     <html lang="ko">
-      <body>{children}</body>
+      <body data-place-map-style-url={mapStyleUrl}>{children}</body>
     </html>
   )
 }

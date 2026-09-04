@@ -131,6 +131,7 @@ test('production composition consumes immutable images while local composition o
   assert.match(localIntegrationCompose, /identity\.localhost:host-gateway/)
   assert.match(localIntegrationCompose, /database-prepare:/)
   assert.match(localIntegrationCompose, /profiles: \[local-lifecycle\]/)
+  assert.match(baseCompose, /PLACE_MAP_STYLE_URL: \$\{PLACE_MAP_STYLE_URL:-\}/)
   assert.equal(JSON.parse(localIdentityManifest).serviceId, 'place-local')
   assert.equal(JSON.parse(localIdentityManifest).devMode, true)
   assert.match(dockerfile, /COPY \.tools \.\/\.tools\s+RUN npm ci/)

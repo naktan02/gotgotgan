@@ -36,6 +36,18 @@ export type LibraryMapBounds = Readonly<{
   north: number
 }>
 
+export const maximumLibraryMapLatitude = 85.051129
+
+export function isValidLibraryMapViewport(bounds: LibraryMapBounds, zoom: number): boolean {
+  return Number.isFinite(zoom) && zoom >= 0 && zoom <= 22 &&
+    [bounds.west, bounds.south, bounds.east, bounds.north].every(Number.isFinite) &&
+    bounds.west >= -180 && bounds.west <= 180 &&
+    bounds.east >= -180 && bounds.east <= 180 &&
+    bounds.west !== bounds.east && !(bounds.west === 180 && bounds.east === -180) &&
+    bounds.south >= -maximumLibraryMapLatitude && bounds.north <= maximumLibraryMapLatitude &&
+    bounds.south < bounds.north
+}
+
 export type LibraryMapScope =
   | Readonly<{
       kind: 'state'

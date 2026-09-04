@@ -1,6 +1,6 @@
 'use client'
 
-import type { PlaceMapRenderer } from '@/platform/maps/place-map-interface'
+import type { PlaceMapRenderer } from '@/platform/maps/public'
 
 import styles from './collection-library.module.css'
 import { useCollectionLibraryWorkflow, type CollectionLibraryWorkflow } from './collection-library-workflow'
