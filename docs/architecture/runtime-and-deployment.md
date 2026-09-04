@@ -75,10 +75,12 @@ alone owns those build targets. The port-free base and production overlays consu
 immutable image coordinates, while the deployment planner binds Web, Admin Web, and Backend to one
 source revision and rolls back all three together while preserving the database. Compose requires
 every host and port from deployment configuration. Worker `--check` stays in the verification
-profile; snapshot materialization is an
-active internal process, while capture expiry cleanup is an operator-invoked maintenance profile and
-is not a scheduler or live acquisition activation.
-The producer release declaration binds those three targets and five process roles to one
+profile. Legacy source-snapshot place fulfillment and approved v2 transfer materialization run as
+separate containers from the same backend image, so their queues, restart and scaling remain
+isolated. Legacy encrypted capture-file cleanup is an operator-invoked maintenance profile; the v2
+transfer worker separately expires database-backed connector grants/captures and outbound receipts
+before claiming approved materialization. Neither path activates live acquisition.
+The producer release declaration binds those three targets and six process roles to one
 `place@<commit>` revision while retaining `source-only` deployment state. The manual release
 workflow owns GHCR publication, BuildKit SBOM/provenance extraction, published-platform-digest
 smoke, and the checksum-bound release record. It has no promotion or environment authority.

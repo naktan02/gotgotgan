@@ -120,7 +120,7 @@ async function inspectFixture(artifactId, image) {
   return { ...fixture, output }
 }
 
-test('release source fixes three images, five process roles, and source-only deployment', async () => {
+test('release source fixes three images, six process roles, and source-only deployment', async () => {
   const { stdout, stderr } = await execFileAsync(
     process.execPath,
     [releaseCli, 'verify-source', '--repository-root', repositoryRoot],
@@ -137,7 +137,7 @@ test('release source fixes three images, five process roles, and source-only dep
   )
   assert.deepEqual(
     source.runtime.workloads.map(({ role_id }) => role_id),
-    ['web', 'admin-web', 'backend', 'worker', 'migration'],
+    ['web', 'admin-web', 'backend', 'worker', 'transfer-worker', 'migration'],
   )
   assert.deepEqual(source.deployment, { state: 'source-only' })
 })
@@ -304,6 +304,14 @@ test('published-image smoke accepts only all three Place platform digests', asyn
     readinessPath: '/readyz',
     sourceOnlyReadiness: 'unavailable',
   })
+  assert.equal(evidence.workerCheck, 'passed')
+  assert.equal(evidence.transferWorkerCheck, 'passed')
+  assert.equal(
+    calls.some((arguments_) =>
+      arguments_.includes('backend/dist/entrypoints/transfer-materialization-main.js') &&
+      arguments_.includes('--check')),
+    true,
+  )
 
   await assert.rejects(
     module.smokePublishedApplicationImages(

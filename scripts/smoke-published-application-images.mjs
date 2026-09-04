@@ -188,6 +188,21 @@ export async function smokePublishedApplicationImages(options, runDocker = docke
       'backend/dist/entrypoints/worker/main.js',
       '--check',
     ])
+    await runDocker([
+      'run',
+      '--rm',
+      '--pull',
+      'never',
+      '--read-only',
+      '--cap-drop',
+      'ALL',
+      '--security-opt',
+      'no-new-privileges',
+      options.backendImage,
+      'node',
+      'backend/dist/entrypoints/transfer-materialization-main.js',
+      '--check',
+    ])
   } finally {
     await Promise.all([
       runDocker(['rm', '--force', webContainer], { allowFailure: true }),
@@ -210,6 +225,7 @@ export async function smokePublishedApplicationImages(options, runDocker = docke
       backend: { reference: options.backendImage, readinessPath: '/readyz' },
     },
     workerCheck: 'passed',
+    transferWorkerCheck: 'passed',
   }
   await writeFile(options.output, `${JSON.stringify(evidence, null, 2)}\n`, 'utf8')
   return evidence

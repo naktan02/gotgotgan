@@ -81,6 +81,19 @@
         "database-url",
         "capture-keyring"
       ]
+    },
+    "transferWorker": {
+      "exposure": "internal",
+      "activation": "active",
+      "configurationGroups": [
+        "worker-database-pool",
+        "approved-transfer-materialization",
+        "connector-import-grant-expiry-sweep",
+        "transfer-receipt-retention-sweep"
+      ],
+      "secretFileRoles": [
+        "database-url"
+      ]
     }
   },
   "connections": {

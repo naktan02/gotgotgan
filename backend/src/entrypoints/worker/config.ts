@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
@@ -30,6 +30,18 @@ const materializationEnvironmentSchema = databaseEnvironmentSchema.extend({
     .number().int().min(100).max(60_000).default(1_000),
   PLACE_IMPORT_MATERIALIZATION_MAXIMUM_JOBS: z.coerce
     .number().int().min(1).max(100_000).default(10_000),
+})
+
+const transferMaterializationEnvironmentSchema = databaseEnvironmentSchema.extend({
+  PLACE_TRANSFER_MATERIALIZATION_WORKER_ID: z.string().min(1).max(200).optional(),
+  PLACE_TRANSFER_MATERIALIZATION_LEASE_MILLISECONDS: z.coerce
+    .number().int().min(1_000).max(600_000).default(30_000),
+  PLACE_TRANSFER_MATERIALIZATION_MAXIMUM_BACKOFF_MILLISECONDS: z.coerce
+    .number().int().min(1_000).max(86_400_000).default(900_000),
+  PLACE_TRANSFER_MATERIALIZATION_POLL_MILLISECONDS: z.coerce
+    .number().int().min(100).max(60_000).default(1_000),
+  PLACE_TRANSFER_MATERIALIZATION_SWEEP_LIMIT: z.coerce
+    .number().int().min(1).max(1_000).default(100),
 })
 
 const providerDetailEnvironmentSchema = databaseEnvironmentSchema.extend({
@@ -78,6 +90,15 @@ export type ImportMaterializationConfig = Readonly<{
   leaseMilliseconds: number
   idleMilliseconds: number
   maximumJobs: number
+}>
+
+export type TransferMaterializationConfig = Readonly<{
+  database: WorkerDatabaseConfig
+  workerId: string
+  leaseMilliseconds: number
+  maximumBackoffMilliseconds: number
+  pollMilliseconds: number
+  sweepLimit: number
 }>
 
 export type ProviderDetailConfig = Readonly<{
@@ -169,6 +190,28 @@ export async function loadImportMaterializationConfig(
       leaseMilliseconds: values.PLACE_IMPORT_MATERIALIZATION_LEASE_MILLISECONDS,
       idleMilliseconds: values.PLACE_IMPORT_MATERIALIZATION_IDLE_MILLISECONDS,
       maximumJobs: values.PLACE_IMPORT_MATERIALIZATION_MAXIMUM_JOBS,
+    }
+  } catch {
+    throw configurationError()
+  }
+}
+
+export async function loadTransferMaterializationConfig(
+  environment: NodeJS.ProcessEnv,
+): Promise<TransferMaterializationConfig> {
+  try {
+    const values = transferMaterializationEnvironmentSchema.parse(environment)
+    const database = await workerDatabaseConfig(values)
+    if (database.maxConnections < 2) throw new Error('Transfer worker requires two DB connections')
+    return {
+      database,
+      workerId: values.PLACE_TRANSFER_MATERIALIZATION_WORKER_ID ??
+        `transfer-materialization:${randomUUID()}`,
+      leaseMilliseconds: values.PLACE_TRANSFER_MATERIALIZATION_LEASE_MILLISECONDS,
+      maximumBackoffMilliseconds:
+        values.PLACE_TRANSFER_MATERIALIZATION_MAXIMUM_BACKOFF_MILLISECONDS,
+      pollMilliseconds: values.PLACE_TRANSFER_MATERIALIZATION_POLL_MILLISECONDS,
+      sweepLimit: values.PLACE_TRANSFER_MATERIALIZATION_SWEEP_LIMIT,
     }
   } catch {
     throw configurationError()

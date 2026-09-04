@@ -7,7 +7,7 @@ replay adapter가 source로 존재한다. `--check`는 `source-only` capability�
 `integration-gated` 상태를 출력한다. test account의 profile lifecycle과 Playwright acquisition이
 검증되기 전에는 일반 acquisition startup을 허용하지 않는다.
 
-Provider Identity별 Materialization loop는 목록 item과 같은 transaction에서 만든 intent를 claim한다.
+Legacy Provider Identity별 Materialization loop는 목록 item과 같은 transaction에서 만든 intent를 claim한다.
 Canonical link가 있으면 재사용하고, 없으면 가져온 Source Snapshot evidence로 create/link한 뒤 여러
 회원 intent를 private Collection에 멱등 반영한다. Provider 상세 Adapter나 사용자 profile은 호출하지
 않는다. Compose의 `worker-import-materialization`은 이 loop를 계속 실행하고 장애 시 재시작한다.
@@ -18,7 +18,22 @@ node backend/dist/entrypoints/worker/main.js --materialize-imported-places
 ```
 
 첫 명령은 서비스용 연속 실행이고 두 번째는 기존 대기 작업 전환·운영 복구용 bounded 1회 실행이다.
-둘 다 보호된 DB URL, lease, idle poll, 1회 최대 작업 수 설정만 사용한다. 상세 상태를 바꾸는
+둘 다 보호된 DB URL, lease, idle poll, 1회 최대 작업 수 설정만 사용한다.
+
+승인된 v2 `TransferOperation`은 같은 backend image의 별도
+`worker-transfer-materialization` 컨테이너가 처리한다. 구형 queue와 하나의 loop로 합치지 않으며
+`PLACE_DATABASE_URL_FILE`과 bounded Pool 설정을 공유한다. lease 갱신용 별도 연결을 보장하기 위해
+이 프로세스는 DB Pool 연결 수를 최소 2개로 요구한다. 각 loop는 승인 작업을 claim하기 전에
+만료된 v2 connector import grant/capture와 outbound receipt를 먼저 정리한다. 정리가 실패하면 같은
+loop에서 새 materialization을 시작하지 않는다.
+
+```powershell
+node backend/dist/entrypoints/transfer-materialization-main.js
+node backend/dist/entrypoints/transfer-materialization-main.js --once
+node backend/dist/entrypoints/transfer-materialization-main.js --check
+```
+
+상세 상태를 바꾸는
 Provider Detail Job은 별도 Module Interface와 PostgreSQL Adapter를 사용하며 실제 PostGIS에서
 검증됐다. NAVER read-only Adapter와 별도 process composition도 존재하지만 Runner/Pack artifact가
 운영 image에 포함되지는 않았다. 활성화할 때는 아래 명령과 절대경로 설정을 함께 사용한다.
@@ -37,7 +52,8 @@ lease/idle/attempt/job/retry 상한도 환경으로
 `naver-anonymous-*` 임시 profile을 만들고 종료 때 삭제한다. challenge 감지는
 자동 해결이 아니라 terminal user-action 상태다.
 
-만료 캡처 정리는 Materialization loop와 분리된 1회 명령이다.
+아래 만료 캡처 정리는 v2 DB connector capture가 아니라 legacy 암호화 파일 capture를 다루며,
+Materialization loop와 분리된 1회 명령이다.
 
 ```powershell
 node backend/dist/entrypoints/worker/main.js --sweep-expired-captures

@@ -9,6 +9,7 @@ import {
   loadCaptureSweepConfig,
   loadImportMaterializationConfig,
   loadProviderDetailConfig,
+  loadTransferMaterializationConfig,
 } from './config.js'
 
 const temporaryDirectories: string[] = []
@@ -113,6 +114,44 @@ describe('worker configuration', () => {
       maximumJobs: 5_000,
       database: { maxConnections: 2 },
     })
+  })
+
+  it('loads bounded v2 transfer materialization settings from the shared worker database secret', async () => {
+    const environment = await validEnvironment({
+      PLACE_TRANSFER_MATERIALIZATION_WORKER_ID: 'transfer-worker-a',
+      PLACE_TRANSFER_MATERIALIZATION_LEASE_MILLISECONDS: '30000',
+      PLACE_TRANSFER_MATERIALIZATION_MAXIMUM_BACKOFF_MILLISECONDS: '900000',
+      PLACE_TRANSFER_MATERIALIZATION_POLL_MILLISECONDS: '750',
+      PLACE_TRANSFER_MATERIALIZATION_SWEEP_LIMIT: '125',
+    })
+    delete environment.PLACE_CAPTURE_ROOT
+    delete environment.PLACE_CAPTURE_KEYRING_FILE
+    delete environment.PLACE_CAPTURE_MAXIMUM_BYTES
+    delete environment.PLACE_CAPTURE_SWEEP_BATCH_SIZE
+
+    await expect(loadTransferMaterializationConfig(environment)).resolves.toEqual({
+      database: {
+        connectionString: 'postgresql://place:secret@database/place',
+        maxConnections: 2,
+        idleTimeoutMilliseconds: 10_000,
+        connectionTimeoutMilliseconds: 3_000,
+      },
+      workerId: 'transfer-worker-a',
+      leaseMilliseconds: 30_000,
+      maximumBackoffMilliseconds: 900_000,
+      pollMilliseconds: 750,
+      sweepLimit: 125,
+    })
+  })
+
+  it('reserves a second database connection for the v2 transfer lease heartbeat', async () => {
+    const environment = await validEnvironment({
+      PLACE_WORKER_DATABASE_MAX_CONNECTIONS: '1',
+    })
+
+    await expect(loadTransferMaterializationConfig(environment)).rejects.toThrow(
+      'Worker configuration is invalid',
+    )
   })
 
   it('loads an exact Runner, Pack and private profile root for provider detail acquisition', async () => {

@@ -194,6 +194,8 @@ test('production composition consumes immutable images while local composition o
   assert.match(adminProductionCompose, /- default\s+- place-data/)
   assert.match(adminProductionCompose, /admin-web:[\s\S]*?\/readyz/)
   assert.match(baseCompose, /worker-capture-sweep:/)
+  assert.match(baseCompose, /worker-transfer-materialization:/)
+  assert.match(baseCompose, /entrypoints\/transfer-materialization-main\.js/)
   assert.match(baseCompose, /profiles: \[maintenance\]/)
   assert.match(
     baseCompose,
@@ -242,6 +244,17 @@ test('production composition consumes immutable images while local composition o
       'capture-retention-sweep',
     ],
     secretFileRoles: ['database-url', 'capture-keyring'],
+  })
+  assert.deepEqual(applicationRuntime.processes.transferWorker, {
+    exposure: 'internal',
+    activation: 'active',
+    configurationGroups: [
+      'worker-database-pool',
+      'approved-transfer-materialization',
+      'connector-import-grant-expiry-sweep',
+      'transfer-receipt-retention-sweep',
+    ],
+    secretFileRoles: ['database-url'],
   })
   assert.deepEqual(applicationRuntime.processes.backend.secretFileRoles, [
     'database-url', 'capture-keyring',

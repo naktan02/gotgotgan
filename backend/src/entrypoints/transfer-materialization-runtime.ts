@@ -1,5 +1,3 @@
-import { randomUUID } from 'node:crypto'
-
 import { Pool } from 'pg'
 
 import {
@@ -14,35 +12,7 @@ import {
   PostgresTransferOperations,
   type ImportedCollectionMaterializerPort,
 } from '../modules/transfers/index.js'
-
-export type TransferWorkerConfig = Readonly<{
-  databaseUrl: string
-  workerId: string
-  leaseMilliseconds: number
-  maximumBackoffMilliseconds: number
-  pollMilliseconds: number
-  sweepLimit: number
-}>
-
-function positiveInteger(value: string | undefined, fallback: number): number {
-  if (value === undefined) return fallback
-  const parsed = Number(value)
-  if (!Number.isSafeInteger(parsed) || parsed <= 0) throw new Error('Transfer worker setting must be positive')
-  return parsed
-}
-
-export function loadTransferWorkerConfig(environment: NodeJS.ProcessEnv): TransferWorkerConfig {
-  const databaseUrl = environment.DATABASE_URL?.trim()
-  if (databaseUrl === undefined || databaseUrl === '') throw new Error('DATABASE_URL is required')
-  return {
-    databaseUrl,
-    workerId: environment.PLACE_TRANSFER_WORKER_ID?.trim() || `transfer-worker-${randomUUID()}`,
-    leaseMilliseconds: positiveInteger(environment.PLACE_TRANSFER_LEASE_MS, 30_000),
-    maximumBackoffMilliseconds: positiveInteger(environment.PLACE_TRANSFER_MAXIMUM_BACKOFF_MS, 15 * 60_000),
-    pollMilliseconds: positiveInteger(environment.PLACE_TRANSFER_POLL_MS, 1_000),
-    sweepLimit: positiveInteger(environment.PLACE_TRANSFER_SWEEP_LIMIT, 100),
-  }
-}
+import type { TransferMaterializationConfig } from './worker/config.js'
 
 function wait(milliseconds: number, signal: AbortSignal): Promise<void> {
   if (signal.aborted) return Promise.resolve()
@@ -58,10 +28,18 @@ function wait(milliseconds: number, signal: AbortSignal): Promise<void> {
 }
 
 export async function runTransferMaterialization(
-  config: TransferWorkerConfig,
+  config: TransferMaterializationConfig,
   options: Readonly<{ continuous: boolean; signal: AbortSignal }>,
 ): Promise<Readonly<{ processed: number; swept: number; lastResult: string }>> {
-  const pool = new Pool({ connectionString: config.databaseUrl, allowExitOnIdle: false })
+  if (options.signal.aborted) return { processed: 0, swept: 0, lastResult: 'aborted' }
+
+  const pool = new Pool({
+    connectionString: config.database.connectionString,
+    max: config.database.maxConnections,
+    idleTimeoutMillis: config.database.idleTimeoutMilliseconds,
+    connectionTimeoutMillis: config.database.connectionTimeoutMilliseconds,
+    allowExitOnIdle: false,
+  })
   try {
     const libraryMaterializer = new PostgresImportedCollectionMaterializer(pool)
     const materializer: ImportedCollectionMaterializerPort = {
@@ -101,7 +79,15 @@ export async function runTransferMaterialization(
     let lastResult = 'idle'
     do {
       swept += await captures.sweepExpiredCaptures(config.sweepLimit)
+      if (options.signal.aborted) {
+        lastResult = 'aborted'
+        break
+      }
       swept += await outbound.sweepExpiredReceipts(config.sweepLimit)
+      if (options.signal.aborted) {
+        lastResult = 'aborted'
+        break
+      }
       lastResult = await worker.runOnce()
       if (lastResult !== 'idle') processed += 1
       if (!options.continuous || options.signal.aborted) break

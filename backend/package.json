@@ -9,7 +9,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --exclude \"tests/integration/**\"",
     "test:provider-live": "vitest run tests/provider-live-smoke.test.ts tests/provider-live-forge-detail.test.ts",
-    "check:worker": "npm run build && node dist/entrypoints/worker/main.js --check",
+    "check:worker": "npm run build && node dist/entrypoints/worker/main.js --check && node dist/entrypoints/transfer-materialization-main.js --check",
     "check": "npm run typecheck && npm run test && npm run check:worker"
   },
   "dependencies": {

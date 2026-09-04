@@ -38,7 +38,7 @@ const artifacts = [
     artifactId: 'place-backend',
     image: 'ghcr.io/naktan02/place-backend',
     repository: 'naktan02/place-backend',
-    workloadRoles: ['backend', 'worker', 'migration'],
+    workloadRoles: ['backend', 'transfer-worker', 'worker', 'migration'],
   },
 ]
 
@@ -79,7 +79,7 @@ const expectedReleaseSource = {
         target: 'backend-runtime',
         platforms: ['linux/amd64'],
       },
-      workload_roles: ['backend', 'worker', 'migration'],
+      workload_roles: ['backend', 'transfer-worker', 'worker', 'migration'],
     },
   ],
   deployment: { state: 'source-only' },
@@ -107,6 +107,7 @@ const expectedReleaseSource = {
         readiness: { protocol: 'http', port: 8080, path: '/readyz' },
       },
       { role_id: 'worker', artifact_id: 'place-backend', classification: 'worker' },
+      { role_id: 'transfer-worker', artifact_id: 'place-backend', classification: 'worker' },
       { role_id: 'migration', artifact_id: 'place-backend', classification: 'batch' },
     ],
     migration: {

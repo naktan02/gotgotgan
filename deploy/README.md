@@ -13,7 +13,7 @@ its default network:
 - `admin-web`: opt-in `admin` profile with a standalone Next.js runtime;
 - `backend`: Fastify HTTP runtime with explicit `source-only` or `production` mode; and
 - `worker-check`: opt-in verification profile for the separately runnable worker artifact; and
-- `worker-capture-sweep`: opt-in maintenance profile for one bounded expiry sweep.
+- `worker-capture-sweep`: opt-in maintenance profile for one bounded legacy encrypted-file expiry sweep.
 
 `compose.local.yml`만 Docker build target과 명시적 standalone host port를 추가하며 Web integration과
 Backend transport는 기본적으로 source-only다. Admin Web은 `admin` profile을 선택했을 때 별도

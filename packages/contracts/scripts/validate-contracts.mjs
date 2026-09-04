@@ -390,7 +390,8 @@ if (
   applicationRuntime.processes?.backend?.healthPath !== '/healthz' ||
   applicationRuntime.processes?.backend?.readinessPath !== '/readyz' ||
   applicationRuntime.processes?.backend?.exposure !== 'internal' ||
-  applicationRuntime.processes?.worker?.exposure !== 'internal'
+  applicationRuntime.processes?.worker?.exposure !== 'internal' ||
+  applicationRuntime.processes?.transferWorker?.exposure !== 'internal'
 ) {
   failures.push('Place process health, readiness, and exposure ownership drifted')
 }

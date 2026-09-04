@@ -50,6 +50,7 @@
       },
       "workload_roles": [
         "backend",
+        "transfer-worker",
         "worker",
         "migration"
       ]
@@ -107,6 +108,11 @@
       },
       {
         "role_id": "worker",
+        "artifact_id": "place-backend",
+        "classification": "worker"
+      },
+      {
+        "role_id": "transfer-worker",
         "artifact_id": "place-backend",
         "classification": "worker"
       },

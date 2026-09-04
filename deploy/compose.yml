@@ -85,3 +85,8 @@ services:
     image: ${PLACE_BACKEND_IMAGE:?PLACE_BACKEND_IMAGE is required}
     command: ["node", "backend/dist/entrypoints/worker/main.js", "--run-import-materialization"]
     restart: unless-stopped
+
+  worker-transfer-materialization:
+    image: ${PLACE_BACKEND_IMAGE:?PLACE_BACKEND_IMAGE is required}
+    command: ["node", "backend/dist/entrypoints/transfer-materialization-main.js"]
+    restart: unless-stopped
