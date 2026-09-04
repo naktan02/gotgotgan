@@ -38,6 +38,20 @@ Trusted capture와 Connector capture가 SourceSnapshot을 기록하면 같은 tr
 `missing-identity` Provider Place ID만 Ingestion의 최초 상세 예약 함수에 전달한다. Transfers는 상세
 상태나 Job lifecycle을 직접 쓰지 않으며 이미 상세가 끝난 identity의 재수집 정책도 소유하지 않는다.
 
+V3 ImportPlan의 `refresh-evidence` command는 plan revision을 확인하고 draft plan 행을 잠근 뒤,
+아직 사용자 결정이 없는 `unresolved`/`missing-identity` 항목만 현재 `available` 상세
+observation/candidate에 `policy-create`로 고정한다. `link`, `skip`, snapshot match와 이미 고정된
+policy evidence는 다시 쓰지 않으며 여러 항목이 바뀌어도 plan revision은 한 번만 증가한다. 승인된
+plan은 application 검사와 DB trigger 양쪽에서 불변이다. 상세가 아직 준비되지 않은 no-op refresh도
+정상 command receipt를 남기므로, 이후 상세가 준비된 뒤의 새 시도는 새 command ID를 사용한다.
+
+V3 item의 `providerDetailStatus`는 `pending`/`available`/`unavailable`인 상세 Job의 현재 운영
+상태를 보여주는 live projection이다. 이는 ImportPlan 결정이나 승인 snapshot이 아니므로 상태가
+달라져도 `planRevision`은 바뀌지 않는다. `policy-create`는 고정 evidence가 있으므로 `available`,
+사용자가 `link`/`skip`한 항목과 상세 보강 대상이 아닌 항목은 `null`로 투영한다. standalone plan
+조회는 read-only repeatable-read snapshot을 사용하고 command 내부 projection은 plan shared lock을
+사용해 plan revision과 item 결정이 서로 다른 시점에서 섞이지 않게 한다.
+
 Chunk capture는 100,000 items까지 안전하게 저장·검증하지만 현재 snapshot detail/import-plan
 projection은 50 lists, list당 500 items, 총 10,000 items로 제한된다. 이 경계를 넘는 snapshot은
 저장 이력에는 보이되 승인 UI에서 materialization할 수 없다. Pagination/segment projection이

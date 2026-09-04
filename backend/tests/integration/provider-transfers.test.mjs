@@ -658,7 +658,7 @@ test('provider transfers require immutable snapshots and explicit approval', { t
     assert.deepEqual(manualPlan.value.mappings[0].preview.items[0], {
       sourceItemId: 'manual-item', providerPlaceId: 'naver-manual-place',
       observedName: '검토할 장소', observedAddress: null, placeId: null,
-      status: 'unresolved', decision: 'none',
+      status: 'unresolved', decision: 'none', providerDetailStatus: 'pending',
     })
 
     const outbound = await transfers.applyOutboundTransferCommand(memberId, {

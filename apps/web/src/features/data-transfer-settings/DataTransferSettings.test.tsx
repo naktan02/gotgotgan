@@ -33,6 +33,7 @@ function workflow(overrides: Partial<DataTransferSettingsWorkflow> = {}) {
     importProvider: 'naver', importConnectionId: connectionId,
     snapshot: undefined, mappings: [], importPreview: undefined,
     importState: { kind: 'idle' }, importApproval: { kind: 'idle' }, importDecisions: {},
+    importEvidenceState: { kind: 'idle' },
     exportProvider: 'naver', exportConnectionId: connectionId, exportCollectionId: collectionId,
     exportCollectionState: 'ready', exportSelectionKind: 'all', exportPlaceIds: new Set<string>(),
     targetKind: 'new', targetListName: '도쿄 여행', targetListId: '',
@@ -75,13 +76,15 @@ describe('Data transfer settings view', () => {
       importPreview: {
         planId: 'p1', planRevision: 'pr1', snapshotId: 's1', snapshotRevision: 'sr1',
         mappings: [], summary: { add: 0, alreadyPresent: 0, reviewRequired: 1, unsupported: 0 },
-        matches: [{ sourceListId: 'source-list', sourceItemId: 'source-item', sourceName: '센소지', sourceAddress: '도쿄도 다이토구', sourceListName: '도쿄 여행', status: 'review-required' }],
+        providerDetails: { pending: 1, available: 0, unavailable: 0 },
+        matches: [{ sourceListId: 'source-list', sourceItemId: 'source-item', sourceName: '센소지', sourceAddress: '도쿄도 다이토구', sourceListName: '도쿄 여행', status: 'review-required', providerDetailStatus: 'pending' }],
         approvalEligible: false, approvalReason: '매칭되지 않은 장소가 있어 승인할 수 없습니다.',
       },
     })} />)
     expect(markup).toContain('도쿄도 다이토구')
     expect(markup).toContain('건너뛰기')
-    expect(markup).toContain('임의 장소 연결은 막았습니다')
+    expect(markup).toContain('상세 확인 중')
+    expect(markup).toContain('완료되면 이 미리보기를 자동으로 갱신합니다')
     expect(markup).not.toContain('곳곳간 장소 ID')
   })
 
@@ -98,6 +101,24 @@ describe('Data transfer settings view', () => {
     expect(markup).toContain('대상 서비스의 내보내기 어댑터가 준비되지 않았습니다')
     expect(markup).toContain('disabled=""')
     expect(markup).toContain('개인 메모·방문 기록·개인 사진·개인 평점')
+  })
+
+  it('keeps terminal provider-detail failures as explicit review items', () => {
+    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} workflow={workflow({
+      tab: 'import',
+      importPreview: {
+        planId: 'p1', planRevision: 'pr1', snapshotId: 's1', snapshotRevision: 'sr1',
+        mappings: [], summary: { add: 0, alreadyPresent: 0, reviewRequired: 1, unsupported: 0 },
+        providerDetails: { pending: 0, available: 0, unavailable: 1 },
+        matches: [{ sourceListId: 'source-list', sourceItemId: 'source-item', sourceName: '확인 실패 장소',
+          sourceAddress: null, sourceListName: '도쿄 여행', status: 'review-required',
+          providerDetailStatus: 'unavailable' }],
+        approvalEligible: false,
+      },
+    })} />)
+    expect(markup).toContain('1개 장소의 상세를 확인하지 못했습니다')
+    expect(markup).toContain('이 장소는 건너뛰거나 새 스냅샷에서 다시 확인할 수 있습니다')
+    expect(markup).toContain('건너뛰기')
   })
 
   it('does not pretend a truncated large snapshot can be fully approved', () => {

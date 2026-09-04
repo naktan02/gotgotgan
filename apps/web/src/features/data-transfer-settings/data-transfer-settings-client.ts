@@ -2,6 +2,7 @@ import { problemSchema } from '@place/contracts/http'
 import { personalLibraryWorkspaceResponseV2Schema } from '@place/contracts/library'
 import {
   importPlanCommandResultV3Schema,
+  importPlanV3Schema,
   outboundTransferCommandResultV2Schema,
   providerCapabilityListV2Schema,
   providerConnectionCommandResultV2Schema,
@@ -117,20 +118,35 @@ function selectedMappings(mappings: readonly ImportMapping[]) {
 
 export function createDataTransferSettingsGateway(fetcher: typeof fetch = fetch): DataTransferSettingsGateway {
   const connectionAuthMethods = new Map<TransferProviderKey, 'browser-session' | 'managed-profile' | 'oauth' | 'account-export' | 'manual-file'>()
-  const importMappings = new Map<string, readonly ImportMapping[]>()
 
-  function importPreview(plan: ImportPlanV3, mappings: readonly ImportMapping[]) {
+  function importPreview(plan: ImportPlanV3) {
+    const mappings: readonly ImportMapping[] = plan.mappings.map((mapping) => ({
+      sourceListId: mapping.sourceListId,
+      selected: true,
+      target: mapping.target,
+    }))
     const summary = plan.mappings.reduce((total, mapping) => ({
       add: total.add + mapping.preview.addCount,
       alreadyPresent: total.alreadyPresent + mapping.preview.alreadyPresentCount,
       reviewRequired: total.reviewRequired + mapping.preview.unresolvedCount,
       unsupported: total.unsupported + mapping.preview.skippedCount,
     }), { add: 0, alreadyPresent: 0, reviewRequired: 0, unsupported: 0 })
+    const providerDetails = plan.mappings.flatMap((mapping) => mapping.preview.items).reduce(
+      (total, item) => item.status !== 'unresolved' || item.decision !== 'none'
+        ? total
+        : {
+            pending: total.pending + Number(item.providerDetailStatus === 'pending'),
+            available: total.available + Number(item.providerDetailStatus === 'available'),
+            unavailable: total.unavailable + Number(item.providerDetailStatus === 'unavailable'),
+          },
+      { pending: 0, available: 0, unavailable: 0 },
+    )
     return {
       planId: plan.planId, planRevision: plan.planRevision,
       snapshotId: plan.snapshotId, snapshotRevision: plan.snapshotVersion,
       mappings,
       summary,
+      providerDetails,
       matches: plan.mappings.flatMap((mapping) => mapping.preview.items.map((item) => ({
         sourceListId: mapping.sourceListId,
         sourceItemId: item.sourceItemId,
@@ -138,6 +154,7 @@ export function createDataTransferSettingsGateway(fetcher: typeof fetch = fetch)
         sourceAddress: item.observedAddress,
         sourceListName: mapping.observedName,
         status: item.status === 'unresolved' ? 'review-required' as const : item.status,
+        providerDetailStatus: item.providerDetailStatus,
         ...(item.placeId === null ? {} : { placeId: item.placeId }),
       }))).slice(0, 100),
       approvalEligible: plan.approval.eligible,
@@ -281,8 +298,27 @@ export function createDataTransferSettingsGateway(fetcher: typeof fetch = fetch)
         mappings: selectedMappings(input.mappings),
       }, (value) => importPlanCommandResultV3Schema.safeParse(value), signal)
       if (result.outcome === 'rejected') throw rejection(result.rejection.code)
-      importMappings.set(result.plan.planId, input.mappings)
-      return importPreview(result.plan, input.mappings)
+      return importPreview(result.plan)
+    },
+
+    async importPlan(planId, signal) {
+      const plan = await get(
+        fetcher,
+        `/api/v3/transfers/import-plans/${encodeURIComponent(planId)}`,
+        (value) => importPlanV3Schema.safeParse(value),
+        signal,
+      )
+      return importPreview(plan)
+    },
+
+    async refreshImportEvidence(input, signal) {
+      const result = await post(fetcher, '/api/v3/transfers/import-plan-commands', {
+        schemaVersion: 'import-plan-command.v3', commandId: input.commandId,
+        kind: 'refresh-evidence', planId: input.planId,
+        expectedPlanRevision: input.expectedPlanRevision,
+      }, (value) => importPlanCommandResultV3Schema.safeParse(value), signal)
+      if (result.outcome === 'rejected') throw rejection(result.rejection.code)
+      return importPreview(result.plan)
     },
 
     async approveImport(input, signal) {
@@ -308,8 +344,7 @@ export function createDataTransferSettingsGateway(fetcher: typeof fetch = fetch)
         decision: input.decision,
       }, (value) => importPlanCommandResultV3Schema.safeParse(value), signal)
       if (result.outcome === 'rejected') throw rejection(result.rejection.code)
-      const mappings = importMappings.get(input.planId) ?? []
-      return importPreview(result.plan, mappings)
+      return importPreview(result.plan)
     },
 
     async previewExport(input, signal) {

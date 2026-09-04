@@ -81,7 +81,7 @@ describe('browser transfer HTTP', () => {
                 items: [{
                   sourceItemId: 'source-item', providerPlaceId: 'provider-place',
                   observedName: '센소지', observedAddress: null, placeId: null,
-                  status: 'add', decision: 'policy-create',
+                  status: 'add', decision: 'policy-create', providerDetailStatus: 'available',
                 }],
               },
               materialization: { state: 'pending', collectionRevision: null, rejectionCode: null },

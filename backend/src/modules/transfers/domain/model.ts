@@ -101,11 +101,17 @@ type ImportPlanCommandRequest<SchemaVersion extends string> =
       kind: 'approve'; planId: string; expectedPlanRevision: string
     }>)
 export type ImportPlanCommandRequestV2 = ImportPlanCommandRequest<'import-plan-command.v2'>
-export type ImportPlanCommandRequestV3 = ImportPlanCommandRequest<'import-plan-command.v3'>
+export type ImportPlanCommandRequestV3 =
+  | ImportPlanCommandRequest<'import-plan-command.v3'>
+  | Readonly<{
+      schemaVersion: 'import-plan-command.v3'; commandId: string
+      kind: 'refresh-evidence'; planId: string; expectedPlanRevision: string
+    }>
 
 type ImportPlan<
   SchemaVersion extends 'import-plan.v2' | 'import-plan.v3',
   Decision extends 'snapshot-match' | 'policy-create' | 'link' | 'skip' | 'none',
+  PreviewItemExtension extends object,
 > = Readonly<{
   schemaVersion: SchemaVersion; planId: string; planRevision: string
   snapshotId: string; snapshotVersion: string; providerKey: ProviderKey; connectionId: string
@@ -124,7 +130,7 @@ type ImportPlan<
         observedAddress: string | null; placeId: string | null
         status: 'add' | 'already-present' | 'unresolved' | 'skipped'
         decision: Decision
-      }>[]
+      } & PreviewItemExtension>[]
     }>
     materialization: Readonly<{
       state: 'pending' | 'applied' | 'rejected'
@@ -135,11 +141,15 @@ type ImportPlan<
 }>
 export type ImportPlanV2 = ImportPlan<
   'import-plan.v2',
-  'snapshot-match' | 'link' | 'skip' | 'none'
+  'snapshot-match' | 'link' | 'skip' | 'none',
+  Readonly<Record<never, never>>
 >
 export type ImportPlanV3 = ImportPlan<
   'import-plan.v3',
-  'snapshot-match' | 'policy-create' | 'link' | 'skip' | 'none'
+  'snapshot-match' | 'policy-create' | 'link' | 'skip' | 'none',
+  Readonly<{
+    providerDetailStatus: 'pending' | 'available' | 'unavailable' | null
+  }>
 >
 
 export type OutboundTarget =

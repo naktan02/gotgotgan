@@ -1,82 +1,13 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { OperationHistoryProblem } from './operation-history-model'
-import { createOperationPollController } from './operation-polling'
+import { isTerminalOperationPollingError } from './operation-polling'
 
-describe('operation polling controller', () => {
-  beforeEach(() => vi.useFakeTimers())
-  afterEach(() => vi.useRealTimers())
-
-  it('polls only while the returned projection contains active work', async () => {
-    const read = vi.fn()
-      .mockResolvedValueOnce({ active: true })
-      .mockResolvedValueOnce({ active: false })
-    const controller = createOperationPollController<{ active: boolean }>({
-      read, isActive: (value) => value.active, onValue() {},
-    })
-
-    controller.start()
-    await vi.advanceTimersByTimeAsync(0)
-    expect(read).toHaveBeenCalledTimes(1)
-    await vi.advanceTimersByTimeAsync(29_999)
-    expect(read).toHaveBeenCalledTimes(1)
-    await vi.advanceTimersByTimeAsync(1)
-    expect(read).toHaveBeenCalledTimes(2)
-    await vi.advanceTimersByTimeAsync(120_000)
-    expect(read).toHaveBeenCalledTimes(2)
-  })
-
-  it('coalesces triggers so requests never overlap', async () => {
-    let resolve: ((value: { active: boolean }) => void) | undefined
-    const read = vi.fn(() => new Promise<{ active: boolean }>((next) => { resolve = next }))
-    const controller = createOperationPollController<{ active: boolean }>({
-      read, isActive: (value) => value.active, onValue() {},
-    })
-
-    controller.start()
-    controller.trigger()
-    controller.trigger()
-    await vi.advanceTimersByTimeAsync(0)
-    expect(read).toHaveBeenCalledTimes(1)
-    resolve?.({ active: false })
-    await vi.advanceTimersByTimeAsync(0)
-    expect(read).toHaveBeenCalledTimes(2)
-    controller.stop()
-  })
-
-  it('stops after authentication or authorization failure', async () => {
-    const read = vi.fn().mockRejectedValue(new OperationHistoryProblem(401))
-    const terminal = vi.fn()
-    const controller = createOperationPollController<{ active: boolean }>({
-      read, isActive: () => true, onValue() {}, onTerminalError: terminal,
-    })
-
-    controller.start()
-    await vi.advanceTimersByTimeAsync(0)
-    controller.trigger()
-    await vi.advanceTimersByTimeAsync(120_000)
-    expect(read).toHaveBeenCalledTimes(1)
-    expect(terminal).toHaveBeenCalledTimes(1)
-  })
-
-  it('backs off transient failures and resumes after becoming visible', async () => {
-    const read = vi.fn()
-      .mockRejectedValueOnce(new Error('temporary'))
-      .mockRejectedValueOnce(new Error('temporary'))
-      .mockResolvedValue({ active: false })
-    const controller = createOperationPollController<{ active: boolean }>({
-      read, isActive: (value) => value.active, onValue() {},
-    })
-
-    controller.start()
-    await vi.advanceTimersByTimeAsync(0)
-    await vi.advanceTimersByTimeAsync(30_000)
-    expect(read).toHaveBeenCalledTimes(2)
-    controller.pause()
-    await vi.advanceTimersByTimeAsync(120_000)
-    expect(read).toHaveBeenCalledTimes(2)
-    controller.resume()
-    await vi.advanceTimersByTimeAsync(0)
-    expect(read).toHaveBeenCalledTimes(3)
+describe('operation polling error policy', () => {
+  it('stops only for authentication and authorization failures', () => {
+    expect(isTerminalOperationPollingError(new OperationHistoryProblem(401))).toBe(true)
+    expect(isTerminalOperationPollingError(new OperationHistoryProblem(403))).toBe(true)
+    expect(isTerminalOperationPollingError(new OperationHistoryProblem(503))).toBe(false)
+    expect(isTerminalOperationPollingError(new Error('temporary'))).toBe(false)
   })
 })

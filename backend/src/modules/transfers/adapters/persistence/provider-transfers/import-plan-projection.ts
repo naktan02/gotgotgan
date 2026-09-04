@@ -7,20 +7,36 @@ import {
   type ProviderKey,
 } from './provider-transfer-context.js'
 
+type ImportPlanV2Decision = ImportPlanV2[
+  'mappings'
+][number]['preview']['items'][number]['decision']
+
 export class ImportPlanProjection {
   constructor(private readonly context: ProviderTransferContext) {}
 
   async getV2(memberId: string, planId: string): Promise<ImportPlanV2 | undefined> {
     const client = await this.context.pool.connect()
     try {
-      return await this.getWithClientV2(client, memberId, planId)
+      await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
+      const value = await this.getWithClient(client, memberId, planId, 2, false)
+      await client.query('COMMIT')
+      return value
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => undefined)
+      throw error
     } finally { client.release() }
   }
 
   async getV3(memberId: string, planId: string): Promise<ImportPlanV3 | undefined> {
     const client = await this.context.pool.connect()
     try {
-      return await this.getWithClientV3(client, memberId, planId)
+      await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
+      const value = await this.getWithClient(client, memberId, planId, 3, false)
+      await client.query('COMMIT')
+      return value
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => undefined)
+      throw error
     } finally { client.release() }
   }
 
@@ -29,7 +45,7 @@ export class ImportPlanProjection {
     memberId: string,
     planId: string,
   ): Promise<ImportPlanV2 | undefined> {
-    return this.getWithClient(client, memberId, planId, 2)
+    return this.getWithClient(client, memberId, planId, 2, true)
   }
 
   getWithClientV3(
@@ -37,7 +53,7 @@ export class ImportPlanProjection {
     memberId: string,
     planId: string,
   ): Promise<ImportPlanV3 | undefined> {
-    return this.getWithClient(client, memberId, planId, 3)
+    return this.getWithClient(client, memberId, planId, 3, true)
   }
 
   private getWithClient(
@@ -45,19 +61,23 @@ export class ImportPlanProjection {
     memberId: string,
     planId: string,
     contractMajor: 2,
+    lockPlan: boolean,
   ): Promise<ImportPlanV2 | undefined>
   private getWithClient(
     client: Pick<PoolClient, 'query'>,
     memberId: string,
     planId: string,
     contractMajor: 3,
+    lockPlan: boolean,
   ): Promise<ImportPlanV3 | undefined>
   private async getWithClient(
     client: Pick<PoolClient, 'query'>,
     memberId: string,
     planId: string,
     contractMajor: 2 | 3,
+    lockPlan: boolean,
   ): Promise<ImportPlanV2 | ImportPlanV3 | undefined> {
+    const planLock = lockPlan ? 'FOR SHARE OF plan' : ''
     const plan = (await client.query<{
       id: string
       revision: string
@@ -76,7 +96,8 @@ export class ImportPlanProjection {
        FROM transfers.import_plans AS plan
        JOIN transfers.source_snapshots AS snapshot ON snapshot.id = plan.snapshot_id
        WHERE plan.id = $1::uuid AND plan.owner_membership_id = $2::uuid
-         AND plan.contract_major = $3`,
+         AND plan.contract_major = $3
+       ${planLock}`,
       [planId, memberId, contractMajor],
     )).rows[0]
     if (plan === undefined) return undefined
@@ -113,18 +134,32 @@ export class ImportPlanProjection {
         resolved_place_id: string | null
         preview_status: 'add' | 'already-present' | 'unresolved' | 'skipped'
         decision_kind: 'snapshot-match' | 'policy-create' | 'link' | 'skip' | 'none'
+        provider_detail_status: 'pending' | 'available' | 'unavailable' | null
       }>(
         `SELECT planned.source_item_id, snapshot_item.provider_place_id,
                 snapshot_item.observed_name, snapshot_item.observed_address,
-                planned.resolved_place_id, planned.preview_status, planned.decision_kind
+                planned.resolved_place_id, planned.preview_status, planned.decision_kind,
+                CASE
+                  WHEN planned.decision_kind = 'policy-create' THEN 'available'
+                  WHEN planned.preview_status = 'unresolved'
+                    AND planned.decision_kind = 'none'
+                    AND snapshot_item.canonical_place_id IS NULL
+                    AND snapshot_item.match_reason = 'missing-identity'
+                    AND snapshot_item.provider_place_id IS NOT NULL
+                    THEN detail_status.status
+                  ELSE NULL
+                END AS provider_detail_status
          FROM transfers.import_plan_items AS planned
          JOIN transfers.source_snapshot_items AS snapshot_item
            ON snapshot_item.snapshot_id = $3::uuid
           AND snapshot_item.source_list_id = planned.source_list_id
           AND snapshot_item.source_item_id = planned.source_item_id
+         LEFT JOIN ingestion.provider_place_detail_statuses AS detail_status
+           ON detail_status.provider_key = $4
+          AND detail_status.provider_place_id = snapshot_item.provider_place_id
          WHERE planned.plan_id = $1::uuid AND planned.source_list_id = $2
          ORDER BY snapshot_item.source_position, planned.source_item_id`,
-        [planId, mapping.source_list_id, plan.snapshot_id],
+        [planId, mapping.source_list_id, plan.snapshot_id, plan.provider_key],
       )
       const counts = (status: string) =>
         items.rows.filter((item) => item.preview_status === status).length
@@ -163,6 +198,7 @@ export class ImportPlanProjection {
             placeId: item.resolved_place_id,
             status: item.preview_status,
             decision: item.decision_kind,
+            providerDetailStatus: item.provider_detail_status,
           })),
         },
         materialization: {
@@ -204,7 +240,16 @@ export class ImportPlanProjection {
     return {
       schemaVersion: 'import-plan.v2',
       ...value,
-      mappings: value.mappings as ImportPlanV2['mappings'],
+      mappings: value.mappings.map((mapping) => ({
+        ...mapping,
+        preview: {
+          ...mapping.preview,
+          items: mapping.preview.items.map(({ providerDetailStatus: _, ...item }) => ({
+            ...item,
+            decision: item.decision as ImportPlanV2Decision,
+          })),
+        },
+      })),
     }
   }
 }

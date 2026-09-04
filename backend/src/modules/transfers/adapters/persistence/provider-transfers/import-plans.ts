@@ -7,6 +7,7 @@ import type {
 } from '../../../domain/model.js'
 import { ImportPlanApproval } from './import-plan-approval.js'
 import { ImportPlanDrafts } from './import-plan-drafts.js'
+import { ImportPlanEvidenceRefresh } from './import-plan-evidence-refresh.js'
 import { ImportPlanProjection } from './import-plan-projection.js'
 import { ProviderTransferContext } from './provider-transfer-context.js'
 import { ProviderSourceSnapshots } from './source-snapshots.js'
@@ -14,11 +15,13 @@ import { ProviderSourceSnapshots } from './source-snapshots.js'
 export class ProviderImportPlans {
   private readonly projection: ImportPlanProjection
   private readonly drafts: ImportPlanDrafts
+  private readonly evidenceRefresh: ImportPlanEvidenceRefresh
   private readonly approval: ImportPlanApproval
 
   constructor(context: ProviderTransferContext, snapshots: ProviderSourceSnapshots) {
     this.projection = new ImportPlanProjection(context)
     this.drafts = new ImportPlanDrafts(context, snapshots, this.projection)
+    this.evidenceRefresh = new ImportPlanEvidenceRefresh(context, this.projection)
     this.approval = new ImportPlanApproval(context, this.projection)
   }
 
@@ -41,6 +44,9 @@ export class ProviderImportPlans {
   ): Promise<TransferCommandResult<ImportPlanV3>> {
     if (command.kind === 'create') return this.drafts.createV3(memberId, command)
     if (command.kind === 'decide-item') return this.drafts.decideV3(memberId, command)
+    if (command.kind === 'refresh-evidence') {
+      return this.evidenceRefresh.refreshV3(memberId, command)
+    }
     return this.approval.approveV3(memberId, command)
   }
 

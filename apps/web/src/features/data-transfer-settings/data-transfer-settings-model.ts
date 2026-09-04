@@ -92,6 +92,11 @@ export type ImportPlanPreview = Readonly<{
     reviewRequired: number | null
     unsupported: number | null
   }>
+  providerDetails: Readonly<{
+    pending: number
+    available: number
+    unavailable: number
+  }>
   matches: readonly Readonly<{
     sourceListId: string
     sourceItemId: string
@@ -99,6 +104,7 @@ export type ImportPlanPreview = Readonly<{
     sourceAddress: string | null
     sourceListName: string
     status: 'add' | 'already-present' | 'review-required' | 'unsupported' | 'skipped'
+    providerDetailStatus: 'pending' | 'available' | 'unavailable' | null
     placeId?: string
     matchedPlaceName?: string
     reason?: string
@@ -156,6 +162,12 @@ export type DataTransferSettingsGateway = Readonly<{
     snapshotId: string
     expectedSnapshotRevision: string
     mappings: readonly ImportMapping[]
+  }>, signal?: AbortSignal): Promise<ImportPlanPreview>
+  importPlan(planId: string, signal?: AbortSignal): Promise<ImportPlanPreview>
+  refreshImportEvidence(input: Readonly<{
+    commandId: string
+    planId: string
+    expectedPlanRevision: string
   }>, signal?: AbortSignal): Promise<ImportPlanPreview>
   approveImport(input: Readonly<{
     commandId: string

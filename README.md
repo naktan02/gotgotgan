@@ -75,6 +75,9 @@ Provider Identity별 공동 작업에서 Canonical Place와 회원의 private Co
 반드시 참조한다. Migration `000021`과 별도 Provider Detail Job은 claim/lease/retry, immutable
 Observation/Candidate, 최종 상태 전이를 소유하며 실제 PostGIS에서 검증됐다. 버전과 digest를 설정에서
 고정하는 TraceForge Runner·NAVER Pack용 read-only Adapter와 별도 Worker composition이 추가됐다.
+새 SourceSnapshot은 같은 transaction에서 Provider-neutral 최초 상세 작업을 예약한다. 이미 만들어진
+V3 ImportPlan은 상세 작업의 live 상태만 조회하고, 검증된 상세가 준비됐을 때 명시적인 revision-bound
+명령으로 아직 결정하지 않은 항목의 evidence만 고정한다. 사용자의 link/skip과 승인된 plan은 바꾸지 않는다.
 Migration `000043`은 freshness가 지난 상세를 기존 Job 교체 없이 새 Job으로 재수집하고, 이전 관찰과
 `initial`/`unchanged`/`changed` 관계를 기록한다. 갱신 실패는 마지막 정상 상세를 보존한다.
 운영 Runner/Pack 배포와 live 재검증은 아직 남아 있어 활성화는 configuration-gated다. CAPTCHA·영수증

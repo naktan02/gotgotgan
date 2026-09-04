@@ -21,8 +21,9 @@
   Place 탭의 isolated-world same-origin fetch는 Authorization capability가 같은 Origin의 Service Worker를
   통과하기 때문이다. 별도 extension-origin 계약, Backend 검증/CORS 정책, Chromium·Firefox 실행 증거가
   함께 생기기 전까지 이 경계는 fail closed다.
-- 설정의 import plan command/read는 v3 계약을 사용한다. v2 methods와 routes는 기존 호출자 호환을
-  위해 유지하되 새 설정 workflow에서는 호출하지 않는다.
+- 설정의 import plan command/read는 v3 계약을 사용한다. 기존 no-store plan GET은 Provider 상세 운영
+  상태를 읽고, draft `refresh-evidence` command만 검증된 상세를 revision-bound 계획 근거로 고정한다.
+  v2 methods와 routes는 기존 호출자 호환을 위해 유지하되 새 설정 workflow에서는 호출하지 않는다.
 - Stage 10 cutover에서 v1 `/api/connector/grants`, `/api/connector/captures`와 전용 client를 제거했다.
   Backend와 Extension의 v1 fallback이 이미 제거되어 정상 호출 경로가 없고, 남겨 둔 capability BFF는
   같은 Origin의 Service Worker에 token을 노출하는 dead security surface가 되기 때문이다. 저장 데이터나

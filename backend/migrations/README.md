@@ -182,3 +182,8 @@ Connector가 선언한 provenance만으로는 전역 Place를 만들지 않는�
 `available`/`unavailable`인 identity는 다시 예약하지 않는다. 이 경로는 광범위한 추가 권한 대신 고정
 `search_path`의 최소 `SECURITY DEFINER` 함수만 실행한다. 적용 전에 저장된 snapshot은 자동으로
 backfill하지 않으며, 필요하면 별도의 bounded 운영 작업으로 예약한다.
+
+`000047`은 ImportPlan item의 결정·고정 evidence를 바꾸는 trigger가 부모 plan 상태를 읽을 때 같은
+plan 행을 `FOR UPDATE`로 잠근다. 따라서 draft evidence 갱신, 사용자 결정, 승인 전이가 모두 plan을
+먼저 직렬화하며 승인과 동시에 item이 바뀌는 시간차를 허용하지 않는다. rollback은 기존 draft 상태
+검사 함수로 복원하고 저장된 plan/item/evidence는 변경하지 않는다.

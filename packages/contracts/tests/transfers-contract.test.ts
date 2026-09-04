@@ -63,6 +63,7 @@ describe('provider transfer contracts', () => {
     const policyItem = {
       sourceItemId: 'item-1', providerPlaceId: 'naver-place-1', observedName: '라멘집',
       observedAddress: null, placeId: null, status: 'add', decision: 'policy-create',
+      providerDetailStatus: 'available',
     }
     const plan = {
       schemaVersion: 'import-plan.v3', planId: id, planRevision: 'revision', snapshotId: id,
@@ -83,11 +84,23 @@ describe('provider transfer contracts', () => {
     expect(importPlanV3Schema.safeParse(plan).success).toBe(true)
     expect(importPlanV2Schema.safeParse({ ...plan, schemaVersion: 'import-plan.v2' }).success)
       .toBe(false)
+    for (const providerDetailStatus of ['pending', 'available', 'unavailable'] as const) {
+      expect(importPlanV3Schema.safeParse({
+        ...plan,
+        approval: { eligible: false, reason: 'unresolved-places' },
+        mappings: [{ ...plan.mappings[0], unresolvedItemCount: 1, preview: {
+          addCount: 0, alreadyPresentCount: 0, unresolvedCount: 1, skippedCount: 0,
+          items: [{ ...policyItem, status: 'unresolved', decision: 'none',
+            providerDetailStatus }],
+        } }],
+      }).success).toBe(true)
+    }
     for (const invalidItem of [
       { ...policyItem, providerPlaceId: null },
       { ...policyItem, placeId: id },
       { ...policyItem, status: 'already-present' },
       { ...policyItem, decision: 'none' },
+      { ...policyItem, providerDetailStatus: 'pending' },
     ]) {
       expect(importPlanV3Schema.safeParse({
         ...plan,
@@ -121,6 +134,7 @@ describe('provider transfer contracts', () => {
           items: [{
             sourceItemId: 'item-1', providerPlaceId: null, observedName: '장소',
             observedAddress: null, placeId: null, status: 'unresolved', decision: 'none',
+            providerDetailStatus: null,
           }],
         },
         materialization: { state: 'pending', collectionRevision: null, rejectionCode: null },
@@ -130,6 +144,11 @@ describe('provider transfer contracts', () => {
     expect(importPlanCommandResultV3Schema.safeParse({
       schemaVersion: 'import-plan-command-result.v3', outcome: 'accepted', commandId: id,
       status: 'applied', plan: resultPlan,
+    }).success).toBe(true)
+
+    expect(importPlanCommandRequestV3Schema.safeParse({
+      schemaVersion: 'import-plan-command.v3', kind: 'refresh-evidence', commandId: id,
+      planId: id, expectedPlanRevision: 'revision',
     }).success).toBe(true)
 
     const openApi = buildOpenApiDocument() as Readonly<{

@@ -29,6 +29,13 @@ Canonical link를 재사용하거나 snapshot 근거로 create/link한 뒤 Provi
 `pending`/`available`/`unavailable`로 반환한다. cookie, profile reference, 내부 job ID와 불투명 내부
 item key는 공개하지 않는다.
 
+Provider transfer의 `import-plan.v3` item은 `providerDetailStatus`로 최초 상세 작업의
+`pending`/`available`/`unavailable`을 드러낸다. 이 값은 plan revision과 독립된 운영 상태이므로 상세
+Worker 완료만으로 plan이 바뀌지는 않는다. Web은 no-store `GET /v3/transfers/import-plans/{planId}`로
+상태를 다시 읽고, `available`을 관찰한 draft에만 revision-bound `refresh-evidence` command를 보낸다.
+이 명령은 아직 결정하지 않은 unresolved item에 검증된 observation/candidate를 고정하며 명시적인
+link/skip 결정은 덮어쓰지 않는다.
+
 `POST /v1/search/places`는 익명 공개 장소 검색과 optional bearer 회원 검색을 한 계약으로
 제공한다. request는 query, optional bounds, Taxonomy key filter, opaque cursor, 최대 50개 limit를
 받는다. saved/wanted/visited/minimum Personal Rating filter는 검증된 membership이 없으면

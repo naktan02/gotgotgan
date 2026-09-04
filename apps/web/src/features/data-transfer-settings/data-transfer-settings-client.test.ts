@@ -61,10 +61,12 @@ describe('data transfer settings client', () => {
               {
                 sourceItemId: 'source-auto', providerPlaceId: 'provider-place', observedName: '도쿄 타워',
                 observedAddress: null, placeId: null, status: 'add', decision: 'policy-create',
+                providerDetailStatus: 'available',
               },
               {
                 sourceItemId: 'source-item', providerPlaceId: null, observedName: '센소지',
                 observedAddress: '도쿄도 다이토구', placeId: null, status: 'unresolved', decision: 'none',
+                providerDetailStatus: null,
               },
             ] },
             materialization: { state: 'pending', collectionRevision: null, rejectionCode: null },
@@ -81,11 +83,60 @@ describe('data transfer settings client', () => {
     expect(requestPath).toBe('/api/v3/transfers/import-plan-commands')
     expect(requestBody).toMatchObject({ schemaVersion: 'import-plan-command.v3' })
     expect(preview.summary).toEqual({ add: 1, alreadyPresent: 1, reviewRequired: 1, unsupported: 0 })
+    expect(preview.providerDetails).toEqual({ pending: 0, available: 0, unavailable: 0 })
     expect(preview.matches).toEqual(expect.arrayContaining([
       expect.objectContaining({ sourceName: '도쿄 타워', status: 'add' }),
       expect.objectContaining({ sourceName: '센소지', sourceAddress: '도쿄도 다이토구', status: 'review-required' }),
     ]))
     expect(preview.approvalEligible).toBe(false)
+  })
+
+  it('reads the current v3 plan and refreshes available evidence with an explicit revision', async () => {
+    const requests: Readonly<{ path: string; body?: Record<string, unknown> }>[] = []
+    const pendingItems = Array.from({ length: 101 }, (_, index) => ({
+      sourceItemId: `source-${index}`, providerPlaceId: `provider-${index}`,
+      observedName: `장소 ${index}`, observedAddress: null, placeId: null,
+      status: 'unresolved', decision: 'none',
+      providerDetailStatus: index === 100 ? 'available' : 'pending',
+    }))
+    const plan = {
+      schemaVersion: 'import-plan.v3' as const, planId: commandId, planRevision: 'plan-r1',
+      snapshotId: '01992d20-0000-7000-8000-000000000005', snapshotVersion: 'snapshot-r1',
+      providerKey: 'naver' as const, connectionId, state: 'draft' as const,
+      approval: { eligible: false, reason: 'unresolved-places' as const },
+      mappings: [{
+        sourceListId: 'source-list', observedName: '도쿄 여행', sourcePosition: 0,
+        target: { kind: 'new' as const, collectionId, name: '도쿄 여행' },
+        itemCount: 101, unresolvedItemCount: 101,
+        preview: { addCount: 0, alreadyPresentCount: 0, unresolvedCount: 101,
+          skippedCount: 0, items: pendingItems },
+        materialization: { state: 'pending' as const, collectionRevision: null, rejectionCode: null },
+      }],
+      createdAt: '2026-09-03T00:00:00.000Z', updatedAt: '2026-09-03T00:00:00.000Z',
+    }
+    const gateway = createDataTransferSettingsGateway(async (input, init) => {
+      requests.push({ path: String(input), ...(init?.body === undefined ? {} : {
+        body: JSON.parse(String(init.body)) as Record<string, unknown>,
+      }) })
+      return init?.method === 'POST'
+        ? Response.json({ schemaVersion: 'import-plan-command-result.v3', outcome: 'accepted',
+            commandId, status: 'applied', plan })
+        : Response.json(plan)
+    })
+
+    const current = await gateway.importPlan(commandId)
+    expect(current.matches).toHaveLength(100)
+    expect(current.providerDetails).toEqual({ pending: 100, available: 1, unavailable: 0 })
+    await gateway.refreshImportEvidence({
+      commandId, planId: commandId, expectedPlanRevision: 'plan-r1',
+    })
+    expect(requests).toEqual([
+      { path: `/api/v3/transfers/import-plans/${commandId}` },
+      { path: '/api/v3/transfers/import-plan-commands', body: {
+        schemaVersion: 'import-plan-command.v3', commandId, kind: 'refresh-evidence',
+        planId: commandId, expectedPlanRevision: 'plan-r1',
+      } },
+    ])
   })
 
   it('preserves authentication failures as a distinct settings problem', async () => {

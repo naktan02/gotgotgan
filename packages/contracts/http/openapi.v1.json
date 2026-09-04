@@ -23828,6 +23828,42 @@
               },
               "kind": {
                 "type": "string",
+                "const": "refresh-evidence"
+              },
+              "planId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "expectedPlanRevision": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "commandId",
+              "kind",
+              "planId",
+              "expectedPlanRevision"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "const": "import-plan-command.v3"
+              },
+              "commandId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "kind": {
+                "type": "string",
                 "const": "decide-item"
               },
               "planId": {
@@ -24219,6 +24255,21 @@
                                       "skip",
                                       "none"
                                     ]
+                                  },
+                                  "providerDetailStatus": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "pending",
+                                          "available",
+                                          "unavailable"
+                                        ]
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -24228,7 +24279,8 @@
                                   "observedAddress",
                                   "placeId",
                                   "status",
-                                  "decision"
+                                  "decision",
+                                  "providerDetailStatus"
                                 ],
                                 "additionalProperties": false
                               }
@@ -24645,6 +24697,21 @@
                               "skip",
                               "none"
                             ]
+                          },
+                          "providerDetailStatus": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "pending",
+                                  "available",
+                                  "unavailable"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
@@ -24654,7 +24721,8 @@
                           "observedAddress",
                           "placeId",
                           "status",
-                          "decision"
+                          "decision",
+                          "providerDetailStatus"
                         ],
                         "additionalProperties": false
                       }

@@ -198,17 +198,32 @@ const importPlanPreviewItemV3Schema = z.object({
   placeId: uuidSchema.nullable(),
   status: z.enum(['add', 'already-present', 'unresolved', 'skipped']),
   decision: z.enum(['snapshot-match', 'policy-create', 'link', 'skip', 'none']),
+  // Provider detail work advances independently; refresh-evidence pins it before revising the plan.
+  providerDetailStatus: z.enum(['pending', 'available', 'unavailable']).nullable(),
 }).strict().superRefine((item, context) => {
   const resolved = item.status === 'add' || item.status === 'already-present'
-  const valid = item.decision === 'policy-create'
+  const decisionValid = item.decision === 'policy-create'
     ? item.status === 'add' && item.placeId === null && item.providerPlaceId !== null
     : resolved
       ? item.placeId !== null && (item.decision === 'snapshot-match' || item.decision === 'link')
       : item.status === 'unresolved'
         ? item.placeId === null && item.decision === 'none'
         : item.placeId === null && item.decision === 'skip'
-  if (!valid) {
+  if (!decisionValid) {
     context.addIssue({ code: 'custom', message: 'preview item decision shape is invalid' })
+  }
+  const pendingDetail = item.status === 'unresolved' && item.decision === 'none' &&
+    item.placeId === null && item.providerPlaceId !== null
+  const detailStatusValid = item.providerDetailStatus === null
+    ? item.decision !== 'policy-create'
+    : item.providerDetailStatus === 'available'
+      ? pendingDetail || item.decision === 'policy-create'
+      : pendingDetail
+  if (!detailStatusValid) {
+    context.addIssue({
+      code: 'custom', path: ['providerDetailStatus'],
+      message: 'provider detail status shape is invalid',
+    })
   }
 })
 
@@ -227,6 +242,11 @@ export const importPlanCommandRequestV3Schema = z.discriminatedUnion('kind', [
       sourceListId: z.string().min(1).max(512),
       target: importPlanTargetV2Schema,
     }).strict()).min(1).max(50),
+  }).strict(),
+  importPlanCommandBaseV3.extend({
+    kind: z.literal('refresh-evidence'),
+    planId: uuidSchema,
+    expectedPlanRevision: revisionSchema,
   }).strict(),
   importPlanCommandBaseV3.extend({
     kind: z.literal('decide-item'),

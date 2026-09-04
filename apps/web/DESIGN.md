@@ -159,6 +159,13 @@ Profiles가 Library table을 읽지 않는다. 공개 HTML은 noindex/nofollow�
 렌더링 입력에 들어오지 않는다. 이 panel은 향후 화면 재배치와 무관하게 전역 discovery, 팔로우, 댓글,
 신고를 암묵적으로 소유하지 않는다.
 
+## Provider import detail confirmation
+
+설정의 가져오기 검토는 Provider 상세 작업 중인 장소를 `상세 확인 중`으로 명시하고 승인을 잠근다.
+화면을 새로 여는 대신 현재 draft plan만 조용히 다시 읽으며, 상세 근거가 준비되면 revision-bound
+명령으로 미리보기를 갱신한다. 최종 확인 실패는 자동 생성으로 가장하지 않고 건너뛰기 가능한 검토
+항목으로 남긴다. 상태 표현은 색만 사용하지 않고 문구와 `role=status`를 함께 사용한다.
+
 ## Stage 11E2B3 Owner moderation inbox composition
 
 프로필 page는 `PublicProfileSettings`와 `PublicProfileModerationInbox`의 공개 View만 세로로 조합한다.
