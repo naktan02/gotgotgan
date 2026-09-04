@@ -1,6 +1,8 @@
 import type {
   ImportPlanCommandRequestV2,
+  ImportPlanCommandRequestV3,
   ImportPlanV2,
+  ImportPlanV3,
   TransferCommandResult,
 } from '../../../domain/model.js'
 import { ImportPlanApproval } from './import-plan-approval.js'
@@ -20,16 +22,29 @@ export class ProviderImportPlans {
     this.approval = new ImportPlanApproval(context, this.projection)
   }
 
-  apply(
+  applyV2(
     memberId: string,
     command: ImportPlanCommandRequestV2,
   ): Promise<TransferCommandResult<ImportPlanV2>> {
-    if (command.kind === 'create') return this.drafts.create(memberId, command)
-    if (command.kind === 'decide-item') return this.drafts.decide(memberId, command)
-    return this.approval.approve(memberId, command)
+    if (command.kind === 'create') return this.drafts.createV2(memberId, command)
+    if (command.kind === 'decide-item') return this.drafts.decideV2(memberId, command)
+    return this.approval.approveV2(memberId, command)
   }
 
-  get(memberId: string, planId: string): Promise<ImportPlanV2 | undefined> {
-    return this.projection.get(memberId, planId)
+  getV2(memberId: string, planId: string): Promise<ImportPlanV2 | undefined> {
+    return this.projection.getV2(memberId, planId)
+  }
+
+  applyV3(
+    memberId: string,
+    command: ImportPlanCommandRequestV3,
+  ): Promise<TransferCommandResult<ImportPlanV3>> {
+    if (command.kind === 'create') return this.drafts.createV3(memberId, command)
+    if (command.kind === 'decide-item') return this.drafts.decideV3(memberId, command)
+    return this.approval.approveV3(memberId, command)
+  }
+
+  getV3(memberId: string, planId: string): Promise<ImportPlanV3 | undefined> {
+    return this.projection.getV3(memberId, planId)
   }
 }

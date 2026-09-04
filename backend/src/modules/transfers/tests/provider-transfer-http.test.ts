@@ -37,8 +37,10 @@ function transfers(): ProviderTransfers {
     applyConnectionCommand: async (_memberId, command) => unavailable(command.commandId),
     listSnapshots: async () => ({ schemaVersion: 'source-snapshot-list.v2', items: [] }),
     getSnapshot: async () => undefined,
-    applyImportPlanCommand: async (_memberId, command) => unavailable(command.commandId),
-    getImportPlan: async () => undefined,
+    applyImportPlanCommandV2: async (_memberId, command) => unavailable(command.commandId),
+    getImportPlanV2: async () => undefined,
+    applyImportPlanCommandV3: async (_memberId, command) => unavailable(command.commandId),
+    getImportPlanV3: async () => undefined,
     listTargetLists: async () => undefined,
     applyOutboundTransferCommand: async (_memberId, command) => unavailable(command.commandId),
     getOutboundTransfer: async () => undefined,
@@ -46,6 +48,33 @@ function transfers(): ProviderTransfers {
 }
 
 describe('provider transfer HTTP authorization', () => {
+  it('rejects import commands from the other contract major before authorization', async () => {
+    let authorizationCalls = 0
+    const app = Fastify({ logger: false })
+    registerProviderTransferHttpRoutes(app, {
+      authorizer: async () => {
+        authorizationCalls += 1
+        return { status: 'authorized', memberId }
+      },
+      transfers: transfers(),
+    })
+    const command = {
+      kind: 'approve', commandId, planId: transferId,
+      expectedPlanRevision: 'import-plan-revision',
+    }
+
+    expect((await app.inject({
+      method: 'POST', url: '/v2/transfers/import-plan-commands',
+      payload: { ...command, schemaVersion: 'import-plan-command.v3' },
+    })).statusCode).toBe(400)
+    expect((await app.inject({
+      method: 'POST', url: '/v3/transfers/import-plan-commands',
+      payload: { ...command, schemaVersion: 'import-plan-command.v2' },
+    })).statusCode).toBe(400)
+    expect(authorizationCalls).toBe(0)
+    await app.close()
+  })
+
   it('uses import scopes for acquisition and library scopes for outbound transfer', async () => {
     const permissions: ProductPermission[] = []
     const app = Fastify({ logger: false })
@@ -72,6 +101,14 @@ describe('provider transfer HTTP authorization', () => {
       },
     })).statusCode).toBe(422)
     expect((await app.inject({
+      method: 'POST', url: '/v3/transfers/import-plan-commands', headers,
+      payload: {
+        schemaVersion: 'import-plan-command.v3', kind: 'approve',
+        commandId: '01992d41-0000-7000-8000-000000000103',
+        planId: transferId, expectedPlanRevision: 'import-plan-revision',
+      },
+    })).statusCode).toBe(422)
+    expect((await app.inject({
       method: 'POST', url: '/v2/transfers/outbound-transfer-commands', headers,
       payload: {
         schemaVersion: 'outbound-transfer-command.v2', kind: 'approve',
@@ -81,7 +118,7 @@ describe('provider transfer HTTP authorization', () => {
     })).statusCode).toBe(422)
 
     expect(permissions).toEqual([
-      'imports.read', 'library.read', 'imports.write', 'library.write',
+      'imports.read', 'library.read', 'imports.write', 'imports.write', 'library.write',
     ])
     await app.close()
   })

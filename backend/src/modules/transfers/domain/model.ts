@@ -87,21 +87,27 @@ export type SourceSnapshotListV2 = Readonly<{
 export type ImportPlanTarget =
   | Readonly<{ kind: 'new'; collectionId: string; name: string }>
   | Readonly<{ kind: 'existing'; collectionId: string; expectedCollectionRevision: string }>
-export type ImportPlanCommandRequestV2 =
-  | (CommandBase & Readonly<{
+type ImportPlanCommandRequest<SchemaVersion extends string> =
+  | (Readonly<{ schemaVersion: SchemaVersion; commandId: string }> & Readonly<{
       kind: 'create'; planId: string; snapshotId: string; expectedSnapshotVersion: string
       mappings: readonly Readonly<{ sourceListId: string; target: ImportPlanTarget }>[]
     }>)
-  | (CommandBase & Readonly<{
+  | (Readonly<{ schemaVersion: SchemaVersion; commandId: string }> & Readonly<{
       kind: 'decide-item'; planId: string; expectedPlanRevision: string
       sourceListId: string; sourceItemId: string
       decision: Readonly<{ kind: 'link'; placeId: string }> | Readonly<{ kind: 'skip' }>
     }>)
-  | (CommandBase & Readonly<{
+  | (Readonly<{ schemaVersion: SchemaVersion; commandId: string }> & Readonly<{
       kind: 'approve'; planId: string; expectedPlanRevision: string
     }>)
-export type ImportPlanV2 = Readonly<{
-  schemaVersion: 'import-plan.v2'; planId: string; planRevision: string
+export type ImportPlanCommandRequestV2 = ImportPlanCommandRequest<'import-plan-command.v2'>
+export type ImportPlanCommandRequestV3 = ImportPlanCommandRequest<'import-plan-command.v3'>
+
+type ImportPlan<
+  SchemaVersion extends 'import-plan.v2' | 'import-plan.v3',
+  Decision extends 'snapshot-match' | 'policy-create' | 'link' | 'skip' | 'none',
+> = Readonly<{
+  schemaVersion: SchemaVersion; planId: string; planRevision: string
   snapshotId: string; snapshotVersion: string; providerKey: ProviderKey; connectionId: string
   state: 'draft' | 'applying' | 'completed' | 'blocked' | 'cancelled'
   approval: Readonly<{
@@ -117,7 +123,7 @@ export type ImportPlanV2 = Readonly<{
         sourceItemId: string; providerPlaceId: string | null; observedName: string
         observedAddress: string | null; placeId: string | null
         status: 'add' | 'already-present' | 'unresolved' | 'skipped'
-        decision: 'snapshot-match' | 'link' | 'skip' | 'none'
+        decision: Decision
       }>[]
     }>
     materialization: Readonly<{
@@ -127,6 +133,14 @@ export type ImportPlanV2 = Readonly<{
   }>[]
   createdAt: string; updatedAt: string
 }>
+export type ImportPlanV2 = ImportPlan<
+  'import-plan.v2',
+  'snapshot-match' | 'link' | 'skip' | 'none'
+>
+export type ImportPlanV3 = ImportPlan<
+  'import-plan.v3',
+  'snapshot-match' | 'policy-create' | 'link' | 'skip' | 'none'
+>
 
 export type OutboundTarget =
   | Readonly<{ kind: 'new-list'; name: string }>
@@ -327,11 +341,16 @@ export interface ProviderTransfers {
     limit: number
   }>): Promise<SourceSnapshotListV2>
   getSnapshot(memberId: string, snapshotId: string): Promise<SourceSnapshotDetailV2 | undefined>
-  applyImportPlanCommand(
+  applyImportPlanCommandV2(
     memberId: string,
     command: ImportPlanCommandRequestV2,
   ): Promise<TransferCommandResult<ImportPlanV2>>
-  getImportPlan(memberId: string, planId: string): Promise<ImportPlanV2 | undefined>
+  getImportPlanV2(memberId: string, planId: string): Promise<ImportPlanV2 | undefined>
+  applyImportPlanCommandV3(
+    memberId: string,
+    command: ImportPlanCommandRequestV3,
+  ): Promise<TransferCommandResult<ImportPlanV3>>
+  getImportPlanV3(memberId: string, planId: string): Promise<ImportPlanV3 | undefined>
   listTargetLists(memberId: string, connectionId: string): Promise<Readonly<{
     connectionId: string
     availability: 'available' | 'unavailable'

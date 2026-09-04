@@ -32,6 +32,37 @@ function decodeCursor(value: string | undefined) {
 export class ProviderSourceSnapshots {
   constructor(private readonly context: ProviderTransferContext) {}
 
+  async verifiedDetailItems(memberId: string, snapshotId: string) {
+    const rows = await this.context.pool.query<{
+      source_list_id: string
+      source_item_id: string
+      source_observation_id: string
+      place_candidate_id: string
+    }>(
+      `SELECT item.source_list_id, item.source_item_id,
+              detail.source_observation_id, detail.place_candidate_id
+       FROM transfers.source_snapshots AS snapshot
+       JOIN transfers.source_snapshot_items AS item ON item.snapshot_id = snapshot.id
+       JOIN ingestion.provider_place_detail_statuses AS status
+         ON status.provider_key = snapshot.provider_key
+        AND status.provider_place_id = item.provider_place_id
+        AND status.status = 'available'
+       JOIN ingestion.provider_place_detail_observations AS detail
+         ON detail.provider_key = status.provider_key
+        AND detail.provider_place_id = status.provider_place_id
+        AND detail.source_observation_id = status.last_detail_observation_id
+       WHERE snapshot.id = $1::uuid AND snapshot.owner_membership_id = $2::uuid`,
+      [snapshotId, memberId],
+    )
+    return new Map(rows.rows.map((row) => [
+      JSON.stringify([row.source_list_id, row.source_item_id]),
+      {
+        sourceObservationId: row.source_observation_id,
+        placeCandidateId: row.place_candidate_id,
+      },
+    ]))
+  }
+
   async record(input: SourceSnapshotCapture) {
     if (input.lists.length > 50 || input.lists.some((list) => list.items.length > 500) ||
       input.lists.reduce((count, list) => count + list.items.length, 0) > 10_000) {

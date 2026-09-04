@@ -4,8 +4,12 @@ import { problemSchema } from '@place/contracts/http'
 import {
   importPlanCommandRequestV2Schema,
   importPlanCommandResultV2Schema,
+  importPlanCommandRequestV3Schema,
+  importPlanCommandResultV3Schema,
   importPlanIdentifierParamsV2Schema,
+  importPlanIdentifierParamsV3Schema,
   importPlanV2Schema,
+  importPlanV3Schema,
   outboundTransferCommandRequestV2Schema,
   outboundTransferCommandResultV2Schema,
   outboundTransferIdentifierParamsV2Schema,
@@ -134,6 +138,14 @@ export function createBrowserTransferHttp(dependencies: Dependencies) {
     importPlan(request: Request, planId: string) {
       const identifier = importPlanIdentifierParamsV2Schema.safeParse({ planId })
       return identifier.success ? invoke(request, (token) => dependencies.backend.importPlan(token, identifier.data.planId, request.signal), importPlanV2Schema) : Promise.resolve(invalid())
+    },
+    async importPlanCommandV3(request: Request) {
+      const input = await body(request, importPlanCommandRequestV3Schema)
+      return input === undefined ? invalid() : invoke(request, (token) => dependencies.backend.importPlanCommandV3(token, input, request.signal), importPlanCommandResultV3Schema, [200, 201, 404, 409, 422])
+    },
+    importPlanV3(request: Request, planId: string) {
+      const identifier = importPlanIdentifierParamsV3Schema.safeParse({ planId })
+      return identifier.success ? invoke(request, (token) => dependencies.backend.importPlanV3(token, identifier.data.planId, request.signal), importPlanV3Schema) : Promise.resolve(invalid())
     },
     async outboundTransferCommand(request: Request) {
       const input = await body(request, outboundTransferCommandRequestV2Schema)

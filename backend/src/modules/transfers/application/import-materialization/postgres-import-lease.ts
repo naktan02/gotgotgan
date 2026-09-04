@@ -6,6 +6,7 @@ export type ClaimedImportOperation = Readonly<{
   resource_id: string
   attempt_count: number
   lease_generation: string
+  created_at: Date
 }>
 
 export type ImportMaterializationResult =
@@ -46,7 +47,7 @@ export class PostgresImportLease {
       await client.query('BEGIN')
       const at = this.now()
       const row = (await client.query<ClaimedImportOperation>(
-        `SELECT id, owner_membership_id, resource_id, attempt_count
+        `SELECT id, owner_membership_id, resource_id, attempt_count, created_at
          FROM transfers.operations
          WHERE kind = 'import-materialization'
            AND (
@@ -85,7 +86,7 @@ export class PostgresImportLease {
            last_error_code = NULL, last_error_retryable = NULL, updated_at = $4::timestamptz
          WHERE id = $1::uuid
          RETURNING id, owner_membership_id, resource_id, attempt_count,
-                   lease_generation::text`,
+                   lease_generation::text, created_at`,
         [row.id, this.options.workerId,
           new Date(at.getTime() + this.options.leaseMilliseconds).toISOString(), at.toISOString()],
       )).rows[0]

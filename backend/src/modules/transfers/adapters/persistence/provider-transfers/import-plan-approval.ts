@@ -4,7 +4,9 @@ import {
 } from '../../../application/identity.js'
 import type {
   ImportPlanCommandRequestV2,
+  ImportPlanCommandRequestV3,
   ImportPlanV2,
+  ImportPlanV3,
   TransferCommandResult,
 } from '../../../domain/model.js'
 import { ImportPlanProjection } from './import-plan-projection.js'
@@ -13,17 +15,36 @@ import {
   type ProviderKey,
 } from './provider-transfer-context.js'
 
+type ImportPlan = ImportPlanV2 | ImportPlanV3
+type ImportPlanCommand = ImportPlanCommandRequestV2 | ImportPlanCommandRequestV3
+type ImportPlanContractMajor = 2 | 3
+
 export class ImportPlanApproval {
   constructor(
     private readonly context: ProviderTransferContext,
     private readonly projection: ImportPlanProjection,
   ) {}
 
-  async approve(
+  approveV2(
     memberId: string,
     command: Extract<ImportPlanCommandRequestV2, { kind: 'approve' }>,
   ): Promise<TransferCommandResult<ImportPlanV2>> {
-    const kind = 'import-plan-approve'
+    return this.approve(memberId, command, 2) as Promise<TransferCommandResult<ImportPlanV2>>
+  }
+
+  approveV3(
+    memberId: string,
+    command: Extract<ImportPlanCommandRequestV3, { kind: 'approve' }>,
+  ): Promise<TransferCommandResult<ImportPlanV3>> {
+    return this.approve(memberId, command, 3) as Promise<TransferCommandResult<ImportPlanV3>>
+  }
+
+  private async approve(
+    memberId: string,
+    command: Extract<ImportPlanCommand, { kind: 'approve' }>,
+    contractMajor: ImportPlanContractMajor,
+  ): Promise<TransferCommandResult<ImportPlan>> {
+    const kind = contractMajor === 2 ? 'import-plan-approve' : 'import-plan-v3-approve'
     const fingerprint = this.context.fingerprint({ memberId, command })
     const at = this.context.now().toISOString()
     const operationId = deterministicOperationId('import-materialization', command.planId)
@@ -31,11 +52,11 @@ export class ImportPlanApproval {
     try {
       await client.query('BEGIN')
       await this.context.lockCommand(client, command.commandId)
-      const prior = await this.context.prior<ImportPlanV2>(
+      const prior = await this.context.prior<ImportPlan>(
         client,
         { commandId: command.commandId, memberId, kind, fingerprint },
         async (reference, receiptClient) => reference.kind === 'import-plan'
-          ? this.projection.getWithClient(receiptClient, memberId, reference.id)
+          ? this.project(receiptClient, memberId, reference.id, contractMajor)
           : undefined,
       )
       if (prior !== undefined && prior !== 'pending') {
@@ -61,8 +82,9 @@ export class ImportPlanApproval {
          JOIN transfers.source_snapshots AS snapshot ON snapshot.id = plan.snapshot_id
          JOIN transfers.provider_connections AS connection ON connection.id = snapshot.connection_id
          WHERE plan.id = $1::uuid AND plan.owner_membership_id = $2::uuid
+           AND plan.contract_major = $3
          FOR UPDATE OF plan`,
-        [command.planId, memberId],
+        [command.planId, memberId, contractMajor],
       )).rows[0]
       if (plan === undefined) return this.reject(
         client, command, memberId, kind, fingerprint, 'not-found', at,
@@ -91,8 +113,9 @@ export class ImportPlanApproval {
         `UPDATE transfers.import_plans SET state = 'applying', approval_command_id = $3::uuid,
            operation_id = $4::uuid, revision = revision + 1,
            updated_at = greatest(updated_at + interval '1 millisecond', $5::timestamptz)
-         WHERE id = $1::uuid AND owner_membership_id = $2::uuid`,
-        [command.planId, memberId, command.commandId, operationId, at],
+         WHERE id = $1::uuid AND owner_membership_id = $2::uuid
+           AND contract_major = $6`,
+        [command.planId, memberId, command.commandId, operationId, at, contractMajor],
       )
       await client.query(
         `INSERT INTO transfers.operation_items (
@@ -111,10 +134,11 @@ export class ImportPlanApproval {
              ON snapshot_item.snapshot_id = plan.snapshot_id
             AND snapshot_item.source_list_id = item.source_list_id
             AND snapshot_item.source_item_id = item.source_item_id
-          WHERE item.plan_id = $2::uuid AND item.preview_status <> 'skipped'`,
-        [operationId, command.planId, at],
+          WHERE item.plan_id = $2::uuid AND item.preview_status <> 'skipped'
+            AND plan.contract_major = $4`,
+        [operationId, command.planId, at, contractMajor],
       )
-      const value = await this.projection.getWithClient(client, memberId, command.planId)
+      const value = await this.project(client, memberId, command.planId, contractMajor)
       if (value === undefined) throw new Error('queued import projection unavailable')
       const result = await this.context.recordAccepted(client, {
         commandId: command.commandId, memberId, kind, fingerprint, value, at,
@@ -132,15 +156,26 @@ export class ImportPlanApproval {
 
   private reject(
     client: import('pg').PoolClient,
-    command: Extract<ImportPlanCommandRequestV2, { kind: 'approve' }>,
+    command: Extract<ImportPlanCommand, { kind: 'approve' }>,
     memberId: string,
     kind: string,
     fingerprint: string,
     code: Parameters<ProviderTransferContext['rejectInTransaction']>[1]['code'],
     at: string,
   ) {
-    return this.context.rejectInTransaction<ImportPlanV2>(client, {
+    return this.context.rejectInTransaction<ImportPlan>(client, {
       commandId: command.commandId, memberId, kind, fingerprint, code, at,
     })
+  }
+
+  private project(
+    client: Pick<import('pg').PoolClient, 'query'>,
+    memberId: string,
+    planId: string,
+    contractMajor: ImportPlanContractMajor,
+  ): Promise<ImportPlan | undefined> {
+    return contractMajor === 2
+      ? this.projection.getWithClientV2(client, memberId, planId)
+      : this.projection.getWithClientV3(client, memberId, planId)
   }
 }

@@ -3,6 +3,13 @@ export { PostgresTransferOperations } from './adapters/persistence/postgres-tran
 export { PostgresConnectorCaptures } from './adapters/persistence/postgres-connector-captures.js'
 export { PostgresOutboundExecutions } from './adapters/persistence/postgres-outbound-executions.js'
 export { PostgresImportMaterializationWorker } from './application/import-materialization-worker.js'
+export type {
+  VerifiedSourcePlaceMaterialization,
+  VerifiedSourcePlaceMaterializerPort,
+} from './application/import-materialization/verified-source-place-materializer.js'
+export {
+  SourcePlaceMaterializationError,
+} from './application/import-materialization/verified-source-place-materializer.js'
 export {
   registerProviderTransferHttpRoutes,
   type ProviderTransferHttpDependencies,

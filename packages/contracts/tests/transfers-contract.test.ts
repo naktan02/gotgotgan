@@ -4,6 +4,11 @@ import {
   connectorCaptureManifestDigestInputV2,
   connectorCaptureManifestV2Schema,
   connectorImportGrantResultV2Schema,
+  importPlanCommandRequestV2Schema,
+  importPlanCommandRequestV3Schema,
+  importPlanCommandResultV3Schema,
+  importPlanV2Schema,
+  importPlanV3Schema,
   outboundExecutionReconciliationV2Schema,
   outboundExecutionGrantResultV2Schema,
   outboundPlaceSelectionV2Schema,
@@ -11,6 +16,7 @@ import {
   providerConnectionV2Schema,
   sourceSnapshotDetailV2Schema,
 } from '../src/transfers/index.js'
+import { buildOpenApiDocument } from '../src/http/openapi.js'
 
 const id = '01992d42-0000-7000-8000-000000000001'
 
@@ -51,6 +57,93 @@ describe('provider transfer contracts', () => {
       ...input,
       manifest: current,
     }))
+  })
+
+  it('keeps policy creation out of v2 and exposes it with strict identity shape in v3', () => {
+    const policyItem = {
+      sourceItemId: 'item-1', providerPlaceId: 'naver-place-1', observedName: '라멘집',
+      observedAddress: null, placeId: null, status: 'add', decision: 'policy-create',
+    }
+    const plan = {
+      schemaVersion: 'import-plan.v3', planId: id, planRevision: 'revision', snapshotId: id,
+      snapshotVersion: 'snapshot-revision', providerKey: 'naver', connectionId: id,
+      state: 'draft', approval: { eligible: true, reason: null },
+      mappings: [{
+        sourceListId: 'list-1', observedName: '서울 라멘', sourcePosition: 0,
+        target: { kind: 'new', collectionId: id, name: '서울 라멘' },
+        itemCount: 1, unresolvedItemCount: 0,
+        preview: {
+          addCount: 1, alreadyPresentCount: 0, unresolvedCount: 0, skippedCount: 0,
+          items: [policyItem],
+        },
+        materialization: { state: 'pending', collectionRevision: null, rejectionCode: null },
+      }],
+      createdAt: '2026-09-03T00:00:00.000Z', updatedAt: '2026-09-03T00:00:00.000Z',
+    }
+    expect(importPlanV3Schema.safeParse(plan).success).toBe(true)
+    expect(importPlanV2Schema.safeParse({ ...plan, schemaVersion: 'import-plan.v2' }).success)
+      .toBe(false)
+    for (const invalidItem of [
+      { ...policyItem, providerPlaceId: null },
+      { ...policyItem, placeId: id },
+      { ...policyItem, status: 'already-present' },
+      { ...policyItem, decision: 'none' },
+    ]) {
+      expect(importPlanV3Schema.safeParse({
+        ...plan,
+        mappings: [{ ...plan.mappings[0], preview: { ...plan.mappings[0].preview,
+          items: [invalidItem] } }],
+      }).success).toBe(false)
+    }
+  })
+
+  it('publishes isolated v3 import command, result, Backend, and browser contracts', () => {
+    const command = {
+      schemaVersion: 'import-plan-command.v3', kind: 'approve', commandId: id,
+      planId: id, expectedPlanRevision: 'revision',
+    }
+    expect(importPlanCommandRequestV3Schema.safeParse(command).success).toBe(true)
+    expect(importPlanCommandRequestV2Schema.safeParse({
+      ...command, schemaVersion: 'import-plan-command.v2',
+    }).success).toBe(true)
+    expect(importPlanCommandRequestV2Schema.safeParse(command).success).toBe(false)
+
+    const resultPlan = {
+      schemaVersion: 'import-plan.v3', planId: id, planRevision: 'revision', snapshotId: id,
+      snapshotVersion: 'snapshot-revision', providerKey: 'naver', connectionId: id,
+      state: 'draft', approval: { eligible: false, reason: 'unresolved-places' },
+      mappings: [{
+        sourceListId: 'list-1', observedName: '목록', sourcePosition: 0,
+        target: { kind: 'new', collectionId: id, name: '목록' },
+        itemCount: 1, unresolvedItemCount: 1,
+        preview: {
+          addCount: 0, alreadyPresentCount: 0, unresolvedCount: 1, skippedCount: 0,
+          items: [{
+            sourceItemId: 'item-1', providerPlaceId: null, observedName: '장소',
+            observedAddress: null, placeId: null, status: 'unresolved', decision: 'none',
+          }],
+        },
+        materialization: { state: 'pending', collectionRevision: null, rejectionCode: null },
+      }],
+      createdAt: '2026-09-03T00:00:00.000Z', updatedAt: '2026-09-03T00:00:00.000Z',
+    }
+    expect(importPlanCommandResultV3Schema.safeParse({
+      schemaVersion: 'import-plan-command-result.v3', outcome: 'accepted', commandId: id,
+      status: 'applied', plan: resultPlan,
+    }).success).toBe(true)
+
+    const openApi = buildOpenApiDocument() as Readonly<{
+      paths: Readonly<Record<string, Readonly<Record<string, unknown>>>>
+    }>
+    const backendCommand = openApi.paths['/v3/transfers/import-plan-commands']?.post as
+      Readonly<{ operationId?: string }> | undefined
+    const browserCommand = openApi.paths['/api/v3/transfers/import-plan-commands']?.post as
+      Readonly<{ operationId?: string }> | undefined
+    const backendPlan = openApi.paths['/v3/transfers/import-plans/{planId}']?.get as
+      Readonly<{ operationId?: string }> | undefined
+    expect(backendCommand?.operationId).toBe('applyImportPlanCommandV3')
+    expect(browserCommand?.operationId).toBe('applyImportPlanCommandV3ForBrowser')
+    expect(backendPlan?.operationId).toBe('getImportPlanV3')
   })
 
   it('allows an unavailable provider to advertise no auth methods', () => {

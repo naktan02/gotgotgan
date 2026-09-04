@@ -72,16 +72,28 @@ implements ProviderTransfers, TrustedProviderTransferObservations {
     return this.snapshots.get(...input)
   }
 
-  applyImportPlanCommand(
-    ...input: Parameters<ProviderTransfers['applyImportPlanCommand']>
-  ): ReturnType<ProviderTransfers['applyImportPlanCommand']> {
-    return this.imports.apply(...input)
+  applyImportPlanCommandV2(
+    ...input: Parameters<ProviderTransfers['applyImportPlanCommandV2']>
+  ): ReturnType<ProviderTransfers['applyImportPlanCommandV2']> {
+    return this.imports.applyV2(...input)
   }
 
-  getImportPlan(
-    ...input: Parameters<ProviderTransfers['getImportPlan']>
-  ): ReturnType<ProviderTransfers['getImportPlan']> {
-    return this.imports.get(...input)
+  getImportPlanV2(
+    ...input: Parameters<ProviderTransfers['getImportPlanV2']>
+  ): ReturnType<ProviderTransfers['getImportPlanV2']> {
+    return this.imports.getV2(...input)
+  }
+
+  applyImportPlanCommandV3(
+    ...input: Parameters<ProviderTransfers['applyImportPlanCommandV3']>
+  ): ReturnType<ProviderTransfers['applyImportPlanCommandV3']> {
+    return this.imports.applyV3(...input)
+  }
+
+  getImportPlanV3(
+    ...input: Parameters<ProviderTransfers['getImportPlanV3']>
+  ): ReturnType<ProviderTransfers['getImportPlanV3']> {
+    return this.imports.getV3(...input)
   }
 
   listTargetLists(

@@ -1,5 +1,6 @@
 import type {
   ImportPlanCommandRequestV2,
+  ImportPlanCommandRequestV3,
   OutboundTransferCommandRequestV2,
   ProviderConnectionCommandRequestV2,
 } from '@place/contracts/transfers'
@@ -69,6 +70,13 @@ export function createTransferBackendClient(config: TransferBackendClientConfig 
     ) => send('/v2/transfers/import-plan-commands', accessToken, signal, 'POST', body),
     importPlan: (accessToken: string, planId: string, signal: AbortSignal) =>
       send(`/v2/transfers/import-plans/${encodeURIComponent(planId)}`, accessToken, signal),
+    importPlanCommandV3: (
+      accessToken: string,
+      body: ImportPlanCommandRequestV3,
+      signal: AbortSignal,
+    ) => send('/v3/transfers/import-plan-commands', accessToken, signal, 'POST', body),
+    importPlanV3: (accessToken: string, planId: string, signal: AbortSignal) =>
+      send(`/v3/transfers/import-plans/${encodeURIComponent(planId)}`, accessToken, signal),
     outboundTransferCommand: (
       accessToken: string,
       body: OutboundTransferCommandRequestV2,

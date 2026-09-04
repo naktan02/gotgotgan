@@ -1,7 +1,7 @@
 import type { PoolClient } from 'pg'
 
 import { planVersion, snapshotVersion } from '../../../application/identity.js'
-import type { ImportPlanV2 } from '../../../domain/model.js'
+import type { ImportPlanV2, ImportPlanV3 } from '../../../domain/model.js'
 import {
   ProviderTransferContext,
   type ProviderKey,
@@ -10,22 +10,58 @@ import {
 export class ImportPlanProjection {
   constructor(private readonly context: ProviderTransferContext) {}
 
-  async get(memberId: string, planId: string): Promise<ImportPlanV2 | undefined> {
+  async getV2(memberId: string, planId: string): Promise<ImportPlanV2 | undefined> {
     const client = await this.context.pool.connect()
     try {
-      return await this.getWithClient(client, memberId, planId)
+      return await this.getWithClientV2(client, memberId, planId)
     } finally { client.release() }
   }
 
-  async getWithClient(
+  async getV3(memberId: string, planId: string): Promise<ImportPlanV3 | undefined> {
+    const client = await this.context.pool.connect()
+    try {
+      return await this.getWithClientV3(client, memberId, planId)
+    } finally { client.release() }
+  }
+
+  getWithClientV2(
     client: Pick<PoolClient, 'query'>,
     memberId: string,
     planId: string,
   ): Promise<ImportPlanV2 | undefined> {
+    return this.getWithClient(client, memberId, planId, 2)
+  }
+
+  getWithClientV3(
+    client: Pick<PoolClient, 'query'>,
+    memberId: string,
+    planId: string,
+  ): Promise<ImportPlanV3 | undefined> {
+    return this.getWithClient(client, memberId, planId, 3)
+  }
+
+  private getWithClient(
+    client: Pick<PoolClient, 'query'>,
+    memberId: string,
+    planId: string,
+    contractMajor: 2,
+  ): Promise<ImportPlanV2 | undefined>
+  private getWithClient(
+    client: Pick<PoolClient, 'query'>,
+    memberId: string,
+    planId: string,
+    contractMajor: 3,
+  ): Promise<ImportPlanV3 | undefined>
+  private async getWithClient(
+    client: Pick<PoolClient, 'query'>,
+    memberId: string,
+    planId: string,
+    contractMajor: 2 | 3,
+  ): Promise<ImportPlanV2 | ImportPlanV3 | undefined> {
     const plan = (await client.query<{
       id: string
       revision: string
-      state: ImportPlanV2['state']
+      state: ImportPlanV3['state']
       blocked_reason: string | null
       snapshot_id: string
       snapshot_digest: string
@@ -39,8 +75,9 @@ export class ImportPlanProjection {
               snapshot.connection_id, plan.created_at, plan.updated_at
        FROM transfers.import_plans AS plan
        JOIN transfers.source_snapshots AS snapshot ON snapshot.id = plan.snapshot_id
-       WHERE plan.id = $1::uuid AND plan.owner_membership_id = $2::uuid`,
-      [planId, memberId],
+       WHERE plan.id = $1::uuid AND plan.owner_membership_id = $2::uuid
+         AND plan.contract_major = $3`,
+      [planId, memberId, contractMajor],
     )).rows[0]
     if (plan === undefined) return undefined
     const mappings = await client.query<{
@@ -66,7 +103,7 @@ export class ImportPlanProjection {
        ORDER BY list.source_position, list.source_list_id`,
       [planId, plan.snapshot_id],
     )
-    const projectedMappings: ImportPlanV2['mappings'][number][] = []
+    const projectedMappings: ImportPlanV3['mappings'][number][] = []
     for (const mapping of mappings.rows) {
       const items = await client.query<{
         source_item_id: string
@@ -75,7 +112,7 @@ export class ImportPlanProjection {
         observed_address: string | null
         resolved_place_id: string | null
         preview_status: 'add' | 'already-present' | 'unresolved' | 'skipped'
-        decision_kind: 'snapshot-match' | 'link' | 'skip' | 'none'
+        decision_kind: 'snapshot-match' | 'policy-create' | 'link' | 'skip' | 'none'
       }>(
         `SELECT planned.source_item_id, snapshot_item.provider_place_id,
                 snapshot_item.observed_name, snapshot_item.observed_address,
@@ -91,6 +128,11 @@ export class ImportPlanProjection {
       )
       const counts = (status: string) =>
         items.rows.filter((item) => item.preview_status === status).length
+      if (contractMajor === 2 && items.rows.some(
+        (item) => item.decision_kind === 'policy-create',
+      )) {
+        throw new Error('import-plan-contract-major-mismatch')
+      }
       projectedMappings.push({
         sourceListId: mapping.source_list_id,
         observedName: mapping.observed_name,
@@ -135,8 +177,15 @@ export class ImportPlanProjection {
       0,
     )
     const decided = plan.state !== 'draft'
-    return {
-      schemaVersion: 'import-plan.v2',
+    const approval: ImportPlanV3['approval'] = {
+      eligible: !decided && unresolved === 0,
+      reason: decided
+        ? plan.blocked_reason === 'materialization-rejected'
+          ? 'materialization-rejected'
+          : 'already-decided'
+        : unresolved > 0 ? 'unresolved-places' : null,
+    }
+    const value = {
       planId: plan.id,
       planRevision: planVersion(plan.id, plan.revision),
       snapshotId: plan.snapshot_id,
@@ -144,17 +193,18 @@ export class ImportPlanProjection {
       providerKey: plan.provider_key,
       connectionId: plan.connection_id,
       state: plan.state,
-      approval: {
-        eligible: !decided && unresolved === 0,
-        reason: decided
-          ? plan.blocked_reason === 'materialization-rejected'
-            ? 'materialization-rejected'
-            : 'already-decided'
-          : unresolved > 0 ? 'unresolved-places' : null,
-      },
+      approval,
       mappings: projectedMappings,
       createdAt: plan.created_at.toISOString(),
       updatedAt: plan.updated_at.toISOString(),
+    }
+    if (contractMajor === 3) {
+      return { schemaVersion: 'import-plan.v3', ...value }
+    }
+    return {
+      schemaVersion: 'import-plan.v2',
+      ...value,
+      mappings: value.mappings as ImportPlanV2['mappings'],
     }
   }
 }

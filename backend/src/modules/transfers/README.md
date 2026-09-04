@@ -27,6 +27,13 @@ Import 승인은 durable operation을 `queued`로 만들 뿐 요청 thread에서
 Collection에는 직전 receipt revision을 전달한다. 부분 실패는 계획을 `blocked`로 만들며 명시적
 resume 후 lease/retry 경로로만 재개한다.
 
+Connector manifest의 acquisition kind와 parser version은 획득 감사 정보이지 서버 attestation이
+아니다. 미등록 Provider identity를 전역 Canonical Place로 만드는 계획은 서버 측 Provider detail
+worker가 남긴 `available` observation과 normalized candidate가 있을 때만 세운다. Worker는 실행 시에도
+계획에 FK로 고정된 동일 observation/candidate를 다시 확인하고 그 evidence ID를 resolution decision에
+직접 연결한다. 상세정보가 갱신되어도 재시도는 최초 계획의 증거를 바꾸지 않으며, Place 생성 결과는
+취소 종결보다 먼저 operation item에 체크포인트한다.
+
 Chunk capture는 100,000 items까지 안전하게 저장·검증하지만 현재 snapshot detail/import-plan
 projection은 50 lists, list당 500 items, 총 10,000 items로 제한된다. 이 경계를 넘는 snapshot은
 저장 이력에는 보이되 승인 UI에서 materialization할 수 없다. Pagination/segment projection이

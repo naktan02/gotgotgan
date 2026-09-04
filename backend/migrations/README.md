@@ -170,3 +170,9 @@ Profile media selection을 추가한다. 공개 view는 현재 Profile에 선택
 `000044`는 v2 Connector manifest와 immutable SourceSnapshot에 실제 획득 방식과 parser version을
 보존한다. 이전 snapshot은 provenance를 추측해 채우지 않고 NULL로 유지하며 자동 Canonical Place 생성의
 근거로 사용하지 않는다. 새 Connector snapshot의 provenance는 manifest digest에 함께 결속된다.
+
+`000045`는 서버가 수집한 `available` Provider detail observation과 정규화 candidate가 있는 미매칭
+항목을 승인된 ImportPlan에서 Canonical Place로 생성하거나 기존 identity에 연결할 수 있게 한다.
+Connector가 선언한 provenance만으로는 전역 Place를 만들지 않는다. 승인 계획은 불변으로 유지하고
+계획 시 선택한 detail observation/candidate를 FK로 고정한다. 실제 Canonical Place ID는 취소 여부를
+종결하기 전에 TransferOperation 항목에 체크포인트한다.

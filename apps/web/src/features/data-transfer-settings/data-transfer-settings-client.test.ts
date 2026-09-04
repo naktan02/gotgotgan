@@ -41,33 +41,50 @@ describe('data transfer settings client', () => {
   })
 
   it('uses backend import preview counts instead of fabricating match results', async () => {
-    const gateway = createDataTransferSettingsGateway(async () => Response.json({
-      schemaVersion: 'import-plan-command-result.v2', outcome: 'accepted',
-      commandId, status: 'applied',
-      plan: {
-        schemaVersion: 'import-plan.v2', planId: commandId, planRevision: 'plan-r1',
-        snapshotId: '01992d20-0000-7000-8000-000000000005', snapshotVersion: 'snapshot-r1',
-        providerKey: 'naver', connectionId, state: 'draft',
-        approval: { eligible: false, reason: 'unresolved-places' },
-        mappings: [{
-          sourceListId: 'source-list', observedName: '도쿄 여행', sourcePosition: 0,
-          target: { kind: 'new', collectionId, name: '도쿄 여행' }, itemCount: 3, unresolvedItemCount: 1,
-          preview: { addCount: 1, alreadyPresentCount: 1, unresolvedCount: 1, skippedCount: 0, items: [{
-            sourceItemId: 'source-item', providerPlaceId: null, observedName: '센소지',
-            observedAddress: '도쿄도 다이토구', placeId: null, status: 'unresolved', decision: 'none',
-          }] },
-          materialization: { state: 'pending', collectionRevision: null, rejectionCode: null },
-        }],
-        createdAt: '2026-09-03T00:00:00.000Z', updatedAt: '2026-09-03T00:00:00.000Z',
-      },
-    }))
+    let requestPath: string | undefined
+    let requestBody: unknown
+    const gateway = createDataTransferSettingsGateway(async (input, init) => {
+      requestPath = String(input)
+      requestBody = JSON.parse(String(init?.body))
+      return Response.json({
+        schemaVersion: 'import-plan-command-result.v3', outcome: 'accepted',
+        commandId, status: 'applied',
+        plan: {
+          schemaVersion: 'import-plan.v3', planId: commandId, planRevision: 'plan-r1',
+          snapshotId: '01992d20-0000-7000-8000-000000000005', snapshotVersion: 'snapshot-r1',
+          providerKey: 'naver', connectionId, state: 'draft',
+          approval: { eligible: false, reason: 'unresolved-places' },
+          mappings: [{
+            sourceListId: 'source-list', observedName: '도쿄 여행', sourcePosition: 0,
+            target: { kind: 'new', collectionId, name: '도쿄 여행' }, itemCount: 3, unresolvedItemCount: 1,
+            preview: { addCount: 1, alreadyPresentCount: 1, unresolvedCount: 1, skippedCount: 0, items: [
+              {
+                sourceItemId: 'source-auto', providerPlaceId: 'provider-place', observedName: '도쿄 타워',
+                observedAddress: null, placeId: null, status: 'add', decision: 'policy-create',
+              },
+              {
+                sourceItemId: 'source-item', providerPlaceId: null, observedName: '센소지',
+                observedAddress: '도쿄도 다이토구', placeId: null, status: 'unresolved', decision: 'none',
+              },
+            ] },
+            materialization: { state: 'pending', collectionRevision: null, rejectionCode: null },
+          }],
+          createdAt: '2026-09-03T00:00:00.000Z', updatedAt: '2026-09-03T00:00:00.000Z',
+        },
+      })
+    })
     const preview = await gateway.previewImport({
       commandId, snapshotId: '01992d20-0000-7000-8000-000000000005',
       expectedSnapshotRevision: 'snapshot-r1',
       mappings: [{ sourceListId: 'source-list', selected: true, target: { kind: 'new', collectionId, name: '도쿄 여행' } }],
     })
+    expect(requestPath).toBe('/api/v3/transfers/import-plan-commands')
+    expect(requestBody).toMatchObject({ schemaVersion: 'import-plan-command.v3' })
     expect(preview.summary).toEqual({ add: 1, alreadyPresent: 1, reviewRequired: 1, unsupported: 0 })
-    expect(preview.matches[0]).toMatchObject({ sourceName: '센소지', sourceAddress: '도쿄도 다이토구', status: 'review-required' })
+    expect(preview.matches).toEqual(expect.arrayContaining([
+      expect.objectContaining({ sourceName: '도쿄 타워', status: 'add' }),
+      expect.objectContaining({ sourceName: '센소지', sourceAddress: '도쿄도 다이토구', status: 'review-required' }),
+    ]))
     expect(preview.approvalEligible).toBe(false)
   })
 

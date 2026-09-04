@@ -123,6 +123,11 @@ test('import materialization fences expired leases and honors cancellation at co
         },
       }
     }
+    const unexpectedSourcePlaceMaterializer = {
+      async materialize() {
+        throw new Error('resolved import must not materialize a source place')
+      },
+    }
 
     const fencedImport = await seedImportMaterialization(900)
     let workerNow = new Date('2026-09-03T03:00:00.000Z')
@@ -139,6 +144,7 @@ test('import materialization fences expired leases and honors cancellation at co
           return appliedMaterialization(input, 'stale-worker-version')
         },
       },
+      unexpectedSourcePlaceMaterializer,
       {
         workerId: 'stage10-worker-a',
         leaseMilliseconds: 30_000,
@@ -156,6 +162,7 @@ test('import materialization fences expired leases and honors cancellation at co
           return appliedMaterialization(input, 'winning-worker-version')
         },
       },
+      unexpectedSourcePlaceMaterializer,
       {
         workerId: 'stage10-worker-b',
         leaseMilliseconds: 30_000,
@@ -193,6 +200,7 @@ test('import materialization fences expired leases and honors cancellation at co
           return appliedMaterialization(input, 'cancel-race-version')
         },
       },
+      unexpectedSourcePlaceMaterializer,
       {
         workerId: 'stage10-worker-c',
         leaseMilliseconds: 30_000,

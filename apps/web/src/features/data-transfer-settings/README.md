@@ -11,6 +11,8 @@
 - `DataTransferSettings.tsx`: 여섯 설정 탭과 명시적 preview/approval UI
 - `data-transfer-settings.module.css`: 기존 세대 CSS를 덮어쓰지 않는 feature-local 스타일
 
+가져오기 plan은 `import-plan.v3`만 소비해 자동 생성 예정 Place와 이미 연결된 Place를 같은 preview에서
+안전하게 구분한다. 기존 v2 BFF 경로는 호환성 경계에 남지만 설정 workflow는 v3 경로만 사용한다.
 가져오기는 저장된 source snapshot을 읽을 뿐 Provider 수집을 시작하지 않는다. 내보내기의
 `approved`는 사용자가 preview 범위를 승인했다는 뜻이며 외부 Provider 적용 완료가 아니다.
 작업 실행/복구 내역은 Stage 10 화면이 소유한다.

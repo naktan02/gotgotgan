@@ -1,11 +1,13 @@
 import type { Pool, PoolClient } from 'pg'
 
 import type { ImportedCollectionMaterializerPort } from '../../domain/model.js'
+import type { VerifiedSourcePlaceMaterializerPort } from './verified-source-place-materializer.js'
 import {
   ImportMaterializationLeaseLostError,
   PostgresImportLease,
   type ClaimedImportOperation,
 } from './postgres-import-lease.js'
+import { PostgresSourcePlaceResolution } from './postgres-source-place-resolution.js'
 
 type MappingRow = Readonly<{
   source_list_id: string
@@ -24,11 +26,16 @@ type MappingRow = Readonly<{
 }>
 
 export class PostgresImportMaterializer {
+  private readonly sourcePlaces: PostgresSourcePlaceResolution
+
   constructor(
     private readonly pool: Pool,
     private readonly materializer: ImportedCollectionMaterializerPort,
+    placeMaterializer: VerifiedSourcePlaceMaterializerPort,
     private readonly lease: PostgresImportLease,
-  ) {}
+  ) {
+    this.sourcePlaces = new PostgresSourcePlaceResolution(pool, placeMaterializer, lease)
+  }
 
   async run(operation: ClaimedImportOperation) {
     const mappings = await this.pool.query<MappingRow>(
@@ -56,26 +63,38 @@ export class PostgresImportMaterializer {
         versions.set(mapping.target_collection_id, mapping.collection_version)
         continue
       }
+      if (await this.sourcePlaces.resolveMapping(
+        operation, mapping.source_list_id,
+      ) === 'cancelled') return 'cancelled' as const
       const items = await this.pool.query<{
         source_item_id: string
         provider_place_id: string
-        resolved_place_id: string
+        resolved_place_id: string | null
         source_position: number
       }>(
         `SELECT item.source_item_id, snapshot_item.provider_place_id,
-                item.resolved_place_id, snapshot_item.source_position
+                coalesce(item.resolved_place_id, operation_item.canonical_place_id)
+                  AS resolved_place_id,
+                snapshot_item.source_position
          FROM transfers.import_plan_items AS item
          JOIN transfers.import_plans AS plan ON plan.id = item.plan_id
          JOIN transfers.source_snapshot_items AS snapshot_item
            ON snapshot_item.snapshot_id = plan.snapshot_id
           AND snapshot_item.source_list_id = item.source_list_id
           AND snapshot_item.source_item_id = item.source_item_id
+         JOIN transfers.operation_items AS operation_item
+           ON operation_item.operation_id = $3::uuid
+          AND operation_item.item_key = encode(sha256(convert_to(jsonb_build_array(
+            item.source_list_id::text, item.source_item_id::text)::text, 'UTF8')), 'hex')
          WHERE item.plan_id = $1::uuid AND item.source_list_id = $2
            AND item.preview_status IN ('add','already-present')
            AND snapshot_item.provider_place_id IS NOT NULL
          ORDER BY snapshot_item.source_position, item.source_item_id`,
-        [operation.resource_id, mapping.source_list_id],
+        [operation.resource_id, mapping.source_list_id, operation.id],
       )
+      if (items.rows.some((item) => item.resolved_place_id === null)) {
+        throw new Error('import-invariant-violated')
+      }
       const target: Parameters<ImportedCollectionMaterializerPort['materialize']>[0]['target'] =
         mapping.target_kind === 'new'
           ? { kind: 'new', collectionId: mapping.target_collection_id, name: mapping.target_name! }
@@ -86,7 +105,7 @@ export class PostgresImportMaterializer {
         context: {
           operationId: mapping.materialization_operation_id,
           memberId: operation.owner_membership_id,
-          occurredAt: this.lease.now().toISOString(),
+          occurredAt: operation.created_at.toISOString(),
         },
         source: {
           providerKey: mapping.provider_key,
@@ -101,7 +120,7 @@ export class PostgresImportMaterializer {
         items: items.rows.map((item) => ({
           sourceItemId: item.source_item_id,
           providerPlaceId: item.provider_place_id,
-          placeId: item.resolved_place_id,
+          placeId: item.resolved_place_id!,
           sourcePosition: item.source_position,
         })),
       }

@@ -96,6 +96,33 @@ const transferPaths: Readonly<Record<string, Record<string, unknown>>> = {
       '503': ref('responses', 'ProductUnavailable'),
     }, { security: bearer }),
   },
+  '/v3/transfers/import-plan-commands': {
+    post: operation('applyImportPlanCommandV3', {
+      '200': described('Replay an import plan command', 'ImportPlanCommandResultV3'),
+      '201': described('Create, decide, or explicitly approve an import plan',
+        'ImportPlanCommandResultV3'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': described('Hide an unavailable transfer resource', 'ImportPlanCommandResultV3'),
+      '409': described('Reject a stale plan, snapshot, Collection, or command',
+        'ImportPlanCommandResultV3'),
+      '422': described('Reject an unresolved or invalid plan selection',
+        'ImportPlanCommandResultV3'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer, requestSchema: 'ImportPlanCommandRequestV3' }),
+  },
+  '/v3/transfers/import-plans/{planId}': {
+    parameters: [pathParameters.planId],
+    get: operation('getImportPlanV3', {
+      '200': described('Return an import preview and materialization outcome', 'ImportPlanV3'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer }),
+  },
   '/v2/transfers/outbound-transfer-commands': {
     post: operation('applyOutboundTransferCommandV2', {
       '200': described('Replay an outbound preview or approval command', 'OutboundTransferCommandResultV2'),

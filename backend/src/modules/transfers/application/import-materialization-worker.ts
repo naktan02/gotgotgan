@@ -1,6 +1,12 @@
 import type { Pool } from 'pg'
 
 import type { ImportedCollectionMaterializerPort } from '../domain/model.js'
+import type {
+  VerifiedSourcePlaceMaterializerPort,
+} from './import-materialization/verified-source-place-materializer.js'
+import {
+  SourcePlaceMaterializationError,
+} from './import-materialization/verified-source-place-materializer.js'
 import {
   ImportMaterializationLeaseLostError,
   type ImportMaterializationResult,
@@ -20,10 +26,13 @@ export class PostgresImportMaterializationWorker {
   constructor(
     pool: Pool,
     materializer: ImportedCollectionMaterializerPort,
+    placeMaterializer: VerifiedSourcePlaceMaterializerPort,
     options: ImportLeaseOptions,
   ) {
     this.lease = new PostgresImportLease(pool, options)
-    this.materializer = new PostgresImportMaterializer(pool, materializer, this.lease)
+    this.materializer = new PostgresImportMaterializer(
+      pool, materializer, placeMaterializer, this.lease,
+    )
   }
 
   async runOnce(): Promise<ImportMaterializationResult> {
@@ -35,7 +44,9 @@ export class PostgresImportMaterializationWorker {
       return await this.materializer.run(operation)
     } catch (error) {
       if (error instanceof ImportMaterializationLeaseLostError) return 'lease-lost'
-      const retryable = !(error instanceof Error && error.message === 'import-invariant-violated')
+      const retryable = error instanceof SourcePlaceMaterializationError
+        ? error.retryable
+        : !(error instanceof Error && error.message === 'import-invariant-violated')
       await this.lease.recordFailure(operation, error, retryable)
       return retryable ? 'retry-scheduled' : 'blocked'
     }
