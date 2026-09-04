@@ -105,6 +105,7 @@ describe('NAVER API saved-library adapter', () => {
     }
 
     expect(captures).toEqual([{
+      acquisitionKind: 'browser-network',
       itemCount: 0,
       payload: {
         schemaVersion: 'place-naver-saved-capture.v1',

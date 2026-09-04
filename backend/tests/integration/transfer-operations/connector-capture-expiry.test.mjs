@@ -63,6 +63,10 @@ test('connector captures enforce exact grants, immutable chunks, cancellation, a
       chunks: payloads,
       listCount: 1,
       itemCount: 10_001,
+      provenance: {
+        acquisitionKind: 'browser-network',
+        parserVersion: 'test-naver-saved-place.v1',
+      },
     })
     const rejectedFingerprint = await receiver.issueImportGrant(memberId, {
       commandId: transferOperationId(303),
@@ -166,6 +170,14 @@ test('connector captures enforce exact grants, immutable chunks, cancellation, a
       'SELECT count(*)::int AS count FROM transfers.source_snapshot_items WHERE snapshot_id = $1::uuid',
       [bulkManifestId],
     )).rows[0].count, 10_001)
+    assert.deepEqual((await database.pool.query(
+      `SELECT acquisition_kind, parser_version
+       FROM transfers.source_snapshots WHERE id = $1::uuid`,
+      [bulkManifestId],
+    )).rows[0], {
+      acquisition_kind: 'browser-network',
+      parser_version: 'test-naver-saved-place.v1',
+    })
 
     const badDigestOperationId = transferOperationId(310)
     const badDigestManifestId = transferOperationId(311)
@@ -310,6 +322,10 @@ test('connector captures enforce exact grants, immutable chunks, cancellation, a
       chunks: [expiringChunk],
       listCount: 0,
       itemCount: 0,
+      provenance: {
+        acquisitionKind: 'browser-network',
+        parserVersion: 'test-naver-saved-place.v1',
+      },
     })
     const expiringGrantRequest = {
       commandId: transferOperationId(333),

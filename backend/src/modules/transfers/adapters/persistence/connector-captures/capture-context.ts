@@ -22,6 +22,8 @@ export type ManifestRow = Readonly<{
   installation_id: string
   manifest_digest: string
   source_revision: string
+  acquisition_kind: NonNullable<ConnectorManifest['provenance']>['acquisitionKind'] | null
+  parser_version: string | null
   observed_at: Date
   captured_at: Date
   expected_chunk_count: number
@@ -68,7 +70,8 @@ export const grantSelect = `
          issued_grant.status AS grant_status, issued_grant.issued_at, issued_grant.expires_at,
          manifest.manifest_id, manifest.owner_membership_id, manifest.connection_id,
          manifest.provider_key, manifest.account_fingerprint, manifest.installation_id,
-         manifest.manifest_digest, manifest.source_revision, manifest.observed_at,
+         manifest.manifest_digest, manifest.source_revision, manifest.acquisition_kind,
+         manifest.parser_version, manifest.observed_at,
          manifest.captured_at, manifest.expected_chunk_count, manifest.expected_list_count,
          manifest.expected_item_count, manifest.expected_byte_count, manifest.maximum_chunk_bytes,
          manifest.status, manifest.snapshot_id, operation.state AS operation_state,
@@ -83,6 +86,14 @@ export function manifestFrom(row: ManifestRow): ConnectorManifest {
     manifestId: row.manifest_id,
     manifestDigest: row.manifest_digest,
     sourceRevision: row.source_revision,
+    ...(row.acquisition_kind === null || row.parser_version === null ? {} : {
+      provenance: {
+        acquisitionKind: row.acquisition_kind as NonNullable<
+          ConnectorManifest['provenance']
+        >['acquisitionKind'],
+        parserVersion: row.parser_version,
+      },
+    }),
     observedAt: row.observed_at.toISOString(),
     capturedAt: row.captured_at.toISOString(),
     chunkCount: row.expected_chunk_count,
@@ -223,11 +234,12 @@ export class ConnectorCaptureContext {
   ) {
     await client.query(
       `INSERT INTO transfers.source_snapshots (id, owner_membership_id, connection_id,
-         provider_key, source_revision, content_digest, observed_at, captured_at)
-       VALUES ($1::uuid,$2::uuid,$3::uuid,$4,$5,$6,$7::timestamptz,$8::timestamptz)`,
+         provider_key, source_revision, acquisition_kind, parser_version,
+         content_digest, observed_at, captured_at)
+       VALUES ($1::uuid,$2::uuid,$3::uuid,$4,$5,$6,$7,$8,$9::timestamptz,$10::timestamptz)`,
       [grant.manifest_id, grant.owner_membership_id, grant.connection_id, grant.provider_key,
-        grant.source_revision, grant.manifest_digest, grant.observed_at.toISOString(),
-        grant.captured_at.toISOString()],
+        grant.source_revision, grant.acquisition_kind, grant.parser_version, grant.manifest_digest,
+        grant.observed_at.toISOString(), grant.captured_at.toISOString()],
     )
     await client.query(
       `INSERT INTO transfers.source_snapshot_lists

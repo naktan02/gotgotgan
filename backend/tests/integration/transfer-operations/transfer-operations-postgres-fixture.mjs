@@ -67,10 +67,12 @@ export function connectorCaptureManifest({
   listCount,
   itemCount,
   digest,
+  provenance,
 }) {
   const manifestWithoutDigest = {
     manifestId,
     sourceRevision,
+    ...(provenance === undefined ? {} : { provenance }),
     observedAt: '2026-09-03T02:00:01.000Z',
     capturedAt: '2026-09-03T02:00:02.000Z',
     chunkCount: chunks.length,

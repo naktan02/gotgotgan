@@ -142,6 +142,7 @@ export async function handoffImmutableSnapshot(
     providerKey: input.identity.providerKey, accountFingerprint: input.identity.accountFingerprint,
     installationId: input.identity.installationId,
     manifest: { manifestId: manifest.manifestId, sourceRevision: manifest.sourceRevision,
+      ...(manifest.provenance === undefined ? {} : { provenance: manifest.provenance }),
       observedAt: manifest.observedAt, capturedAt: manifest.capturedAt,
       chunkCount: manifest.chunkCount, listCount: manifest.listCount,
       itemCount: manifest.itemCount, byteCount: manifest.byteCount },

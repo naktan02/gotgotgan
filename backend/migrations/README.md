@@ -166,3 +166,7 @@ Profile media selection을 추가한다. 공개 view는 현재 Profile에 선택
 `provider-rate-limited`/`provider-unavailable` 일시 실패만 다시 예약한다. 상세 관찰은 이전 관찰을
 참조하며 payload checksum으로 `initial`, `unchanged`, `changed`를 기록한다. 갱신 실패는 마지막 정상
 상세를 지우지 않고 parser drift, capture invalid, interaction required는 운영자 확인 전까지 보류한다.
+
+`000044`는 v2 Connector manifest와 immutable SourceSnapshot에 실제 획득 방식과 parser version을
+보존한다. 이전 snapshot은 provenance를 추측해 채우지 않고 NULL로 유지하며 자동 Canonical Place 생성의
+근거로 사용하지 않는다. 새 Connector snapshot의 provenance는 manifest digest에 함께 결속된다.

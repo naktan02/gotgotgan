@@ -192,6 +192,12 @@ export class ConnectorCaptureSession {
         manifest: {
           manifestId: grant.manifest_id,
           sourceRevision: grant.source_revision,
+          ...(grant.acquisition_kind === null || grant.parser_version === null
+            ? {}
+            : { provenance: {
+                acquisitionKind: grant.acquisition_kind,
+                parserVersion: grant.parser_version,
+              } }),
           observedAt: grant.observed_at.toISOString(),
           capturedAt: grant.captured_at.toISOString(),
           chunkCount: grant.expected_chunk_count,

@@ -87,6 +87,9 @@ export function assertSnapshotDependencies(
     dependencies.source.providerKey !== identity.providerKey ||
     dependencies.normalizer.providerKey !== identity.providerKey
   ) throw new ImmutableSnapshotError('binding-mismatch', false, 'Snapshot Provider binding differs')
+  if (dependencies.normalizer.parserVersion.trim().length === 0) {
+    throw new ImmutableSnapshotError('capture-invalid', false, 'Snapshot parser version is invalid')
+  }
   if (!/^[a-f0-9]{64}$/.test(identity.accountFingerprint)) {
     throw new ImmutableSnapshotError('binding-mismatch', false, 'Snapshot account fingerprint is invalid')
   }

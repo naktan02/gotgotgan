@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  connectorCaptureManifestDigestInputV2,
+  connectorCaptureManifestV2Schema,
   connectorImportGrantResultV2Schema,
   outboundExecutionReconciliationV2Schema,
   outboundExecutionGrantResultV2Schema,
@@ -13,6 +15,44 @@ import {
 const id = '01992d42-0000-7000-8000-000000000001'
 
 describe('provider transfer contracts', () => {
+  it('binds optional acquisition provenance into new Connector snapshot commitments', () => {
+    const legacyManifest = {
+      manifestId: id,
+      manifestDigest: 'a'.repeat(64),
+      sourceRevision: 'source-r1',
+      observedAt: '2026-09-03T00:00:00.000Z',
+      capturedAt: '2026-09-03T00:00:00.000Z',
+      chunkCount: 1,
+      listCount: 1,
+      itemCount: 1,
+      byteCount: 2,
+    }
+    expect(connectorCaptureManifestV2Schema.safeParse(legacyManifest).success).toBe(true)
+    const current = {
+      ...legacyManifest,
+      provenance: {
+        acquisitionKind: 'browser-network' as const,
+        parserVersion: 'naver-saved-place-normalizer.v1',
+      },
+    }
+    expect(connectorCaptureManifestV2Schema.safeParse(current).success).toBe(true)
+    const input = {
+      operationId: id,
+      connectionId: id,
+      providerKey: 'naver',
+      accountFingerprint: 'b'.repeat(64),
+      installationId: id,
+      chunks: [{ sequence: 0, itemCount: 1, byteCount: 2, checksum: 'c'.repeat(64) }],
+    }
+    expect(connectorCaptureManifestDigestInputV2({
+      ...input,
+      manifest: legacyManifest,
+    })).not.toBe(connectorCaptureManifestDigestInputV2({
+      ...input,
+      manifest: current,
+    }))
+  })
+
   it('allows an unavailable provider to advertise no auth methods', () => {
     expect(providerCapabilityListV2Schema.safeParse({
       schemaVersion: 'provider-capability-list.v2',
@@ -125,7 +165,8 @@ describe('provider transfer contracts', () => {
     expect(sourceSnapshotDetailV2Schema.safeParse({
       schemaVersion: 'source-snapshot-detail.v2', snapshotId: id,
       snapshotVersion: 'revision', connectionId: id, providerKey: 'naver',
-      sourceRevision: 'source', listCount: lists.length, itemCount: 10_500,
+      sourceRevision: 'source',
+      listCount: lists.length, itemCount: 10_500,
       unresolvedItemCount: 10_500, observedAt: '2026-09-03T00:00:00.000Z',
       capturedAt: '2026-09-03T00:00:00.000Z', lists,
     }).success).toBe(false)

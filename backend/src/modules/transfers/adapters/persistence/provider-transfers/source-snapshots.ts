@@ -41,6 +41,7 @@ export class ProviderSourceSnapshots {
       connectionId: input.connectionId,
       providerKey: input.providerKey,
       sourceRevision: input.sourceRevision,
+      provenance: input.provenance,
       observedAt: input.observedAt,
       capturedAt: input.capturedAt,
       lists: input.lists,
@@ -76,10 +77,11 @@ export class ProviderSourceSnapshots {
       await client.query(
         `INSERT INTO transfers.source_snapshots (
            id, owner_membership_id, connection_id, provider_key, source_revision,
-           content_digest, observed_at, captured_at
-         ) VALUES ($1::uuid,$2::uuid,$3::uuid,$4,$5,$6,$7::timestamptz,$8::timestamptz)`,
+           acquisition_kind, parser_version, content_digest, observed_at, captured_at
+         ) VALUES ($1::uuid,$2::uuid,$3::uuid,$4,$5,$6,$7,$8,$9::timestamptz,$10::timestamptz)`,
         [input.snapshotId, input.ownerMemberId, input.connectionId, input.providerKey,
-          input.sourceRevision, digest, input.observedAt, input.capturedAt],
+          input.sourceRevision, input.provenance.acquisitionKind, input.provenance.parserVersion,
+          digest, input.observedAt, input.capturedAt],
       )
       for (const list of input.lists) {
         await client.query(
@@ -138,7 +140,8 @@ export class ProviderSourceSnapshots {
       unresolved_count: number
     }>(
       `SELECT snapshot.id, snapshot.content_digest, snapshot.connection_id, snapshot.provider_key,
-              snapshot.source_revision, snapshot.observed_at, snapshot.captured_at,
+              snapshot.source_revision,
+              snapshot.observed_at, snapshot.captured_at,
               count(DISTINCT list.source_list_id)::int AS list_count,
               count(item.source_item_id)::int AS item_count,
               count(*) FILTER (

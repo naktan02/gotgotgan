@@ -42,7 +42,9 @@ function source(payloads: readonly string[]): SavedPlaceSource {
   return {
     providerKey: 'naver',
     async *collect() {
-      for (const payload of payloads) yield { itemCount: 1, payload }
+      for (const payload of payloads) {
+        yield { acquisitionKind: 'browser-network' as const, itemCount: 1, payload }
+      }
     },
   }
 }

@@ -4,6 +4,7 @@ import {
   connectorCaptureManifestDigestInputV2,
   connectorCaptureManifestV2Schema,
   type ConnectorCaptureManifestV2,
+  type SourceAcquisitionKind,
 } from '@place/contracts/transfers'
 
 import type { ConnectorSnapshotChunkDescriptor } from './ports/snapshot-handoff.js'
@@ -46,8 +47,15 @@ export async function collectImmutableSnapshot(
   const listIds = new Set<string>()
   let totalItems = 0
   let totalBytes = 0
+  let acquisitionKind: SourceAcquisitionKind | undefined
   for await (const capture of dependencies.source.collect({ signal: input.signal })) {
     requireNotAborted(input.signal)
+    if (acquisitionKind === undefined) acquisitionKind = capture.acquisitionKind
+    if (capture.acquisitionKind !== acquisitionKind) {
+      throw new ImmutableSnapshotError(
+        'capture-invalid', false, 'One immutable snapshot cannot mix acquisition strategies',
+      )
+    }
     let payload
     try {
       payload = connectorCaptureChunkPayloadV2Schema.parse(dependencies.normalizer.normalize(capture))
@@ -98,6 +106,10 @@ export async function collectImmutableSnapshot(
   const withoutDigest = {
     manifestId: input.identity.manifestId,
     sourceRevision: await sha256(JSON.stringify(descriptors)),
+    provenance: {
+      acquisitionKind: acquisitionKind!,
+      parserVersion: dependencies.normalizer.parserVersion,
+    },
     observedAt, capturedAt, chunkCount: descriptors.length, listCount: listIds.size,
     itemCount: totalItems, byteCount: totalBytes,
   }

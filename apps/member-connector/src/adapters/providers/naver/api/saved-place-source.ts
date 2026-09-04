@@ -100,6 +100,7 @@ export class NaverApiSavedPlaceSource implements SavedPlaceSource {
     }
     if (collected.lists.length === 0) {
       yield {
+        acquisitionKind: 'browser-network',
         itemCount: 0,
         payload: JSON.stringify({
           schemaVersion: 'place-naver-saved-capture.v1',
@@ -143,7 +144,7 @@ export class NaverApiSavedPlaceSource implements SavedPlaceSource {
           }],
           nextCursor: null,
         })
-        yield { itemCount: bookmarks.length, payload }
+        yield { acquisitionKind: 'browser-network', itemCount: bookmarks.length, payload }
       }
     }
   }

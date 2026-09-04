@@ -182,6 +182,7 @@ export type SourceSnapshotCapture = Readonly<{
   connectionId: string
   providerKey: 'naver' | 'kakao' | 'google'
   sourceRevision: string
+  provenance: SourceSnapshotProvenance
   observedAt: string
   capturedAt: string
   lists: readonly Readonly<{
@@ -201,6 +202,12 @@ export type SourceSnapshotCapture = Readonly<{
       sourcePosition: number
     }>[]
   }>[]
+}>
+
+export type SourceSnapshotProvenance = Readonly<{
+  acquisitionKind: 'documented-api' | 'account-export' | 'structured-web' |
+    'browser-network' | 'browser-dom' | 'manual-capture'
+  parserVersion: string
 }>
 
 export type ProviderConnectionObservation = Readonly<{

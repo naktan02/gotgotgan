@@ -1,6 +1,8 @@
 import type { ConnectorProviderKey } from '@place/contracts/connector'
+import type { SourceAcquisitionKind } from '@place/contracts/transfers'
 
 export type SavedPlaceCapturePayload = Readonly<{
+  acquisitionKind: SourceAcquisitionKind
   itemCount: number
   payload: string
 }>

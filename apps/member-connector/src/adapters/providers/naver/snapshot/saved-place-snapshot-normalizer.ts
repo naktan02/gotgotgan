@@ -33,6 +33,7 @@ const naverCaptureSchema = z.object({
 
 export class NaverSavedPlaceSnapshotNormalizer implements SavedPlaceSnapshotNormalizer {
   readonly providerKey = 'naver' as const
+  readonly parserVersion = 'naver-saved-place-normalizer.v1'
 
   normalize(capture: SavedPlaceCapturePayload) {
     const parsed = naverCaptureSchema.parse(JSON.parse(capture.payload) as unknown)

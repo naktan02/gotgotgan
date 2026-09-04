@@ -89,6 +89,7 @@ test('provider transfers require immutable snapshots and explicit approval', { t
       connectionId,
       providerKey: 'naver',
       sourceRevision: 'naver-library-42',
+      provenance: { acquisitionKind: 'browser-network', parserVersion: 'test-naver.v1' },
       observedAt: '2026-09-03T01:00:02.000Z',
       capturedAt: '2026-09-03T01:00:03.000Z',
       lists: [{
@@ -109,12 +110,20 @@ test('provider transfers require immutable snapshots and explicit approval', { t
       }],
     })
     assert.equal(recorded.status, 'applied')
+    assert.deepEqual((await database.pool.query(
+      `SELECT acquisition_kind, parser_version
+       FROM transfers.source_snapshots WHERE id = $1::uuid`,
+      [snapshotId],
+    )).rows[0], {
+      acquisition_kind: 'browser-network', parser_version: 'test-naver.v1',
+    })
     assert.equal((await transfers.recordSourceSnapshot({
       snapshotId,
       ownerMemberId: memberId,
       connectionId,
       providerKey: 'naver',
       sourceRevision: 'naver-library-42',
+      provenance: { acquisitionKind: 'browser-network', parserVersion: 'test-naver.v1' },
       observedAt: '2026-09-03T01:00:02.000Z',
       capturedAt: '2026-09-03T01:00:03.000Z',
       lists: recorded.snapshot.lists.map((list) => ({
@@ -129,6 +138,7 @@ test('provider transfers require immutable snapshots and explicit approval', { t
         connectionId,
         providerKey: 'naver',
         sourceRevision: 'naver-library-42',
+        provenance: { acquisitionKind: 'browser-network', parserVersion: 'test-naver.v1' },
         observedAt: '2026-09-03T01:00:02.000Z',
         capturedAt: '2026-09-03T01:00:04.000Z',
         lists: recorded.snapshot.lists.map((list) => ({
@@ -352,6 +362,7 @@ test('provider transfers require immutable snapshots and explicit approval', { t
       connectionId,
       providerKey: 'naver',
       sourceRevision: 'naver-library-crash-recovery',
+      provenance: { acquisitionKind: 'browser-network', parserVersion: 'test-naver.v1' },
       observedAt: '2026-09-03T01:00:04.000Z',
       capturedAt: '2026-09-03T01:00:05.000Z',
       lists: [secondPlaceId, thirdPlaceId].map((canonicalPlaceId, sourcePosition) => ({

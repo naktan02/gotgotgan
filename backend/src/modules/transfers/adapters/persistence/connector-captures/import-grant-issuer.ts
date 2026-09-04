@@ -105,6 +105,7 @@ export class ConnectorImportGrantIssuer {
       const priorManifest = (await client.query<ManifestRow>(
         `SELECT manifest_id, operation_id, owner_membership_id, connection_id, provider_key,
                 account_fingerprint, installation_id, manifest_digest, source_revision,
+                acquisition_kind, parser_version,
                 observed_at, captured_at, expected_chunk_count, expected_list_count,
                 expected_item_count, expected_byte_count, maximum_chunk_bytes, status, snapshot_id
          FROM transfers.connector_capture_manifests WHERE manifest_id = $1::uuid FOR UPDATE`,
@@ -153,13 +154,16 @@ export class ConnectorImportGrantIssuer {
           `INSERT INTO transfers.connector_capture_manifests (
              manifest_id, operation_id, owner_membership_id, connection_id, provider_key,
              account_fingerprint, installation_id, manifest_digest, source_revision,
-             observed_at, captured_at, expected_chunk_count, expected_list_count,
+             acquisition_kind, parser_version, observed_at, captured_at,
+             expected_chunk_count, expected_list_count,
              expected_item_count, expected_byte_count, maximum_chunk_bytes, status
-           ) VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6,$7::uuid,$8,$9,
-             $10::timestamptz,$11::timestamptz,$12,$13,$14,$15,$16,'receiving')`,
+           ) VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6,$7::uuid,$8,$9,$10,$11,
+             $12::timestamptz,$13::timestamptz,$14,$15,$16,$17,$18,'receiving')`,
           [request.manifest.manifestId, request.operationId, memberId, request.connectionId,
             request.providerKey, request.accountFingerprint, request.installationId,
             request.manifest.manifestDigest, request.manifest.sourceRevision,
+            request.manifest.provenance?.acquisitionKind ?? null,
+            request.manifest.provenance?.parserVersion ?? null,
             request.manifest.observedAt, request.manifest.capturedAt,
             request.manifest.chunkCount, request.manifest.listCount,
             request.manifest.itemCount, request.manifest.byteCount,
@@ -208,6 +212,8 @@ export class ConnectorImportGrantIssuer {
         installation_id: request.installationId,
         manifest_digest: request.manifest.manifestDigest,
         source_revision: request.manifest.sourceRevision,
+        acquisition_kind: request.manifest.provenance?.acquisitionKind ?? null,
+        parser_version: request.manifest.provenance?.parserVersion ?? null,
         observed_at: new Date(request.manifest.observedAt),
         captured_at: new Date(request.manifest.capturedAt),
         expected_chunk_count: request.manifest.chunkCount,

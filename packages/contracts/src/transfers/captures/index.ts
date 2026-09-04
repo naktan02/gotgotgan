@@ -8,6 +8,7 @@ import {
   opaqueConnectorTokenSchema,
   revisionSchema,
   sha256Schema,
+  sourceSnapshotProvenanceV2Schema,
   transferCommandRejectionSchema,
 } from '../contract-primitives.js'
 
@@ -15,6 +16,7 @@ export const connectorCaptureManifestV2Schema = z.object({
   manifestId: uuidSchema,
   manifestDigest: sha256Schema,
   sourceRevision: z.string().min(1).max(512),
+  provenance: sourceSnapshotProvenanceV2Schema.optional(),
   observedAt: z.iso.datetime({ offset: true }),
   capturedAt: z.iso.datetime({ offset: true }),
   chunkCount: z.number().int().min(1).max(1_000),

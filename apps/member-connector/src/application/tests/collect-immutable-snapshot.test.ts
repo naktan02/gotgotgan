@@ -86,13 +86,13 @@ function dependencies(input: Readonly<{
   fingerprint?: string
 }>) {
   const collect = input.collect ?? (async function* () {
-    yield { itemCount: 1, payload: JSON.stringify({
+    yield { acquisitionKind: 'browser-network' as const, itemCount: 1, payload: JSON.stringify({
       lists: [{ sourceListId: 'list-a', observedName: '여행', sourcePosition: 0,
         items: [{ sourceItemId: 'item-a', providerPlaceId: 'place-a',
           observedName: '라멘 🍜', observedAddress: null, observedCategory: '라멘',
           observedLocation: null, sourcePosition: 0 }] }],
     }) }
-    yield { itemCount: 1, payload: JSON.stringify({
+    yield { acquisitionKind: 'browser-network' as const, itemCount: 1, payload: JSON.stringify({
       lists: [{ sourceListId: 'list-b', observedName: '카페', sourcePosition: 1,
         items: [{ sourceItemId: 'item-b', providerPlaceId: null,
           observedName: '카페', observedAddress: null, observedCategory: null,
@@ -108,6 +108,7 @@ function dependencies(input: Readonly<{
     source: { providerKey: 'naver' as const, collect },
     normalizer: {
       providerKey: 'naver' as const,
+      parserVersion: 'test-normalizer.v1',
       normalize: (capture: { payload: string }) => JSON.parse(capture.payload) as never,
     },
     spool: input.spool,
@@ -225,13 +226,30 @@ describe('immutable Connector snapshot handoff', () => {
     )).resolves.toMatchObject({ status: 'incomplete', missingSequences: [1] })
   })
 
+  it('rejects mixed acquisition strategies inside one immutable snapshot', async () => {
+    const local = memorySpool()
+    const collect: SavedPlaceSource['collect'] = async function* () {
+      yield { acquisitionKind: 'browser-network', itemCount: 0, payload: '{"lists":[]}' }
+      yield { acquisitionKind: 'browser-dom', itemCount: 0, payload: '{"lists":[]}' }
+    }
+    const handoff = {
+      issueGrant: vi.fn(), status: vi.fn(), upload: vi.fn(), complete: vi.fn(),
+    }
+
+    await expect(collectAndHandoffImmutableSnapshot(
+      dependencies({ spool: local.spool, handoff, collect }),
+      attempt('89898989-8989-4989-8989-898989898989'),
+    )).rejects.toMatchObject({ code: 'capture-invalid' })
+    expect(handoff.issueGrant).not.toHaveBeenCalled()
+  })
+
   it('rejects a switched account before collecting or staging private payloads', async () => {
     const local = memorySpool()
     const issueGrant = vi.fn()
     let collectionCalls = 0
     const collect: SavedPlaceSource['collect'] = async function* () {
       collectionCalls += 1
-      yield { itemCount: 0, payload: '{"lists":[]}' }
+      yield { acquisitionKind: 'browser-network', itemCount: 0, payload: '{"lists":[]}' }
     }
     await expect(collectAndHandoffImmutableSnapshot(
       dependencies({

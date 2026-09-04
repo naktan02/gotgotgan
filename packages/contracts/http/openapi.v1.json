@@ -26593,6 +26593,32 @@
                 "minLength": 1,
                 "maxLength": 512
               },
+              "provenance": {
+                "type": "object",
+                "properties": {
+                  "acquisitionKind": {
+                    "type": "string",
+                    "enum": [
+                      "documented-api",
+                      "account-export",
+                      "structured-web",
+                      "browser-network",
+                      "browser-dom",
+                      "manual-capture"
+                    ]
+                  },
+                  "parserVersion": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  }
+                },
+                "required": [
+                  "acquisitionKind",
+                  "parserVersion"
+                ],
+                "additionalProperties": false
+              },
               "observedAt": {
                 "type": "string",
                 "format": "date-time",
@@ -26743,6 +26769,32 @@
                         "type": "string",
                         "minLength": 1,
                         "maxLength": 512
+                      },
+                      "provenance": {
+                        "type": "object",
+                        "properties": {
+                          "acquisitionKind": {
+                            "type": "string",
+                            "enum": [
+                              "documented-api",
+                              "account-export",
+                              "structured-web",
+                              "browser-network",
+                              "browser-dom",
+                              "manual-capture"
+                            ]
+                          },
+                          "parserVersion": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 120
+                          }
+                        },
+                        "required": [
+                          "acquisitionKind",
+                          "parserVersion"
+                        ],
+                        "additionalProperties": false
                       },
                       "observedAt": {
                         "type": "string",
@@ -27132,6 +27184,32 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 512
+              },
+              "provenance": {
+                "type": "object",
+                "properties": {
+                  "acquisitionKind": {
+                    "type": "string",
+                    "enum": [
+                      "documented-api",
+                      "account-export",
+                      "structured-web",
+                      "browser-network",
+                      "browser-dom",
+                      "manual-capture"
+                    ]
+                  },
+                  "parserVersion": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  }
+                },
+                "required": [
+                  "acquisitionKind",
+                  "parserVersion"
+                ],
+                "additionalProperties": false
               },
               "observedAt": {
                 "type": "string",

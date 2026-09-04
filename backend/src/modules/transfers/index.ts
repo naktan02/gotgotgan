@@ -34,6 +34,7 @@ export {
   type SavedPlaceSource,
   type SavedPlaceTarget,
   type SourceSnapshotCapture,
+  type SourceSnapshotProvenance,
   type TransferCommandResult,
   type TrustedProviderTransferObservations,
 } from './domain/model.js'

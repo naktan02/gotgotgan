@@ -5,6 +5,7 @@ import { NaverSavedPlaceSnapshotNormalizer } from '../saved-place-snapshot-norma
 describe('NAVER immutable snapshot normalizer', () => {
   it('maps the existing collector page to the provider-neutral v2 snapshot payload', () => {
     const payload = new NaverSavedPlaceSnapshotNormalizer().normalize({
+      acquisitionKind: 'browser-network',
       itemCount: 1,
       payload: JSON.stringify({
         schemaVersion: 'place-naver-saved-capture.v1', kind: 'page', nextCursor: null,
@@ -32,6 +33,7 @@ describe('NAVER immutable snapshot normalizer', () => {
   it('fails closed when the collector payload shape drifts', () => {
     const normalizer = new NaverSavedPlaceSnapshotNormalizer()
     expect(() => normalizer.normalize({
+      acquisitionKind: 'browser-network',
       itemCount: 0,
       payload: JSON.stringify({
         schemaVersion: 'place-naver-saved-capture.v1', kind: 'page',

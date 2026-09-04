@@ -95,6 +95,11 @@ export interface TransferOperationQueries {
 
 export type ConnectorManifest = Readonly<{
   manifestId: string; manifestDigest: string; sourceRevision: string
+  provenance?: Readonly<{
+    acquisitionKind: 'documented-api' | 'account-export' | 'structured-web' |
+      'browser-network' | 'browser-dom' | 'manual-capture'
+    parserVersion: string
+  }> | undefined
   observedAt: string; capturedAt: string; chunkCount: number; listCount: number
   itemCount: number; byteCount: number
 }>

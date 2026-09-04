@@ -46,6 +46,8 @@ ImportPlan과 Collection Materialization 경계는 획득 방식과 무관하며
 - 확장 미설치만으로 가져오기가 불가능하다고 표시하지 않는다. 다만 아직 검증된 production 실행
   Adapter가 없으므로 현재 capability는 계속 `source-only`/`integration-gated`다.
 - DOM/OCR 폴더나 전역 전략 framework는 실제 두 번째 구현이 생길 때 만든다.
+- provenance rollout은 migration과 이를 읽는 Backend를 먼저 배포한 뒤 Connector 기록을 활성화한다.
+  기존 Connector manifest는 계속 수용하며, 공개 SourceSnapshot v2 응답 형태는 바꾸지 않는다.
 
 ## 재검토 조건
 
