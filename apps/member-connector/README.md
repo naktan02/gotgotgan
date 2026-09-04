@@ -5,10 +5,16 @@
 Google은 별도 확장이 아니라 Provider Adapter로 추가한다. 캡처는 짧은 수명의 일회성 Place grant로만
 제출하며 Provider cookie·token·profile 경로를 서버로 보내지 않는다.
 
-현재는 provider-neutral application 경계, WebExtensions browser Adapter, NAVER Provider Adapter,
-고정 공개 Place origin capture Adapter, WXT entrypoint와 Chromium·Firefox build 검증을 source-only로
-구현했다. Web grant/capture BFF route, Backend receiver와 PostGIS ImportBatch 인계도 NAVER에 대해
-source-only로 연결했다. 실설치 배포와 로그인된 NAVER session 검증은 `integration-gated`다.
+현재는 provider-neutral application 경계, WebExtensions browser Adapter, NAVER read Provider Adapter,
+v2 immutable snapshot·승인 기반 export coordinator, WXT entrypoint와 Chromium·Firefox build 검증을
+source-only로 구현했다. Backend v2 receiver와 실행 control-plane, 회원 session 전용 grant BFF는
+존재하지만 Connector capability BFF와 v2 page bridge는 아직 조립되지 않았다. 비추출 AES-GCM key를
+주입받는 암호화 snapshot spool, durable outbound
+attempt spool, 암호화 reconciliation vault와 v2 HTTP Adapter는 source-only로 구현했지만 WebExtension
+storage만으로 재시작 가능한 안전한 key 보관을 증명하지 못했다. 또한 검증된 account fingerprint
+Adapter, 전용 Connector origin, 실제 Provider write Adapter가 없다. 따라서 확장은 제거된 v1 capture
+경로로 우회하지 않고 현재 지원 Provider를 빈 목록으로 알린다. 실설치 배포와 로그인된 NAVER session
+검증은 `integration-gated`다.
 
 전용 Playwright profile을 쓰는 기존 로그인·비식별 네트워크 관찰·NAVER 전체 저장 목록 bounded
 수집기는 진단 CLI로 남아 있다. 실관찰에서 평소 브라우저의 로그인 상태를 재사용하지 못했으므로 주
@@ -23,6 +29,24 @@ source-only로 연결했다. 실설치 배포와 로그인된 NAVER session 검�
 src/
   application/
     collect-saved-library.ts    pagination·상한·batch·checksum·receipt를 숨기는 깊은 Interface
+    import-snapshot/            v2 local seal·grant 재발급·resume·명시적 complete
+      index.ts                  외부 caller와 Adapter가 사용하는 유일한 import seam
+      workflow.ts               phase 순서만 고정하는 얇은 orchestration
+      collection.ts             Provider collect·normalize·immutable seal
+      handoff.ts                grant 검증·resume·upload·complete
+      model.ts                  runtime 입력·결과·오류·binding 검증
+      commitment.ts             UTF-8 byte·SHA-256 commitment
+      ports/                    snapshot/fingerprint/normalizer 동급 경계
+    outbound-export/            승인 기반 외부 저장을 한 Interface 뒤에 숨기는 deep module
+      index.ts                  runtime과 안정된 입력·결과 type만 공개하는 seam
+      ports/                    target/control/spool/vault 동급 경계
+      authorization.ts          approved plan·grant·receipt의 exact binding
+      attempt-journal.ts        local seal·Backend intent·보고·bounded crash recovery
+      target-list-execution.ts  새 Provider 목록 생성 phase
+      item-batch-execution.ts   승인 manifest의 add batch 실행 phase
+      reconciliation.ts        unknown outcome 관측·해결·retention 완료
+      runtime.ts                위 순서를 바꿀 수 없게 조립하는 실행 Interface
+    connector-transfer-runtime.ts  import/export deep module을 활성화하는 상위 조립
     handle-connector-command.ts Place command와 작업 lifecycle 조립
     ports/
       saved-place-source.ts
@@ -30,8 +54,10 @@ src/
       capture-submission.ts
   adapters/
     browser/webextensions/     tab·message·permission·cancel·resource close
+      transfer-storage/        versioned AEAD snapshot/attempt/vault Adapter
     providers/naver/           session 검사·folder/bookmark schema·전체 pagination
     place/capture-upload/      공개 BFF와 일회성 Connector grant만
+    place/transfer-control/    분리된 member-session/capability v2 HTTP Adapter
   entrypoints/
     extension/                 WXT가 읽는 얇은 composition entrypoint
       background.ts
@@ -45,7 +71,60 @@ tests/fixtures/                 결정적 extension build 설정
 Provider `SavedPlaceSource`가 folder/share ID, endpoint, schema와 pagination을 숨기고 browser Adapter가
 브라우저 차이를 숨긴다. Place `CaptureSubmission`은 chunk, retry, idempotency와 grant를 숨긴다.
 Stage 10의 외부 저장은 별도 `SavedPlaceTarget`을 사용하며 Import source에 optional mutation을 붙이지
-않는다. 자세한 결정은 [`../../docs/adr/0012-cross-browser-member-connector.md`](../../docs/adr/0012-cross-browser-member-connector.md)를 따른다.
+않는다. Import v2는 Provider별 normalizer 뒤의 payload를 private local spool에 immutable chunk로 먼저
+seal하고, operation·connection·Provider·계정 fingerprint·installation·manifest에 결속된 짧은 grant를
+그 다음 발급받는다. grant command는 spool identity가 아니므로 응답 유실이나 만료 후 새 command로
+재발급해 같은 manifest의 서버 prefix부터 재개할 수 있다. 서버의 명시적 complete receipt 전에는
+Source Snapshot 완료로 취급하지 않는다.
+
+계정 fingerprint Port는 raw 계정 ID를 반환하지 않고 installation private key와 domain separator로
+만든 keyed SHA-256 값만 허용한다. 현재 NAVER session Adapter가 신뢰할 수 있는 계정 identity를
+관측하지 못하므로 실제 fingerprint Adapter는 만들지 않았고 capability를 닫았다. grant token과
+execution receipt token은 JSON document나 Provider Target에 전달하지 않고
+`OutboundExecutionControl`의 별도 인자로만 넘겨 PlaceConnector Authorization header에 둔다.
+Export coordinator는 exact approved plan과 Backend one-time authorization receipt를 검증한 뒤에만
+Target command를 만들며, manifest의 `already-present` 항목은 digest에는 남기되 Provider 쓰기와
+consume 수량에서는 제외한다. runtime composition은 durable local seal, Backend intent 승인, Provider
+호출과 결과 보고 순서를 한 경계에서 고정한다. 다만 `available` target capability와 실제 transport,
+durable spool, secure vault, Backend control을 모두 제공한 Provider만 등록할 수 있다. 현재 production
+catalog는 NAVER `integration-gated`, Google·Kakao `unavailable`이며 실제 Provider write Adapter는 없다.
+자세한 결정은
+[`../../docs/adr/0012-cross-browser-member-connector.md`](../../docs/adr/0012-cross-browser-member-connector.md)를 따른다.
+
+`outbound-export/index.ts`가 이 module의 유일한 공개 Interface다. 승인, 실행 phase, journal/recovery,
+reconciliation 파일은 같은 실행 수명주기의 내부 역할이며 다른 application workflow가 직접 import하지
+않는다. 새 Provider는 이 구조를 복제하지 않고 `SavedPlaceTarget` Adapter를 추가한다. 새 실행 phase가
+생기면 기존 파일을 비대하게 만들기 전에 독립된 상태 전이와 변경 이유가 있는지 검토하고, 그렇다면
+`outbound-export/` 아래 동급 phase module로 둔다. generic `utils`·`common` 폴더나 얇은 전달 wrapper는
+만들지 않는다.
+
+Export Provider 호출 순서는 `local seal → Backend prepareAttempt recorded/replayed → local prepared
+ack → Provider command`로 고정된다. attempt UUID와 opaque reconciliation reference가 두 durable
+경계에 모두 기록되기 전에는 Provider command 자체가 노출되지 않는다. Provider 관측 결과는 Backend
+ack 뒤 `reported`가 되고, terminal 결과나 resolved reconciliation만 `completed`와 `retainUntil`을
+기록한다. unknown 결과는 `reported`에 남아 재조정 외 재실행을 허용하지 않는다. 재시작 시 bounded
+pending scan은 `sealed`와 `prepared` 두 crash point를 Provider 재호출 없이 outcome-unknown으로
+보고한다. completed 기록은 retention 전 삭제할 수 없다.
+
+실행 receipt의 write TTL은 Provider mutation과 일반 결과 보고에만 쓰고, 더 긴 reconciliation TTL은
+secure vault에서 재수화한 뒤 unknown 결과 보고·조회에만 쓴다. vault는 OS credential store 또는
+authenticated encryption을 사용하고 expiry 후 secret을 제거해야 한다. receipt token은 control-plane
+Authorization 인자로만 전달되며 spool, Target command, Provider payload, 일반 로그에 직렬화하지 않는다.
+현재 authenticated-encryption Adapter는 외부에서 안전하게 provision한 non-extractable key만 받으며
+key material을 storage에 쓰지 않는다. 새 key로 재시작하거나 ciphertext가 손상되면 복구를 시도하지
+않고 fail closed한다. 브라우저 storage에 key와 ciphertext를 함께 넣는 우회는 구현하지 않았다.
+
+HTTP Adapter도 두 채널을 섞지 않는다. 회원 session이 필요한 grant 발급은 정확한 Place BFF origin의
+고정 경로 하나만 허용하고 Connector token을 금지한다. Capture·attempt·reconciliation capability는
+Place Service Worker가 Authorization을 볼 수 있는 isolated-world BFF fetch를 사용하지 않는다. 별도
+HTTPS Connector origin과 서버가 검증할 정확한 `chrome-extension://` 또는 `moz-extension://` Origin이
+모두 주입될 때만 cookie 없는 직접 채널로 조립할 수 있다. 현재 이 origin contract와 host permission이
+없으므로 HTTP Adapter는 production background에 등록되지 않는다.
+
+`application/ports`에는 여러 workflow가 함께 사용하는 legacy/browser-neutral Port만 남긴다. Import와
+Outbound 전용 Port는 각각의 deep module 아래에 두고 외부 caller는 `index.ts`만 import한다. 운영 파일
+500줄, 폴더 직계 운영 파일 12개, `common`·`helpers`·`misc`·`utils` 폴더 금지는
+`npm run check:architecture --workspace @place/member-connector`가 검사한다.
 
 ## 확장 산출물과 브라우저 상태
 
@@ -53,10 +132,10 @@ WXT `0.21.4`와 Vite `6.4.3`을 고정했다. Chrome·Edge·Whale은 Chromium Ma
 공유하고 Firefox는 별도 Manifest V3 산출물을 만든다. Whale 전용 코드를 복제하지 않으며 browser
 감지는 Whale을 Chrome보다 먼저 판별한다. Safari는 아직 산출물이 없다.
 
-현재 manifest의 기본 권한은 `scripting`, `storage`이고 Place content bridge와 upload에는 빌드 시
-주입한 정확한 공개 origin 하나만 사용한다. Capture 제출은 그 Place origin의 열린 탭에서 isolated
-world same-origin 요청으로 수행한다. `scripting`은 이 Place 제출과 사용자가 선택 권한을 부여한
-Provider 페이지의 same-origin JSON 요청에만 사용한다. NAVER는
+현재 manifest의 기본 권한은 `scripting`, `storage`이고 Place content bridge에는 빌드 시 주입한 정확한
+공개 origin 하나만 사용한다. 아직 비활성인 v2 capability transport용 Connector origin은 manifest에
+없다. `scripting`은 기존 진단/legacy seam과 사용자가 선택 권한을 부여한 Provider 페이지의 same-origin
+JSON 요청에만 사용한다. NAVER는
 `https://pages.map.naver.com/*`를 optional host permission으로 둔다. Place에서 가져오기를 선택했을 때
 권한이 없으면 확장 소유 권한 탭을 열고, 사용자가 해당 Provider 버튼을 직접 눌렀을 때만 요청한다.
 실제 배포 산출물은 다음처럼 만든다.
@@ -169,10 +248,13 @@ CLI는 개인 필드, ID, checksum, 경로를 출력하지 않고 목록·bookma
 ## 현재 진단 상태와 중지
 
 `Ctrl+C` 또는 브라우저 종료가 진단 context 종료를 소유한다. profile과 report 디렉터리는 Git·Docker
-image·Place DB 밖에 둔다. 현재 로그인·관찰·전체 로컬 수집 코드는 `source-only`다. 제품 확장의
-capture upload는 Web BFF, Backend receiver와 PostGIS ImportBatch까지 source-only로 연결되어 있다.
+image·Place DB 밖에 둔다. 현재 로그인·관찰·전체 로컬 수집 코드는 `source-only`다. 제품 확장의 v2
+capture는 Backend receiver까지 구현됐지만 공개 Web BFF와 v2 page bridge가 없어 현재 확장 실행
+경로에는 조립되지 않았다.
 진단 CLI는 개인정보가 포함된 결과를 서버로 보내지 않고 메모리에서 폐기하는 별도 도구이므로 제출
-기능을 갖지 않는다. 이 전용 profile CLI의 로그인 성공은 더 이상 제품 완료 조건이 아니다.
+기능을 갖지 않는다. 회원 session 전용 v2 grant BFF는 존재하지만 capability token을 전달하는 공개
+BFF와 page bridge는 제공하지 않는다. 이 전용 profile CLI의 로그인 성공은 더 이상 제품 완료 조건이
+아니다.
 실제 계정 검증이나 Provider 응답이 실패하면 live acquisition은 `integration-gated`로 남는다. 관찰한
 계약을 비식별 fixture로 승인하기 전에는 내부 endpoint, selector, 직접 HTTP replay를 제품 코드에
 추가하지 않는다.

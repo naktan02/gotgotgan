@@ -11,7 +11,11 @@ async function routeSettings(page: Page, verifiedFakeAdapter = false) {
       items: ['naver', 'google', 'kakao'].map((providerKey) => ({
         providerKey, displayName: providerKey === 'naver' ? 'NAVER' : providerKey === 'google' ? 'Google' : 'Kakao',
         connections: { availability: verifiedFakeAdapter && providerKey === 'naver' ? 'available' : providerKey === 'naver' ? 'integration-gated' : 'unavailable', multipleAccounts: true, authMethods: verifiedFakeAdapter && providerKey === 'naver' ? ['oauth'] : [] },
-        importSavedPlaces: verifiedFakeAdapter && providerKey === 'naver' ? { availability: 'available' } : providerKey === 'naver' ? { availability: 'integration-gated' } : { availability: 'unavailable', reason: 'source-adapter-unavailable' },
+        importSavedPlaces: verifiedFakeAdapter && providerKey === 'naver'
+          ? { availability: 'available' }
+          : providerKey === 'naver'
+            ? { availability: 'integration-gated', reason: 'source-adapter-unavailable' }
+            : { availability: 'unavailable', reason: 'source-adapter-unavailable' },
         exportCollections: verifiedFakeAdapter && providerKey === 'naver' ? { availability: 'available' } : { availability: 'unavailable', reason: 'target-adapter-unavailable' },
       })),
     }),
@@ -72,7 +76,7 @@ test('verified fake adapter composition sends only explicitly selected places in
         schemaVersion: 'outbound-transfer.v2', transferId: command.transferId, transferRevision: 'transfer-r1',
         providerKey: 'naver', connectionId, collectionId, collectionRevision: 'collection-r1', target: command.target,
         targetObservationRevision: 'target-r1', planDigest: 'a'.repeat(64), state: 'draft', selection: command.selection,
-        itemCount: 1, preview: { availability: 'available', addCount: 1, alreadyPresentCount: 0, unresolvedCount: 0, unsupportedCount: 0, items: [{ placeId, status: 'add' }] },
+        itemCount: 1, preview: { availability: 'available', addCount: 1, alreadyPresentCount: 0, unresolvedCount: 0, unsupportedCount: 0, items: [{ placeId, status: 'add', targetProviderPlaceId: 'naver-place-sensoji' }] },
         approval: { eligible: true, reason: null }, approvalReceipt: null,
         createdAt: '2026-09-03T00:00:00.000Z', updatedAt: '2026-09-03T00:00:00.000Z',
       },

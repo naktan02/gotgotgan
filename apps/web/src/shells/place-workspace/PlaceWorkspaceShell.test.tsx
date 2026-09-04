@@ -17,6 +17,8 @@ describe('PlaceWorkspaceShell', () => {
     expect(markup).toContain('href="/settings"')
     expect(markup).toContain('aria-current="page"')
     expect(markup).toContain('href="/api/auth/oidc/start"')
+    expect(markup).toContain('href="/settings?tab=history"')
+    expect(markup).toContain('작업 알림 없음. 작업 내역 보기')
     expect(markup).toContain('aria-label="패밀리 서비스 접기"')
     expect(markup).toContain('aria-expanded="true"')
     expect(markup).not.toContain('준비 중</small>')

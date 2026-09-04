@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
 
+import { outboundExecutionPlanDigestInputV2 } from '@place/contracts/transfers'
+
 function stable(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stable)
   if (value !== null && typeof value === 'object') {
@@ -12,6 +14,18 @@ function stable(value: unknown): unknown {
 
 export function transferFingerprint(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(stable(value)), 'utf8').digest('hex')
+}
+
+/** Canonical digest shared by preview approval and execution-manifest verification. */
+export function outboundExecutionPlanDigest(manifest: Readonly<{
+  operationId: string; transferId: string; connectionId: string; providerKey: string
+  accountFingerprint: string; collectionId: string; collectionRevision: string
+  target: unknown; targetObservationRevision: string; items: readonly unknown[]
+}>): string {
+  const digestInput = outboundExecutionPlanDigestInputV2(
+    manifest as Parameters<typeof outboundExecutionPlanDigestInputV2>[0],
+  )
+  return createHash('sha256').update(digestInput, 'utf8').digest('hex')
 }
 
 function opaqueVersion(kind: string, id: string, revision: string): string {
@@ -29,6 +43,10 @@ export function planVersion(id: string, revision: string): string {
 
 export function outboundVersion(id: string, revision: string): string {
   return opaqueVersion('outbound-transfer', id, revision)
+}
+
+export function operationVersion(id: string, revision: string): string {
+  return opaqueVersion('transfer-operation', id, revision)
 }
 
 export function snapshotVersion(id: string, digest: string): string {

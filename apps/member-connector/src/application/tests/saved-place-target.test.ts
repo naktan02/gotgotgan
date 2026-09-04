@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import {
   listSavedPlaceTargetCapabilities,
   readSavedPlaceTargetCapabilities,
-} from '../saved-place-target-catalog.js'
-import type { SavedPlaceTarget } from '../ports/saved-place-target.js'
+} from '../outbound-export/index.js'
+import type { SavedPlaceTarget } from '../outbound-export/index.js'
 
 describe('SavedPlaceTarget outbound boundary', () => {
   it('keeps every unverified Provider write capability gated or unavailable', () => {
@@ -34,6 +34,9 @@ describe('SavedPlaceTarget outbound boundary', () => {
       createTargetList: async () => ({
         status: 'unsupported', capability: 'create-target-list',
       }),
+      reconcileCreateTargetList: async () => ({
+        status: 'unsupported', capability: 'reconcile-create-target-list',
+      }),
       preflight: async () => ({
         status: 'rate-limited', retryAfterMilliseconds: 5_000,
       }),
@@ -49,11 +52,22 @@ describe('SavedPlaceTarget outbound boundary', () => {
     const signal = new AbortController().signal
     const authorizedOperationId = crypto.randomUUID()
     const authorization = {
+      schemaVersion: 'outbound-execution-authorization-receipt.v2' as const,
+      status: 'consumed' as const,
+      grantId: '11111111-1111-4111-8111-111111111111',
       receiptReference: 'backend-receipt:opaque',
       operationId: authorizedOperationId,
+      transferId: '22222222-2222-4222-8222-222222222222',
+      connectionId: '33333333-3333-4333-8333-333333333333',
       providerKey: 'naver' as const,
+      accountFingerprint: 'a'.repeat(64),
+      installationId: '44444444-4444-4444-8444-444444444444',
       planDigest: 'b'.repeat(64),
+      batchSize: 100,
+      authorizedAt: '2026-09-03T00:00:00.000Z',
       expiresAt: '2026-09-03T00:05:00.000Z',
+      reconciliationExpiresAt: '2026-09-03T00:10:00.000Z',
+      limits: { maximumItems: 100, maximumBytes: 10_000, maximumBatches: 10 },
     }
 
     await expect(target.listTargetLists({ signal })).resolves.toEqual({
@@ -61,7 +75,12 @@ describe('SavedPlaceTarget outbound boundary', () => {
     })
     await expect(target.createTargetList({
       commandId: crypto.randomUUID(), requestFingerprint: 'a'.repeat(64),
-      authorization, name: '도쿄', signal,
+      authorization,
+      executionContext: {
+        attemptId: crypto.randomUUID(),
+        reconciliationReference: 'local-create-attempt:opaque',
+      },
+      name: '도쿄', signal,
     })).resolves.toEqual({ status: 'unsupported', capability: 'create-target-list' })
     await expect(target.preflight({
       planDigest: 'b'.repeat(64), targetListId: 'target-list', places: [], signal,
@@ -71,6 +90,10 @@ describe('SavedPlaceTarget outbound boundary', () => {
       requestFingerprint: 'c'.repeat(64),
       planDigest: 'b'.repeat(64),
       authorization,
+      executionContext: {
+        attemptId: crypto.randomUUID(),
+        reconciliationReference: 'local-add-attempt:opaque',
+      },
       preflightReference: 'preflight:opaque',
       targetListId: 'target-list',
       items: [],

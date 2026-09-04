@@ -202,33 +202,17 @@ test('reviews a resumable NAVER import without exposing provider account materia
   expect(JSON.stringify(reviewBodies)).not.toMatch(/token|profile|cookie|secret/i)
 })
 
-test('detects a fake Whale connector and starts the browser-session import flow', async ({ page }) => {
-  const fixture = await installImportFixture(page, false)
-  fixture.complete()
+test('detects a fake Whale connector but keeps the retired v1 transfer disabled', async ({ page }) => {
+  await installImportFixture(page, false)
   await installFakeConnector(page)
-  await page.route('**/api/connector/grants', async (route) => {
-    const request = route.request().postDataJSON()
-    return json(route, {
-      schemaVersion: 'place-connector-grant.v1', operationId,
-      providerKey: 'naver', operation: 'import-saved-library',
-      idempotencyKey: request.idempotencyKey,
-      token: 'opaque.connector.grant.token.that.is.long.enough',
-      placeOrigin: new URL(route.request().url()).origin,
-      expiresAt: '2026-08-26T12:00:00.000Z',
-      limits: {
-        maximumItems: 100_000, maximumBytes: 134_217_728,
-        maximumBatches: 1_000, maximumBatchBytes: 4_194_304,
-      },
-    })
-  })
   await page.goto('/imports')
 
-  await expect(page.getByText('확장 프로그램 연결됨 · NAVER 사용 가능')).toBeVisible()
+  await expect(page.getByText(
+    '확장 프로그램 연결됨 · 안전한 실행 경계 검증 전까지 가져오기는 비활성화됩니다.',
+  )).toBeVisible()
   await expect(page.getByText('whale', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: '이 브라우저에서 NAVER 가져오기' }).click()
-  await expect(page.getByText('가져오기가 완료되었습니다.')).toBeVisible()
-  await expect(page.getByText('후쿠오카 여행')).toBeVisible()
-  await expect(page.getByText('가보고 싶은 곳')).toBeVisible()
+  await expect(page.getByRole('button', { name: '이 브라우저에서 NAVER 가져오기' }))
+    .toHaveCount(0)
 })
 
 test('offers the OIDC start and POST logout boundaries without exposing an English API error', async ({ page }) => {

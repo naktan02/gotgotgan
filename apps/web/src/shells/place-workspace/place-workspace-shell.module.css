@@ -82,15 +82,17 @@
   border-radius: 10px;
   font-size: 13px;
   font-weight: 650;
+  text-decoration: none;
 }
 
 .modeDot { width: 8px; height: 8px; border-radius: 50%; background: #2aaa68; }
-.iconButton { display: grid; width: 44px; place-items: center; padding: 0; border-color: transparent; border-radius: 50%; }
+.modeDot[data-attention="true"] { background: #e38a12; }
+.iconButton { position: relative; display: grid; width: 44px; place-items: center; padding: 0; border-color: transparent; border-radius: 50%; text-decoration: none; }
+.notificationBadge { position: absolute; top: 2px; right: 0; display: grid; min-width: 18px; height: 18px; place-items: center; padding: 0 4px; border: 2px solid #fff; border-radius: 999px; background: #df4037; color: #fff; font-size: 9px; font-weight: 800; line-height: 1; }
 .profileLink { display: inline-flex; align-items: center; gap: 8px; border-color: transparent; text-decoration: none; }
 .profileLink > span { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: #edf3fe; color: #1768e5; font-size: 12px; font-weight: 800; }
 .profileLink small { color: #555d69; font-size: 12px; font-weight: 700; }
 .loginLink { display: inline-flex; align-items: center; padding: 0 12px; border-radius: 9px; color: #1768e5; font-size: 13px; font-weight: 750; text-decoration: none; }
-.iconButton:disabled { color: #a7afbb; cursor: not-allowed; }
 
 .menuButton {
   display: none;

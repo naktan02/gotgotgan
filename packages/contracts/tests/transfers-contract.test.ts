@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  connectorImportGrantResultV2Schema,
+  outboundExecutionReconciliationV2Schema,
+  outboundExecutionGrantResultV2Schema,
   outboundPlaceSelectionV2Schema,
   providerCapabilityListV2Schema,
   providerConnectionV2Schema,
@@ -23,6 +26,38 @@ describe('provider transfer contracts', () => {
     }).success).toBe(true)
   })
 
+  it('requires one capability per provider and coherent availability details', () => {
+    const capability = (providerKey: 'naver' | 'google' | 'kakao') => ({
+      providerKey, displayName: providerKey,
+      connections: { availability: 'unavailable', multipleAccounts: true, authMethods: [] },
+      importSavedPlaces: { availability: 'unavailable', reason: 'source-adapter-unavailable' },
+      exportCollections: { availability: 'unavailable', reason: 'target-adapter-unavailable' },
+    })
+    expect(providerCapabilityListV2Schema.safeParse({
+      schemaVersion: 'provider-capability-list.v2',
+      items: [capability('naver'), capability('naver'), capability('kakao')],
+    }).success).toBe(false)
+    expect(providerCapabilityListV2Schema.safeParse({
+      schemaVersion: 'provider-capability-list.v2',
+      items: [
+        { ...capability('naver'), connections: {
+          availability: 'available', multipleAccounts: true,
+          authMethods: ['manual-file', 'manual-file'],
+        } },
+        capability('google'), capability('kakao'),
+      ],
+    }).success).toBe(false)
+    expect(providerCapabilityListV2Schema.safeParse({
+      schemaVersion: 'provider-capability-list.v2',
+      items: [
+        { ...capability('naver'), importSavedPlaces: {
+          availability: 'available', reason: 'source-adapter-unavailable',
+        } },
+        capability('google'), capability('kakao'),
+      ],
+    }).success).toBe(false)
+  })
+
   it('never accepts connection credentials in a projection', () => {
     expect(providerConnectionV2Schema.safeParse({
       schemaVersion: 'provider-connection.v2', connectionId: id, providerKey: 'naver',
@@ -38,6 +73,40 @@ describe('provider transfer contracts', () => {
     expect(outboundPlaceSelectionV2Schema.safeParse({
       kind: 'places', placeIds: [id, id],
     }).success).toBe(false)
+  })
+
+  it('does not claim replayable plaintext connector grants', () => {
+    const rejectedGrant = {
+      schemaVersion: 'connector-import-grant-result.v2', outcome: 'accepted',
+      commandId: id, status: 'replayed', grant: {},
+    }
+    expect(connectorImportGrantResultV2Schema.safeParse(rejectedGrant).success).toBe(false)
+    expect(outboundExecutionGrantResultV2Schema.safeParse({
+      ...rejectedGrant, schemaVersion: 'outbound-execution-grant-result.v2',
+    }).success).toBe(false)
+  })
+
+  it('rejects partial target-list reconciliation while preserving partial item reconciliation', () => {
+    const reconciliation = {
+      schemaVersion: 'outbound-execution-reconciliation.v2',
+      reconciliationId: id,
+      operationId: id,
+      receiptReference: id,
+      attemptId: id,
+      targetListId: 'provider-list',
+      reconciliationReference: 'provider-observation',
+      outcome: 'resolved-partial',
+      items: [],
+    }
+
+    expect(outboundExecutionReconciliationV2Schema.safeParse({
+      ...reconciliation,
+      phase: 'create-target-list',
+    }).success).toBe(false)
+    expect(outboundExecutionReconciliationV2Schema.safeParse({
+      ...reconciliation,
+      phase: 'add-items',
+    }).success).toBe(true)
   })
 
   it('bounds an immutable snapshot across all lists', () => {

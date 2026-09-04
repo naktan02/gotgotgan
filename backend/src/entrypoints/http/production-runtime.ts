@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 
 import { Pool } from 'pg'
 
@@ -15,12 +15,9 @@ import {
 } from '../../modules/access/index.js'
 import {
   InvalidLibraryCursorError,
-  asOpaqueVersion,
-  normalizeImportedCollectionMaterialization,
   PostgresCollectionLifecycle,
   PostgresCollectionTransferReader,
   PostgresCollectionOrder,
-  PostgresImportedCollectionMaterializer,
   PostgresLibraryQueries,
   PostgresLibraryStore,
   PostgresPersonalLibraryWorkspace,
@@ -31,8 +28,6 @@ import {
 } from '../../modules/library/index.js'
 import {
   materializeSuggestedPlace,
-  createConnectorImportReceiver,
-  EncryptedFileCaptureArtifactStore,
   PostgresConnectorImports,
   PostgresImportManagement,
   PostgresImportQueries,
@@ -41,16 +36,12 @@ import {
   PostgresIngestionStore,
   recordSuggestionObservation,
   type CanonicalPlaceMaterializationPort,
-  type ConnectorCaptureParser,
 } from '../../modules/ingestion/index.js'
 import {
   applyCanonicalResolution,
   createPlaceDetailReader,
   PostgresCanonicalResolutionStore,
 } from '../../modules/places/index.js'
-import {
-  parseNaverSavedPlaceCapture,
-} from '../../modules/providers/index.js'
 import {
   InvalidPublicProfileCursorError,
   PostgresPublicProfileAppealStore,
@@ -70,8 +61,10 @@ import {
 import { PostgresAreaCatalog } from '../../modules/areas/index.js'
 import { PostgresTaxonomyStore } from '../../modules/taxonomy/index.js'
 import {
+  PostgresConnectorCaptures,
+  PostgresOutboundExecutions,
   PostgresProviderTransfers,
-  type ImportedCollectionMaterializerPort,
+  PostgresTransferOperations,
 } from '../../modules/transfers/index.js'
 import { PostgresVisitQueries, PostgresVisitStore } from '../../modules/visits/index.js'
 import { PostgresWritingQueries, PostgresWritingStore } from '../../modules/writing/index.js'
@@ -287,25 +280,8 @@ export async function createProductionHttpRuntime(
     })
     const taxonomyStore = new PostgresTaxonomyStore(pool)
     const areaCatalog = new PostgresAreaCatalog(pool)
-    const importedCollectionMaterializer = new PostgresImportedCollectionMaterializer(pool)
-    const transferMaterializer: ImportedCollectionMaterializerPort = {
-      materialize: (input) => importedCollectionMaterializer.materialize(
-        normalizeImportedCollectionMaterialization({
-          context: input.context,
-          source: input.source,
-          target: input.target.kind === 'new'
-            ? input.target
-            : { ...input.target, expectedVersion: asOpaqueVersion(input.target.expectedVersion) },
-          ...(input.expectedBindingVersion === undefined ? {} : {
-            expectedBindingVersion: asOpaqueVersion(input.expectedBindingVersion),
-          }),
-          items: input.items,
-        }),
-      ),
-    }
     const providerTransfers = new PostgresProviderTransfers({
       pool,
-      materializer: transferMaterializer,
       collections: new PostgresCollectionTransferReader(pool),
       // Provider-specific transfer adapters are configured independently. An empty map keeps
       // production capability responses truthful until an approved integration is composed.
@@ -314,28 +290,20 @@ export async function createProductionHttpRuntime(
       targets: [],
       now,
     })
-    const connector = config.connector === undefined
-      ? undefined
-      : createConnectorImportReceiver({
-          store: connectorImports,
-          artifacts: new EncryptedFileCaptureArtifactStore({
-            ...config.connector.artifacts,
-            now,
-          }),
-          parsers: [{
-            providerKey: 'naver',
-            parserVersion: 'naver-saved-place.v1',
-            acquisitionKind: 'browser-network',
-            parse: (input) => {
-              const parsed = parseNaverSavedPlaceCapture(input)
-              return parsed.kind === 'page' ? parsed : { kind: 'rejected' as const }
-            },
-          } satisfies ConnectorCaptureParser],
-          config: config.connector,
-          nextId: randomUUID,
-          nextToken: () => randomBytes(32).toString('base64url'),
-          now,
-        })
+    const transferOperations = new PostgresTransferOperations(pool, now)
+    const connectorTransfers = new PostgresConnectorCaptures(pool, {
+      grantTtlMilliseconds: 5 * 60 * 1_000,
+      maximumChunkBytes: 4 * 1_024 * 1_024,
+      now,
+    })
+    const outboundExecution = new PostgresOutboundExecutions(pool, transferOperations, {
+      grantTtlMilliseconds: 5 * 60 * 1_000,
+      receiptTtlMilliseconds: 60 * 60 * 1_000,
+      reconciliationTtlMilliseconds: 24 * 60 * 60 * 1_000,
+      maximumBytes: 128 * 1_024 * 1_024,
+      maximumBatches: 1_000,
+      now,
+    })
     const application = buildHttpApplication({
       access: {
         principalVerifier,
@@ -368,14 +336,6 @@ export async function createProductionHttpRuntime(
           exchange: new PostgresPublishedCollectionExchange(pool),
         },
       },
-      ...(connector === undefined ? {} : {
-        connector: {
-          authorizer: productAuthorizer,
-          receiver: connector,
-          maximumCaptureRequestBytes:
-            config.connector!.limits.maximumBatchBytes * 2 + 65_536,
-        },
-      }),
       imports: {
         authorizer: productAuthorizer,
         requestStore: importQueue,
@@ -439,6 +399,19 @@ export async function createProductionHttpRuntime(
       transfers: {
         authorizer: productAuthorizer,
         transfers: providerTransfers,
+      },
+      transferOperations: {
+        authorizer: productAuthorizer,
+        operations: transferOperations,
+      },
+      connectorTransfers: {
+        authorizer: productAuthorizer,
+        receiver: connectorTransfers,
+        maximumCaptureRequestBytes: 4 * 1_024 * 1_024 + 65_536,
+      },
+      outboundExecution: {
+        authorizer: productAuthorizer,
+        control: outboundExecution,
       },
       visits: {
         authorizer: productAuthorizer,

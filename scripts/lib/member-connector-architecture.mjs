@@ -1,6 +1,11 @@
 import { readFile, readdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 
+const allowedWorkspaceContracts = new Set([
+  '@place/contracts/connector',
+  '@place/contracts/transfers',
+])
+
 const importPattern = /(?:from\s+|import\s*(?:\(\s*)?)['"]([^'"]+)['"]/g
 
 async function sourceFiles(directory) {
@@ -43,6 +48,14 @@ function layerOf(file) {
     : undefined
 }
 
+function isProductionSource(file) {
+  return !file.includes('/tests/') && !file.endsWith('.test.ts') && !file.endsWith('.d.ts')
+}
+
+function lineCount(source) {
+  return source === '' ? 0 : source.split(/\r?\n/).length
+}
+
 function findCycles(edges) {
   const cycles = []
   const visited = new Set()
@@ -73,6 +86,7 @@ export async function inspectMemberConnectorArchitecture(sourceRoot) {
   const knownFiles = new Set(files.map((file) => path.resolve(file)))
   const violations = []
   const edges = new Map()
+  const directProductionFiles = new Map()
 
   for (const file of files) {
     const importer = relative(root, file)
@@ -80,9 +94,17 @@ export async function inspectMemberConnectorArchitecture(sourceRoot) {
     const targets = []
     const source = await readFile(file, 'utf8')
 
+    if (isProductionSource(importer)) {
+      if (lineCount(source) > 500) {
+        violations.push(`${importer}: production source exceeds the 500-line layout review gate`)
+      }
+      const directory = path.posix.dirname(importer)
+      directProductionFiles.set(directory, (directProductionFiles.get(directory) ?? 0) + 1)
+    }
+
     for (const match of source.matchAll(importPattern)) {
       const specifier = match[1]
-      if (specifier.startsWith('@place/') && specifier !== '@place/contracts/connector') {
+      if (specifier.startsWith('@place/') && !allowedWorkspaceContracts.has(specifier)) {
         violations.push(`${importer}: member connector cannot import another Place workspace package`)
         continue
       }
@@ -101,6 +123,14 @@ export async function inspectMemberConnectorArchitecture(sourceRoot) {
       targets.push(target)
 
       if (
+        !importer.startsWith('application/outbound-export/') &&
+        target.startsWith('application/outbound-export/') &&
+        target !== 'application/outbound-export/index.ts'
+      ) {
+        violations.push(`${importer}: outbound-export callers must use its public index interface`)
+      }
+
+      if (
         importerLayer === 'domain' &&
         targetLayer !== 'domain'
       ) {
@@ -117,6 +147,14 @@ export async function inspectMemberConnectorArchitecture(sourceRoot) {
       }
     }
     edges.set(importer, targets)
+  }
+
+  for (const [directory, count] of directProductionFiles) {
+    if (count > 12) {
+      violations.push(
+        `${directory}: ${count} direct production sources exceed the 12-file layout review gate`,
+      )
+    }
   }
 
   for (const cycle of findCycles(edges)) {

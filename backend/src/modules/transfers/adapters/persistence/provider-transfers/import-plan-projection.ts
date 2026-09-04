@@ -1,0 +1,160 @@
+import type { PoolClient } from 'pg'
+
+import { planVersion, snapshotVersion } from '../../../application/identity.js'
+import type { ImportPlanV2 } from '../../../domain/model.js'
+import {
+  ProviderTransferContext,
+  type ProviderKey,
+} from './provider-transfer-context.js'
+
+export class ImportPlanProjection {
+  constructor(private readonly context: ProviderTransferContext) {}
+
+  async get(memberId: string, planId: string): Promise<ImportPlanV2 | undefined> {
+    const client = await this.context.pool.connect()
+    try {
+      return await this.getWithClient(client, memberId, planId)
+    } finally { client.release() }
+  }
+
+  async getWithClient(
+    client: Pick<PoolClient, 'query'>,
+    memberId: string,
+    planId: string,
+  ): Promise<ImportPlanV2 | undefined> {
+    const plan = (await client.query<{
+      id: string
+      revision: string
+      state: ImportPlanV2['state']
+      blocked_reason: string | null
+      snapshot_id: string
+      snapshot_digest: string
+      provider_key: ProviderKey
+      connection_id: string
+      created_at: Date
+      updated_at: Date
+    }>(
+      `SELECT plan.id, plan.revision::text, plan.state, plan.blocked_reason,
+              plan.snapshot_id, plan.snapshot_digest, snapshot.provider_key,
+              snapshot.connection_id, plan.created_at, plan.updated_at
+       FROM transfers.import_plans AS plan
+       JOIN transfers.source_snapshots AS snapshot ON snapshot.id = plan.snapshot_id
+       WHERE plan.id = $1::uuid AND plan.owner_membership_id = $2::uuid`,
+      [planId, memberId],
+    )).rows[0]
+    if (plan === undefined) return undefined
+    const mappings = await client.query<{
+      source_list_id: string
+      observed_name: string
+      source_position: number
+      target_kind: 'new' | 'existing'
+      target_collection_id: string
+      target_name: string | null
+      expected_collection_version: string | null
+      materialization_state: 'pending' | 'applied' | 'rejected'
+      collection_version: string | null
+      rejection_code: string | null
+    }>(
+      `SELECT mapping.source_list_id, list.observed_name, list.source_position,
+              mapping.target_kind, mapping.target_collection_id, mapping.target_name,
+              mapping.expected_collection_version, mapping.materialization_state,
+              mapping.collection_version, mapping.rejection_code
+       FROM transfers.import_plan_mappings AS mapping
+       JOIN transfers.source_snapshot_lists AS list
+         ON list.snapshot_id = $2::uuid AND list.source_list_id = mapping.source_list_id
+       WHERE mapping.plan_id = $1::uuid
+       ORDER BY list.source_position, list.source_list_id`,
+      [planId, plan.snapshot_id],
+    )
+    const projectedMappings: ImportPlanV2['mappings'][number][] = []
+    for (const mapping of mappings.rows) {
+      const items = await client.query<{
+        source_item_id: string
+        provider_place_id: string | null
+        observed_name: string
+        observed_address: string | null
+        resolved_place_id: string | null
+        preview_status: 'add' | 'already-present' | 'unresolved' | 'skipped'
+        decision_kind: 'snapshot-match' | 'link' | 'skip' | 'none'
+      }>(
+        `SELECT planned.source_item_id, snapshot_item.provider_place_id,
+                snapshot_item.observed_name, snapshot_item.observed_address,
+                planned.resolved_place_id, planned.preview_status, planned.decision_kind
+         FROM transfers.import_plan_items AS planned
+         JOIN transfers.source_snapshot_items AS snapshot_item
+           ON snapshot_item.snapshot_id = $3::uuid
+          AND snapshot_item.source_list_id = planned.source_list_id
+          AND snapshot_item.source_item_id = planned.source_item_id
+         WHERE planned.plan_id = $1::uuid AND planned.source_list_id = $2
+         ORDER BY snapshot_item.source_position, planned.source_item_id`,
+        [planId, mapping.source_list_id, plan.snapshot_id],
+      )
+      const counts = (status: string) =>
+        items.rows.filter((item) => item.preview_status === status).length
+      projectedMappings.push({
+        sourceListId: mapping.source_list_id,
+        observedName: mapping.observed_name,
+        sourcePosition: mapping.source_position,
+        target: mapping.target_kind === 'new'
+          ? {
+              kind: 'new',
+              collectionId: mapping.target_collection_id,
+              name: mapping.target_name!,
+            }
+          : {
+              kind: 'existing',
+              collectionId: mapping.target_collection_id,
+              expectedCollectionRevision: mapping.expected_collection_version!,
+            },
+        itemCount: items.rows.length,
+        unresolvedItemCount: counts('unresolved'),
+        preview: {
+          addCount: counts('add'),
+          alreadyPresentCount: counts('already-present'),
+          unresolvedCount: counts('unresolved'),
+          skippedCount: counts('skipped'),
+          items: items.rows.map((item) => ({
+            sourceItemId: item.source_item_id,
+            providerPlaceId: item.provider_place_id,
+            observedName: item.observed_name,
+            observedAddress: item.observed_address,
+            placeId: item.resolved_place_id,
+            status: item.preview_status,
+            decision: item.decision_kind,
+          })),
+        },
+        materialization: {
+          state: mapping.materialization_state,
+          collectionRevision: mapping.collection_version,
+          rejectionCode: mapping.rejection_code,
+        },
+      })
+    }
+    const unresolved = projectedMappings.reduce(
+      (sum, mapping) => sum + mapping.unresolvedItemCount,
+      0,
+    )
+    const decided = plan.state !== 'draft'
+    return {
+      schemaVersion: 'import-plan.v2',
+      planId: plan.id,
+      planRevision: planVersion(plan.id, plan.revision),
+      snapshotId: plan.snapshot_id,
+      snapshotVersion: snapshotVersion(plan.snapshot_id, plan.snapshot_digest),
+      providerKey: plan.provider_key,
+      connectionId: plan.connection_id,
+      state: plan.state,
+      approval: {
+        eligible: !decided && unresolved === 0,
+        reason: decided
+          ? plan.blocked_reason === 'materialization-rejected'
+            ? 'materialization-rejected'
+            : 'already-decided'
+          : unresolved > 0 ? 'unresolved-places' : null,
+      },
+      mappings: projectedMappings,
+      createdAt: plan.created_at.toISOString(),
+      updatedAt: plan.updated_at.toISOString(),
+    }
+  }
+}

@@ -61,6 +61,9 @@ export type SourceSnapshot = Readonly<{
   providerKey: TransferProviderKey
   connectionId: string
   capturedAt: string
+  totalListCount?: number
+  totalItemCount?: number
+  hasUnloadedLists?: boolean
   lists: readonly Readonly<{
     sourceListId: string
     name: string

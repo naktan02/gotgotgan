@@ -10,8 +10,9 @@
     "typecheck": "tsc --noEmit && npm run typecheck:extension",
     "typecheck:extension": "node scripts/prepare-extension.mjs && tsc --noEmit -p tsconfig.extension.json",
     "test": "vitest run",
+    "check:architecture": "node scripts/verify-module-layout.mjs",
     "check:extension": "node scripts/verify-extension-builds.mjs",
-    "check": "npm run typecheck && npm run test && npm run build && node dist/entrypoints/cli/main.js --check && npm run check:extension",
+    "check": "npm run check:architecture && npm run typecheck && npm run test && npm run build && node dist/entrypoints/cli/main.js --check && npm run check:extension",
     "login:naver": "npm run build && node dist/entrypoints/cli/main.js --login-naver",
     "observe:naver": "npm run build && node dist/entrypoints/cli/main.js --observe-naver",
     "collect:naver": "npm run build && node dist/entrypoints/cli/main.js --collect-naver"

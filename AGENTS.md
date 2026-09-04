@@ -18,6 +18,9 @@ For product/frontend work also read `apps/web/DESIGN.md`. For a decision already
 pre-implementation record, read `../plans/place-platform-stage-0-decision-record.md` and revalidate
 its evidence before changing it.
 
+Before adding, moving, or splitting source files, read `docs/architecture/module-layout.md`. Its
+homogeneous-sibling and deep-module checks are completion criteria for structural changes.
+
 ## Ownership and dependency rules
 
 - Place owns canonical places, source observations, personal libraries, visits, writing, sharing,

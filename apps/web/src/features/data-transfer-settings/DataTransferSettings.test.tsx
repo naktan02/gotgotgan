@@ -9,6 +9,7 @@ const asyncNoop = async () => undefined
 const collectionId = '01992d20-0000-7000-8000-000000000001'
 const connectionId = '01992d20-0000-7000-8000-000000000002'
 const placeId = '01992d20-0000-7000-8000-000000000003'
+const historyPanel = <section>서버 작업 내역</section>
 
 function workflow(overrides: Partial<DataTransferSettingsWorkflow> = {}) {
   const capability = (providerKey: 'naver' | 'google' | 'kakao', connectionState: 'available' | 'integration-gated' | 'unavailable') => ({
@@ -51,7 +52,7 @@ function workflow(overrides: Partial<DataTransferSettingsWorkflow> = {}) {
 
 describe('Data transfer settings view', () => {
   it('keeps the six settings tabs and truthful independent provider capability cards', () => {
-    const markup = renderToStaticMarkup(<DataTransferSettingsView workflow={workflow()} />)
+    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} workflow={workflow()} />)
     expect(markup).toContain('외부 서비스 연결')
     expect(markup).toContain('데이터 가져오기')
     expect(markup).toContain('데이터 내보내기')
@@ -63,7 +64,7 @@ describe('Data transfer settings view', () => {
   })
 
   it('renders observed import evidence and blocks unsafe raw identity links', () => {
-    const markup = renderToStaticMarkup(<DataTransferSettingsView workflow={workflow({
+    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} workflow={workflow({
       tab: 'import',
       snapshot: {
         snapshotId: 's1', snapshotRevision: 'sr1', providerKey: 'naver', connectionId,
@@ -85,7 +86,7 @@ describe('Data transfer settings view', () => {
   })
 
   it('keeps a blocked export non-approvable and states private-data exclusions', () => {
-    const markup = renderToStaticMarkup(<DataTransferSettingsView workflow={workflow({
+    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} workflow={workflow({
       tab: 'export',
       exportPreview: {
         transferId: 't1', transferRevision: 'tr1', state: 'blocked', providerKey: 'naver', collectionId,
@@ -97,5 +98,21 @@ describe('Data transfer settings view', () => {
     expect(markup).toContain('대상 서비스의 내보내기 어댑터가 준비되지 않았습니다')
     expect(markup).toContain('disabled=""')
     expect(markup).toContain('개인 메모·방문 기록·개인 사진·개인 평점')
+  })
+
+  it('does not pretend a truncated large snapshot can be fully approved', () => {
+    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} workflow={workflow({
+      tab: 'import',
+      snapshot: {
+        snapshotId: 's-large', snapshotRevision: 'sr-large', providerKey: 'naver', connectionId,
+        capturedAt: '2026-09-03T00:00:00.000Z', totalListCount: 72, totalItemCount: 12_300,
+        hasUnloadedLists: true,
+        lists: [{ sourceListId: 'source-list', name: '먼저 불러온 목록', itemCount: 500, unresolvedItemCount: 0 }],
+      },
+      mappings: [{ sourceListId: 'source-list', selected: true, target: { kind: 'new', collectionId, name: '먼저 불러온 목록' } }],
+    })} />)
+    expect(markup).toContain('1 / 72개 목록')
+    expect(markup).toContain('일부 목록만으로 가져오기를 승인할 수 없습니다')
+    expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>매칭 미리보기<\/button>/)
   })
 })

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 
 import type {
   CapabilityState,
@@ -289,11 +289,16 @@ function ImportTab({ workflow }: Readonly<{ workflow: DataTransferSettingsWorkfl
           <button className={styles.secondaryButton} disabled={!available || workflow.importConnectionId === '' || workflow.importState.kind === 'working'} onClick={() => void workflow.acquireSnapshot()} type="button">
             저장된 스냅샷 불러오기
           </button>
+          <button aria-describedby="capture-start-help" className={styles.secondaryButton} disabled type="button">
+            새 수집 시작
+          </button>
         </div>
+        <p className={styles.notice} id="capture-start-help">새 수집은 검증된 Connector가 manifest를 만든 뒤 시작합니다. Web에서는 수집 작업을 가장하지 않고, 생성된 작업과 저장된 스냅샷만 확인합니다.</p>
         <ActionFeedback state={workflow.importState} />
 
         {workflow.snapshot !== undefined && <section className={styles.subsection} aria-labelledby="source-lists-title">
-          <header className={styles.subsectionHeader}><h4 id="source-lists-title">외부 목록과 목적지</h4><span>{formatDate(workflow.snapshot.capturedAt)} 관찰</span></header>
+          <header className={styles.subsectionHeader}><h4 id="source-lists-title">외부 목록과 목적지</h4><span>{workflow.snapshot.lists.length.toLocaleString('ko-KR')} / {(workflow.snapshot.totalListCount ?? workflow.snapshot.lists.length).toLocaleString('ko-KR')}개 목록 · {formatDate(workflow.snapshot.capturedAt)} 관찰</span></header>
+          {workflow.snapshot.hasUnloadedLists === true && <p className={styles.blocked} role="alert">이 스냅샷에는 현재 화면에서 불러오지 못한 목록이 있습니다. 목록 페이지 조회 계약이 연결되기 전에는 일부 목록만으로 가져오기를 승인할 수 없습니다.</p>}
           <ul className={styles.mappingList}>{workflow.snapshot.lists.map((list) => {
             const mapping = workflow.mappings.find((item) => item.sourceListId === list.sourceListId)
             if (mapping === undefined) return null
@@ -315,7 +320,7 @@ function ImportTab({ workflow }: Readonly<{ workflow: DataTransferSettingsWorkfl
                 })} value={mapping.target.collectionId}>{workflow.overview?.collections.map((collection) => <option key={collection.collectionId} value={collection.collectionId}>{collection.name}</option>)}</select></label>}
             </li>
           })}</ul>
-          <div className={styles.buttonRow}><button className={styles.primaryButton} disabled={workflow.importState.kind === 'working'} onClick={() => void workflow.previewImport()} type="button">매칭 미리보기</button></div>
+          <div className={styles.buttonRow}><button className={styles.primaryButton} disabled={workflow.importState.kind === 'working' || workflow.snapshot.hasUnloadedLists === true} onClick={() => void workflow.previewImport()} type="button">매칭 미리보기</button></div>
         </section>}
 
         {workflow.importPreview !== undefined && <section className={styles.subsection} aria-labelledby="import-preview-title">
@@ -442,14 +447,13 @@ function ExportTab({ workflow }: Readonly<{ workflow: DataTransferSettingsWorkfl
   </>
 }
 
-function SimpleTab({ tab }: Readonly<{ tab: Extract<SettingsTab, 'account' | 'history' | 'profile'> }>) {
+function SimpleTab({ tab }: Readonly<{ tab: Extract<SettingsTab, 'account' | 'profile'> }>) {
   const content = {
     account: { title: '계정', description: '로그인과 기본 계정 정보는 기존 계정 화면에서 관리합니다.', link: '/profile', action: '계정 정보 보기' },
-    history: { title: '작업 내역', description: '가져오기·내보내기는 서비스별로 독립 실행되며, Stage 10에서 진행·완료·실패·재시도 화면을 연결합니다.', link: '/settings?tab=history', action: '현재 위치 유지' },
     profile: { title: '공개 프로필', description: '공개 목록의 작성자 이름, 소개와 공개 범위는 프로필 화면에서 관리합니다.', link: '/profile', action: '공개 프로필 관리' },
   }[tab]
   return <><SectionHeading title={content.title} description={content.description} /><div className={styles.accountGrid}>
-    <section className={styles.panel}><h3>{tab === 'history' ? '작업 상태 화면 준비 중' : content.title}</h3><p>{content.description}</p><Link href={content.link}>{content.action}</Link></section>
+    <section className={styles.panel}><h3>{content.title}</h3><p>{content.description}</p><Link href={content.link}>{content.action}</Link></section>
     {tab === 'account' && <section className={styles.panel}><h3>로그인 보안</h3><p>외부 서비스 연결과 곳곳간 로그인은 별도입니다. 계정 연결을 해제해도 곳곳간 계정은 삭제되지 않습니다.</p><Link href="/api/auth/logout">로그아웃</Link></section>}
   </div></>
 }
@@ -461,14 +465,17 @@ function LoadState({ workflow }: Readonly<{ workflow: DataTransferSettingsWorkfl
   return <section className={styles.statePanel}><strong>설정 서비스를 사용할 수 없습니다.</strong><p>연결 상태를 확인한 뒤 다시 시도해 주세요.</p><button onClick={() => void workflow.retry()} type="button">다시 시도</button></section>
 }
 
-export function DataTransferSettingsView({ workflow }: Readonly<{ workflow: DataTransferSettingsWorkflow }>) {
+export function DataTransferSettingsView({ historyPanel, workflow }: Readonly<{
+  historyPanel: ReactNode
+  workflow: DataTransferSettingsWorkflow
+}>) {
   return <section className={styles.workspace} aria-labelledby="settings-title">
     <header className={styles.header}><p className={styles.eyebrow}>SETTINGS</p><h1 id="settings-title">설정</h1><p>계정과 데이터, 외부 서비스 연동을 관리합니다.</p></header>
     <nav className={styles.tabs} aria-label="설정 항목" role="tablist">
       {tabs.map((item) => <button aria-controls={`settings-panel-${item.key}`} aria-selected={workflow.tab === item.key} className={workflow.tab === item.key ? styles.activeTab : undefined} id={`settings-tab-${item.key}`} key={item.key} onClick={() => workflow.setTab(item.key)} role="tab" type="button">{item.label}</button>)}
     </nav>
     <div aria-labelledby={`settings-tab-${workflow.tab}`} className={styles.content} id={`settings-panel-${workflow.tab}`} role="tabpanel">
-      {workflow.loadState !== 'ready' ? <LoadState workflow={workflow} /> : workflow.tab === 'connections'
+      {workflow.tab === 'history' ? historyPanel : workflow.loadState !== 'ready' ? <LoadState workflow={workflow} /> : workflow.tab === 'connections'
         ? <ConnectionsTab workflow={workflow} /> : workflow.tab === 'import'
           ? <ImportTab workflow={workflow} /> : workflow.tab === 'export'
             ? <ExportTab workflow={workflow} /> : <SimpleTab tab={workflow.tab} />}
@@ -476,9 +483,10 @@ export function DataTransferSettingsView({ workflow }: Readonly<{ workflow: Data
   </section>
 }
 
-export function DataTransferSettings({ gateway, initialTab }: Readonly<{
+export function DataTransferSettings({ gateway, historyPanel, initialTab }: Readonly<{
   gateway: DataTransferSettingsGateway
+  historyPanel: ReactNode
   initialTab?: SettingsTab
 }>) {
-  return <DataTransferSettingsView workflow={useDataTransferSettings(gateway, initialTab)} />
+  return <DataTransferSettingsView historyPanel={historyPanel} workflow={useDataTransferSettings(gateway, initialTab)} />
 }

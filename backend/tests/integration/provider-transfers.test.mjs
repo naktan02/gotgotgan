@@ -16,6 +16,7 @@ const secondSnapshotId = '01992d41-0000-7000-8000-000000000010'
 const secondPlanId = '01992d41-0000-7000-8000-000000000011'
 const secondPlaceId = '01992d41-0000-7000-8000-000000000012'
 const thirdPlaceId = '01992d41-0000-7000-8000-000000000013'
+const accountFingerprint = 'a'.repeat(64)
 const at = '2026-09-03T01:00:00.000Z'
 
 test('provider transfers require immutable snapshots and explicit approval', { timeout: 120_000 }, async () => {
@@ -38,7 +39,6 @@ test('provider transfers require immutable snapshots and explicit approval', { t
 
     const transfers = new transfersModule.PostgresProviderTransfers({
       pool: database.pool,
-      materializer: new library.PostgresImportedCollectionMaterializer(database.pool),
       collections: new library.PostgresCollectionTransferReader(database.pool),
       enabledConnectionAuthMethods: { naver: ['browser-session'] },
       now: () => new Date(at),
@@ -76,6 +76,7 @@ test('provider transfers require immutable snapshots and explicit approval', { t
       connectionId,
       expectedConnectionRevision: created.value.connectionRevision,
       observedState: 'ready',
+      accountFingerprint,
       observedAt: '2026-09-03T01:00:01.000Z',
     })
     assert.equal(verified.status, 'applied')
@@ -205,13 +206,51 @@ test('provider transfers require immutable snapshots and explicit approval', { t
       planId, expectedPlanRevision: skipped.value.planRevision,
     })
     assert.equal(approved.status, 'applied')
-    assert.equal(approved.value.state, 'completed')
-    assert.equal(approved.value.mappings[0].materialization.state, 'applied')
-    assert.equal((await transfers.applyImportPlanCommand(memberId, {
+    assert.equal(approved.value.state, 'applying')
+    assert.equal(approved.value.mappings[0].materialization.state, 'pending')
+
+    const materializationWorker = new transfersModule.PostgresImportMaterializationWorker(
+      database.pool,
+      new library.PostgresImportedCollectionMaterializer(database.pool),
+      {
+        workerId: 'provider-transfer-worker',
+        leaseMilliseconds: 30_000,
+        maximumBackoffMilliseconds: 60_000,
+        now: () => new Date('2026-09-03T01:00:06.000Z'),
+      },
+    )
+    assert.equal(await materializationWorker.runOnce(), 'completed')
+    const completedPlan = await transfers.getImportPlan(memberId, planId)
+    assert.equal(completedPlan.state, 'completed')
+    assert.equal(completedPlan.mappings[0].materialization.state, 'applied')
+    const replayedApproval = await transfers.applyImportPlanCommand(memberId, {
       schemaVersion: 'import-plan-command.v2', kind: 'approve',
       commandId: '01992d41-0000-7000-8000-000000000105',
       planId, expectedPlanRevision: skipped.value.planRevision,
-    })).status, 'replayed')
+    })
+    assert.equal(replayedApproval.status, 'replayed')
+    assert.equal(replayedApproval.value.state, 'completed')
+    assert.deepEqual((await database.pool.query(
+      `SELECT operation.state, operation.stage, operation.processed_count,
+              operation.applied_count, plan.state AS plan_state,
+              mapping.materialization_state
+       FROM transfers.operations AS operation
+       JOIN transfers.import_plans AS plan ON plan.operation_id = operation.id
+       JOIN transfers.import_plan_mappings AS mapping ON mapping.plan_id = plan.id
+       WHERE plan.id = $1::uuid`,
+      [planId],
+    )).rows, [{
+      state: 'completed', stage: 'library-completed', processed_count: 1,
+      applied_count: 1, plan_state: 'completed', materialization_state: 'applied',
+    }])
+    assert.deepEqual((await database.pool.query(
+      `SELECT result FROM transfers.command_receipts WHERE command_id = $1::uuid`,
+      ['01992d41-0000-7000-8000-000000000105'],
+    )).rows[0].result, {
+      reference: {
+        kind: 'import-plan', id: planId, acceptedRevision: approved.value.planRevision,
+      },
+    })
 
     const collection = await database.pool.query(
       `SELECT collection.visibility, collection.publication_id, placed.canonical_place_id
@@ -228,14 +267,14 @@ test('provider transfers require immutable snapshots and explicit approval', { t
       schemaVersion: 'outbound-transfer-command.v2', kind: 'preview',
       commandId: '01992d41-0000-7000-8000-000000000106',
       transferId, connectionId, collectionId,
-      expectedCollectionRevision: approved.value.mappings[0].materialization.collectionRevision,
+      expectedCollectionRevision: completedPlan.mappings[0].materialization.collectionRevision,
       selection: { kind: 'all' }, target: { kind: 'new-list', name: '네이버 라멘' },
     })
     assert.equal(outbound.value.state, 'blocked')
     assert.deepEqual(outbound.value.preview, {
       availability: 'unavailable', addCount: null, alreadyPresentCount: null,
       unresolvedCount: null, unsupportedCount: null,
-      items: [{ placeId, status: 'unknown' }],
+      items: [{ placeId, status: 'unknown', targetProviderPlaceId: null }],
     })
     const unavailableApproval = await transfers.applyOutboundTransferCommand(memberId, {
       schemaVersion: 'outbound-transfer-command.v2', kind: 'approve',
@@ -259,13 +298,16 @@ test('provider transfers require immutable snapshots and explicit approval', { t
         if (providerUnavailable) throw new Error('provider unavailable')
         return {
           observationRevision: 'naver-target-observation-1',
-          items: input.items.map((item) => ({ placeId: item.placeId, status: 'add' })),
+          items: input.items.map((item) => ({
+            placeId: item.placeId,
+            status: 'add',
+            targetProviderPlaceId: 'naver-place-1',
+          })),
         }
       },
     }
     const targetTransfers = new transfersModule.PostgresProviderTransfers({
       pool: database.pool,
-      materializer: new library.PostgresImportedCollectionMaterializer(database.pool),
       collections: new library.PostgresCollectionTransferReader(database.pool),
       enabledConnectionAuthMethods: { naver: ['browser-session'] },
       targets: [replayTarget],
@@ -275,7 +317,7 @@ test('provider transfers require immutable snapshots and explicit approval', { t
       schemaVersion: 'outbound-transfer-command.v2', kind: 'preview',
       commandId: '01992d41-0000-7000-8000-000000000108',
       transferId: approvedTransferId, connectionId, collectionId,
-      expectedCollectionRevision: approved.value.mappings[0].materialization.collectionRevision,
+      expectedCollectionRevision: completedPlan.mappings[0].materialization.collectionRevision,
       selection: { kind: 'all' }, target: { kind: 'new-list', name: '승인된 내보내기' },
     }
     const previewed = await targetTransfers.applyOutboundTransferCommand(memberId, previewCommand)
@@ -338,40 +380,72 @@ test('provider transfers require immutable snapshots and explicit approval', { t
         sourceListId,
         target: {
           kind: 'existing', collectionId,
-          expectedCollectionRevision: approved.value.mappings[0].materialization.collectionRevision,
+          expectedCollectionRevision: completedPlan.mappings[0].materialization.collectionRevision,
         },
       })),
     })
     const realMaterializer = new library.PostgresImportedCollectionMaterializer(database.pool)
     let materializationCalls = 0
-    const crashTransfers = new transfersModule.PostgresProviderTransfers({
-      pool: database.pool,
-      materializer: {
+    let recoveryWorkerNow = new Date('2026-09-03T01:01:00.000Z')
+    const crashingWorker = new transfersModule.PostgresImportMaterializationWorker(
+      database.pool,
+      {
         async materialize(input) {
           materializationCalls += 1
           if (materializationCalls === 2) throw new Error('simulated process interruption')
           return realMaterializer.materialize(input)
         },
       },
-      collections: new library.PostgresCollectionTransferReader(database.pool),
-      now: () => new Date(at),
-    })
+      {
+        workerId: 'provider-transfer-crash-worker',
+        leaseMilliseconds: 30_000,
+        maximumBackoffMilliseconds: 60_000,
+        now: () => recoveryWorkerNow,
+      },
+    )
     const recoveryApproval = {
       schemaVersion: 'import-plan-command.v2', kind: 'approve',
       commandId: '01992d41-0000-7000-8000-000000000111',
       planId: secondPlanId,
       expectedPlanRevision: recoveryPlan.value.planRevision,
     }
-    await assert.rejects(
-      crashTransfers.applyImportPlanCommand(memberId, recoveryApproval),
-      /simulated process interruption/,
+    const queuedRecovery = await transfers.applyImportPlanCommand(memberId, recoveryApproval)
+    assert.equal(queuedRecovery.value.state, 'applying')
+    assert.equal(await crashingWorker.runOnce(), 'retry-scheduled')
+    assert.deepEqual((await transfers.getImportPlan(memberId, secondPlanId)).mappings.map(
+      (mapping) => mapping.materialization.state,
+    ), ['applied', 'pending'])
+    recoveryWorkerNow = new Date('2026-09-03T01:01:10.000Z')
+    const recoveryWorker = new transfersModule.PostgresImportMaterializationWorker(
+      database.pool,
+      realMaterializer,
+      {
+        workerId: 'provider-transfer-recovery-worker',
+        leaseMilliseconds: 30_000,
+        maximumBackoffMilliseconds: 60_000,
+        now: () => recoveryWorkerNow,
+      },
     )
+    assert.equal(await recoveryWorker.runOnce(), 'completed')
     const recovered = await transfers.applyImportPlanCommand(memberId, recoveryApproval)
+    assert.equal(recovered.status, 'replayed')
     assert.equal(recovered.value.state, 'completed')
     assert.deepEqual(
       recovered.value.mappings.map((mapping) => mapping.materialization.state),
       ['applied', 'applied'],
     )
+    assert.deepEqual((await database.pool.query(
+      `SELECT operation.state, operation.stage, operation.attempt_count,
+              operation.processed_count, operation.applied_count,
+              plan.state AS plan_state
+       FROM transfers.operations AS operation
+       JOIN transfers.import_plans AS plan ON plan.operation_id = operation.id
+       WHERE plan.id = $1::uuid`,
+      [secondPlanId],
+    )).rows, [{
+      state: 'completed', stage: 'library-completed', attempt_count: 2,
+      processed_count: 2, applied_count: 2, plan_state: 'completed',
+    }])
     assert.equal((await database.pool.query(
       'SELECT count(*)::int AS count FROM library.collection_places WHERE collection_id = $1::uuid',
       [collectionId],

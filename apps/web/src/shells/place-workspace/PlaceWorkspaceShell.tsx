@@ -3,6 +3,11 @@
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 
+import {
+  createOperationPollController,
+  loadOperationIndicator,
+  type OperationIndicator,
+} from '../../features/operation-history/public/index'
 import type { FamilyNavigation } from '@/platform/family-navigation/family-navigation'
 
 import styles from './place-workspace-shell.module.css'
@@ -58,6 +63,7 @@ export function PlaceWorkspaceShell({
   const [navigationOpen, setNavigationOpen] = useState(false)
   const [familyOpen, setFamilyOpen] = useState(true)
   const [resolvedAccount, setResolvedAccount] = useState(account)
+  const [operationIndicator, setOperationIndicator] = useState<OperationIndicator>()
   const menuButton = useRef<HTMLButtonElement>(null)
   const sidebar = useRef<HTMLElement>(null)
 
@@ -109,6 +115,33 @@ export function PlaceWorkspaceShell({
     return () => controller.abort()
   }, [account])
 
+  useEffect(() => {
+    const polling = createOperationPollController<OperationIndicator>({
+      read: (signal) => loadOperationIndicator(fetch, signal),
+      isActive: (indicator) => indicator.activeCount > 0,
+      onValue: (indicator) => setOperationIndicator(indicator),
+      onTerminalError: () => setOperationIndicator(undefined),
+    })
+    const refresh = () => polling.trigger()
+    const handleVisibility = () => document.visibilityState === 'hidden' ? polling.pause() : polling.resume()
+    if (document.visibilityState === 'hidden') polling.pause()
+    else polling.start()
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('place:operation-projection-changed', refresh)
+    return () => {
+      polling.stop()
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('place:operation-projection-changed', refresh)
+    }
+  }, [])
+
+  const attentionCount = operationIndicator?.attentionCount ?? 0
+  const operationStatus = (operationIndicator?.activeCount ?? 0) > 0
+    ? `작업 ${operationIndicator?.activeCount ?? 0}개`
+    : attentionCount > 0 ? `확인 ${attentionCount}개` : '카탈로그'
+
   return (
     <div className={styles.workspace}>
       <header className={styles.topbar}>
@@ -126,15 +159,16 @@ export function PlaceWorkspaceShell({
         <Link aria-label="곳곳간 홈" className={styles.wordmark} href="/">곳곳간</Link>
         <div className={styles.searchSlot}>{topbarSearch ?? <DefaultSearch />}</div>
         <div className={styles.topActions}>
-          <div aria-label="작업 상태: 카탈로그 탐색" className={styles.modeButton} role="status">
-            <span aria-hidden="true" className={styles.modeDot} />
-            <span>카탈로그</span>
-          </div>
-          <button aria-label="알림: 준비 중" className={styles.iconButton} disabled title="알림 Interface 준비 중" type="button">
+          <Link aria-label={`현재 작업 상태: ${operationStatus}. 작업 내역 보기`} className={styles.modeButton} href="/settings?tab=history">
+            <span aria-hidden="true" className={styles.modeDot} data-attention={attentionCount > 0} />
+            <span>{operationStatus}</span>
+          </Link>
+          <Link aria-label={attentionCount > 0 ? `작업 알림 ${attentionCount}개. 작업 내역 보기` : '작업 알림 없음. 작업 내역 보기'} className={styles.iconButton} href="/settings?tab=history">
             <svg aria-hidden="true" fill="none" viewBox="0 0 20 20">
               <path d="M4.5 14.5h11l-1.5-2V8a4 4 0 0 0-8 0v4.5z" /><path d="M8.5 17h3" />
             </svg>
-          </button>
+            {attentionCount > 0 && <span className={styles.notificationBadge}>{attentionCount > 99 ? '99+' : attentionCount}</span>}
+          </Link>
           {resolvedAccount?.href !== undefined ? (
             <Link aria-label={`${resolvedAccount.label} 프로필과 계정`} className={styles.profileLink} href={resolvedAccount.href}>
               <span aria-hidden="true">{resolvedAccount.label.slice(0, 1)}</span><small>{resolvedAccount.label}</small>

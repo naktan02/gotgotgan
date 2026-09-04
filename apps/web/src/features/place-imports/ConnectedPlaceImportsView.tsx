@@ -149,8 +149,6 @@ export function ConnectedPlaceImportsView({
     reviewResults,
     connectorChecking,
     connectorReady,
-    connectorProgress,
-    connectorSupportsNaver,
     onboardingRequired,
     onboardingConsents,
     acceptedConsentKeys,
@@ -162,7 +160,6 @@ export function ConnectedPlaceImportsView({
     setConsentAccepted,
     completeOnboarding,
     probeConnector,
-    startConnectorImport,
     startServerImport,
     transition,
     review,
@@ -241,27 +238,14 @@ export function ConnectedPlaceImportsView({
               </p>
             ) : (
               <p className={styles.muted}>
-                확장 프로그램 연결됨 · NAVER {connectorSupportsNaver ? '사용 가능' : '미지원'}
+                확장 프로그램 연결됨 · 안전한 실행 경계 검증 전까지 가져오기는 비활성화됩니다.
               </p>
             )}
             <div className={styles.batchActions}>
               <button disabled={busy || connectorChecking} onClick={() => void probeConnector()} type="button">
                 확장 다시 확인
               </button>
-              <button
-                className={styles.primaryButton}
-                disabled={busy || !connectorSupportsNaver || batch !== undefined}
-                onClick={() => void startConnectorImport()}
-                type="button"
-              >
-                이 브라우저에서 NAVER 가져오기
-              </button>
             </div>
-            {connectorProgress !== undefined && (
-              <p className={styles.stateMessage} aria-live="polite">
-                {connectorProgress.phase} · {connectorProgress.submittedItems}/{connectorProgress.discoveredItems}개 전송
-              </p>
-            )}
           </section>
 
           {connections.length > 0 && (

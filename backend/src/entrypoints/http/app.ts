@@ -19,7 +19,13 @@ import { registerSearchHttpRoutes, type SearchHttpDependencies } from '../../mod
 import { registerTaxonomyHttpRoutes, type TaxonomyHttpDependencies } from '../../modules/taxonomy/index.js'
 import {
   registerProviderTransferHttpRoutes,
+  registerTransferOperationHttpRoutes,
+  registerConnectorTransferHttpRoutes,
+  registerOutboundExecutionHttpRoutes,
+  type ConnectorTransferHttpDependencies,
   type ProviderTransferHttpDependencies,
+  type TransferOperationHttpDependencies,
+  type OutboundExecutionHttpDependencies,
 } from '../../modules/transfers/index.js'
 import { registerVisitsHttpRoutes, type VisitsHttpDependencies } from '../../modules/visits/index.js'
 import { registerWritingHttpRoutes, type WritingHttpDependencies } from '../../modules/writing/index.js'
@@ -35,6 +41,9 @@ export type HttpApplicationOptions = Readonly<{
   search?: SearchHttpDependencies
   taxonomy?: TaxonomyHttpDependencies
   transfers?: ProviderTransferHttpDependencies
+  transferOperations?: TransferOperationHttpDependencies
+  connectorTransfers?: ConnectorTransferHttpDependencies
+  outboundExecution?: OutboundExecutionHttpDependencies
   visits?: VisitsHttpDependencies
   writing?: WritingHttpDependencies
   readiness?: () => Promise<boolean>
@@ -74,6 +83,15 @@ export function buildHttpApplication(options: HttpApplicationOptions = {}): Fast
   if (options.search !== undefined) registerSearchHttpRoutes(application, options.search)
   if (options.taxonomy !== undefined) registerTaxonomyHttpRoutes(application, options.taxonomy)
   if (options.transfers !== undefined) registerProviderTransferHttpRoutes(application, options.transfers)
+  if (options.transferOperations !== undefined) {
+    registerTransferOperationHttpRoutes(application, options.transferOperations)
+  }
+  if (options.connectorTransfers !== undefined) {
+    registerConnectorTransferHttpRoutes(application, options.connectorTransfers)
+  }
+  if (options.outboundExecution !== undefined) {
+    registerOutboundExecutionHttpRoutes(application, options.outboundExecution)
+  }
   if (options.visits !== undefined) registerVisitsHttpRoutes(application, options.visits)
   if (options.writing !== undefined) registerWritingHttpRoutes(application, options.writing)
 

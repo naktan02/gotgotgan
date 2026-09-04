@@ -5,20 +5,32 @@
 비밀번호, vault reference를 저장하지 않으며 HTTP projection에도 credential 필드가 없다.
 
 `SavedPlaceSource`는 가져오기 관찰만, `SavedPlaceTarget`은 내보내기 대상 관찰과 preflight만
-담당한다. Stage 9의 outbound 승인은 user preview approval receipt와 `approved` 상태까지만
-기록한다. provider mutation, one-time execution authorization, item receipt, outcome-unknown
-reconciliation은 Stage 10 worker 경계이며 이 모듈은 그 전까지 성공을 보고하지 않는다.
+담당한다. 승인된 outbound plan은 target과 순서가 고정된 execution manifest로 동결한다.
+Connector mutation은 plan digest, verified account fingerprint, connection, installation, origin,
+expiry와 사용량에 결속된 one-time authorization을 소비해야 한다. 성공·부분 실패·결과 불명은
+item receipt와 reconciliation observation으로만 전진하며 preview 승인을 외부 성공으로 표시하지 않는다.
 
-`ingestion`의 v1 connector/import batch는 legacy acquisition path다. 새 UI는 이를 새
-Collection으로 자동 반영하지 않는다. 차기 cutover는 connection-bound v2 grant가 기존
-capture를 이 모듈의 immutable snapshot으로 넘기고, 명시적 import-plan approval 뒤에만
-materializer/worker가 실행되도록 해야 한다. 현재 production capability는 adapter가 조합되지
-않으면 `integration-gated` 또는 `unavailable`로 응답한다.
+`ingestion`의 v1 connector/import batch는 legacy acquisition path다. production HTTP에는 v1
+capture receiver를 더 이상 조합하지 않으며 새 UI가 이를 새 Collection으로 자동 반영할 수 없다.
+connection-bound v2 grant만 sealed chunk manifest를 이 모듈의 immutable snapshot으로 넘기고,
+명시적 import-plan approval 뒤에만 transfer materialization worker가 실행된다. provider adapter가
+조합되지 않으면 capability와 실행은 `integration-gated`/`unavailable`로 fail closed한다.
 
-Import materialization은 승인과 같은 요청에서 실제 수행된다. 여러 source list가 동일한
-existing Collection을 대상으로 하면 source order로 직렬 처리하고 직전 Collection revision을
-다음 materialization에 전달한다. 부분 실패 시 계획은 상세 mapping rejection과 함께
-`blocked`가 되며 retry/resume orchestration은 Stage 10 작업으로 남는다.
+Stage 10 이전의 `ready` connection observation에는 실행 권한을 결속할 account fingerprint가 없다.
+이 행을 임의의 fingerprint로 보정하지 않고 connection 조회에서는 `action-required`/`reauthorize`로
+투영한다. 새 verified observation이 fingerprint를 기록하기 전까지 capture, preview, execution grant는
+모두 거절된다. Plaintext grant token은 저장하지 않으므로 동일 grant command replay 역시 새 권한을
+가장하지 않고 fail closed한다.
+
+Import 승인은 durable operation을 `queued`로 만들 뿐 요청 thread에서 Library를 변경하지 않는다.
+별도 transfer materialization worker가 여러 source list를 source order로 처리하고, 동일한 existing
+Collection에는 직전 receipt revision을 전달한다. 부분 실패는 계획을 `blocked`로 만들며 명시적
+resume 후 lease/retry 경로로만 재개한다.
+
+Chunk capture는 100,000 items까지 안전하게 저장·검증하지만 현재 snapshot detail/import-plan
+projection은 50 lists, list당 500 items, 총 10,000 items로 제한된다. 이 경계를 넘는 snapshot은
+저장 이력에는 보이되 승인 UI에서 materialization할 수 없다. Pagination/segment projection이
+추가되기 전에는 일부만 가져온 것처럼 보이거나 승인 성공을 보고하지 않는다.
 
 Command receipt에는 최대 10,000개 item projection을 복제하지 않는다. accepted resource의
 식별자와 승인 당시 revision만 보존하고 replay 시 현재의 owner-scoped projection을 다시 읽는다.
@@ -26,9 +38,8 @@ Command receipt에는 최대 10,000개 item projection을 복제하지 않는다
 resource projection을 반환한다. snapshot identity digest에는 관찰 시각과 capture 시각을 모두
 포함한다.
 
-회원 lifecycle은 현 단계에서 의도적인 `ON DELETE RESTRICT`다. immutable source evidence와
-승인 기록을 무심코 연쇄 삭제하지 않기 위해 raw membership delete를 허용하지 않는다. Stage 10은
-보존 정책을 먼저 판정한 뒤 outbound item → outbound header → import item/mapping/plan → snapshot
-item/list/header → connection observation/connection → command receipt 순으로 한 transaction에서
-삭제하는 명시적 account-erasure/purge workflow를 제공해야 한다. 그 cutover 전 계정 해지는 논리적
-비활성화로 처리하며 물리 삭제 성공을 가장하지 않는다.
+회원 lifecycle은 의도적인 `ON DELETE RESTRICT`다. immutable source evidence와 승인 기록을 무심코
+연쇄 삭제하지 않기 위해 raw membership delete를 허용하지 않는다. Stage 10의 account-erasure
+command는 보존 정책 검토가 필요한 운영 작업만 만들고 `physicalDeletionPerformed: false`를 반환한다.
+실제 purge는 보존 기간·법적 근거·감사 증거·실패 복구 순서가 별도 승인된 뒤에만 독립 workflow로
+구현한다. 그 전 계정 해지는 논리적으로 비활성화하며 물리 삭제 성공을 가장하지 않는다.

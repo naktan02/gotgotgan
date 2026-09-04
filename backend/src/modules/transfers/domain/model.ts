@@ -103,7 +103,7 @@ export type ImportPlanCommandRequestV2 =
 export type ImportPlanV2 = Readonly<{
   schemaVersion: 'import-plan.v2'; planId: string; planRevision: string
   snapshotId: string; snapshotVersion: string; providerKey: ProviderKey; connectionId: string
-  state: 'draft' | 'applying' | 'completed' | 'blocked'
+  state: 'draft' | 'applying' | 'completed' | 'blocked' | 'cancelled'
   approval: Readonly<{
     eligible: boolean
     reason: 'unresolved-places' | 'already-decided' | 'materialization-rejected' | null
@@ -145,7 +145,7 @@ export type OutboundTransferV2 = Readonly<{
   schemaVersion: 'outbound-transfer.v2'; transferId: string; transferRevision: string
   providerKey: ProviderKey; connectionId: string; collectionId: string
   collectionRevision: string; target: OutboundTarget; targetObservationRevision: string | null
-  planDigest: string; state: 'draft' | 'blocked' | 'approved' | 'applying' | 'completed' | 'failed'
+  planDigest: string; state: 'draft' | 'blocked' | 'approved' | 'applying' | 'completed' | 'failed' | 'cancelled'
   selection: OutboundSelection; itemCount: number
   preview: Readonly<{
     availability: 'available' | 'unavailable'
@@ -153,6 +153,7 @@ export type OutboundTransferV2 = Readonly<{
     unresolvedCount: number | null; unsupportedCount: number | null
     items: readonly Readonly<{
       placeId: string; status: 'add' | 'already-present' | 'unresolved' | 'unsupported' | 'unknown'
+      targetProviderPlaceId: string | null
     }>[]
   }>
   approval: Readonly<{
@@ -207,6 +208,8 @@ export type ProviderConnectionObservation = Readonly<{
   ownerMemberId: string
   connectionId: string
   expectedConnectionRevision: string
+  /** Privacy-safe SHA-256 of the provider account identity, never the raw account identifier. */
+  accountFingerprint: string
   observedState: 'ready' | 'action-required'
   observedAt: string
 }>
@@ -286,6 +289,7 @@ export type SavedPlaceTargetPreflight = Readonly<{
   items: readonly Readonly<{
     placeId: string
     status: 'add' | 'already-present' | 'unresolved' | 'unsupported'
+    targetProviderPlaceId: string | null
   }>[]
 }>
 

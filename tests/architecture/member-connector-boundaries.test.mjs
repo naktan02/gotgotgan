@@ -26,6 +26,7 @@ afterEach(async () => {
 test('accepts inward connector dependencies and entrypoint composition', async () => {
   const root = await fixture({
     'application/ports/capture.ts': "import type { ConnectorGrant } from '@place/contracts/connector'; export type Capture = ConnectorGrant",
+    'application/ports/transfer.ts': "import type { ConnectorImportGrantV2 } from '@place/contracts/transfers'; export type Transfer = ConnectorImportGrantV2",
     'application/collect.ts': "import type { Capture } from './ports/capture.js'; export type { Capture }",
     'adapters/place/http.ts': "import type { Capture } from '../../application/ports/capture.js'; export const capture = {} as Capture",
     'entrypoints/extension/background.ts': "import { capture } from '../../adapters/place/http.js'; void capture",
@@ -57,4 +58,28 @@ test('rejects source imports that escape the connector root', async () => {
   })
   const violations = await inspectMemberConnectorArchitecture(root)
   assert.ok(violations.some((value) => value.includes('escapes the connector source root')))
+})
+
+test('requires outbound export callers to cross its public index seam', async () => {
+  const root = await fixture({
+    'application/outbound-export/index.ts': "export { run } from './runtime.js'",
+    'application/outbound-export/runtime.ts': 'export const run = () => undefined',
+    'application/compose.ts': "import { run } from './outbound-export/runtime.js'; run()",
+  })
+  const violations = await inspectMemberConnectorArchitecture(root)
+  assert.ok(violations.some((value) => value.includes('public index interface')))
+})
+
+test('enforces connector layout review gates without counting test support', async () => {
+  const files = Object.fromEntries(Array.from({ length: 13 }, (_, index) => [
+    `application/flat/module-${index}.ts`,
+    'export const value = true',
+  ]))
+  files['application/large.ts'] = Array.from({ length: 501 }, () => '// line').join('\n')
+  files['application/tests/large.test.ts'] = Array.from({ length: 700 }, () => '// test').join('\n')
+  const root = await fixture(files)
+  const violations = await inspectMemberConnectorArchitecture(root)
+  assert.ok(violations.some((value) => value.includes('500-line layout review gate')))
+  assert.ok(violations.some((value) => value.includes('12-file layout review gate')))
+  assert.ok(!violations.some((value) => value.startsWith('application/tests/large.test.ts')))
 })

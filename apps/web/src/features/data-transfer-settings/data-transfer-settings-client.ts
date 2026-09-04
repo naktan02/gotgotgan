@@ -260,6 +260,9 @@ export function createDataTransferSettingsGateway(fetcher: typeof fetch = fetch)
         providerKey: detail.providerKey,
         connectionId: detail.connectionId,
         capturedAt: detail.capturedAt,
+        totalListCount: detail.listCount,
+        totalItemCount: detail.itemCount,
+        hasUnloadedLists: detail.lists.length < detail.listCount,
         lists: detail.lists.map((item) => ({
           sourceListId: item.sourceListId,
           name: item.observedName,
