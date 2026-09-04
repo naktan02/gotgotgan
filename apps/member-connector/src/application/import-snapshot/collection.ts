@@ -19,6 +19,19 @@ function itemCount(payload: ReturnType<typeof connectorCaptureChunkPayloadV2Sche
   return payload.lists.reduce((total, list) => total + list.items.length, 0)
 }
 
+async function requireBoundProviderAccount(
+  dependencies: ImmutableSnapshotRuntimeDependencies,
+  input: ImmutableSnapshotInput,
+): Promise<void> {
+  const activeAccountFingerprint = await dependencies.accountFingerprint.read({
+    signal: input.signal,
+  })
+  if (!/^[a-f0-9]{64}$/.test(activeAccountFingerprint) ||
+    activeAccountFingerprint !== input.identity.accountFingerprint) {
+    throw new ImmutableSnapshotError('binding-mismatch', false, 'Active Provider account differs')
+  }
+}
+
 /** Collects and seals one immutable Provider snapshot; it never performs network handoff. */
 export async function collectImmutableSnapshot(
   dependencies: ImmutableSnapshotRuntimeDependencies,
@@ -37,11 +50,7 @@ export async function collectImmutableSnapshot(
   if (session === 'unavailable') {
     throw new ImmutableSnapshotError('provider-unavailable', true, 'Provider session is unavailable')
   }
-  const activeAccountFingerprint = await dependencies.accountFingerprint.read({ signal: input.signal })
-  if (!/^[a-f0-9]{64}$/.test(activeAccountFingerprint) ||
-    activeAccountFingerprint !== input.identity.accountFingerprint) {
-    throw new ImmutableSnapshotError('binding-mismatch', false, 'Active Provider account differs')
-  }
+  await requireBoundProviderAccount(dependencies, input)
 
   const descriptors: ConnectorSnapshotChunkDescriptor[] = []
   const listIds = new Set<string>()
@@ -123,6 +132,7 @@ export async function collectImmutableSnapshot(
       manifest: withoutDigest, chunks: descriptors,
     })),
   })
+  await requireBoundProviderAccount(dependencies, input)
   if (await dependencies.spool.seal({
     identity: input.identity, manifest, signal: input.signal,
   }) === 'conflict') {

@@ -80,7 +80,9 @@ seal하고, operation·connection·Provider·계정 fingerprint·installation·m
 Source Snapshot 완료로 취급하지 않는다.
 
 계정 fingerprint Port는 raw 계정 ID를 반환하지 않고 installation private key와 domain separator로
-만든 keyed SHA-256 값만 허용한다. 현재 NAVER session Adapter가 신뢰할 수 있는 계정 identity를
+만든 keyed SHA-256 값만 허용한다. 새 수집은 시작과 immutable seal 직전에 같은 계정인지 확인하고,
+중간에 계정이 바뀌면 grant를 요청하지 않는다. 이미 seal된 spool의 전송 재개는 Provider를 다시 읽지
+않고 고정된 manifest만 사용한다. 현재 NAVER session Adapter가 신뢰할 수 있는 계정 identity를
 관측하지 못하므로 실제 fingerprint Adapter는 만들지 않았고 capability를 닫았다. grant token과
 execution receipt token은 JSON document나 Provider Target에 전달하지 않고
 `OutboundExecutionControl`의 별도 인자로만 넘겨 PlaceConnector Authorization header에 둔다.

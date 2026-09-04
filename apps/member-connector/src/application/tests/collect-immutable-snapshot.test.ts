@@ -84,6 +84,7 @@ function dependencies(input: Readonly<{
   handoff: ConnectorSnapshotHandoff
   collect?: SavedPlaceSource['collect']
   fingerprint?: string
+  readFingerprint?: () => Promise<string>
 }>) {
   const collect = input.collect ?? (async function* () {
     yield { acquisitionKind: 'browser-network' as const, itemCount: 1, payload: JSON.stringify({
@@ -103,7 +104,7 @@ function dependencies(input: Readonly<{
     session: { providerKey: 'naver' as const, probe: async () => 'active' as const },
     accountFingerprint: {
       providerKey: 'naver' as const,
-      read: async () => input.fingerprint ?? accountFingerprint,
+      read: input.readFingerprint ?? (async () => input.fingerprint ?? accountFingerprint),
     },
     source: { providerKey: 'naver' as const, collect },
     normalizer: {
@@ -174,9 +175,10 @@ describe('immutable Connector snapshot handoff', () => {
       collectionCalls += 1
       yield* baseCollect(input)
     }
-    const deps = dependencies({ spool: local.spool, handoff, collect })
     const firstCommand = '66666666-6666-4666-8666-666666666666'
     const secondCommand = '77777777-7777-4777-8777-777777777777'
+    const readFingerprint = vi.fn(async () => accountFingerprint)
+    const deps = dependencies({ spool: local.spool, handoff, collect, readFingerprint })
 
     await expect(collectAndHandoffImmutableSnapshot(deps, attempt(firstCommand)))
       .rejects.toThrow('grant expired in transit')
@@ -187,6 +189,7 @@ describe('immutable Connector snapshot handoff', () => {
     })
 
     expect(collectionCalls).toBe(1)
+    expect(readFingerprint).toHaveBeenCalledTimes(2)
     expect(issuedCommands).toEqual([firstCommand, secondCommand])
     expect(recorded.size).toBe(2)
     expect(local.manifest()?.manifestDigest).toMatch(/^[a-f0-9]{64}$/)
@@ -263,6 +266,28 @@ describe('immutable Connector snapshot handoff', () => {
     expect(collectionCalls).toBe(0)
     expect(issueGrant).not.toHaveBeenCalled()
     expect(local.chunks.size).toBe(0)
+  })
+
+  it('rejects an account switched during collection before sealing or starting handoff', async () => {
+    const local = memorySpool()
+    const handoff = {
+      issueGrant: vi.fn(), status: vi.fn(), upload: vi.fn(), complete: vi.fn(),
+    }
+    const readFingerprint = vi.fn()
+      .mockResolvedValueOnce(accountFingerprint)
+      .mockResolvedValueOnce('b'.repeat(64))
+
+    await expect(collectAndHandoffImmutableSnapshot(
+      dependencies({ spool: local.spool, handoff, readFingerprint }),
+      attempt('9a9a9a9a-9a9a-4a9a-8a9a-9a9a9a9a9a9a'),
+    )).rejects.toMatchObject({ code: 'binding-mismatch' })
+
+    expect(readFingerprint).toHaveBeenCalledTimes(2)
+    expect(local.manifest()).toBeUndefined()
+    expect(handoff.issueGrant).not.toHaveBeenCalled()
+    expect(handoff.status).not.toHaveBeenCalled()
+    expect(handoff.upload).not.toHaveBeenCalled()
+    expect(handoff.complete).not.toHaveBeenCalled()
   })
 
   it('rejects a grant for another connection or account before upload', async () => {
