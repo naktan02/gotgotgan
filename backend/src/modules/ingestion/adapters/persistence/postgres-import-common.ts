@@ -274,7 +274,8 @@ export async function insertPreparedImportItems(
        SELECT job_id,$1,provider_place_id,'queued',$2::timestamptz,
               observation_id,candidate_id,$2::timestamptz,$2::timestamptz
        FROM prepared
-       ON CONFLICT (provider_key, provider_place_id) DO NOTHING`,
+       ON CONFLICT (provider_key, provider_place_id)
+         WHERE state IN ('queued', 'waiting', 'leased') DO NOTHING`,
       [input.providerKey, input.recordedAt, JSON.stringify(detailRows)],
     )
   }

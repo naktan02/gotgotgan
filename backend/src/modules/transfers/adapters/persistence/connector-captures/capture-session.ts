@@ -220,8 +220,8 @@ export class ConnectorCaptureSession {
       if (lists.length !== grant.expected_list_count || actualItems !== grant.expected_item_count) {
         throw new ConnectorTransferAuthorizationError('manifest logical counts mismatch')
       }
-      await this.context.insertSnapshot(client, grant, lists)
       const at = this.context.now().toISOString()
+      await this.context.insertSnapshot(client, grant, lists, at)
       await client.query(
         `UPDATE transfers.connector_capture_manifests SET status = 'completed',
            snapshot_id = manifest_id, completed_at = $2::timestamptz

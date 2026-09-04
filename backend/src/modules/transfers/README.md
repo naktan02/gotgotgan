@@ -34,6 +34,10 @@ worker가 남긴 `available` observation과 normalized candidate가 있을 때�
 직접 연결한다. 상세정보가 갱신되어도 재시도는 최초 계획의 증거를 바꾸지 않으며, Place 생성 결과는
 취소 종결보다 먼저 operation item에 체크포인트한다.
 
+Trusted capture와 Connector capture가 SourceSnapshot을 기록하면 같은 transaction에서
+`missing-identity` Provider Place ID만 Ingestion의 최초 상세 예약 함수에 전달한다. Transfers는 상세
+상태나 Job lifecycle을 직접 쓰지 않으며 이미 상세가 끝난 identity의 재수집 정책도 소유하지 않는다.
+
 Chunk capture는 100,000 items까지 안전하게 저장·검증하지만 현재 snapshot detail/import-plan
 projection은 50 lists, list당 500 items, 총 10,000 items로 제한된다. 이 경계를 넘는 snapshot은
 저장 이력에는 보이되 승인 UI에서 materialization할 수 없다. Pagination/segment projection이

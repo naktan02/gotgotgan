@@ -11,6 +11,7 @@ import {
   type ConnectorImportGrantRequest,
   type ConnectorManifest,
 } from '../../../domain/operations.js'
+import { scheduleInitialProviderPlaceDetails } from '../source-snapshot-details/schedule-initial-details.js'
 
 export type ManifestRow = Readonly<{
   manifest_id: string
@@ -231,6 +232,7 @@ export class ConnectorCaptureContext {
     client: PoolClient,
     grant: GrantRow,
     lists: readonly MergedCaptureList[],
+    requestedAt: string,
   ) {
     await client.query(
       `INSERT INTO transfers.source_snapshots (id, owner_membership_id, connection_id,
@@ -287,6 +289,11 @@ export class ConnectorCaptureContext {
          ON identity.provider_key = $3 AND identity.external_place_id = value.provider_place_id`,
       [grant.manifest_id, JSON.stringify(items), grant.provider_key],
     )
+    await scheduleInitialProviderPlaceDetails(client, {
+      snapshotId: grant.manifest_id,
+      providerKey: grant.provider_key,
+      requestedAt,
+    })
   }
 
   async reject(

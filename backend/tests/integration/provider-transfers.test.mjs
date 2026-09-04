@@ -228,10 +228,10 @@ test('provider transfers require immutable snapshots and explicit approval', { t
       [detailObservationId, detailCandidateId, '2026-09-03T01:00:04.000Z'],
     )
     await database.pool.query(
-      `INSERT INTO ingestion.provider_place_detail_statuses (
-         provider_key, provider_place_id, status, last_detail_observation_id,
-         requested_at, updated_at
-       ) VALUES ('naver','naver-place-new','available',$1::uuid,$2::timestamptz,$2::timestamptz)`,
+      `UPDATE ingestion.provider_place_detail_statuses
+       SET status = 'available', last_detail_observation_id = $1::uuid,
+           updated_at = $2::timestamptz
+       WHERE provider_key = 'naver' AND provider_place_id = 'naver-place-new'`,
       [detailObservationId, '2026-09-03T01:00:04.000Z'],
     )
 

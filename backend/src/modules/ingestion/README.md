@@ -65,6 +65,10 @@ batch로 새 Job에 넣는다. 성공한 관찰은 직전 정상 관찰과 check
 `changed`를 기록한다. 갱신 실패는 기존 `available` projection을 유지하며
 `provider-interaction-required`는 자동 재큐잉하지 않는다. 운영자 재개 명령/UI는 아직 구현되지 않았다.
 
+새 SourceSnapshot의 `missing-identity` 항목은 Ingestion 소유 DB 함수가 최초 상세 Job으로 예약한다.
+호출 모듈은 snapshot ID로 대상 identity를 고른 뒤 Provider key와 ID만 전달하고, 함수는 기존 terminal
+상세 상태를 되돌리지 않으며 `pending` identity에 active append-only Job이 없을 때만 멱등 생성한다.
+
 ImportItem은 Provider의 `source_list_id`, 목록 순서와 목록 안 순서를 함께 보존한다. Fulfillment와
 명시적 review 모두 이 메타데이터를 Library 공개 port에 전달한다. Ingestion은 원본 폴더를 Taxonomy로
 해석하거나 Library Collection을 직접 만들지 않는다.

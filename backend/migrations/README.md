@@ -176,3 +176,9 @@ Profile media selection을 추가한다. 공개 view는 현재 Profile에 선택
 Connector가 선언한 provenance만으로는 전역 Place를 만들지 않는다. 승인 계획은 불변으로 유지하고
 계획 시 선택한 detail observation/candidate를 FK로 고정한다. 실제 Canonical Place ID는 취소 여부를
 종결하기 전에 TransferOperation 항목에 체크포인트한다.
+
+`000046`은 새 SourceSnapshot의 미매칭 Provider identity에 최초 상세 수집을 예약하는 Ingestion 소유
+함수를 추가한다. `pending` identity에 active Job이 없을 때만 append-only Job을 만들고 이미
+`available`/`unavailable`인 identity는 다시 예약하지 않는다. 이 경로는 광범위한 추가 권한 대신 고정
+`search_path`의 최소 `SECURITY DEFINER` 함수만 실행한다. 적용 전에 저장된 snapshot은 자동으로
+backfill하지 않으며, 필요하면 별도의 bounded 운영 작업으로 예약한다.

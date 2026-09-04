@@ -10,6 +10,7 @@ import {
   ProviderTransferContext,
   type ProviderKey,
 } from './provider-transfer-context.js'
+import { scheduleInitialProviderPlaceDetails } from '../source-snapshot-details/schedule-initial-details.js'
 
 function encodeCursor(input: Readonly<{ capturedAt: string; snapshotId: string }>): string {
   return Buffer.from(JSON.stringify(input), 'utf8').toString('base64url')
@@ -140,6 +141,11 @@ export class ProviderSourceSnapshots {
           )
         }
       }
+      await scheduleInitialProviderPlaceDetails(client, {
+        snapshotId: input.snapshotId,
+        providerKey: input.providerKey,
+        requestedAt: this.context.now().toISOString(),
+      })
       await client.query('COMMIT')
       const snapshot = await this.get(input.ownerMemberId, input.snapshotId)
       if (snapshot === undefined) throw new Error('source snapshot did not persist')
