@@ -8,11 +8,12 @@ type WorkerCheck = Readonly<{
     'source-snapshot-place-materialization',
     'provider-detail-pending-state',
     'provider-detail-job-orchestration',
+    'traceforge-runner-provider-detail',
     'naver-capture-parser',
     'encrypted-capture-replay',
     'capture-expiry-sweep',
   ]
-  liveAcquisition: 'integration-gated'
+  liveAcquisition: 'configuration-gated'
 }>
 
 function describeWorkerScaffold(): WorkerCheck {
@@ -26,11 +27,12 @@ function describeWorkerScaffold(): WorkerCheck {
       'source-snapshot-place-materialization',
       'provider-detail-pending-state',
       'provider-detail-job-orchestration',
+      'traceforge-runner-provider-detail',
       'naver-capture-parser',
       'encrypted-capture-replay',
       'capture-expiry-sweep',
     ],
-    liveAcquisition: 'integration-gated',
+    liveAcquisition: 'configuration-gated',
   }
 }
 
@@ -68,6 +70,31 @@ async function main(): Promise<void> {
         { continuous, signal: controller.signal },
       )
       process.stdout.write(`${JSON.stringify({ operation: 'import-materialization', ...result })}\n`)
+    } finally {
+      process.removeListener('SIGINT', stop)
+      process.removeListener('SIGTERM', stop)
+    }
+    return
+  }
+  if (
+    process.argv.includes('--process-provider-place-details') ||
+    process.argv.includes('--run-provider-place-details')
+  ) {
+    const continuous = process.argv.includes('--run-provider-place-details')
+    const [{ loadProviderDetailConfig }, { runProviderPlaceDetails }] = await Promise.all([
+      import('./config.js'),
+      import('./provider-place-detail-runtime.js'),
+    ])
+    const controller = new AbortController()
+    const stop = () => controller.abort()
+    process.once('SIGINT', stop)
+    process.once('SIGTERM', stop)
+    try {
+      const result = await runProviderPlaceDetails(
+        await loadProviderDetailConfig(process.env),
+        { continuous, signal: controller.signal },
+      )
+      process.stdout.write(`${JSON.stringify({ operation: 'provider-place-details', ...result })}\n`)
     } finally {
       process.removeListener('SIGINT', stop)
       process.removeListener('SIGTERM', stop)

@@ -7,6 +7,19 @@ import type {
 } from './ports/provider-place-detail.js'
 import { recordPlaceCandidate } from './record-place-candidate.js'
 import { recordSourceObservation } from './record-source-observation.js'
+import {
+  combineAbortSignals,
+  createLeaseGuardian,
+} from './provider-place-detail/lease-guardian.js'
+import { ImportLeaseLostError } from '../domain/imports.js'
+
+const MAXIMUM_RETRY_DELAY_MILLISECONDS = 15 * 60_000
+
+function retryDelayMilliseconds(baseMilliseconds: number, attemptCount: number) {
+  const exponent = Math.max(0, attemptCount - 1)
+  const multiplier = 2 ** Math.min(exponent, 31)
+  return Math.min(baseMilliseconds * multiplier, MAXIMUM_RETRY_DELAY_MILLISECONDS)
+}
 
 export function createProviderPlaceDetailWorker(dependencies: Readonly<{
   workerId: string
@@ -16,7 +29,7 @@ export function createProviderPlaceDetailWorker(dependencies: Readonly<{
   now: () => Date
   leaseMilliseconds: number
   maximumAttempts: number
-  retryDelayMilliseconds: (attemptCount: number) => number
+  retryBaseMilliseconds: number
 }>) {
   const sources = new Map(dependencies.sources.map((source) => [source.providerKey, source]))
   if (
@@ -26,7 +39,9 @@ export function createProviderPlaceDetailWorker(dependencies: Readonly<{
     !Number.isInteger(dependencies.leaseMilliseconds) ||
     dependencies.leaseMilliseconds <= 0 ||
     !Number.isInteger(dependencies.maximumAttempts) ||
-    dependencies.maximumAttempts <= 0
+    dependencies.maximumAttempts <= 0 ||
+    !Number.isInteger(dependencies.retryBaseMilliseconds) ||
+    dependencies.retryBaseMilliseconds <= 0
   ) throw new Error('Provider detail worker configuration is invalid.')
 
   async function finishFailure(
@@ -38,8 +53,10 @@ export function createProviderPlaceDetailWorker(dependencies: Readonly<{
     const mayRetry = retryable && claim.attemptCount < dependencies.maximumAttempts
     const retryAt = mayRetry
       ? new Date(
-          new Date(finishedAt).getTime() +
-          dependencies.retryDelayMilliseconds(claim.attemptCount),
+          new Date(finishedAt).getTime() + retryDelayMilliseconds(
+            dependencies.retryBaseMilliseconds,
+            claim.attemptCount,
+          ),
         ).toISOString()
       : undefined
     await dependencies.store.finishFailure({
@@ -57,7 +74,10 @@ export function createProviderPlaceDetailWorker(dependencies: Readonly<{
   }
 
   return {
-    async runOne() {
+    async runOne(processSignal?: AbortSignal) {
+      const processAborted = () => processSignal?.aborted ?? false
+      if (processAborted()) return { status: 'aborted' as const }
+
       const started = dependencies.now()
       const startedAt = started.toISOString()
       const leaseUntil = new Date(
@@ -70,86 +90,140 @@ export function createProviderPlaceDetailWorker(dependencies: Readonly<{
         leaseUntil,
       })
       if (claim === undefined) return { status: 'idle' as const }
-      if (!(await dependencies.store.renewLease({
+
+      const guardian = createLeaseGuardian({
         claim,
-        renewedAt: startedAt,
-        leaseUntil,
-      }))) return { status: 'lease-lost' as const, jobId: claim.jobId }
-
-      const source = sources.get(claim.providerKey)
-      if (source === undefined) {
-        return finishFailure(
-          claim,
-          'provider-unavailable',
-          false,
-          dependencies.now().toISOString(),
-        )
-      }
-
-      let result
-      try {
-        result = await source.fetch({
-          providerPlaceId: claim.providerPlaceId,
-          signal: AbortSignal.timeout(Math.min(dependencies.leaseMilliseconds, 60_000)),
-        })
-      } catch {
-        return finishFailure(
-          claim,
-          'provider-unavailable',
-          true,
-          dependencies.now().toISOString(),
-        )
-      }
-      const finishedAt = dependencies.now().toISOString()
-      if (result.kind === 'failure') {
-        return finishFailure(claim, result.code, result.retryable, finishedAt)
-      }
-
-      const detail = result.detail
-      await recordSourceObservation({
-        id: claim.observationId,
-        providerKey: claim.providerKey,
-        externalPlaceId: claim.providerPlaceId,
-        observationKind: 'provider-detail',
-        acquisitionKind: detail.acquisitionKind,
-        payloadChecksum: detail.payloadChecksum,
-        parserVersion: detail.parserVersion,
-        observedAt: detail.observedAt,
-        acquiredAt: finishedAt,
-        ...(detail.captureReference === undefined
-          ? {}
-          : { captureReference: detail.captureReference }),
-        facts: {
-          name: detail.name,
-          address: detail.address,
-          categoryLabel: detail.categoryLabel,
-          location: detail.location,
-          attributes: detail.attributes,
-        },
-        confidence: detail.confidence,
-        store: dependencies.ingestionStore,
+        store: dependencies.store,
+        now: dependencies.now,
+        leaseMilliseconds: dependencies.leaseMilliseconds,
       })
-      await recordPlaceCandidate({
-        id: claim.candidateId,
-        sourceObservationId: claim.observationId,
-        parserVersion: detail.parserVersion,
-        name: detail.name,
-        ...(detail.address === null ? {} : { address: detail.address }),
-        ...(detail.location === null ? {} : { location: detail.location }),
-        attributes: {
+      if (!(await guardian.renew())) return { status: 'lease-lost' as const, jobId: claim.jobId }
+      if (processAborted()) return { status: 'aborted' as const, jobId: claim.jobId }
+      guardian.start()
+
+      const timeoutController = new AbortController()
+      const timeout = setTimeout(
+        () => timeoutController.abort(),
+        Math.min(dependencies.leaseMilliseconds, 60_000),
+      )
+      const combined = combineAbortSignals([
+        guardian.signal,
+        timeoutController.signal,
+        ...(processSignal === undefined ? [] : [processSignal]),
+      ])
+      const leaseLost = () => ({ status: 'lease-lost' as const, jobId: claim.jobId })
+      const aborted = () => ({ status: 'aborted' as const, jobId: claim.jobId })
+      const fence = async () => {
+        if (guardian.isLost()) return false
+        return guardian.renew()
+      }
+      const finishOwnedFailure = async (
+        code: ProviderDetailFailureCode,
+        retryable: boolean,
+        finishedAt: string,
+      ) => {
+        try {
+          return await finishFailure(claim, code, retryable, finishedAt)
+        } catch (error) {
+          if (error instanceof ImportLeaseLostError) return leaseLost()
+          throw error
+        }
+      }
+
+      try {
+        const source = sources.get(claim.providerKey)
+        if (source === undefined) {
+          if (!(await fence())) return leaseLost()
+          return finishOwnedFailure(
+            'provider-unavailable',
+            false,
+            dependencies.now().toISOString(),
+          )
+        }
+
+        let result
+        try {
+          result = await source.fetch({
+            providerPlaceId: claim.providerPlaceId,
+            signal: combined.signal,
+          })
+        } catch {
+          if (guardian.isLost()) return leaseLost()
+          if (processAborted()) return aborted()
+          if (!(await fence())) return leaseLost()
+          return finishOwnedFailure(
+            'provider-unavailable',
+            true,
+            dependencies.now().toISOString(),
+          )
+        }
+
+        const finishedAt = dependencies.now().toISOString()
+        if (processAborted()) return aborted()
+        if (!(await fence())) return leaseLost()
+        if (result.kind === 'failure') {
+          return finishOwnedFailure(result.code, result.retryable, finishedAt)
+        }
+
+        const detail = result.detail
+        await recordSourceObservation({
+          id: claim.observationId,
           providerKey: claim.providerKey,
           externalPlaceId: claim.providerPlaceId,
-          categoryLabel: detail.categoryLabel,
-          detail: detail.attributes,
-        },
-        createdAt: finishedAt,
-        store: dependencies.ingestionStore,
-      })
-      await dependencies.store.complete({ claim, completedAt: finishedAt })
-      return {
-        status: 'completed' as const,
-        jobId: claim.jobId,
-        observationId: claim.observationId,
+          observationKind: 'provider-detail',
+          acquisitionKind: detail.acquisitionKind,
+          payloadChecksum: detail.payloadChecksum,
+          parserVersion: detail.parserVersion,
+          observedAt: detail.observedAt,
+          acquiredAt: finishedAt,
+          ...(detail.captureReference === undefined
+            ? {}
+            : { captureReference: detail.captureReference }),
+          facts: {
+            name: detail.name,
+            address: detail.address,
+            categoryLabel: detail.categoryLabel,
+            location: detail.location,
+            attributes: detail.attributes,
+          },
+          confidence: detail.confidence,
+          store: dependencies.ingestionStore,
+        })
+        if (processAborted()) return aborted()
+        if (!(await fence())) return leaseLost()
+        await recordPlaceCandidate({
+          id: claim.candidateId,
+          sourceObservationId: claim.observationId,
+          parserVersion: detail.parserVersion,
+          name: detail.name,
+          ...(detail.address === null ? {} : { address: detail.address }),
+          ...(detail.location === null ? {} : { location: detail.location }),
+          attributes: {
+            providerKey: claim.providerKey,
+            externalPlaceId: claim.providerPlaceId,
+            categoryLabel: detail.categoryLabel,
+            detail: detail.attributes,
+          },
+          createdAt: finishedAt,
+          store: dependencies.ingestionStore,
+        })
+        if (!(await fence())) return leaseLost()
+        if (processAborted()) return aborted()
+        try {
+          await dependencies.store.complete({ claim, completedAt: finishedAt })
+        } catch (error) {
+          if (error instanceof ImportLeaseLostError) return leaseLost()
+          throw error
+        }
+        return {
+          status: 'completed' as const,
+          jobId: claim.jobId,
+          observationId: claim.observationId,
+        }
+      } finally {
+        clearTimeout(timeout)
+        combined.dispose()
+        await guardian.stop()
       }
     },
   }

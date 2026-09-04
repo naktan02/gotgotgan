@@ -22,6 +22,64 @@ type DetailClaimRow = Readonly<{
 export class PostgresProviderPlaceDetails implements ProviderPlaceDetailJobStore {
   constructor(private readonly pool: Pool) {}
 
+  async scheduleStale(input: Readonly<{
+    providerKeys: readonly ProviderPlaceDetailClaim['providerKey'][]
+    staleBefore: string
+    scheduledAt: string
+    limit: number
+  }>): Promise<number> {
+    const scheduled = await this.pool.query(
+      `WITH stale AS (
+         SELECT status.provider_key, status.provider_place_id
+         FROM ingestion.provider_place_detail_statuses AS status
+         JOIN LATERAL (
+           SELECT job.state, job.failure_code, job.updated_at
+           FROM ingestion.provider_place_detail_jobs AS job
+           WHERE job.provider_key = status.provider_key
+             AND job.provider_place_id = status.provider_place_id
+           ORDER BY job.created_at DESC, job.id DESC
+           LIMIT 1
+         ) AS latest ON true
+         WHERE status.provider_key = ANY($1::text[])
+           AND status.status = 'available'
+           AND greatest(status.updated_at, latest.updated_at) <= $2::timestamptz
+           AND (
+             latest.state = 'completed'
+             OR (
+               latest.state = 'failed'
+               AND latest.failure_code IN (
+                 'provider-rate-limited', 'provider-unavailable'
+               )
+             )
+           )
+           AND NOT EXISTS (
+             SELECT 1 FROM ingestion.provider_place_detail_jobs AS active
+             WHERE active.provider_key = status.provider_key
+               AND active.provider_place_id = status.provider_place_id
+               AND active.state IN ('queued', 'waiting', 'leased')
+           )
+         ORDER BY greatest(status.updated_at, latest.updated_at),
+                  status.provider_key, status.provider_place_id
+         FOR UPDATE OF status SKIP LOCKED
+         LIMIT $4
+       )
+       INSERT INTO ingestion.provider_place_detail_jobs (
+         id, provider_key, provider_place_id, state, available_at,
+         observation_id, candidate_id, created_at, updated_at
+       )
+       SELECT gen_random_uuid(), stale.provider_key, stale.provider_place_id,
+              'queued', $3::timestamptz, gen_random_uuid(), gen_random_uuid(),
+              $3::timestamptz, $3::timestamptz
+       FROM stale
+       ON CONFLICT (provider_key, provider_place_id)
+         WHERE state IN ('queued', 'waiting', 'leased')
+       DO NOTHING
+       RETURNING id`,
+      [input.providerKeys, input.staleBefore, input.scheduledAt, input.limit],
+    )
+    return scheduled.rowCount ?? 0
+  }
+
   async claimNext(input: Readonly<{
     workerId: string
     providerKeys: readonly ProviderPlaceDetailClaim['providerKey'][]
@@ -39,7 +97,7 @@ export class PostgresProviderPlaceDetails implements ProviderPlaceDetailJobStore
              ON status.provider_key = job.provider_key
             AND status.provider_place_id = job.provider_place_id
            WHERE job.provider_key = ANY($1::text[])
-             AND status.status = 'pending'
+             AND status.status IN ('pending', 'available')
              AND job.available_at <= $3::timestamptz
              AND (
                job.state IN ('queued', 'waiting')
@@ -139,8 +197,24 @@ export class PostgresProviderPlaceDetails implements ProviderPlaceDetailJobStore
       await client.query(
         `INSERT INTO ingestion.provider_place_detail_observations (
            provider_key, provider_place_id, source_observation_id,
-           place_candidate_id, normalized_at
-         ) VALUES ($1,$2,$3::uuid,$4::uuid,$5::timestamptz)
+           place_candidate_id, normalized_at,
+           previous_source_observation_id, change_kind
+         )
+         SELECT $1, $2, $3::uuid, $4::uuid, $5::timestamptz,
+                status.last_detail_observation_id,
+                CASE
+                  WHEN status.last_detail_observation_id IS NULL THEN 'initial'
+                  WHEN previous.payload_checksum = current.payload_checksum THEN 'unchanged'
+                  ELSE 'changed'
+                END
+         FROM ingestion.provider_place_detail_statuses AS status
+         JOIN ingestion.source_observations AS current
+           ON current.id = $3::uuid
+          AND current.provider_key = status.provider_key
+          AND current.external_place_id = status.provider_place_id
+         LEFT JOIN ingestion.source_observations AS previous
+           ON previous.id = status.last_detail_observation_id
+         WHERE status.provider_key = $1 AND status.provider_place_id = $2
          ON CONFLICT (provider_key, provider_place_id, source_observation_id) DO NOTHING`,
         [input.claim.providerKey, input.claim.providerPlaceId,
           input.claim.observationId, input.claim.candidateId, input.completedAt],
@@ -218,7 +292,8 @@ export class PostgresProviderPlaceDetails implements ProviderPlaceDetailJobStore
           `UPDATE ingestion.provider_place_detail_statuses
            SET status = 'unavailable', last_detail_observation_id = NULL,
                updated_at = $3::timestamptz
-           WHERE provider_key = $1 AND provider_place_id = $2`,
+           WHERE provider_key = $1 AND provider_place_id = $2
+             AND status = 'pending'`,
           [input.claim.providerKey, input.claim.providerPlaceId, input.finishedAt],
         )
       }

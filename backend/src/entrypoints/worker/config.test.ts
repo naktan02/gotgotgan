@@ -1,10 +1,15 @@
+import { createHash } from 'node:crypto'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { loadCaptureSweepConfig, loadImportMaterializationConfig } from './config.js'
+import {
+  loadCaptureSweepConfig,
+  loadImportMaterializationConfig,
+  loadProviderDetailConfig,
+} from './config.js'
 
 const temporaryDirectories: string[] = []
 
@@ -109,4 +114,69 @@ describe('worker configuration', () => {
       database: { maxConnections: 2 },
     })
   })
+
+  it('loads an exact Runner, Pack and private profile root for provider detail acquisition', async () => {
+    const environment = await validEnvironment()
+    const directory = temporaryDirectories.at(-1)!
+    const runnerFile = join(directory, 'runner.js')
+    const packFile = join(directory, 'naver-pack.json')
+    await Promise.all([
+      writeFile(runnerFile, 'fixture'),
+      writeFile(packFile, '{}'),
+    ])
+    Object.assign(environment, {
+      PLACE_PROVIDER_DETAIL_LEASE_MILLISECONDS: '90000',
+      PLACE_PROVIDER_DETAIL_FRESHNESS_MILLISECONDS: '86400000',
+      PLACE_PROVIDER_DETAIL_MAXIMUM_ATTEMPTS: '4',
+      PLACE_PROVIDER_DETAIL_MAXIMUM_JOBS: '25',
+      PLACE_PROVIDER_DETAIL_REFRESH_BATCH_SIZE: '50',
+      PLACE_TRACEFORGE_NAVER_PACK_FILE: packFile,
+      PLACE_TRACEFORGE_NAVER_PACK_SHA256: sha256('{}'),
+      PLACE_TRACEFORGE_NAVER_PACK_VERSION: '0.2.0',
+      PLACE_TRACEFORGE_PROFILE_ROOT: join(directory, 'profiles'),
+      PLACE_TRACEFORGE_RUNNER_FILE: runnerFile,
+      PLACE_TRACEFORGE_RUNNER_SHA256: sha256('fixture'),
+    })
+
+    await expect(loadProviderDetailConfig(environment)).resolves.toMatchObject({
+      leaseMilliseconds: 90_000,
+      freshnessMilliseconds: 86_400_000,
+      maximumAttempts: 4,
+      maximumJobs: 25,
+      refreshBatchSize: 50,
+      traceforge: {
+        naverPackFile: packFile,
+        naverPackVersion: '0.2.0',
+        profileRoot: join(directory, 'profiles'),
+        runnerFile,
+      },
+    })
+  })
+
+  it('rejects a provider detail artifact whose digest does not match', async () => {
+    const environment = await validEnvironment()
+    const directory = temporaryDirectories.at(-1)!
+    const runnerFile = join(directory, 'runner.js')
+    const packFile = join(directory, 'naver-pack.json')
+    await Promise.all([
+      writeFile(runnerFile, 'modified-runner'),
+      writeFile(packFile, '{}'),
+    ])
+    Object.assign(environment, {
+      PLACE_TRACEFORGE_NAVER_PACK_FILE: packFile,
+      PLACE_TRACEFORGE_NAVER_PACK_SHA256: sha256('{}'),
+      PLACE_TRACEFORGE_NAVER_PACK_VERSION: '0.2.0',
+      PLACE_TRACEFORGE_PROFILE_ROOT: join(directory, 'profiles'),
+      PLACE_TRACEFORGE_RUNNER_FILE: runnerFile,
+      PLACE_TRACEFORGE_RUNNER_SHA256: sha256('expected-runner'),
+    })
+
+    await expect(loadProviderDetailConfig(environment)).rejects.toEqual(
+      new Error('Worker configuration is invalid'),
+    )
+  })
 })
+
+function sha256(value: string): string {
+  return createHash('sha256').update(value).digest('hex')
+}

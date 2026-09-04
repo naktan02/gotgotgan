@@ -45,9 +45,14 @@ drift, latency를 분류한다. 안정된 direct HTTP adapter와 공식/local fa
 permission, session probe, 일회성 grant, batch 상한, progress/cancel, tab/listener/resource close를
 점검한다. Provider cookie·token·profile 경로는 Place로 보내지 않는다. Provider별 확장을 만들지 않고
 NAVER·Kakao·Google Adapter의 delivery state를 따로 기록한다. 가져온 snapshot의 private Collection
-저장은 Provider profile 없이 실행한다. 후속 상세 보강에 서버 profile이 필요하면 별도 read-only
-workload로 운영하고 회원 ID나 목록 이름을 전달하지 않는다. 실제 NAVER 상세 Adapter가 추가되기
-전까지 상세 Job은 integration-gated다.
+저장은 Provider profile 없이 실행한다. 후속 상세 보강은 별도 read-only workload로 운영하고 회원
+ID나 목록 이름을 전달하지 않는다. 현재 NAVER 상세 source는 vendored TraceForge Runner SDK와 배포가
+지정한 Runner/Pack version·SHA-256을 사용한다. production activation과 live 재검증은 별도 gate다.
+challenge가 나타나면 request를 멈추고
+profile을 폐기한다. CAPTCHA·영수증 인증 자동 답변, IP 회전, cookie/token 반출은 허용하지 않는다.
+운영 전 freshness와 refresh batch를 명시하고, `changed` 관찰은 Canonical 자동 덮어쓰기가 아니라
+Resolution/review 입력으로만 사용한다. `provider-interaction-required` Job은 자동 재수집하지 않으며,
+운영자 재개 명령/UI는 후속 작업이다.
 
 실제 Whale/NAVER 확장 경로를 검증하기 전의 진단·재현용 회원 로컬 NAVER 관찰은
 [`../../apps/member-connector/README.md`](../../apps/member-connector/README.md)의

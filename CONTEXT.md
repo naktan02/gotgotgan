@@ -32,6 +32,7 @@ domain meaning rather than storage or framework structure.
 | Place Fulfillment Job | 동일한 Provider Place Identity의 여러 Fulfillment Intent를 합쳐 가져온 Source Snapshot을 Canonical Place와 회원 Library에 멱등 반영하는 작업. | Provider 상세 조회 작업이나 회원별 ImportBatch. |
 | Provider Place Detail State | Provider Place Identity별 상세 관찰 상태. `pending`, `available`, `unavailable` 중 하나이며 `available`은 정규화된 상세 Source Observation을 반드시 가리킨다. 개인 저장 성공 여부와 독립적이다. | ImportItem 상태나 Canonical Place 존재 여부. |
 | Provider Place Detail Job | 회원·ImportBatch·브라우저 profile 없이 Provider Place Identity 하나의 상세 증거를 수집·정규화하는 lease/retry 작업. | Place Fulfillment Job이나 Canonical 동일 장소 판정. |
+| NAVER TraceForge Detail Source | 버전과 digest가 고정된 TraceForge Runner·NAVER Pack 결과를 Provider 상세 snapshot으로 바꾸는 Providers Adapter. | TraceForge Studio, 회원 브라우저 session, Canonical Place 수정 권한, 보안 인증 우회기. |
 | Place Redirect | A durable reference from a merged Canonical Place to the surviving Canonical Place. | Deletion or alias text. |
 | Place Lineage | Immutable merge or split history that explains how Canonical Place identity and provider links changed. | Current Place state. |
 | Personal Library | A member's Place-owned organization of Collections, Favorite Places, tags, and personal ratings. | Canonical Place data, Visit history, or a provider account. |

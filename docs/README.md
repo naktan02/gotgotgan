@@ -42,8 +42,9 @@ Identity별 공동 materialization job은 기존 Canonical link를 재사용하�
 근거로 create/link한 뒤 회원의 private Collection에 즉시 멱등 저장한다. Provider 상세 상태와 후속
 보강 Job은 이 저장 수명주기와 분리된다. Migration `000021`과 Provider-neutral Worker/PostgreSQL
 Adapter는 lease·retry·immutable detail Observation/Candidate와 `pending`/`available`/`unavailable`
-전이를 구현했다. 실제 NAVER 상세 경로 관찰과 read-only Adapter 활성화는 선택적 deferred work이며
-관찰 자료가 제공되기 전에는 비활성으로 남지만 Stage 7 완료를 막지 않는다.
+전이를 구현했다. TraceForge Runner 기반 NAVER read-only Adapter가 추가됐고, Migration `000043`은
+오래된 상세를 append-only Job으로 다시 관찰해 `initial`/`unchanged`/`changed`로 연결한다. production
+Runner/Pack 배포와 live 재검증은 아직 configuration-gated다.
 
 Stage 8A는 `resolution` 모듈과 Migration `000022`에서 다국어 원문을 보존하는 Provider Identity별
 comparison representation, bounded PostGIS/`pg_trgm`/전화/website 후보 검색, versioned immutable

@@ -21,6 +21,14 @@ Library 반영 뒤 프로세스가 중단돼도 evidence ID, canonical decision 
 Provider Detail Job은 Fulfillment와 다른 lease generation/attempt를 사용한다. 지원 Adapter가 있는
 Provider만 claim하고, 성공한 Observation/Candidate 기록은 안정 ID로 replay된다. terminal failure는
 detail 상태만 `unavailable`로 바꾸며 이미 완료된 Canonical/Library 저장을 되돌리지 않는다.
+TraceForge 기반 NAVER source composition은 매 process 실행마다 새 임시 비로그인 profile 하나를
+소유한다. 종료 시 SDK/Runner, profile, DB Pool을 모두 정리한다. Pack이 보안 challenge를 감지하면
+자동 판독·답변 또는 IP 우회를 시도하지 않고 해당 job을 terminal user-action failure로 끝낸다.
+
+Freshness refresh는 완료 Job을 되돌리지 않는다. scheduler가 오래된 `available` identity에 새 Job과
+새 Observation/Candidate identity를 append하고 active Job은 partial unique index로 하나만 허용한다.
+성공 시 이전 정상 관찰과 checksum 비교를 기록하며, 갱신 실패는 기존 정상 projection을 보존한다.
+interaction-required 최신 Job은 시간 경과만으로 다시 실행되지 않는다.
 
 Backend `source-only` mode owns Fastify only. Backend `production` mode validates all configuration,
 constructs the verifier, connects one bounded Pool, and performs an initial query before becoming

@@ -73,8 +73,12 @@ Stage 7은 연결 목록의 안정된 Provider Place ID와 Source List·Item ID�
 Provider Identity별 공동 작업에서 Canonical Place와 회원의 private Collection에 즉시 멱등 반영한다.
 상세 보강은 개인 저장과 독립된 `pending`/`available`/`unavailable` 상태로 관리하며 `available`은 정규화된 관찰을
 반드시 참조한다. Migration `000021`과 별도 Provider Detail Job은 claim/lease/retry, immutable
-Observation/Candidate, 최종 상태 전이를 소유하며 실제 PostGIS에서 검증됐다. 실제 NAVER 상세 경로
-관찰과 read-only Adapter 활성화는 아직 integration-gated다. 가져온 장소는
+Observation/Candidate, 최종 상태 전이를 소유하며 실제 PostGIS에서 검증됐다. 버전과 digest를 설정에서
+고정하는 TraceForge Runner·NAVER Pack용 read-only Adapter와 별도 Worker composition이 추가됐다.
+Migration `000043`은 freshness가 지난 상세를 기존 Job 교체 없이 새 Job으로 재수집하고, 이전 관찰과
+`initial`/`unchanged`/`changed` 관계를 기록한다. 갱신 실패는 마지막 정상 상세를 보존한다.
+운영 Runner/Pack 배포와 live 재검증은 아직 남아 있어 활성화는 configuration-gated다. CAPTCHA·영수증
+인증은 우회하거나 자동 답변하지 않고 해당 작업을 보류한다. 가져온 장소는
 상세 대기 중에도 NAVER·Google Maps·카카오맵에서 열 수 있다.
 회원 PC용 `apps/member-connector`는 현재 로그인된 browser profile을 재사용하는 하나의 다중
 브라우저·다중 Provider 확장으로 진행한다. NAVER·Kakao·Google은 Provider Adapter로 격리하고

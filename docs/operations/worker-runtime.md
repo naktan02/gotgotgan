@@ -20,8 +20,22 @@ node backend/dist/entrypoints/worker/main.js --materialize-imported-places
 첫 명령은 서비스용 연속 실행이고 두 번째는 기존 대기 작업 전환·운영 복구용 bounded 1회 실행이다.
 둘 다 보호된 DB URL, lease, idle poll, 1회 최대 작업 수 설정만 사용한다. 상세 상태를 바꾸는
 Provider Detail Job은 별도 Module Interface와 PostgreSQL Adapter를 사용하며 실제 PostGIS에서
-검증됐다. 다만 지원 Provider key만 claim하므로, 관찰·승인된 NAVER read-only Adapter와 별도 process
-composition이 생기기 전까지 로컬의 NAVER Job은 `pending`으로 유지한다.
+검증됐다. NAVER read-only Adapter와 별도 process composition도 존재하지만 Runner/Pack artifact가
+운영 image에 포함되지는 않았다. 활성화할 때는 아래 명령과 절대경로 설정을 함께 사용한다.
+
+```powershell
+node backend/dist/entrypoints/worker/main.js --process-provider-place-details
+node backend/dist/entrypoints/worker/main.js --run-provider-place-details
+```
+
+필수 설정은 `PLACE_TRACEFORGE_RUNNER_FILE`, `PLACE_TRACEFORGE_RUNNER_SHA256`,
+`PLACE_TRACEFORGE_NAVER_PACK_FILE`, `PLACE_TRACEFORGE_NAVER_PACK_SHA256`,
+`PLACE_TRACEFORGE_NAVER_PACK_VERSION`, `PLACE_TRACEFORGE_PROFILE_ROOT`와 Worker DB 그룹이다.
+lease/idle/attempt/job/retry 상한도 환경으로
+제한한다. 기본 freshness는 7일이며 `PLACE_PROVIDER_DETAIL_FRESHNESS_MILLISECONDS`와
+`PLACE_PROVIDER_DETAIL_REFRESH_BATCH_SIZE`로 주기와 1회 예약량을 제한한다. 실행마다
+`naver-anonymous-*` 임시 profile을 만들고 종료 때 삭제한다. challenge 감지는
+자동 해결이 아니라 terminal user-action 상태다.
 
 만료 캡처 정리는 Materialization loop와 분리된 1회 명령이다.
 

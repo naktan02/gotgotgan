@@ -8,12 +8,13 @@
     "database:prepare": "npm run build && node dist/entrypoints/cli/prepare-database.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --exclude \"tests/integration/**\"",
-    "test:provider-live": "vitest run tests/provider-live-smoke.test.ts",
+    "test:provider-live": "vitest run tests/provider-live-smoke.test.ts tests/provider-live-forge-detail.test.ts",
     "check:worker": "npm run build && node dist/entrypoints/worker/main.js --check",
     "check": "npm run typecheck && npm run test && npm run check:worker"
   },
   "dependencies": {
     "@place/contracts": "0.1.0",
+    "@traceforge/runner-sdk": "file:../vendor/traceforge-runner-sdk-0.1.0.tgz",
     "fastify": "5.12.1",
     "jose": "6.2.10",
     "node-pg-migrate": "9.0.0",

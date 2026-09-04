@@ -25,6 +25,13 @@ verifier, deployment-owned policy, ID source, and process-owned Pool only when
 application database connection, job claim, provider, browser profile, or external integration
 exists.
 
+Provider Detail Worker composition은 별도 명령으로만 활성화된다. 배포가 버전과 SHA-256으로 지정한
+TraceForge Runner와 Provider Pack을 vendored Runner SDK를 통해 실행하고, 새 비로그인 profile의
+수명주기를 Runner client가 소유한다. 성공·실패·중단 시 Runner를 먼저 닫고 profile과 DB Pool을
+정리한다. 공개 상세 결과는 Ingestion의 immutable
+Observation/Candidate로만 들어가며 Canonical Place를 직접 수정하지 않는다. 보안 인증은 자동으로
+해제하지 않고 사용자 개입 필요 실패로 종료한다.
+
 The `ingestion` module now records immutable observations, normalized candidates, and resolution
 decisions through one append interface. The `places` module independently applies idempotent
 canonical create/link/merge/split/retire commands and resolves redirects/provider identities. Their

@@ -138,3 +138,9 @@ Migration `000038`은 Provider media URL 대신 opaque Provider media identity �
 source identity로 보존한다. rights revision은 append-only이며 허용 surface, 근거, 유효 기간과 필수
 attribution을 명시한다. Profile 선택만으로는 공개 권리가 생기지 않고 안전 projection과 delivery
 Adapter가 현재 허용된 media만 URI로 해석한다.
+
+Migration `000043`은 같은 Provider Place Identity의 완료 Job을 보존하면서 freshness 재수집마다 새 Job을
+append한다. partial unique index는 active Job 하나만 허용한다. 각 정상 상세 관찰은 이전 관찰을 참조하고
+payload checksum으로 `initial`, `unchanged`, `changed`를 기록한다. refresh failure는 마지막 정상
+`available` 참조를 지우지 않는다. 완료 Job과 rate limit/provider unavailable 일시 실패만 자동
+재예약하며 parser drift, capture invalid, interaction required는 운영자 확인 전까지 보류한다.

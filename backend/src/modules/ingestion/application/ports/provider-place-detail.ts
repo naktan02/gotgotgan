@@ -3,6 +3,7 @@ import type { AcquisitionKind, GeoPoint } from '../../domain/model.js'
 export type ProviderDetailFailureCode =
   | 'provider-rate-limited'
   | 'provider-unavailable'
+  | 'provider-interaction-required'
   | 'provider-parser-drift'
   | 'capture-invalid'
 
@@ -47,6 +48,12 @@ export type ProviderPlaceDetailClaim = Readonly<{
 }>
 
 export interface ProviderPlaceDetailJobStore {
+  scheduleStale(input: Readonly<{
+    providerKeys: readonly ProviderPlaceDetailClaim['providerKey'][]
+    staleBefore: string
+    scheduledAt: string
+    limit: number
+  }>): Promise<number>
   claimNext(input: Readonly<{
     workerId: string
     providerKeys: readonly ProviderPlaceDetailClaim['providerKey'][]

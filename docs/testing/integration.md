@@ -31,6 +31,12 @@ idempotency/profile 비노출, 분리된 cancel/resume Adapter의 회귀를 검�
 `000026`의 상태별 batch index와 item 원본 순서 index가 실제 query plan에 선택되는지도 확인한다.
 좁은 반복 명령은 `npm run test:import-queries`다.
 
+Provider 상세 전용 suite는 Migration `000043`을 포함한 disposable PostGIS에서 초기 성공, 동일 checksum
+refresh, 변경 checksum refresh를 순서대로 실행한다. append-only Job/Observation/Candidate 이력,
+`initial`/`unchanged`/`changed` 연결, Canonical Place 무변경, 마지막 정상 상세 보존을 검증한다. parser
+drift와 interaction challenge는 자동 재예약하지 않고 provider unavailable 일시 실패만 freshness 이후
+재예약하는 정책도 고정한다. 좁은 반복 명령은 `npm run test:provider-place-details`다.
+
 Library query suite는 saved/wanted/rated pagination뿐 아니라 최대 20개 Tag ID의 `all`/`any` 조합,
 Tag 순서 정규화, filter가 다른 cursor 재사용 거부를 실제 runtime role로 검증한다. 같은 suite에서
 Collection rename/reorder/remove/delete, Tag rename/untag/delete와 Import provenance가 있는

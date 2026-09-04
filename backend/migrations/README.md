@@ -142,3 +142,27 @@ immutable Appeal Resolution을 정규화한다. decision당 Appeal 하나와 Han
 기록하고 rejected는 current withheld를 바꾸지 않는다. Profile 삭제 trigger는 pending Appeal을 system
 superseded resolution로 닫는다. runtime은 Notice acknowledgement와 Appeal current status column만
 갱신할 수 있고 resolution UPDATE/DELETE 권한은 없다.
+
+`000035`는 Collection membership을 즐겨찾기의 유일한 truth로 전환하기 위한 additive 기반을 만든다.
+Collection·회원·Rating의 불투명 revision, 결과를 보존하는 v2 operation receipt, 여러 Provider 원본
+목록을 하나의 Collection에 연결할 수 있는 source-list binding, 부분 공개 복사의 항목 provenance를
+추가한다. `saved`/`wanted` legacy column은 rollback 증거로 남기되, 소유 Collection에 속하지 않은 활성
+legacy 행이 하나라도 있으면 특별 카테고리를 임의 생성하지 않고 migration을 중단한다.
+
+`000036`은 한 Source Observation과 subject에 묶인 typed fact assertion 원장, 불변 Canonical Place
+Profile revision, field별 selected evidence, 멱등 발행 receipt와 catalog change feed를 추가한다.
+Profile 현재 pointer는 검증 함수만 전진시키며 identity lifecycle과 현실 영업 상태를 분리한다.
+
+`000037`은 provider-neutral Area identity와 gap 없는 localized hierarchy version, Provider category
+mapping version, Profile별 exact Taxonomy·Area assignment를 추가한다. 부모 Area는 최신 version이
+활성이고 같은 국가여야 하며 assignment는 정확한 source assertion과 node version을 참조한다.
+
+`000038`은 URL이 아닌 stable Place media source identity, append-only rights revision과 attribution,
+Profile media selection을 추가한다. 공개 view는 현재 Profile에 선택되고 현재 권리·surface·유효 기간·
+필수 출처 표기가 모두 충족된 media만 노출한다.
+
+`000043`은 Provider 상세 Job을 한 번 쓰고 교체하는 행이 아니라 identity별 append-only 실행 이력으로
+확장한다. 동시에 active Job은 하나만 허용하고, freshness scheduler는 완료 Job과
+`provider-rate-limited`/`provider-unavailable` 일시 실패만 다시 예약한다. 상세 관찰은 이전 관찰을
+참조하며 payload checksum으로 `initial`, `unchanged`, `changed`를 기록한다. 갱신 실패는 마지막 정상
+상세를 지우지 않고 parser drift, capture invalid, interaction required는 운영자 확인 전까지 보류한다.

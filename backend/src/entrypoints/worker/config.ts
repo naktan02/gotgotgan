@@ -1,4 +1,6 @@
+import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 
 import { z } from 'zod'
 
@@ -30,6 +32,29 @@ const materializationEnvironmentSchema = databaseEnvironmentSchema.extend({
     .number().int().min(1).max(100_000).default(10_000),
 })
 
+const providerDetailEnvironmentSchema = databaseEnvironmentSchema.extend({
+  PLACE_PROVIDER_DETAIL_LEASE_MILLISECONDS: z.coerce
+    .number().int().min(30_000).max(600_000).default(60_000),
+  PLACE_PROVIDER_DETAIL_IDLE_MILLISECONDS: z.coerce
+    .number().int().min(100).max(60_000).default(1_000),
+  PLACE_PROVIDER_DETAIL_MAXIMUM_ATTEMPTS: z.coerce
+    .number().int().min(1).max(10).default(3),
+  PLACE_PROVIDER_DETAIL_MAXIMUM_JOBS: z.coerce
+    .number().int().min(1).max(10_000).default(100),
+  PLACE_PROVIDER_DETAIL_RETRY_BASE_MILLISECONDS: z.coerce
+    .number().int().min(1_000).max(600_000).default(30_000),
+  PLACE_PROVIDER_DETAIL_FRESHNESS_MILLISECONDS: z.coerce
+    .number().int().min(60_000).max(31_536_000_000).default(604_800_000),
+  PLACE_PROVIDER_DETAIL_REFRESH_BATCH_SIZE: z.coerce
+    .number().int().min(1).max(1_000).default(100),
+  PLACE_TRACEFORGE_NAVER_PACK_FILE: z.string().min(1),
+  PLACE_TRACEFORGE_NAVER_PACK_SHA256: z.string().regex(/^[a-f0-9]{64}$/),
+  PLACE_TRACEFORGE_NAVER_PACK_VERSION: z.string().regex(/^\d+\.\d+\.\d+$/),
+  PLACE_TRACEFORGE_PROFILE_ROOT: z.string().min(1),
+  PLACE_TRACEFORGE_RUNNER_FILE: z.string().min(1),
+  PLACE_TRACEFORGE_RUNNER_SHA256: z.string().regex(/^[a-f0-9]{64}$/),
+})
+
 export type WorkerDatabaseConfig = Readonly<{
   connectionString: string
   maxConnections: number
@@ -53,6 +78,23 @@ export type ImportMaterializationConfig = Readonly<{
   leaseMilliseconds: number
   idleMilliseconds: number
   maximumJobs: number
+}>
+
+export type ProviderDetailConfig = Readonly<{
+  database: WorkerDatabaseConfig
+  idleMilliseconds: number
+  leaseMilliseconds: number
+  maximumAttempts: number
+  maximumJobs: number
+  retryBaseMilliseconds: number
+  freshnessMilliseconds: number
+  refreshBatchSize: number
+  traceforge: Readonly<{
+    naverPackFile: string
+    naverPackVersion: string
+    profileRoot: string
+    runnerFile: string
+  }>
 }>
 
 function configurationError(): Error {
@@ -131,4 +173,48 @@ export async function loadImportMaterializationConfig(
   } catch {
     throw configurationError()
   }
+}
+
+export async function loadProviderDetailConfig(
+  environment: NodeJS.ProcessEnv,
+): Promise<ProviderDetailConfig> {
+  try {
+    const values = providerDetailEnvironmentSchema.parse(environment)
+    const runnerFile = absolutePath(values.PLACE_TRACEFORGE_RUNNER_FILE)
+    const naverPackFile = absolutePath(values.PLACE_TRACEFORGE_NAVER_PACK_FILE)
+    const profileRoot = absolutePath(values.PLACE_TRACEFORGE_PROFILE_ROOT)
+    await Promise.all([
+      verifySha256(runnerFile, values.PLACE_TRACEFORGE_RUNNER_SHA256),
+      verifySha256(naverPackFile, values.PLACE_TRACEFORGE_NAVER_PACK_SHA256),
+    ])
+    return {
+      database: await workerDatabaseConfig(values),
+      idleMilliseconds: values.PLACE_PROVIDER_DETAIL_IDLE_MILLISECONDS,
+      leaseMilliseconds: values.PLACE_PROVIDER_DETAIL_LEASE_MILLISECONDS,
+      maximumAttempts: values.PLACE_PROVIDER_DETAIL_MAXIMUM_ATTEMPTS,
+      maximumJobs: values.PLACE_PROVIDER_DETAIL_MAXIMUM_JOBS,
+      retryBaseMilliseconds: values.PLACE_PROVIDER_DETAIL_RETRY_BASE_MILLISECONDS,
+      freshnessMilliseconds: values.PLACE_PROVIDER_DETAIL_FRESHNESS_MILLISECONDS,
+      refreshBatchSize: values.PLACE_PROVIDER_DETAIL_REFRESH_BATCH_SIZE,
+      traceforge: {
+        naverPackFile,
+        naverPackVersion: values.PLACE_TRACEFORGE_NAVER_PACK_VERSION,
+        profileRoot,
+        runnerFile,
+      },
+    }
+  } catch {
+    throw configurationError()
+  }
+}
+
+function absolutePath(value: string): string {
+  if (!path.isAbsolute(value)) throw configurationError()
+  return path.normalize(value)
+}
+
+async function verifySha256(file: string, expected: string): Promise<void> {
+  const contents = await readFile(file)
+  const actual = createHash('sha256').update(contents).digest('hex')
+  if (actual !== expected) throw configurationError()
 }
