@@ -4,6 +4,13 @@
 그리고 outbound Collection preview/approval을 소유한다. `transfers` 스키마에는 토큰, 쿠키,
 비밀번호, vault reference를 저장하지 않으며 HTTP projection에도 credential 필드가 없다.
 
+설치 없는 Web one-shot import는 [`ADR 0025`](../../../../docs/adr/0025-web-one-shot-saved-place-imports.md)를
+따른다. 현재 snapshot과 v2 capture는 connection·account fingerprint·installation에 결속돼 있으므로
+공유 링크, 파일, 원격 browser session을 그대로 연결하지 않는다. 이들은 계정 소유 미확인 provenance를
+가진 별도 versioned source와 additive migration이 생긴 뒤에만 공통 SourceSnapshot 검토·승인·queue·
+Collection materialization으로 합류한다. fake connection/fingerprint를 만들거나 아래 보안 검사를
+느슨하게 하는 것은 허용하지 않는다.
+
 `SavedPlaceSource`는 가져오기 관찰만, `SavedPlaceTarget`은 내보내기 대상 관찰과 preflight만
 담당한다. 승인된 outbound plan은 target과 순서가 고정된 execution manifest로 동결한다.
 Connector mutation은 plan digest, verified account fingerprint, connection, installation, origin,

@@ -30,29 +30,29 @@ Stage 7에서 Ingestion은 연결 계정 Import 상태와 작업 실행 port를,
 NAVER source를 `ConnectedPlaceSource`에 주입한다. 검토용 Canonical·Library consumer port도
 entrypoint에서 각 소유 모듈의 공개 interface와 연결한다.
 
-`apps/member-connector`는 Backend 모듈이나 Docker service가 아니라 회원 PC의 별도 composition
-boundary다. 목표 구조에서 application은 Provider-neutral `SavedPlaceSource`, `ProviderSession`,
-`CaptureSubmission` Interface만 알고, `adapters/providers/<provider>`가 endpoint·schema·pagination을,
-`adapters/browser/webextensions`가 tab·permission·message·resource lifecycle을,
-`adapters/place/capture-upload`이 일회성 grant 제출을 구현한다. Extension과 CLI entrypoint는 조립만
-한다. `packages/contracts/connector`가 versioned network/message contract를 소유하되 Connector는
-`backend`나 `apps/web` source를 import하지 않는다. 이 의존 방향은 아키텍처 가드로 검증한다.
+`apps/member-connector`는 Backend 모듈이나 제품 Docker service가 아니라 회원 PC 수집을 검증한
+source-only 진단 boundary다. 사용자 설치형 제품 경계로 이어가지 않는다. 이 안의 Provider-neutral
+source/session Interface와 `adapters/providers/<provider>`의 endpoint·schema·pagination parser는 새
+Web source 구현이 생길 때 좁은 공개 seam 뒤에서 재사용한다. 진단 앱이 `backend`나 `apps/web` source를
+import하지 않는 기존 의존 방향은 유지한다.
 
 NAVER folder/bookmark schema와 전체 pagination은 `adapters/providers/naver/api`의 깊은 leaf가 소유하며
 실행 호스트와 진단 CLI가 같은 collector를 조립한다. `acquisition/adapters/playwright`는 first-party fetch와
 전용 context 수명주기를 소유하는 진단 Adapter다. 전용 profile은 평소 로그인 session을 재사용하지
 못하므로 주 회원 경계가 아니라 Playwright 진단·fixture/replay·E2E·통제된 fallback으로 남긴다.
-snapshot 제출은 이 Adapter나 Backend source를 직접 import하지 않고 versioned connector 계약으로 연결한다.
+snapshot 제출을 구현했다는 뜻은 아니다. 제품 Web source는 acquisition별 versioned 계약으로
+계정 미확인 provenance를 기록한 뒤 공통 SourceSnapshot 경계에 합류한다.
 
 Backend의 Connector 수신도 Ingestion 안에서 깊은 interface 하나로 닫는다. HTTP와 production
 composition은 `issueGrant`와 `submitCapture`만 호출하고, Postgres operation/receipt, 암호화 artifact,
 Provider-neutral parser port는 내부 조립 세부사항이다. production composition만 Providers 공개
 `parseNaverSavedPlaceCapture`를 parser port로 바꾸며 Ingestion은 Providers 내부 경로를 역참조하지 않는다.
 
-NAVER·Kakao·Google은 독립 Provider Adapter이며 실행 호스트의 차이는 Provider leaf로 역류하지 않는다.
-확장·desktop shell·향후 browser-control은 같은 application Interface를 조립할 수 있지만 검증 전
-capability로 선언하지 않는다. Stage 10 외부 저장은 Import용 Source를 비대하게 만들지 않고 별도
-`SavedPlaceTarget` Interface를 사용한다. ADR 0024가 이 경계를 고정한다.
+NAVER·Kakao·Google은 독립 Provider Adapter이며 획득 방법의 차이는 Provider leaf 밖의 snapshot
+처리로 역류하지 않는다. shared-link batch, export file, remote-browser session은 서로 다른 source
+계약이며 Provider와 acquisition method를 한 enum으로 합치지 않는다. remote session은 공유 링크 batch
+계약에 끼워 넣지 않고 live 검증 전 capability로 선언하지 않는다. Stage 10 외부 저장은 Import용 Source를
+비대하게 만들지 않고 별도 `SavedPlaceTarget` Interface를 사용한다. ADR 0025가 제품 경계를 고정한다.
 
 Ingestion은 Provider Identity별 공동 Materialization Job과 회원별 Intent도 소유한다. 이 깊은 module
 interface는 Source Snapshot evidence 기록, Canonical lookup/create/link, Library fan-out을 한 작업

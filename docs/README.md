@@ -5,10 +5,12 @@
 
 저장소 `AGENTS.md`와 `README.md`를 읽은 뒤 작업에 필요한 경로만 읽는다.
 
-회원 가져오기 실행 호스트의 최신 기준은 [`회원 로컬 커넥터`](../apps/member-connector/README.md),
-최소 snapshot 승인·저장은 [`Provider transfers`](../backend/src/modules/transfers/README.md)다.
-아래의 과거 단계별 확장·v1 설명을 새 Desktop의 서버 연결 완료로 해석하지 않는다. NAVER URL 수집은
-Provider Adapter 중 하나이며 다른 공급자·수집 방식은 같은 snapshot 처리 경계를 사용한다.
+회원 가져오기의 최신 제품 기준은 [`웹 일회성 가져오기 ADR`](adr/0025-web-one-shot-saved-place-imports.md)과
+[`Provider별 가능성 조사`](integrations/saved-place-web-import-feasibility.md)다. NAVER multi-share-link
+batch가 주 경로이고 원격 browser beta는 별도 `integration-gated` source다. 사용자 설치나 로컬 browser
+cookie 재사용을 전제로 하지 않는다. [`회원 로컬 커넥터`](../apps/member-connector/README.md)는 parser와
+수집 제약의 진단 근거이며 제품 다음 단계가 아니다. 최소 snapshot 이후 승인·저장은
+[`Provider transfers`](../backend/src/modules/transfers/README.md)를 재사용한다.
 
 - Product scope, terminology, journeys, UI, or reference work: `product/README.md`.
 - Module placement, dependencies, processes, or failure behavior: `architecture/README.md`.
@@ -25,14 +27,16 @@ Delivery state is **source-only; Stages 6.5, 7.5–7.17, and 11A–11E2B3 comple
 implemented and tested in disposable environments but not deployed or active. No provider account, browser profile, map credential, Identity
 client, Gateway route, family composer, or AI connection is active.
 
-Stage 7은 진행 중이다. 연결 메타데이터, durable Import queue, lease/fencing, NAVER 승인 캡처
+Stage 7은 진행 중이다. ADR 0025가 아래 Desktop·extension 기록의 제품 방향을 대체한다. 새 Web source는
+계정 미확인 one-shot provenance와 additive 계약·migration이 구현되기 전까지 활성화하지 않는다.
+연결 메타데이터, durable Import queue, lease/fencing, NAVER 승인 캡처
 parser, 암호화 artifact replay, preview/review API, Web BFF와 반응형 검토 화면, 만료 artifact
 물리 삭제 작업을 source-only로 구현했다. desktop/mobile Playwright와 실제 PostGIS는 검토 재시도,
 민감정보 비노출, DB 삭제 표식과 암호화 파일 삭제를 검증한다. 현재 전용 Chrome profile을 사용하는
 로컬 커넥터의 로그인·취소·종료, 값 없는 네트워크 구조 보고서, current·legacy NAVER schema를 격리한
 전체 폴더·bookmark pagination 수집기는 source-only 진단 CLI다. 평소 로그인 session을 재사용하지
-못하므로 주 회원 흐름으로 사용하지 않는다. ADR 0024는 `apps/member-connector`를 특정 확장에 묶지 않는
-host-neutral 경계로 바꾸고 NAVER·Kakao·Google의 획득 전략과 실행 호스트를 Adapter로 격리한다.
+못하므로 주 회원 흐름으로 사용하지 않는다. ADR 0024의 Provider parser·획득 전략 분리는 유지하지만
+회원 기기 실행 호스트를 제품 경계로 둔 부분은 ADR 0025가 대체한다.
 Versioned Connector 계약, provider-neutral application Interface, 선택형 browser/upload Adapter와
 Chromium·Firefox Manifest V3 build 검증은 source-only다. Chrome·Edge·Whale은 Chromium 산출물을
 공유하지만 Whale 실설치 evidence는 아직 없다. Provider host permission, 실제 Provider Adapter, 공개

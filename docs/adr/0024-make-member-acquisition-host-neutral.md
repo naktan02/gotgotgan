@@ -3,6 +3,8 @@
 - 상태: accepted
 - 날짜: 2026-09-05
 - 대체: ADR 0012의 “브라우저 확장이 주 회원 획득 경계” 결정
+- 부분 대체됨: ADR 0025가 회원 기기 Connector와 Desktop을 제품 경계로 둔 부분을 대체한다. Provider
+  parser와 공통 snapshot의 분리는 유지한다.
 
 ## 배경
 

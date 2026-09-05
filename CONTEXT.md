@@ -39,8 +39,11 @@ domain meaning rather than storage or framework structure.
 | Collection | A member-created favorite category: an owned, ordered grouping of Canonical Place references. An imported provider list may initialize or map to one, but it remains Place-owned and independently renameable. | Taxonomy Node, system `saved/wanted` bucket, or a provider folder itself. |
 | Favorite Place | A Canonical Place included in at least one of a member's Collections. It is derived from Collection membership rather than stored as a separate saved/wanted boolean. | Visit, Personal Rating, or provider-side favorite state. |
 | Source List | A provider-owned folder or saved-list identity observed during import, including its source name and order. | A Place Collection or provider-neutral category. |
-| Collection Import Provenance | The member-scoped mapping from one Provider connection and Source List to the Place Collection created for it. | Shared ownership or permission to overwrite the Collection name. |
-| Collection Place Import Provenance | 한 Collection membership이 어떤 Provider 연결·Source List·Source Item·Provider Place Identity에서 왔는지 나타내는 회원 범위 출처. | Canonical Place identity 또는 Provider 폴더 자체. |
+| One-shot Import Source | 계정 연결을 만들지 않고 공유 링크, 내보낸 파일, 또는 격리된 임시 원격 session으로 한 번 수집한 회원 승인 입력. | Verified Provider Connection, 계정 소유 증거, 자동 새로고침 권한. |
+| Shared-link Import Batch | 회원이 한 번에 제출한 하나 이상의 공유 URL과 링크별 독립 결과를 가진 One-shot Import Source. 각 링크는 공개된 특정 Source List만 가리킨다. | Provider 계정 전체 목록이나 공유자 본인 인증. |
+| Remote-browser Import Session | 회원이 곳곳간의 격리된 임시 서버 browser에서 직접 Provider에 로그인해 일회성 snapshot을 만드는 선택형 session. | 회원 PC의 기존 browser cookie 재사용, 장기 credential/profile 저장, Verified Provider Connection. |
+| Collection Import Provenance | The member-scoped mapping from one verified Provider connection or One-shot Import Source and Source List to the Place Collection created for it. | Shared ownership, verified account ownership, or permission to overwrite the Collection name. |
+| Collection Place Import Provenance | 한 Collection membership이 어떤 Provider connection 또는 One-shot Import Source, Source List·Source Item·Provider Place Identity에서 왔는지 나타내는 회원 범위 출처. | Canonical Place identity, verified account ownership, 또는 Provider 폴더 자체. |
 | Personal Rating | A member's current 0.1-to-5.0 evaluation of a Canonical Place, with private change history. | Provider rating or public aggregate. |
 | Visit | A repeatable occurrence connecting a member to a Canonical Place. | Saved/wanted state. |
 | Note | Short Place-owned writing that may reference a place and has explicit visibility. | Entry. |

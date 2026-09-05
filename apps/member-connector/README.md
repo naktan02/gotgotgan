@@ -1,9 +1,14 @@
-# 회원 로컬 커넥터
+# 회원 로컬 커넥터 진단 자료
 
-`member-connector`는 회원 기기에서 실행하는 곳곳간 소유 Connector 경계다. 확장 프로그램을 필수로
-두지 않으며 NAVER·Kakao·Google의 검증된 API·DOM·명시적 캡처 전략과 실행 호스트를 각각 Adapter로
-분리한다. 캡처는 짧은 수명의 일회성 곳곳간 grant로만 제출하며 Provider cookie·token·profile 경로를
-서버로 보내지 않는다.
+> 제품 상태: 이 앱은 parser, pagination, session 제약과 로컬 수집 가능성을 확인한 source-only 진단
+> 경계다. 곳곳간의 최신 제품 경로는 설치 없는 Web one-shot import이며
+> [`ADR 0025`](../../docs/adr/0025-web-one-shot-saved-place-imports.md)를 따른다. Electron, 확장 프로그램,
+> 로컬 에이전트를 사용자 배포물로 이어가거나 Desktop-to-Backend 연결을 다음 단계로 진행하지 않는다.
+> 재사용할 Provider parser는 새 Web source Adapter 뒤에서 결합 범위를 확인한 뒤 이동한다.
+
+`member-connector`는 회원 기기 수집 실험을 격리한 곳곳간 소유 Connector 경계다. NAVER·Kakao·Google의
+검증된 API·DOM·명시적 캡처 전략과 실행 호스트를 각각 Adapter로 분리해 남긴다. 아래 연결·grant 설명은
+기존 source-only 구현 기록이며, 공개 제품 capability나 실제 서버 저장 완료를 뜻하지 않는다.
 
 ## 전용 Desktop 로그인·수집 연결 확인
 

@@ -14,11 +14,23 @@ IDs, and may retain prior keys only for decryption during rotation. File paths a
 not returned in configuration errors. Direct browser or ordinary environment secret values are not
 part of the configuration interface.
 
-본인 저장목록 획득의 목표 경계는 회원 기기의 host-neutral Connector다. 확장 프로그램은 선택 가능한
-실행 Adapter일 뿐 필수 설치물이 아니다. 곳곳간은 사용자의 아이디·비밀번호·MFA seed를 받지 않으며 로그인 요청 body, cookie,
-Provider bearer token, 실제 profile 경로를 서버로 전송하지 않는다. 가져오기마다 Provider session을
-조용히 점검하고 만료됐을 때만 실제 Provider 로그인 탭에서 사용자가 인증한다. 로그인과 2차 인증 중에는
-trace, screenshot, 요청 body capture를 하지 않는다.
+본인 저장목록 획득의 최신 제품 경계는 설치 없는 Web one-shot import다. NAVER multi-share-link batch는
+로그인을 요구하지 않지만 링크로 공개된 특정 목록만 읽으며 계정 소유를 인증하지 않는다. 모든 URL과
+redirect는 allowlist, DNS 재확인, private·loopback·link-local·metadata 차단, timeout, 응답 크기와
+pagination 상한을 거친다. raw response와 메모는 개인정보로 취급하고 처리 목적에 필요한 짧은 기간만
+암호화 보존하며 로그·trace·오류에 넣지 않는다.
+
+비공개 전체 목록용 원격 browser beta는 사용자가 곳곳간의 격리된 임시 서버 browser 안에서 Provider에
+다시 로그인하는 별도 선택 흐름이다. 사용자 PC의 기존 cookie·profile을 읽거나 복사하지 않는다.
+아이디·비밀번호·MFA를 DB나 로그에 저장하지 않지만 사용자 입력과 원격 화면이 곳곳간 인프라를 통과하고
+Provider cookie가 session 종료 전까지 임시 memory/tmpfs에 존재한다는 점을 동의 화면에 알린다. 정확한
+격리·egress·기록·폐기·활성화 기준은
+[`원격 브라우저 beta runbook`](../operations/remote-browser-import-beta.md)을 따른다.
+
+공유 링크, 파일, 원격 browser session은 검증된 Provider connection이 아니다. 별도 versioned source와
+account-unknown provenance가 구현되기 전에는 fake connection/account fingerprint를 만들거나 기존
+account-bound 검사를 느슨하게 하지 않는다. 아래 Connector/grant 내용은 기존 source-only 진단 경계의
+보안 기록이며 제품 다음 단계가 아니다.
 
 Connector 실행 호스트는 Web/BFF가 발급한 짧은 수명의 일회성 grant로만 capture를 제출한다. grant는 Identity,
 Provider, operation, Import 멱등 키, expiry, nonce, item/byte/batch 상한과 공개 Place origin에 묶는다.
@@ -35,9 +47,9 @@ permission은 선택 시점에 exact origin 단위로 요청하고 build allowli
 
 회원 session 전용 grant BFF와 cookie 없는 capability 전송은 별도 채널이다. 폐기된 v1
 `/api/connector/captures` 경로를 재사용하거나 Desktop이 Web Origin을 가장해 연결을 우회하지 않는다.
-실제 Desktop의 회원 승인·pairing, 계정 identity 관측과 안전한 spool key 수명주기가 조립되기 전에는
-서버 가져오기 capability를 활성화하지 않는다. 상세 상태는
-[`회원 로컬 커넥터`](../../apps/member-connector/README.md)를 따른다.
+실제 Connector의 회원 승인·pairing, 계정 identity 관측과 안전한 spool key 수명주기가 조립되기 전에는
+해당 진단 capability를 활성화하지 않는다. 상세 상태는
+[`회원 로컬 커넥터 진단 자료`](../../apps/member-connector/README.md)를 따른다.
 
 Backend는 OIDC로 확인한 회원에게만 grant를 발급하고 token 원문 대신 digest만 저장한다. 같은 grant
 command를 재전송했다고 새 plaintext token을 복원하지 않는다. 재개할 때는 새 command로 동일하게

@@ -7,10 +7,12 @@
 향후 Tool 접근을 소유하는 독립적인 개인 장소 플랫폼이다. 제품 표시명은 `곳곳간`, 저장소 slug는
 `gotgotgan`이며 호환성이 필요한 내부 도메인·계약 식별자는 `place`를 유지한다.
 
-현재 가져오기 기준은 [`회원 로컬 커넥터`](apps/member-connector/README.md)와
-[`Provider transfers`](backend/src/modules/transfers/README.md)다. 아래 단계별 기록에는 이전
-확장 중심 구현이 포함돼 있지만, 새 가져오기는 확장을 필수로 두지 않는다. Desktop의 로컬 수집 확인과
-회원 인증을 거친 서버 저장 연결은 서로 다른 완료 조건이다. 메뉴 등 상세 보강 작업은 계속 비활성이다.
+현재 가져오기 제품 기준은 [`웹 일회성 가져오기 ADR`](docs/adr/0025-web-one-shot-saved-place-imports.md)와
+[`Provider별 가능성 조사`](docs/integrations/saved-place-web-import-feasibility.md)다. NAVER multi-share-link
+batch를 주 경로로 하고, 원격 browser beta는 별도 `integration-gated` source로 둔다. 사용자 설치나
+로컬 browser cookie 재사용을 전제로 하지 않는다. 기존 [`회원 로컬 커넥터`](apps/member-connector/README.md)는
+parser·제약 검증용 진단 근거이며 제품 다음 단계가 아니다. snapshot 이후 검토·승인·저장은
+[`Provider transfers`](backend/src/modules/transfers/README.md)를 재사용하고 상세 보강 작업은 계속 비활성이다.
 
 Current delivery state: **source-only; Stages 6.5, 7.5–7.17, and 11A–11E2B3 complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
@@ -88,17 +90,13 @@ Migration `000043`은 freshness가 지난 상세를 기존 Job 교체 없이 새
 운영 Runner/Pack 배포와 live 재검증은 아직 남아 있어 활성화는 configuration-gated다. CAPTCHA·영수증
 인증은 우회하거나 자동 답변하지 않고 해당 작업을 보류한다. 가져온 장소는
 상세 대기 중에도 NAVER·Google Maps·카카오맵에서 열 수 있다.
-회원 기기용 `apps/member-connector`는 확장을 필수로 두지 않는 host-neutral 경계로 진행한다.
-NAVER·Kakao·Google은 Provider Adapter로 격리하고
-일회성 grant로만 캡처를 제출한다. Versioned handshake/grant/batch/receipt 계약, provider-neutral
-수집 application Interface, 선택형 WebExtensions Adapter, 고정 공개-origin upload Adapter와 Chromium·Firefox
-Manifest V3 build 검증은 source-only로 구현했다. Chrome·Edge·Whale은 Chromium 산출물 하나를
-공유하지만 실제 Whale 설치는 아직 검증하지 않았다. 실제 Provider Adapter·host permission·공개 BFF
-route와 Backend grant/capture receiver·ImportBatch 연결은 NAVER에 대해 source-only로 구현했다. grant
-token digest, origin·sequence·상한·checksum, 암호화 원본, 정규화 Item과 Fulfillment intent를 실제
-PostGIS로 검증했다. production 실행 호스트와 로그인된 NAVER session smoke는 아직 남아 있다. 기존 전용
-Chrome profile 로그인, 비식별 관찰과 NAVER 전체 pagination 수집은 진단·fixture/replay·E2E로만 남긴다.
-향후 DOM·명시적 캡처/OCR이나 browser-control은 ADR 0024의 동일 Source 경계 뒤에 추가한다.
+Stage 7의 최신 제품 경계는 ADR 0025의 설치 없는 Web one-shot import다. NAVER 공개·공유 목록은 여러
+링크를 한 번에 제출하는 batch로 수집하고, 링크로 공개된 특정 목록만 계정 소유 미확인 provenance로
+처리한다. 비공개 전체 목록용 격리 원격 browser는 별도 beta이며 사용자가 그 임시 환경에 다시 로그인해야
+한다. 공유 링크, 파일, 원격 session에 fake connection/account fingerprint를 만들지 않고 additive
+계약·migration 뒤에서만 기존 SourceSnapshot 검토·승인·materialization을 재사용한다. 기존
+`apps/member-connector`의 versioned grant, parser, bounded pagination과 Desktop/extension 검사는
+source-only 진단 근거로 남지만 사용자 설치형 제품 경로로 이어가지 않는다.
 
 Stage 8A는 Backend 내부 `resolution` 모듈과 Migration `000022`를 추가한다. Provider Place Identity별
 최신 관찰을 다국어 원문 보존 comparison representation으로 투영하고, PostGIS 거리·`pg_trgm`
@@ -276,7 +274,7 @@ Stage 11E2B3는 현재 회원의 프로필 설정과 독립된 소유자용 검�
 
 ```text
 apps/web/                  Next.js product surface
-apps/member-connector/     cross-browser multi-provider extension source plus diagnostic CLI
+apps/member-connector/     retained local connector diagnostics and reusable provider parser evidence
 backend/                   TypeScript HTTP/worker/module boundary
 packages/contracts/        owner-controlled machine-readable contracts
 tests/                     repository-wide architecture, contract, integration, and E2E tests
