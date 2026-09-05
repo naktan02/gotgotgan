@@ -10,6 +10,18 @@ those files. The command verifies it is connected to database `place` under `pla
 adopt unmarked migration/runtime roles, installs PostGIS and `pg_trgm` under administrator ownership, and runs
 ordered migrations under `place_owner`. It is idempotent but is never an HTTP/Worker startup hook.
 
+## Legacy upgrade checks
+
+Before upgrading an older member database, retain a protected backup and check the explicit
+Collection reconciliation gate in `000035`. Never discard unfiled saved places to pass it.
+`000049` originally attempted to clear legacy connection references before removing their old
+NOT NULL/primary-key constraints; existing imported rows reproduced PostgreSQL `23502` even though
+connected-account fixtures passed. Its unapplied upgrade path now changes constraint order within
+the migration transaction, preserving the final constraints and account-unknown provenance.
+Use [`migration-legacy-upgrade.test.mjs`](../../backend/tests/integration/transfer-operations/migration-legacy-upgrade.test.mjs)
+to verify both source kinds, retained identifiers/data and the absence of invented connections in a
+disposable database. Do not replay an already applied migration or manually bypass its checks.
+
 Inject `PLACE_DATABASE_TEST_HOST`, then run `npm run test:database` to reproduce the disposable
 PostGIS contract test. It proves a repeated preparation succeeds, `place_app` can use intended DML,
 cannot perform DDL, alter table ownership, or modify migration metadata, and the spatial query plan uses

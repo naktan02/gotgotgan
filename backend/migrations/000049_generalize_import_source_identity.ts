@@ -152,6 +152,8 @@ export function up(pgm: MigrationBuilder): void {
     WHERE source.id = provenance.source_connection_reference
       AND source.owner_membership_id = provenance.owner_membership_id
       AND source.provider_key = provenance.provider_key;
+    ALTER TABLE library.collection_import_provenance
+      ALTER COLUMN source_connection_reference DROP NOT NULL;
     UPDATE library.collection_import_provenance
     SET source_connection_reference = NULL
     WHERE import_source_kind <> 'verified-connection';
@@ -182,7 +184,6 @@ export function up(pgm: MigrationBuilder): void {
     ALTER TABLE library.collection_import_provenance
       ALTER COLUMN import_source_id SET NOT NULL,
       ALTER COLUMN import_source_kind SET NOT NULL,
-      ALTER COLUMN source_connection_reference DROP NOT NULL,
       ADD CONSTRAINT collection_import_provenance_source_shape_check CHECK (
         (import_source_kind = 'verified-connection' AND source_connection_reference IS NOT NULL)
         OR (import_source_kind = 'legacy-reference' AND source_connection_reference IS NULL)
@@ -212,14 +213,15 @@ export function up(pgm: MigrationBuilder): void {
     WHERE source.id = binding.source_connection_reference
       AND source.owner_membership_id = binding.owner_membership_id
       AND source.provider_key = binding.provider_key;
+    ALTER TABLE library.import_source_list_bindings
+      DROP CONSTRAINT import_source_list_bindings_pkey,
+      ALTER COLUMN source_connection_reference DROP NOT NULL;
     UPDATE library.import_source_list_bindings
     SET source_connection_reference = NULL
     WHERE import_source_kind <> 'verified-connection';
     ALTER TABLE library.import_source_list_bindings
-      DROP CONSTRAINT import_source_list_bindings_pkey,
       ALTER COLUMN import_source_id SET NOT NULL,
       ALTER COLUMN import_source_kind SET NOT NULL,
-      ALTER COLUMN source_connection_reference DROP NOT NULL,
       ADD CONSTRAINT import_source_list_bindings_source_shape_check CHECK (
         (import_source_kind = 'verified-connection' AND source_connection_reference IS NOT NULL)
         OR (import_source_kind IN ('one-shot', 'legacy-reference')
@@ -254,15 +256,16 @@ export function up(pgm: MigrationBuilder): void {
       AND source.id = provenance.source_connection_reference
       AND source.owner_membership_id = collection.owner_membership_id
       AND source.provider_key = provenance.provider_key;
+    ALTER TABLE library.collection_place_import_provenance
+      DROP CONSTRAINT collection_place_import_provenance_pkey,
+      ALTER COLUMN source_connection_reference DROP NOT NULL;
     UPDATE library.collection_place_import_provenance
     SET source_connection_reference = NULL
     WHERE import_source_kind <> 'verified-connection';
     ALTER TABLE library.collection_place_import_provenance
-      DROP CONSTRAINT collection_place_import_provenance_pkey,
       ALTER COLUMN owner_membership_id SET NOT NULL,
       ALTER COLUMN import_source_id SET NOT NULL,
       ALTER COLUMN import_source_kind SET NOT NULL,
-      ALTER COLUMN source_connection_reference DROP NOT NULL,
       ADD CONSTRAINT collection_place_import_provenance_source_shape_check CHECK (
         (import_source_kind = 'verified-connection' AND source_connection_reference IS NOT NULL)
         OR (import_source_kind IN ('one-shot', 'legacy-reference')

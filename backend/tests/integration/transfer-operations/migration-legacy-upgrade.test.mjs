@@ -11,9 +11,7 @@ import {
   transferOperationId,
 } from './transfer-operations-postgres-fixture.mjs'
 
-test('transfer operation migration upgrades legacy outbound data without inventing evidence', {
-  timeout: 240_000,
-}, async () => {
+async function verifyLegacyUpgrade(importSourceKind) {
   const fixture = await startTransferOperationsPostgresDatabase(
     'gotgotgan-transfer-operation-migration',
   )
@@ -72,6 +70,12 @@ test('transfer operation migration upgrades legacy outbound data without inventi
       const legacyReadyConnectionId = transferOperationId(16)
       const legacyReadyObservationId = transferOperationId(17)
       const legacySnapshotId = transferOperationId(18)
+      const legacyImportSourceId = importSourceKind === 'verified-connection'
+        ? legacyReadyConnectionId
+        : transferOperationId(19)
+      const expectedSourceConnectionId = importSourceKind === 'verified-connection'
+        ? legacyReadyConnectionId
+        : null
       const legacySourceListId = 'legacy-source-list'
       const legacySourceItemId = 'legacy-source-item'
       await database.administratorClient.query(
@@ -138,7 +142,7 @@ test('transfer operation migration upgrades legacy outbound data without inventi
            first_imported_at, last_imported_at
          ) VALUES ($1::uuid,$2::uuid,'naver',$3::uuid,$4,'기존 원본 목록',0,
            $5::timestamptz,$5::timestamptz)`,
-        [legacyCollectionId, legacyMemberId, legacyReadyConnectionId, legacySourceListId, at],
+        [legacyCollectionId, legacyMemberId, legacyImportSourceId, legacySourceListId, at],
       )
       await database.administratorClient.query(
         `INSERT INTO library.import_source_list_bindings (
@@ -147,7 +151,7 @@ test('transfer operation migration upgrades legacy outbound data without inventi
            first_bound_at, last_materialized_at
          ) VALUES ('naver',$1::uuid,$2,$3::uuid,$4::uuid,'기존 원본 목록',0,
            $5::timestamptz,$5::timestamptz)`,
-        [legacyReadyConnectionId, legacySourceListId, legacyMemberId, legacyCollectionId, at],
+        [legacyImportSourceId, legacySourceListId, legacyMemberId, legacyCollectionId, at],
       )
       await database.administratorClient.query(
         `INSERT INTO library.collection_place_import_provenance (
@@ -156,7 +160,7 @@ test('transfer operation migration upgrades legacy outbound data without inventi
            first_imported_at, last_imported_at
          ) VALUES ($1::uuid,$2::uuid,'naver',$3::uuid,$4,$5,'legacy-provider-place',
            $6::timestamptz,$6::timestamptz)`,
-        [legacyCollectionId, legacyPlaceId, legacyReadyConnectionId,
+        [legacyCollectionId, legacyPlaceId, legacyImportSourceId,
           legacySourceListId, legacySourceItemId, at],
       )
       await database.administratorClient.query(
@@ -207,7 +211,16 @@ test('transfer operation migration upgrades legacy outbound data without inventi
                 place_provenance.import_source_id AS place_import_source_id,
                 place_provenance.import_source_kind AS place_import_source_kind,
                 place_provenance.source_connection_reference AS place_source_connection_reference,
-                place_provenance.owner_membership_id AS place_owner_membership_id
+                place_provenance.owner_membership_id AS place_owner_membership_id,
+                place_provenance.collection_id,
+                place_provenance.canonical_place_id,
+                place_provenance.source_list_id,
+                place_provenance.source_item_id,
+                place_provenance.provider_place_id,
+                collection_provenance.source_name_snapshot,
+                collection_provenance.source_position,
+                collection_provenance.first_imported_at,
+                collection_provenance.last_imported_at
          FROM transfers.import_sources AS source
          JOIN transfers.source_snapshots AS snapshot ON snapshot.id = $2::uuid
          JOIN library.collection_import_provenance AS collection_provenance
@@ -222,24 +235,49 @@ test('transfer operation migration upgrades legacy outbound data without inventi
           AND place_provenance.source_list_id = $4
           AND place_provenance.source_item_id = $5
          WHERE source.id = $1::uuid`,
-        [legacyReadyConnectionId, legacySnapshotId, legacyCollectionId,
+        [legacyImportSourceId, legacySnapshotId, legacyCollectionId,
           legacySourceListId, legacySourceItemId],
       )).rows, [{
-        import_source_id: legacyReadyConnectionId,
-        source_kind: 'verified-connection',
-        connection_id: legacyReadyConnectionId,
+        import_source_id: legacyImportSourceId,
+        source_kind: importSourceKind,
+        connection_id: expectedSourceConnectionId,
         snapshot_import_source_id: legacyReadyConnectionId,
         snapshot_import_source_kind: 'verified-connection',
-        collection_import_source_id: legacyReadyConnectionId,
-        collection_import_source_kind: 'verified-connection',
-        collection_source_connection_reference: legacyReadyConnectionId,
-        binding_import_source_id: legacyReadyConnectionId,
-        binding_import_source_kind: 'verified-connection',
-        binding_source_connection_reference: legacyReadyConnectionId,
-        place_import_source_id: legacyReadyConnectionId,
-        place_import_source_kind: 'verified-connection',
-        place_source_connection_reference: legacyReadyConnectionId,
+        collection_import_source_id: legacyImportSourceId,
+        collection_import_source_kind: importSourceKind,
+        collection_source_connection_reference: expectedSourceConnectionId,
+        binding_import_source_id: legacyImportSourceId,
+        binding_import_source_kind: importSourceKind,
+        binding_source_connection_reference: expectedSourceConnectionId,
+        place_import_source_id: legacyImportSourceId,
+        place_import_source_kind: importSourceKind,
+        place_source_connection_reference: expectedSourceConnectionId,
         place_owner_membership_id: legacyMemberId,
+        collection_id: legacyCollectionId,
+        canonical_place_id: legacyPlaceId,
+        source_list_id: legacySourceListId,
+        source_item_id: legacySourceItemId,
+        provider_place_id: 'legacy-provider-place',
+        source_name_snapshot: '기존 원본 목록',
+        source_position: 0,
+        first_imported_at: new Date(at),
+        last_imported_at: new Date(at),
+      }])
+      assert.deepEqual((await database.administratorClient.query(
+        `SELECT
+           (SELECT count(*)::int FROM library.collections) AS collections,
+           (SELECT count(*)::int FROM library.collection_places) AS collection_places,
+           (SELECT count(*)::int FROM library.collection_import_provenance) AS collection_sources,
+           (SELECT count(*)::int FROM library.import_source_list_bindings) AS source_bindings,
+           (SELECT count(*)::int FROM library.collection_place_import_provenance) AS place_sources,
+           (SELECT count(*)::int FROM transfers.provider_connections) AS connections`,
+      )).rows, [{
+        collections: 1,
+        collection_places: 1,
+        collection_sources: 1,
+        source_bindings: 1,
+        place_sources: 1,
+        connections: 2,
       }])
       await assert.rejects(
         database.administratorClient.query(
@@ -289,4 +327,12 @@ test('transfer operation migration upgrades legacy outbound data without inventi
   } finally {
     await fixture.close()
   }
-})
+}
+
+test('migration preserves connected import provenance and legacy outbound evidence', {
+  timeout: 240_000,
+}, () => verifyLegacyUpgrade('verified-connection'))
+
+test('migration preserves legacy-only import provenance without asserting account ownership', {
+  timeout: 240_000,
+}, () => verifyLegacyUpgrade('legacy-reference'))
