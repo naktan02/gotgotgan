@@ -71,3 +71,25 @@ resource projection을 반환한다. snapshot identity digest에는 관찰 시�
 command는 보존 정책 검토가 필요한 운영 작업만 만들고 `physicalDeletionPerformed: false`를 반환한다.
 실제 purge는 보존 기간·법적 근거·감사 증거·실패 복구 순서가 별도 승인된 뒤에만 독립 workflow로
 구현한다. 그 전 계정 해지는 논리적으로 비활성화하며 물리 삭제 성공을 가장하지 않는다.
+
+## 연결 변경과 Capture 권한 폐기
+
+연결 해제·재인증 요청·인증 필요 관측은 같은 transaction에서 해당 연결의 활성 Import grant를
+`revoked`로 바꾼다. 새 `ready` 관측의 계정 fingerprint가 달라지면 이전 계정 grant만 폐기한다.
+동일 계정 재확인과 표시 이름 변경은 진행 중인 Import를 중단하지 않는다. 재연결은 폐기된 token을
+복원하지 않으며 새 command로 발급한 grant만 기존 sealed manifest와 업로드 prefix를 재개할 수 있다.
+완료된 capture의 token도 폐기 후에는 status·chunk replay·complete receipt를 조회할 수 없지만,
+이미 저장된 snapshot과 회원 인증 작업 이력은 지우지 않는다.
+
+2026-09-05 회귀 검사에서 연결 변경 후 이전 token으로 status·upload·complete가 모두 수락되는
+증상을 임시 PostGIS에서 재현했다. 원인은 Connection lifecycle이 grant 폐기까지 소유하지 않았던
+것이다. 수정은 lifecycle transaction에 한정하며 Capture의 기존 grant lock과 검사 경계는 유지한다.
+연결의 키를 바꾸지 않는 lifecycle/발급 lock은 `FOR NO KEY UPDATE`를 사용한다. 따라서 이미 grant를
+잠근 complete의 snapshot FK `KEY SHARE`와 교착하지 않으며, 먼저 승인된 complete가 끝난 뒤 폐기가
+commit되고 그 이후 모든 이전 token 요청이 거절된다. 신뢰되지 않은 Origin이나 계정 식별자를
+허용하는 변경은 아니다.
+
+[회귀 테스트](../../../tests/integration/transfer-operations/connection-grant-revocation.test.mjs)는
+폐기·재인증·계정 교체·인증 필요 상태, 같은 계정 재연결, command replay, 완료 receipt 비노출,
+in-flight complete와 폐기의 잠금 경합을 실제 DB 경로로 검증한다. 이는 source-only Backend 검사이며
+실제 Desktop·Provider 로그인 연결 완료를 뜻하지 않는다.

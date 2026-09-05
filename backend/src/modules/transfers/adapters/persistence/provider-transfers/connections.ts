@@ -134,7 +134,7 @@ export class ProviderConnections {
                    ORDER BY observation.observed_at DESC, observation.observation_id DESC
                    LIMIT 1) AS account_fingerprint
            FROM transfers.provider_connections AS connection
-           WHERE id = $1::uuid AND owner_membership_id = $2::uuid FOR UPDATE`,
+           WHERE id = $1::uuid AND owner_membership_id = $2::uuid FOR NO KEY UPDATE`,
           [command.connectionId, memberId],
         )).rows[0]
         if (current === undefined) {
@@ -177,6 +177,7 @@ export class ProviderConnections {
                        revision::text, last_verified_at, created_at, updated_at`,
             [command.connectionId, memberId, state, action, at],
           )).rows[0]
+          await this.revokeCaptureGrants(client, command.connectionId)
         }
       }
       const value = projectConnection(row!, projectionAccountFingerprint)
@@ -223,7 +224,7 @@ export class ProviderConnections {
         `SELECT id, provider_key, label, auth_method, state, action_required,
                 revision::text, last_verified_at, created_at, updated_at
          FROM transfers.provider_connections
-         WHERE id = $1::uuid AND owner_membership_id = $2::uuid FOR UPDATE`,
+         WHERE id = $1::uuid AND owner_membership_id = $2::uuid FOR NO KEY UPDATE`,
         [input.connectionId, input.ownerMemberId],
       )).rows[0]
       if (current === undefined || current.state === 'revoked') {
@@ -264,6 +265,10 @@ export class ProviderConnections {
         [input.connectionId, input.ownerMemberId, input.observedState,
           input.observedState === 'action-required' ? 'reauthorize' : null, input.observedAt],
       )).rows[0]!
+      await this.revokeCaptureGrants(
+        client, input.connectionId,
+        input.observedState === 'ready' ? input.accountFingerprint : undefined,
+      )
       const value = projectConnection(
         row,
         input.observedState === 'ready' ? input.accountFingerprint : undefined,
@@ -282,6 +287,21 @@ export class ProviderConnections {
       await client.query('ROLLBACK').catch(() => undefined)
       throw error
     } finally { client.release() }
+  }
+
+  private async revokeCaptureGrants(
+    client: import('pg').PoolClient,
+    connectionId: string,
+    retainedAccountFingerprint?: string,
+  ): Promise<void> {
+    // The connection's NO KEY UPDATE lock serializes lifecycle/issuance but allows an
+    // in-flight capture's FK KEY SHARE. It may finish before revocation commits, never after.
+    await client.query(
+      `UPDATE transfers.connector_import_grants SET status = 'revoked'
+       WHERE connection_id = $1::uuid AND status = 'active'
+         AND ($2::text IS NULL OR account_fingerprint <> $2)`,
+      [connectionId, retainedAccountFingerprint ?? null],
+    )
   }
 
   private async getWithClient(

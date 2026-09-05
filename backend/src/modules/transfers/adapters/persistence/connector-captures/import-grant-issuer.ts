@@ -51,7 +51,7 @@ export class ConnectorImportGrantIssuer {
                  ORDER BY observation.expected_connection_revision DESC,
                           observation.observation_id DESC LIMIT 1) AS account_fingerprint
          FROM transfers.provider_connections AS connection
-         WHERE connection.id = $1::uuid AND connection.owner_membership_id = $2::uuid FOR UPDATE`,
+         WHERE connection.id = $1::uuid AND connection.owner_membership_id = $2::uuid FOR NO KEY UPDATE`,
         [request.connectionId, memberId],
       )).rows[0]
       if (connection === undefined) {
