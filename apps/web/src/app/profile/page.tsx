@@ -5,6 +5,8 @@ import {
 import { readFamilyNavigation } from '@/platform/family-navigation/family-navigation'
 import { PlaceWorkspaceShell } from '@/shells/place-workspace/PlaceWorkspaceShell'
 
+import styles from './profile.module.css'
+
 export const dynamic = 'force-dynamic'
 
 export default function ProfilePage() {
@@ -12,7 +14,9 @@ export default function ProfilePage() {
     currentPage="settings"
     familyNavigation={readFamilyNavigation(process.env.PLACE_FAMILY_NAVIGATION_MANIFEST)}
   >
-    <PublicProfileSettings />
-    <PublicProfileModerationInbox />
+    <div aria-label="프로필 설정 및 알림" className={styles.page} role="region">
+      <PublicProfileSettings />
+      <PublicProfileModerationInbox />
+    </div>
   </PlaceWorkspaceShell>
 }

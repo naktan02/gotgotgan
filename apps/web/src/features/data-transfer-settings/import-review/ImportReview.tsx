@@ -1,17 +1,24 @@
 import Link from 'next/link'
+import { type ReactNode, useState } from 'react'
 
-import type { ImportMapping, ImportPlanPreview } from '../data-transfer-settings-model'
+import {
+  collectionTargetNameMaximumLength,
+  initialCollectionTargetName,
+  type ImportMapping,
+  type ImportPlanPreview,
+} from '../data-transfer-settings-model'
 import styles from '../data-transfer-settings.module.css'
 import {
   ActionFeedback,
   FlowRail,
   formatDate,
   PrivacyNotice,
-  ProviderFields,
   SectionHeading,
   summaryValue,
 } from '../data-transfer-settings-view-parts'
 import type { DataTransferSettingsWorkflow } from '../data-transfer-settings-workflow'
+
+const reviewPageSize = 100
 
 function updateMappingKind(
   mapping: ImportMapping,
@@ -20,7 +27,7 @@ function updateMappingKind(
 ): ImportMapping {
   if (kind === 'new') {
     const source = workflow.snapshot?.lists.find((item) => item.sourceListId === mapping.sourceListId)
-    return { ...mapping, target: { kind: 'new', collectionId: crypto.randomUUID(), name: source?.name ?? '새 컬렉션' } }
+    return { ...mapping, target: { kind: 'new', collectionId: crypto.randomUUID(), name: initialCollectionTargetName(source?.name ?? '') } }
   }
   const collection = workflow.overview?.collections[0]
   if (collection === undefined) return mapping
@@ -30,35 +37,19 @@ function updateMappingKind(
   } }
 }
 
-export function ImportTab({ workflow }: Readonly<{ workflow: DataTransferSettingsWorkflow }>) {
-  const provider = workflow.overview?.providers.find((item) => item.capability.providerKey === workflow.importProvider)
-  const available = provider?.capability.import.state === 'available'
+export function ImportTab({ acquisitionPanel, workflow }: Readonly<{
+  acquisitionPanel: ReactNode
+  workflow: DataTransferSettingsWorkflow
+}>) {
   const currentStep = workflow.importPreview === undefined ? workflow.snapshot === undefined ? 1 : 3 : workflow.importApproval.kind === 'done' ? 5 : 4
   const operation = workflow.providerOperations[workflow.importProvider]
   return <>
-    <SectionHeading title="데이터 가져오기" description="외부 서비스에서 관찰된 목록을 선택해 내 컬렉션으로 매핑합니다." />
+    <SectionHeading title="데이터 가져오기" description="공유 링크를 붙여넣거나 일회성 원격 브라우저를 열어 목록을 내 컬렉션으로 가져옵니다." />
     <div className={styles.flow}>
-      <FlowRail current={currentStep} labels={['서비스·계정', '스냅샷·목록', '컬렉션 연결', '매칭 검토', '승인']} />
+      <FlowRail current={currentStep} labels={['가져오기 방식', '목록 확인', '컬렉션 연결', '매칭 검토', '승인']} />
       <section className={styles.flowMain} aria-labelledby="import-flow-title">
         <h3 id="import-flow-title">즐겨찾기 가져오기</h3>
-        <div className={styles.fieldGrid}><ProviderFields
-          connectionId={workflow.importConnectionId}
-          onConnection={workflow.setImportConnectionId}
-          onProvider={workflow.changeImportProvider}
-          operation="import"
-          providerKey={workflow.importProvider}
-          workflow={workflow}
-        /></div>
-        <div className={styles.buttonRow}>
-          <button className={styles.secondaryButton} disabled={!available || workflow.importConnectionId === '' || workflow.importState.kind === 'working'} onClick={() => void workflow.acquireSnapshot()} type="button">
-            저장된 스냅샷 불러오기
-          </button>
-          <button aria-describedby="capture-start-help" className={styles.secondaryButton} disabled type="button">
-            새 수집 시작
-          </button>
-        </div>
-        <p className={styles.notice} id="capture-start-help">새 수집은 검증된 Connector가 manifest를 만든 뒤 시작합니다. Web에서는 수집 작업을 가장하지 않고, 생성된 작업과 저장된 스냅샷만 확인합니다.</p>
-        <ActionFeedback state={workflow.importState} />
+        {acquisitionPanel}
 
         {workflow.snapshot !== undefined && <section className={styles.subsection} aria-labelledby="source-lists-title">
           <header className={styles.subsectionHeader}><h4 id="source-lists-title">외부 목록과 목적지</h4><span>{workflow.snapshot.lists.length.toLocaleString('ko-KR')} / {(workflow.snapshot.totalListCount ?? workflow.snapshot.lists.length).toLocaleString('ko-KR')}개 목록 · {formatDate(workflow.snapshot.capturedAt)} 관찰</span></header>
@@ -77,7 +68,7 @@ export function ImportTab({ workflow }: Readonly<{ workflow: DataTransferSetting
                 value={mapping.target.kind}
               ><option value="new">새 컬렉션</option><option disabled={(workflow.overview?.collections.length ?? 0) === 0} value="existing">기존 컬렉션</option></select></label>
               {mapping.target.kind === 'new'
-                ? <label><span className={styles.visuallyHidden}>{list.name} 새 컬렉션 이름</span><input disabled={!mapping.selected} onChange={(event) => workflow.updateMapping(list.sourceListId, (current) => current.target.kind === 'new' ? { ...current, target: { ...current.target, name: event.target.value } } : current)} value={mapping.target.name} /></label>
+                ? <label><span className={styles.visuallyHidden}>{list.name} 새 컬렉션 이름</span><input className={styles.mappingTargetName} disabled={!mapping.selected} maxLength={collectionTargetNameMaximumLength} onChange={(event) => workflow.updateMapping(list.sourceListId, (current) => current.target.kind === 'new' ? { ...current, target: { ...current.target, name: event.target.value } } : current)} value={mapping.target.name} /></label>
                 : <label><span className={styles.visuallyHidden}>{list.name} 기존 컬렉션</span><select disabled={!mapping.selected} onChange={(event) => workflow.updateMapping(list.sourceListId, (current) => {
                   const collection = workflow.overview?.collections.find((item) => item.collectionId === event.target.value)
                   return collection === undefined ? current : { ...current, target: { kind: 'existing', collectionId: collection.collectionId, expectedCollectionRevision: collection.collectionRevision } }
@@ -98,9 +89,11 @@ export function ImportTab({ workflow }: Readonly<{ workflow: DataTransferSetting
           <p className={styles.notice} role="status">목록에서 가져온 기본 장소 정보로 저장합니다. 메뉴 등 상세정보 보강은 현재 보류 중이며, 가져오기 완료와 별개입니다.</p>
           {workflow.importPreview.providerDetails.pending + workflow.importPreview.providerDetails.unavailable > 0 && <p className={styles.notice}>상세정보 미보유 {summaryValue(workflow.importPreview.providerDetails.pending + workflow.importPreview.providerDetails.unavailable)}개 항목 · 상세정보가 없어도 기본 정보가 유효한 장소는 저장할 수 있습니다.</p>}
           {(workflow.importPreview.summary.alreadyPresent === null || workflow.importPreview.summary.unsupported === null) && <p className={styles.notice}>대상 컬렉션의 중복·처리 불가 세부 수량은 현재 백엔드가 제공하지 않아 ‘—’로 표시합니다.</p>}
-          {workflow.importPreview.matches.some((item) => item.status === 'review-required') && <ul className={styles.previewItems} aria-label="매칭 확인이 필요한 장소">
-            {workflow.importPreview.matches.filter((item) => item.status === 'review-required').map((item) => <ImportMatchDecision item={item} key={`${item.sourceListId}:${item.sourceItemId}`} workflow={workflow} />)}
-          </ul>}
+          {workflow.importPreview.matches.length > 0 && <ImportMatchDecisions
+            key={workflow.importPreview.planId}
+            items={workflow.importPreview.matches}
+            workflow={workflow}
+          />}
           {!workflow.importPreview.approvalEligible && <p className={styles.blocked}>{workflow.importPreview.approvalReason ?? '확인이 필요한 장소를 먼저 해결해 주세요.'}</p>}
           <div className={styles.buttonRow}><button className={styles.primaryButton} disabled={!workflow.importPreview.approvalEligible || workflow.importApproval.kind === 'working'} onClick={() => void workflow.approveImport()} type="button">이 범위로 가져오기 승인</button></div>
           <ActionFeedback state={workflow.importApproval} />
@@ -113,6 +106,25 @@ export function ImportTab({ workflow }: Readonly<{ workflow: DataTransferSetting
         <PrivacyNotice />
       </section>
     </div>
+  </>
+}
+
+function ImportMatchDecisions({ items, workflow }: Readonly<{
+  items: ImportPlanPreview['matches']
+  workflow: DataTransferSettingsWorkflow
+}>) {
+  const [visibleCount, setVisibleCount] = useState(reviewPageSize)
+  const reviewItems = items.filter((item) => item.status === 'review-required')
+  const remaining = Math.max(0, reviewItems.length - visibleCount)
+  return <>
+    <ul className={styles.previewItems} aria-label="매칭 확인이 필요한 장소">
+      {reviewItems.slice(0, visibleCount).map((item) => <ImportMatchDecision item={item} key={`${item.sourceListId}:${item.sourceItemId}`} workflow={workflow} />)}
+    </ul>
+    {remaining > 0 && <div className={styles.reviewMore}>
+      <button onClick={() => setVisibleCount((current) => Math.min(current + reviewPageSize, reviewItems.length))} type="button">
+        다음 {Math.min(reviewPageSize, remaining).toLocaleString('ko-KR')}개 더 보기 · {remaining.toLocaleString('ko-KR')}개 남음
+      </button>
+    </div>}
   </>
 }
 

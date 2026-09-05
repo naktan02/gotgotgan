@@ -9,12 +9,19 @@ export default async function SettingsPage({ searchParams }: Readonly<{
   searchParams: Promise<Readonly<{ tab?: string | string[] }>>
 }>) {
   const rawTab = (await searchParams).tab
+  const sharedImportRuntimeEnabled = process.env.NODE_ENV !== 'production' ||
+    process.env.PLACE_IMPORT_ACQUISITION_RUNTIME_ENABLED === 'true'
+  const remoteImportPreviewEnabled = process.env.NODE_ENV !== 'production'
   return (
     <PlaceWorkspaceShell
       currentPage="settings"
       familyNavigation={readFamilyNavigation(process.env.PLACE_FAMILY_NAVIGATION_MANIFEST)}
     >
-      <SettingsWorkspace initialTab={Array.isArray(rawTab) ? rawTab[0] : rawTab} />
+      <SettingsWorkspace
+        remoteImportPreviewEnabled={remoteImportPreviewEnabled}
+        sharedImportRuntimeEnabled={sharedImportRuntimeEnabled}
+        initialTab={Array.isArray(rawTab) ? rawTab[0] : rawTab}
+      />
     </PlaceWorkspaceShell>
   )
 }

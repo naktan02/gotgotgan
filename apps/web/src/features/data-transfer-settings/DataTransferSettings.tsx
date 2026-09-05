@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { type ReactNode, useState } from 'react'
+import { type KeyboardEvent, type ReactNode, useRef, useState } from 'react'
 
 import type {
   CapabilityState,
@@ -25,6 +25,8 @@ import {
   type DataTransferSettingsWorkflow,
   useDataTransferSettings,
 } from './data-transfer-settings-workflow'
+import { ImportAcquisition } from './import-acquisition/ImportAcquisition'
+import { importAcquisitionGateway } from './import-acquisition/import-acquisition-client'
 import { ImportTab } from './import-review/ImportReview'
 
 const tabs: readonly Readonly<{ key: SettingsTab; label: string }>[] = [
@@ -273,28 +275,68 @@ function LoadState({ workflow }: Readonly<{ workflow: DataTransferSettingsWorkfl
   return <section className={styles.statePanel}><strong>설정 서비스를 사용할 수 없습니다.</strong><p>연결 상태를 확인한 뒤 다시 시도해 주세요.</p><button onClick={() => void workflow.retry()} type="button">다시 시도</button></section>
 }
 
-export function DataTransferSettingsView({ historyPanel, workflow }: Readonly<{
+export function DataTransferSettingsView({ historyPanel, importAcquisitionPanel, workflow }: Readonly<{
   historyPanel: ReactNode
+  importAcquisitionPanel: ReactNode
   workflow: DataTransferSettingsWorkflow
 }>) {
+  const tabButtons = useRef<Array<HTMLButtonElement | null>>([])
+  const moveTabFocus = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    let nextIndex: number | undefined
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabs.length
+    if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabs.length) % tabs.length
+    if (event.key === 'Home') nextIndex = 0
+    if (event.key === 'End') nextIndex = tabs.length - 1
+    if (nextIndex === undefined) return
+    event.preventDefault()
+    const next = tabs[nextIndex]
+    if (next === undefined) return
+    workflow.setTab(next.key)
+    tabButtons.current[nextIndex]?.focus()
+    tabButtons.current[nextIndex]?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }
   return <section className={styles.workspace} aria-labelledby="settings-title">
     <header className={styles.header}><p className={styles.eyebrow}>SETTINGS</p><h1 id="settings-title">설정</h1><p>계정과 데이터, 외부 서비스 연동을 관리합니다.</p></header>
     <nav className={styles.tabs} aria-label="설정 항목" role="tablist">
-      {tabs.map((item) => <button aria-controls={`settings-panel-${item.key}`} aria-selected={workflow.tab === item.key} className={workflow.tab === item.key ? styles.activeTab : undefined} id={`settings-tab-${item.key}`} key={item.key} onClick={() => workflow.setTab(item.key)} role="tab" type="button">{item.label}</button>)}
+      {tabs.map((item, index) => <button
+        aria-controls={`settings-panel-${item.key}`}
+        aria-selected={workflow.tab === item.key}
+        className={workflow.tab === item.key ? styles.activeTab : undefined}
+        id={`settings-tab-${item.key}`}
+        key={item.key}
+        onClick={() => workflow.setTab(item.key)}
+        onKeyDown={(event) => moveTabFocus(event, index)}
+        ref={(element) => { tabButtons.current[index] = element }}
+        role="tab"
+        tabIndex={workflow.tab === item.key ? 0 : -1}
+        type="button"
+      >{item.label}</button>)}
     </nav>
     <div aria-labelledby={`settings-tab-${workflow.tab}`} className={styles.content} id={`settings-panel-${workflow.tab}`} role="tabpanel">
       {workflow.tab === 'history' ? historyPanel : workflow.loadState !== 'ready' ? <LoadState workflow={workflow} /> : workflow.tab === 'connections'
         ? <ConnectionsTab workflow={workflow} /> : workflow.tab === 'import'
-          ? <ImportTab workflow={workflow} /> : workflow.tab === 'export'
+          ? <ImportTab acquisitionPanel={importAcquisitionPanel} workflow={workflow} /> : workflow.tab === 'export'
             ? <ExportTab workflow={workflow} /> : <SimpleTab tab={workflow.tab} />}
     </div>
   </section>
 }
 
-export function DataTransferSettings({ gateway, historyPanel, initialTab }: Readonly<{
+export function DataTransferSettings({ gateway, historyPanel, remoteImportPreviewEnabled = true, sharedImportRuntimeEnabled = true, initialTab }: Readonly<{
   gateway: DataTransferSettingsGateway
   historyPanel: ReactNode
+  remoteImportPreviewEnabled?: boolean
+  sharedImportRuntimeEnabled?: boolean
   initialTab?: SettingsTab
 }>) {
-  return <DataTransferSettingsView historyPanel={historyPanel} workflow={useDataTransferSettings(gateway, initialTab)} />
+  const workflow = useDataTransferSettings(gateway, initialTab)
+  return <DataTransferSettingsView
+    historyPanel={historyPanel}
+    importAcquisitionPanel={<ImportAcquisition
+      gateway={importAcquisitionGateway}
+      onSnapshot={workflow.acceptAcquiredSnapshot}
+      remotePreviewEnabled={remoteImportPreviewEnabled}
+      sharedRuntimeEnabled={sharedImportRuntimeEnabled}
+    />}
+    workflow={workflow}
+  />
 }

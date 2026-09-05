@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest'
 
 import { DataTransferSettingsView } from './DataTransferSettings'
 import type { DataTransferSettingsWorkflow } from './data-transfer-settings-workflow'
+import { ImportAcquisition } from './import-acquisition/ImportAcquisition'
+import type { ImportAcquisitionGateway } from './import-acquisition/import-acquisition-model'
 
 const noop = () => undefined
 const asyncNoop = async () => undefined
@@ -10,6 +12,7 @@ const collectionId = '01992d20-0000-7000-8000-000000000001'
 const connectionId = '01992d20-0000-7000-8000-000000000002'
 const placeId = '01992d20-0000-7000-8000-000000000003'
 const historyPanel = <section>서버 작업 내역</section>
+const importAcquisitionPanel = <section>웹 가져오기 시작</section>
 
 function workflow(overrides: Partial<DataTransferSettingsWorkflow> = {}) {
   const capability = (providerKey: 'naver' | 'google' | 'kakao', connectionState: 'available' | 'integration-gated' | 'unavailable') => ({
@@ -41,7 +44,7 @@ function workflow(overrides: Partial<DataTransferSettingsWorkflow> = {}) {
     selectedExportCollection: overview.collections[0],
     setTab: noop, retry: asyncNoop, connectionCommand: asyncNoop,
     changeImportProvider: noop, setImportConnectionId: noop, acquireSnapshot: asyncNoop,
-    updateMapping: noop, previewImport: asyncNoop,
+    acceptAcquiredSnapshot: noop, updateMapping: noop, previewImport: asyncNoop,
     decideImportItem: asyncNoop, approveImport: asyncNoop,
     changeExportProvider: noop, setExportConnectionId: noop, setExportCollectionId: noop,
     setExportSelectionKind: noop, toggleExportPlace: noop, setTargetKind: noop,
@@ -51,8 +54,20 @@ function workflow(overrides: Partial<DataTransferSettingsWorkflow> = {}) {
 }
 
 describe('Data transfer settings view', () => {
+  it('keeps production acquisition controls disabled until its runtime is enabled', () => {
+    const markup = renderToStaticMarkup(<ImportAcquisition
+      gateway={{} as ImportAcquisitionGateway}
+      onSnapshot={noop}
+      remotePreviewEnabled={false}
+      sharedRuntimeEnabled={false}
+    />)
+    expect(markup).toContain('운영 수집 worker와 요청 제한 정책을 활성화한 뒤')
+    expect(markup).toMatch(/<textarea[^>]*disabled=""/)
+    expect(markup).toContain('원격 로그인 준비 중')
+  })
+
   it('keeps the six settings tabs and truthful independent provider capability cards', () => {
-    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} workflow={workflow()} />)
+    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} importAcquisitionPanel={importAcquisitionPanel} workflow={workflow()} />)
     expect(markup).toContain('외부 서비스 연결')
     expect(markup).toContain('데이터 가져오기')
     expect(markup).toContain('데이터 내보내기')
@@ -64,16 +79,17 @@ describe('Data transfer settings view', () => {
   })
 
   it('renders observed import evidence and blocks unsafe raw identity links', () => {
-    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} workflow={workflow({
+    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} importAcquisitionPanel={importAcquisitionPanel} workflow={workflow({
       tab: 'import',
       snapshot: {
-        snapshotId: 's1', snapshotRevision: 'sr1', providerKey: 'naver', connectionId,
+        snapshotId: 's1', snapshotRevision: 'sr1', providerKey: 'naver', source: { kind: 'verified-connection', connectionId },
         capturedAt: '2026-09-03T00:00:00.000Z',
         lists: [{ sourceListId: 'source-list', name: '도쿄 여행', itemCount: 1, unresolvedItemCount: 1 }],
       },
       mappings: [{ sourceListId: 'source-list', selected: true, target: { kind: 'new', collectionId, name: '도쿄 여행' } }],
       importPreview: {
         planId: 'p1', planRevision: 'pr1', snapshotId: 's1', snapshotRevision: 'sr1',
+        source: { kind: 'verified-connection', connectionId },
         mappings: [], summary: { add: 0, alreadyPresent: 0, reviewRequired: 1, unsupported: 0 },
         providerDetails: { pending: 1, available: 0, unavailable: 0 },
         matches: [{ sourceListId: 'source-list', sourceItemId: 'source-item', sourceName: '센소지', sourceAddress: '도쿄도 다이토구', sourceListName: '도쿄 여행', status: 'review-required', providerDetailStatus: 'pending' }],
@@ -82,13 +98,14 @@ describe('Data transfer settings view', () => {
     })} />)
     expect(markup).toContain('도쿄도 다이토구')
     expect(markup).toContain('건너뛰기')
+    expect(markup).toContain('maxLength="120"')
     expect(markup).toContain('기본 장소 정보나 연결 상태를 확인해야 합니다')
     expect(markup).not.toContain('자동으로 갱신')
     expect(markup).not.toContain('곳곳간 장소 ID')
   })
 
   it('keeps a blocked export non-approvable and states private-data exclusions', () => {
-    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} workflow={workflow({
+    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} importAcquisitionPanel={importAcquisitionPanel} workflow={workflow({
       tab: 'export',
       exportPreview: {
         transferId: 't1', transferRevision: 'tr1', state: 'blocked', providerKey: 'naver', collectionId,
@@ -103,10 +120,11 @@ describe('Data transfer settings view', () => {
   })
 
   it.each(['pending', 'unavailable'] as const)('allows approval with %s detail and shows a separate paused enrichment notice', (providerDetailStatus) => {
-    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} workflow={workflow({
+    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} importAcquisitionPanel={importAcquisitionPanel} workflow={workflow({
       tab: 'import',
       importPreview: {
         planId: 'p1', planRevision: 'pr1', snapshotId: 's1', snapshotRevision: 'sr1',
+        source: { kind: 'verified-connection', connectionId },
         mappings: [], summary: { add: 1, alreadyPresent: 0, reviewRequired: 0, unsupported: 0 },
         providerDetails: { pending: Number(providerDetailStatus === 'pending'), available: 0, unavailable: Number(providerDetailStatus === 'unavailable') },
         matches: [{ sourceListId: 'source-list', sourceItemId: 'source-item', sourceName: '기본 정보 장소',
@@ -122,10 +140,10 @@ describe('Data transfer settings view', () => {
   })
 
   it('does not pretend a truncated large snapshot can be fully approved', () => {
-    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} workflow={workflow({
+    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} importAcquisitionPanel={importAcquisitionPanel} workflow={workflow({
       tab: 'import',
       snapshot: {
-        snapshotId: 's-large', snapshotRevision: 'sr-large', providerKey: 'naver', connectionId,
+        snapshotId: 's-large', snapshotRevision: 'sr-large', providerKey: 'naver', source: { kind: 'verified-connection', connectionId },
         capturedAt: '2026-09-03T00:00:00.000Z', totalListCount: 72, totalItemCount: 12_300,
         hasUnloadedLists: true,
         lists: [{ sourceListId: 'source-list', name: '먼저 불러온 목록', itemCount: 500, unresolvedItemCount: 0 }],
@@ -135,5 +153,28 @@ describe('Data transfer settings view', () => {
     expect(markup).toContain('1 / 72개 목록')
     expect(markup).toContain('일부 목록만으로 가져오기를 승인할 수 없습니다')
     expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>매칭 미리보기<\/button>/)
+  })
+
+  it('keeps review-required places after the first 100 items reachable', () => {
+    const matches = Array.from({ length: 101 }, (_, index) => ({
+      sourceListId: 'source-list', sourceItemId: `source-item-${index}`,
+      sourceName: index === 100 ? '101번째 확인 장소' : `자동 연결 장소 ${index}`,
+      sourceAddress: null, sourceListName: '큰 목록',
+      status: 'review-required' as const,
+      providerDetailStatus: null,
+    }))
+    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} importAcquisitionPanel={importAcquisitionPanel} workflow={workflow({
+      tab: 'import',
+      importPreview: {
+        planId: 'p-large', planRevision: 'pr-large', snapshotId: 's-large', snapshotRevision: 'sr-large',
+        source: { kind: 'verified-connection', connectionId }, mappings: [],
+        summary: { add: 0, alreadyPresent: 0, reviewRequired: 101, unsupported: 0 },
+        providerDetails: { pending: 0, available: 0, unavailable: 0 }, matches,
+        approvalEligible: false, approvalReason: '매칭되지 않은 장소가 있어 승인할 수 없습니다.',
+      },
+    })} />)
+    expect(markup).not.toContain('101번째 확인 장소')
+    expect(markup.match(/>건너뛰기<\/button>/g)).toHaveLength(100)
+    expect(markup).toContain('다음 1개 더 보기 · 1개 남음')
   })
 })

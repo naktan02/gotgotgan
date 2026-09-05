@@ -1,6 +1,6 @@
 'use client'
 
-import type { FormEvent } from 'react'
+import { useRef, type FormEvent, type RefObject } from 'react'
 
 import type { PlaceMapBounds, PlaceMapRenderer } from '@/platform/maps/public'
 
@@ -45,15 +45,18 @@ function CollectionCard({
   collection,
   selected,
   onSelect,
+  buttonRef,
 }: Readonly<{
   collection: DiscoveryCollection
   selected: boolean
   onSelect: () => void
+  buttonRef?: RefObject<HTMLButtonElement | null>
 }>) {
   return <button
     aria-pressed={selected}
     className={selected ? `${styles.collectionCard} ${styles.selectedCard}` : styles.collectionCard}
     onClick={onSelect}
+    ref={buttonRef}
     type="button"
   >
     <Preview collection={collection} />
@@ -224,7 +227,19 @@ export function PublicCollectionDiscoveryView({
   MapRenderer,
   workflow,
 }: Readonly<{ MapRenderer: PlaceMapRenderer; workflow: PublicCollectionDiscoveryWorkflow }>) {
+  const detailPanel = useRef<HTMLElement>(null)
+  const selectedCollectionButton = useRef<HTMLButtonElement>(null)
   const submit = (event: FormEvent) => { event.preventDefault(); workflow.submitSearch() }
+  const openDetail = (publicationId: string) => {
+    workflow.select(publicationId)
+    if (window.matchMedia('(max-width: 820px)').matches) {
+      window.requestAnimationFrame(() => detailPanel.current?.focus())
+    }
+  }
+  const showDirectory = () => {
+    workflow.showMobileDirectory()
+    window.requestAnimationFrame(() => selectedCollectionButton.current?.focus())
+  }
   return <section aria-labelledby="discovery-title" className={styles.workspace}>
     <header className={styles.pageHeader}>
       <div><p className={styles.eyebrow}>PUBLIC COLLECTIONS</p><h1 id="discovery-title">둘러보기</h1><p>다른 사람이 공개한 장소 목록을 발견하고 내 곳곳간으로 가져오세요.</p></div>
@@ -243,13 +258,14 @@ export function PublicCollectionDiscoveryView({
       <button className={styles.resetButton} onClick={workflow.resetFilters} type="button">필터 초기화</button>
       <span className={styles.resultCount}>{workflow.directory?.items.length ?? 0}개 목록 표시</span>
     </div>
-    <div className={styles.content}>
+    <div className={styles.content} data-mobile-surface={workflow.mobileSurface}>
       <div className={styles.directory}>
         {workflow.directoryState !== 'ready' ? <StatePanel context="directory" retry={workflow.retryDirectory} state={workflow.directoryState} />
           : workflow.directory?.items.length === 0 ? <div className={styles.statePanel}><strong>조건에 맞는 공개 목록이 없습니다</strong><p>검색어나 필터를 줄여 다른 목록을 찾아보세요.</p><button onClick={workflow.resetFilters} type="button">모든 목록 보기</button></div>
-            : <><ol aria-label="공개 컬렉션 검색 결과" className={styles.directoryList}>{workflow.directory?.items.map((collection) => <li key={collection.publicationId}><CollectionCard collection={collection} onSelect={() => workflow.select(collection.publicationId)} selected={collection.publicationId === workflow.selectedPublicationId} /></li>)}</ol>{workflow.directory?.nextCursor !== undefined && <button className={styles.loadMore} disabled={workflow.directoryLoadingMore} onClick={() => void workflow.loadMoreDirectory()} type="button">{workflow.directoryLoadingMore ? '불러오는 중…' : '목록 더 보기'}</button>}{workflow.directoryPageError && <p className={`${styles.actionStatus} ${styles.errorStatus}`} role="alert">다음 공개 목록을 불러오지 못했습니다. 다시 시도해 주세요.</p>}</>}
+            : <><ol aria-label="공개 컬렉션 검색 결과" className={styles.directoryList}>{workflow.directory?.items.map((collection) => <li key={collection.publicationId}><CollectionCard buttonRef={collection.publicationId === workflow.selectedPublicationId ? selectedCollectionButton : undefined} collection={collection} onSelect={() => openDetail(collection.publicationId)} selected={collection.publicationId === workflow.selectedPublicationId} /></li>)}</ol>{workflow.directory?.nextCursor !== undefined && <button className={styles.loadMore} disabled={workflow.directoryLoadingMore} onClick={() => void workflow.loadMoreDirectory()} type="button">{workflow.directoryLoadingMore ? '불러오는 중…' : '목록 더 보기'}</button>}{workflow.directoryPageError && <p className={`${styles.actionStatus} ${styles.errorStatus}`} role="alert">다음 공개 목록을 불러오지 못했습니다. 다시 시도해 주세요.</p>}</>}
       </div>
-      <aside aria-label="선택한 공개 목록" className={styles.detail}>
+      <aside aria-label="선택한 공개 목록" className={styles.detail} ref={detailPanel} tabIndex={-1}>
+        <button className={styles.mobileBack} onClick={showDirectory} type="button">← 공개 목록으로</button>
         {workflow.selectedPublicationId === undefined || workflow.selectedPublicationId === '' ? <div className={styles.statePanel}><strong>목록을 선택해 주세요</strong><p>선택한 공개 목록의 장소와 지도, 복사 옵션이 여기에 표시됩니다.</p></div>
           : workflow.detailState !== 'ready' ? <StatePanel context="detail" retry={workflow.retryDetail} state={workflow.detailState} />
             : workflow.detail === undefined ? <div className={styles.statePanel}><strong>목록 상세를 준비 중입니다</strong></div>

@@ -52,7 +52,7 @@ async function routeDiscovery(page: Page) {
   }))
 }
 
-test('discovers a public list and copies only explicitly selected Places through v2', async ({ page }) => {
+test('discovers a public list and copies only explicitly selected Places through v2', async ({ page }, testInfo) => {
   await routeDiscovery(page)
   const copyCommands: unknown[] = []
   await page.route('**/api/library/publication-copy-commands', async (route) => {
@@ -74,7 +74,10 @@ test('discovers a public list and copies only explicitly selected Places through
   await page.goto('/browse')
   await expect(page.getByRole('heading', { name: '둘러보기' })).toBeVisible()
   await expect(page.getByLabel('공개 범위 필터')).toHaveValue('public')
-  await expect(page.getByRole('heading', { name: '도쿄 현지인이 추천하는 실내 가족 코스' }).last()).toBeVisible()
+  await expect(page.getByRole('heading', { name: '도쿄 현지인이 추천하는 실내 가족 코스' }).first()).toBeVisible()
+  if (testInfo.project.name === 'mobile-chromium') {
+    await page.getByRole('button', { name: /도쿄 현지인이 추천하는 실내 가족 코스/ }).click()
+  }
   await expect(page.getByText('개인 메모, 방문 기록, 개인 사진과 평점은 공개되거나 복사되지 않습니다')).toBeVisible()
 
   await page.getByLabel('도쿄 국립과학박물관 일부 복사 선택').check()
@@ -96,7 +99,21 @@ test('keeps discovery and selected detail usable on a mobile viewport', async ({
   await page.goto('/browse')
 
   await expect(page.getByLabel('공개 목록 검색')).toBeVisible()
-  await expect(page.getByRole('button', { name: /도쿄 현지인이 추천하는 실내 가족 코스/ })).toBeVisible()
+  const collection = page.getByRole('button', { name: /도쿄 현지인이 추천하는 실내 가족 코스/ })
+  const detail = page.getByRole('complementary', { name: '선택한 공개 목록' })
+  await expect(collection).toBeVisible()
+  await expect(detail).toBeHidden()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  expect(await page.getByRole('region', { name: '둘러보기' }).evaluate(
+    (workspace) => workspace.scrollWidth <= workspace.clientWidth,
+  )).toBe(true)
+
+  await collection.click()
+  await expect(detail).toBeVisible()
   await expect(page.getByRole('region', { name: '도쿄 현지인이 추천하는 실내 가족 코스 지도 미리보기' })).toBeVisible()
   await expect(page.getByRole('button', { name: '전체 복사' })).toBeVisible()
+
+  await page.getByRole('button', { name: '← 공개 목록으로' }).click()
+  await expect(detail).toBeHidden()
+  await expect(collection).toBeFocused()
 })

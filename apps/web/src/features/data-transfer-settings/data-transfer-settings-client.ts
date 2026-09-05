@@ -1,8 +1,8 @@
 import { problemSchema } from '@place/contracts/http'
 import { personalLibraryWorkspaceResponseV2Schema } from '@place/contracts/library'
 import {
-  importPlanCommandResultV3Schema,
-  importPlanV3Schema,
+  importPlanCommandResultV4Schema,
+  importPlanV4Schema,
   outboundTransferCommandResultV2Schema,
   providerCapabilityListV2Schema,
   providerConnectionCommandResultV2Schema,
@@ -10,7 +10,7 @@ import {
   providerTargetListProjectionV2Schema,
   sourceSnapshotDetailV2Schema,
   sourceSnapshotListV2Schema,
-  type ImportPlanV3,
+  type ImportPlanV4,
   type OutboundTransferV2,
 } from '@place/contracts/transfers'
 
@@ -93,7 +93,7 @@ function availability(
   }
 }
 
-function approvalReason(reason: ImportPlanV3['approval']['reason']): string | undefined {
+function approvalReason(reason: ImportPlanV4['approval']['reason']): string | undefined {
   if (reason === 'unresolved-places') return '매칭되지 않은 장소가 있어 승인할 수 없습니다.'
   if (reason === 'already-decided') return '이미 승인되었거나 종료된 가져오기입니다.'
   if (reason === 'materialization-rejected') return '대상 컬렉션 변경을 적용할 수 없습니다.'
@@ -119,7 +119,7 @@ function selectedMappings(mappings: readonly ImportMapping[]) {
 export function createDataTransferSettingsGateway(fetcher: typeof fetch = fetch): DataTransferSettingsGateway {
   const connectionAuthMethods = new Map<TransferProviderKey, 'browser-session' | 'managed-profile' | 'oauth' | 'account-export' | 'manual-file'>()
 
-  function importPreview(plan: ImportPlanV3) {
+  function importPreview(plan: ImportPlanV4) {
     const mappings: readonly ImportMapping[] = plan.mappings.map((mapping) => ({
       sourceListId: mapping.sourceListId,
       selected: true,
@@ -144,10 +144,13 @@ export function createDataTransferSettingsGateway(fetcher: typeof fetch = fetch)
     return {
       planId: plan.planId, planRevision: plan.planRevision,
       snapshotId: plan.snapshotId, snapshotRevision: plan.snapshotVersion,
+      source: plan.source,
       mappings,
       summary,
       providerDetails,
-      matches: plan.mappings.flatMap((mapping) => mapping.preview.items.map((item) => ({
+      matches: plan.mappings.flatMap((mapping) => mapping.preview.items
+        .filter((item) => item.status === 'unresolved')
+        .map((item) => ({
         sourceListId: mapping.sourceListId,
         sourceItemId: item.sourceItemId,
         sourceName: item.observedName,
@@ -156,7 +159,7 @@ export function createDataTransferSettingsGateway(fetcher: typeof fetch = fetch)
         status: item.status === 'unresolved' ? 'review-required' as const : item.status,
         providerDetailStatus: item.providerDetailStatus,
         ...(item.placeId === null ? {} : { placeId: item.placeId }),
-      }))).slice(0, 100),
+      }))),
       approvalEligible: plan.approval.eligible,
       ...(approvalReason(plan.approval.reason) === undefined ? {} : { approvalReason: approvalReason(plan.approval.reason) }),
     }
@@ -275,7 +278,7 @@ export function createDataTransferSettingsGateway(fetcher: typeof fetch = fetch)
         snapshotId: detail.snapshotId,
         snapshotRevision: detail.snapshotVersion,
         providerKey: detail.providerKey,
-        connectionId: detail.connectionId,
+        source: { kind: 'verified-connection', connectionId: detail.connectionId },
         capturedAt: detail.capturedAt,
         totalListCount: detail.listCount,
         totalItemCount: detail.itemCount,
@@ -291,12 +294,12 @@ export function createDataTransferSettingsGateway(fetcher: typeof fetch = fetch)
     },
 
     async previewImport(input, signal) {
-      const result = await post(fetcher, '/api/v3/transfers/import-plan-commands', {
-        schemaVersion: 'import-plan-command.v3', commandId: input.commandId,
+      const result = await post(fetcher, '/api/v4/transfers/import-plan-commands', {
+        schemaVersion: 'import-plan-command.v4', commandId: input.commandId,
         kind: 'create', planId: input.commandId,
         snapshotId: input.snapshotId, expectedSnapshotVersion: input.expectedSnapshotRevision,
         mappings: selectedMappings(input.mappings),
-      }, (value) => importPlanCommandResultV3Schema.safeParse(value), signal)
+      }, (value) => importPlanCommandResultV4Schema.safeParse(value), signal)
       if (result.outcome === 'rejected') throw rejection(result.rejection.code)
       return importPreview(result.plan)
     },
@@ -304,18 +307,18 @@ export function createDataTransferSettingsGateway(fetcher: typeof fetch = fetch)
     async importPlan(planId, signal) {
       const plan = await get(
         fetcher,
-        `/api/v3/transfers/import-plans/${encodeURIComponent(planId)}`,
-        (value) => importPlanV3Schema.safeParse(value),
+        `/api/v4/transfers/import-plans/${encodeURIComponent(planId)}`,
+        (value) => importPlanV4Schema.safeParse(value),
         signal,
       )
       return importPreview(plan)
     },
 
     async approveImport(input, signal) {
-      const result = await post(fetcher, '/api/v3/transfers/import-plan-commands', {
-        schemaVersion: 'import-plan-command.v3', commandId: input.commandId,
+      const result = await post(fetcher, '/api/v4/transfers/import-plan-commands', {
+        schemaVersion: 'import-plan-command.v4', commandId: input.commandId,
         kind: 'approve', planId: input.planId, expectedPlanRevision: input.expectedPlanRevision,
-      }, (value) => importPlanCommandResultV3Schema.safeParse(value), signal)
+      }, (value) => importPlanCommandResultV4Schema.safeParse(value), signal)
       if (result.outcome === 'rejected') throw rejection(result.rejection.code)
       return {
         operationId: result.plan.planId,
@@ -326,13 +329,13 @@ export function createDataTransferSettingsGateway(fetcher: typeof fetch = fetch)
     },
 
     async decideImportItem(input, signal) {
-      const result = await post(fetcher, '/api/v3/transfers/import-plan-commands', {
-        schemaVersion: 'import-plan-command.v3', commandId: input.commandId,
+      const result = await post(fetcher, '/api/v4/transfers/import-plan-commands', {
+        schemaVersion: 'import-plan-command.v4', commandId: input.commandId,
         kind: 'decide-item', planId: input.planId,
         expectedPlanRevision: input.expectedPlanRevision,
         sourceListId: input.sourceListId, sourceItemId: input.sourceItemId,
         decision: input.decision,
-      }, (value) => importPlanCommandResultV3Schema.safeParse(value), signal)
+      }, (value) => importPlanCommandResultV4Schema.safeParse(value), signal)
       if (result.outcome === 'rejected') throw rejection(result.rejection.code)
       return importPreview(result.plan)
     },

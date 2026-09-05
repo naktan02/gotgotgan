@@ -121,5 +121,5 @@ test('recovers durable operation state after reload and safely reconciles an unk
   await expect(page.getByText('외부 서비스 반영 완료').first()).toBeVisible()
   expect(server.listReads).toBeGreaterThan(readsBeforeReload)
   await page.getByRole('tab', { name: '데이터 가져오기' }).click()
-  await expect(page.getByRole('button', { name: '새 수집 시작' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: '링크 확인' })).toBeDisabled()
 })

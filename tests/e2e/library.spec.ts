@@ -450,3 +450,16 @@ test('switches mobile Collection, list, map, and detail surfaces without losing 
   await page.getByRole('button', { name: '목록', exact: true }).click()
   await expect(page.getByRole('button', { name: /멘야 하루/ })).toBeVisible()
 })
+
+test('uses compact single-surface Library layout without clipping at tablet widths', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'tablet-width Library layout coverage')
+  await installCollectionLibraryFixture(page)
+
+  for (const width of [1024, 768]) {
+    await page.setViewportSize({ width, height: 800 })
+    await page.goto('/library')
+    await expect(page.getByRole('button', { name: '카테고리', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: /멘야 하루/ })).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  }
+})

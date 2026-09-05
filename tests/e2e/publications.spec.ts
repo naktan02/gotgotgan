@@ -65,3 +65,16 @@ test('renders only allowlisted collection and writing publications', async ({ pa
   expect(hidden.status()).toBe(404)
   expect(await hidden.json()).toMatchObject({ code: 'PLACE_PUBLICATION_NOT_FOUND' })
 })
+
+test('keeps public collection content comfortably inside a 360px viewport', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chromium', 'narrow public Collection layout coverage')
+  await page.setViewportSize({ width: 360, height: 800 })
+  await page.goto(`/share/collections/${collectionPublicationId}`)
+
+  const article = page.locator('article')
+  await expect(article).toBeVisible()
+  const box = await article.boundingBox()
+  expect(box?.x).toBeGreaterThanOrEqual(10)
+  expect(box?.width).toBeLessThanOrEqual(340)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+})

@@ -19,6 +19,7 @@ type CopyState =
   | Readonly<{ kind: 'copied'; targetCollectionId: string }>
   | Readonly<{ kind: 'authentication-required' | 'forbidden' | 'not-found' | 'conflict' | 'invalid-selection' | 'unavailable' }>
 type ReportState = 'idle' | 'reporting' | 'reported' | 'authentication-required' | 'forbidden' | 'conflict' | 'unavailable'
+type MobileSurface = 'directory' | 'detail'
 
 const initialFilters: DiscoveryFilters = {
   query: '', areaKey: '', taxonomyKey: '', topicKey: '', sort: 'recent',
@@ -79,6 +80,7 @@ export function usePublicCollectionDiscovery(gateway: DiscoveryGateway) {
   const [reportOpen, setReportOpen] = useState(false)
   const [reportReason, setReportReason] = useState<DiscoveryReportReason>('spam')
   const [reportState, setReportState] = useState<ReportState>('idle')
+  const [mobileSurface, setMobileSurface] = useState<MobileSurface>('directory')
   const directoryRequest = useRef(0)
   const detailRequest = useRef(0)
   const directoryAbort = useRef<AbortController | undefined>(undefined)
@@ -88,6 +90,7 @@ export function usePublicCollectionDiscovery(gateway: DiscoveryGateway) {
 
   const select = useCallback((publicationId: string) => {
     setSelectedPublicationId(publicationId)
+    setMobileSurface('detail')
   }, [])
 
   const loadDirectory = useCallback(async (cursor?: string) => {
@@ -173,6 +176,7 @@ export function usePublicCollectionDiscovery(gateway: DiscoveryGateway) {
 
   const changeFilter = useCallback(<Key extends keyof DiscoveryFilters>(key: Key, value: DiscoveryFilters[Key]) => {
     setFilters((current) => ({ ...current, [key]: value }))
+    setMobileSurface('directory')
   }, [])
 
   const submitSearch = useCallback(() => {
@@ -182,6 +186,7 @@ export function usePublicCollectionDiscovery(gateway: DiscoveryGateway) {
   const resetFilters = useCallback(() => {
     setDraftQuery('')
     setFilters(initialFilters)
+    setMobileSurface('directory')
   }, [])
 
   const togglePlace = useCallback((placeId: string) => {
@@ -259,8 +264,10 @@ export function usePublicCollectionDiscovery(gateway: DiscoveryGateway) {
     draftQuery, filters, directory, directoryState, directoryLoadingMore, directoryPageError,
     selectedPublicationId, selectedCollection, detail, detailState, detailLoadingMore, detailPageError,
     selectedPlaceIds, selectedMapPlaceId, copyState, shareStatus, reportOpen, reportReason, reportState,
+    mobileSurface,
     setDraftQuery, submitSearch, changeFilter, resetFilters, select, togglePlace, copy, share,
     setMapSelectedPlaceId: setSelectedMapPlaceId, setReportOpen, setReportReason, report,
+    showMobileDirectory: () => setMobileSurface('directory'),
     retryDirectory: () => loadDirectory(),
     loadMoreDirectory: () => directory?.nextCursor === undefined ? undefined : loadDirectory(directory.nextCursor),
     retryDetail: () => selectedPublicationId === undefined ? undefined : loadDetail(selectedPublicationId),

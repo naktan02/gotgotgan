@@ -1,5 +1,17 @@
 export type SettingsTab = 'account' | 'connections' | 'import' | 'export' | 'history' | 'profile'
 export type TransferProviderKey = 'naver' | 'google' | 'kakao'
+export const collectionTargetNameMaximumLength = 120
+
+export function initialCollectionTargetName(value: string): string {
+  const truncated = value.trim().slice(0, collectionTargetNameMaximumLength)
+  const withoutSplitSurrogate = /[\uD800-\uDBFF]$/.test(truncated) ? truncated.slice(0, -1) : truncated
+  return withoutSplitSurrogate || '새 컬렉션'
+}
+
+export function validCollectionTargetName(value: string): boolean {
+  const trimmed = value.trim()
+  return trimmed.length > 0 && trimmed.length <= collectionTargetNameMaximumLength
+}
 export type ProviderConnectionState = 'ready' | 'action-required' | 'revoked' | 'disconnected' | 'unavailable'
 export type CapabilityState = 'available' | 'manual-file' | 'integration-gated' | 'unavailable'
 
@@ -59,7 +71,20 @@ export type SourceSnapshot = Readonly<{
   snapshotId: string
   snapshotRevision: string
   providerKey: TransferProviderKey
-  connectionId: string
+  source:
+    | Readonly<{
+      kind: 'verified-connection'
+      connectionId: string
+      importSourceId?: string
+      accountAssurance?: 'verified'
+    }>
+    | Readonly<{
+      kind: 'one-shot'
+      importSourceId: string
+      acquisitionMethod: 'shared-link' | 'remote-browser'
+      authorizationBasis: 'link-possession' | 'interactive-provider-session'
+      accountAssurance: 'unverified'
+    }>
   capturedAt: string
   totalListCount?: number
   totalItemCount?: number
@@ -85,6 +110,7 @@ export type ImportPlanPreview = Readonly<{
   planRevision: string
   snapshotId: string
   snapshotRevision: string
+  source: SourceSnapshot['source']
   mappings: readonly ImportMapping[]
   summary: Readonly<{
     add: number | null

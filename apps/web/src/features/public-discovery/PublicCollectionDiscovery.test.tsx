@@ -65,6 +65,7 @@ function workflow(overrides: Partial<PublicCollectionDiscoveryWorkflow> = {}) {
     reportOpen: false,
     reportReason: 'spam',
     reportState: 'idle',
+    mobileSurface: 'directory',
     setDraftQuery: noOperation,
     submitSearch: noOperation,
     changeFilter: noOperation,
@@ -81,6 +82,7 @@ function workflow(overrides: Partial<PublicCollectionDiscoveryWorkflow> = {}) {
     loadMoreDirectory: noOperation,
     retryDetail: noOperation,
     loadMoreDetail: noOperation,
+    showMobileDirectory: noOperation,
     ...overrides,
   } as unknown as PublicCollectionDiscoveryWorkflow
 }

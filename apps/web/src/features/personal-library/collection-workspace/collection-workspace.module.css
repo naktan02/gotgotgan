@@ -1,5 +1,9 @@
 .library {
   --library-accent: #1768e5;
+  container-name: library-workspace;
+  container-type: inline-size;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
   min-width: 0;
   color: #202735;
@@ -161,8 +165,7 @@
   .cover { width: 70px; height: 70px; }
 }
 
-@media (max-width: 720px) {
-  .library { display: grid; grid-template-rows: 56px minmax(0, 1fr); }
+@container library-workspace (max-width: 900px) {
   .mobileSwitcher { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 6px 10px; border-bottom: 1px solid #e3e8ef; background: #fff; }
   .mobileSwitcher button { min-height: 44px; border: 1px solid transparent; border-radius: 8px; background: #fff; color: #687487; }
   .mobileSwitcher button[aria-pressed='true'] { border-color: #bfd3f2; background: #edf4ff; color: var(--library-accent); font-weight: 750; }

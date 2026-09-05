@@ -1,0 +1,137 @@
+.acquisition {
+  display: grid;
+  gap: 14px;
+  container-type: inline-size;
+}
+
+.optionHeading,
+.resultsHeader,
+.remoteStatusHeading,
+.linkFooter,
+.resultActions,
+.remoteActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.optionHeading { align-items: flex-start; }
+.optionHeading h3, .resultsHeader h4 { margin: 0; color: var(--ink); font-size: 17px; }
+.optionLabel { margin: 0 0 5px; color: var(--accent); font-size: 12px; font-weight: 800; }
+.recommendedBadge, .betaBadge, .batchState, .resultStatus {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0 9px;
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.recommendedBadge { background: var(--accent-soft); color: var(--accent); }
+.betaBadge { border: 1px solid #e2cda5; background: #fff8e9; color: #79551d; }
+.optionDescription { max-width: 760px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.65; }
+
+.linkField { display: grid; gap: 7px; color: var(--ink); font-size: 12px; font-weight: 750; }
+.linkField textarea {
+  width: 100%;
+  min-height: 116px;
+  resize: vertical;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 11px 12px;
+  font: 13px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.linkField textarea:focus-visible,
+.acquisition button:focus-visible,
+.acquisition a:focus-visible,
+.resultSelection input:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.linkFooter { align-items: flex-end; }
+.linkFooter p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+.primaryButton, .secondaryButton, .dismissButton, .resultActions button, .remoteActions button, .remoteActions a {
+  min-height: 42px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0 13px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
+}
+.primaryButton { border-color: var(--accent); background: var(--accent); color: #fff; }
+.secondaryButton { justify-self: start; }
+.acquisition button:disabled { cursor: not-allowed; opacity: .5; }
+
+.results { overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-surface); background: var(--surface); }
+.resultsHeader { padding: 13px 14px; border-bottom: 1px solid var(--line); }
+.resultsHeader h4 { font-size: 14px; }
+.resultsHeader p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+.batchState { background: #f0f2ef; color: #53605a; }
+.batchState[data-state='ready'] { background: var(--accent-soft); color: var(--accent); }
+.batchState[data-state='partial'] { background: #fff4dc; color: #805a1e; }
+.batchState[data-state='failed'], .batchState[data-state='expired'] { background: #fff0f0; color: var(--danger); }
+.resultList { margin: 0; padding: 0; list-style: none; }
+.resultRow {
+  display: grid;
+  grid-template-columns: 24px 200px minmax(180px, 1fr) 72px auto;
+  min-height: 68px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.resultRow[data-state='ready'] { background: #fcfefd; }
+.resultSelection { display: grid; place-items: center; }
+.resultSelection input { width: 18px; height: 18px; accent-color: var(--accent); }
+.resultStatus { justify-self: start; background: #f0f2ef; color: #59645f; }
+.resultRow[data-state='ready'] .resultStatus { background: var(--accent-soft); color: var(--accent); }
+.resultRow[data-state='duplicate'] .resultStatus,
+.resultRow[data-state='invalid'] .resultStatus,
+.resultRow[data-state='unavailable'] .resultStatus,
+.resultRow[data-state='rate-limited'] .resultStatus,
+.resultRow[data-state='failed'] .resultStatus { background: #fff4dc; color: #805a1e; }
+.resultIdentity { display: grid; min-width: 0; gap: 4px; }
+.resultIdentity strong, .resultIdentity small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resultIdentity strong { color: var(--ink); font-size: 13px; }
+.resultIdentity small, .itemCount { color: var(--muted); font-size: 12px; }
+.itemCount { text-align: right; font-variant-numeric: tabular-nums; }
+.dismissButton { min-height: 36px; padding: 0 9px; }
+.resultActions { justify-content: flex-end; padding: 12px 14px; }
+.emptyResult { margin: 0; padding: 22px 14px; color: var(--muted); font-size: 13px; text-align: center; }
+
+.remotePanel { display: grid; gap: 12px; margin-top: 5px; padding: 17px; border: 1px solid var(--line); border-radius: var(--radius-surface); background: #fafbf9; }
+.boundaries { display: grid; gap: 6px; margin: 0; padding-left: 20px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.remoteStatus { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 13px; }
+.remoteStatusHeading span, .remoteStatus > p { color: var(--muted); font-size: 12px; }
+.remoteStatus > p { margin: 0; }
+.remoteActions { justify-content: flex-start; flex-wrap: wrap; }
+.remoteActions a { display: inline-flex; align-items: center; border-color: var(--accent); color: var(--accent); }
+.error { margin: 0; border: 1px solid #ecd0d0; border-radius: var(--radius-control); background: #fff2f2; color: var(--danger); padding: 11px 12px; font-size: 12px; line-height: 1.5; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@container (max-width: 760px) {
+  .resultRow { grid-template-columns: 24px minmax(0, 1fr) auto; gap: 7px 9px; padding: 12px; }
+  .resultSelection { grid-column: 1; grid-row: 1 / span 2; }
+  .resultStatus { grid-column: 2; grid-row: 1; white-space: normal; }
+  .itemCount { grid-column: 3; grid-row: 1; }
+  .resultIdentity { grid-column: 2 / -1; grid-row: 2; }
+  .dismissButton { grid-column: 2 / -1; width: 100%; margin-top: 3px; }
+}
+
+@media (max-width: 720px) {
+  .linkFooter { display: grid; align-items: stretch; }
+  .linkFooter .primaryButton { width: 100%; }
+  .resultActions { display: grid; }
+  .resultActions button { width: 100%; }
+  .remoteActions { display: grid; }
+  .remoteActions > * { width: 100%; justify-content: center; }
+}

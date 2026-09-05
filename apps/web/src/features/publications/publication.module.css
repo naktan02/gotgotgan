@@ -34,5 +34,7 @@
 .placeDetailError { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--danger, #b42318); }
 
 @media (max-width: 520px) {
+  .page { padding: 12px 10px; }
+  .article { padding: 20px; }
   .placeDetailContent dl { grid-template-columns: 1fr; }
 }

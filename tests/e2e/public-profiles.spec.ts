@@ -159,3 +159,32 @@ test('renders only public Collections on a noindex anonymous profile', async ({ 
   expect(bff.headers()['x-robots-tag']).toBe('noindex, nofollow')
   expect(JSON.stringify(await bff.json())).not.toContain('membership')
 })
+
+test('keeps the profile panels inside a dedicated narrow-screen scroll surface', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chromium', 'mobile profile scroll ownership coverage')
+  await page.setViewportSize({ width: 360, height: 800 })
+  await page.route('**/api/profile/moderation-notices**', (route) => json(route, {
+    schemaVersion: 'public-profile-moderation-notices.v1',
+    notices: Array.from({ length: 3 }, (_, index) => ({
+      noticeId: `01992d20-0000-7000-8000-00000000001${index}`,
+      handle: 'ramen-log', kind: 'withheld', reason: 'privacy',
+      createdAt: '2026-08-30T10:00:00.000Z', acknowledgedAt: null, appeal: null,
+    })),
+  }))
+  await page.route('**/api/profile', (route) => json(route, {
+    schemaVersion: 'public-profile-record.v1',
+    handle: 'ramen-log', displayName: '라멘 기록', visibility: 'public',
+    createdAt: '2026-08-29T10:00:00.000Z', updatedAt: '2026-08-29T10:00:00.000Z',
+  }))
+  await page.goto('/profile')
+
+  const scrollSurface = page.getByRole('region', { name: '프로필 설정 및 알림' })
+  await expect(scrollSurface).toBeVisible()
+  const dimensions = await scrollSurface.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+  }))
+  expect(dimensions.scrollHeight).toBeGreaterThan(dimensions.clientHeight)
+  await scrollSurface.evaluate((element) => { element.scrollTop = element.scrollHeight })
+  await expect.poll(() => scrollSurface.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+})

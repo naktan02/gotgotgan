@@ -15,7 +15,11 @@ import type {
   TransferOperationReceipt,
   TransferProviderKey,
 } from './data-transfer-settings-model'
-import { DataTransferSettingsProblem } from './data-transfer-settings-model'
+import {
+  DataTransferSettingsProblem,
+  initialCollectionTargetName,
+  validCollectionTargetName,
+} from './data-transfer-settings-model'
 
 type LoadState = 'loading' | 'ready' | 'authentication-required' | 'forbidden' | 'unavailable'
 type ActionState = Readonly<{ kind: 'idle' | 'working' | 'done' }> | Readonly<{ kind: 'error'; message: string }>
@@ -189,7 +193,7 @@ export function useDataTransferSettings(
       setMappings(next.lists.map((list) => ({
         sourceListId: list.sourceListId,
         selected: true,
-        target: { kind: 'new', collectionId: crypto.randomUUID(), name: list.name },
+        target: { kind: 'new', collectionId: crypto.randomUUID(), name: initialCollectionTargetName(list.name) },
       })))
       setImportPreview(undefined)
       setImportDecisions({})
@@ -209,9 +213,28 @@ export function useDataTransferSettings(
     setImportPreview(undefined); setImportApproval({ kind: 'idle' }); importPreviewCommand.current = undefined
   }, [])
 
+  const acceptAcquiredSnapshot = useCallback((next: SourceSnapshot, selectedSourceListIds: ReadonlySet<string>) => {
+    setImportProvider(next.providerKey)
+    setSnapshot(next)
+    setMappings(next.lists.map((list) => ({
+      sourceListId: list.sourceListId,
+      selected: selectedSourceListIds.has(list.sourceListId),
+      target: { kind: 'new', collectionId: crypto.randomUUID(), name: initialCollectionTargetName(list.name) },
+    })))
+    setImportPreview(undefined)
+    setImportState({ kind: 'done' })
+    setImportApproval({ kind: 'idle' })
+    setImportDecisions({})
+    importPreviewCommand.current = undefined
+    importApprovalCommand.current = undefined
+  }, [])
+
   const previewImport = useCallback(async () => {
     if (snapshot === undefined || mappings.every((mapping) => !mapping.selected)) {
       setImportState({ kind: 'error', message: '가져올 외부 목록을 하나 이상 선택해 주세요.' }); return
+    }
+    if (mappings.some((mapping) => mapping.selected && mapping.target.kind === 'new' && !validCollectionTargetName(mapping.target.name))) {
+      setImportState({ kind: 'error', message: '새 컬렉션 이름은 1~120자로 입력해 주세요.' }); return
     }
     setImportState({ kind: 'working' })
     importPreviewCommand.current ??= crypto.randomUUID()
@@ -420,7 +443,7 @@ export function useDataTransferSettings(
       setImportState({ kind: 'idle' }); setImportApproval({ kind: 'idle' }); setImportDecisions({})
       snapshotCommand.current = undefined; importPreviewCommand.current = undefined; importApprovalCommand.current = undefined
     },
-    acquireSnapshot, updateMapping, previewImport, decideImportItem, approveImport,
+    acquireSnapshot, acceptAcquiredSnapshot, updateMapping, previewImport, decideImportItem, approveImport,
     changeExportProvider,
     setExportConnectionId: (value: string) => {
       setExportConnectionId(value); setTargetKind('new'); setTargetListId('')
