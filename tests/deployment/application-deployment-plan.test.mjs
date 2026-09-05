@@ -205,7 +205,10 @@ test('production composition consumes immutable images while local composition o
     /main\.js", "--sweep-expired-captures"/,
   )
   assert.match(productionCompose, /PLACE_IMPORT_RUNTIME_ENABLED: "true"/)
-  assert.match(productionCompose, /PLACE_CONNECTOR_RUNTIME_ENABLED: "true"/)
+  assert.equal(
+    (productionCompose.match(/PLACE_CONNECTOR_RUNTIME_ENABLED: \$\{PLACE_CONNECTOR_RUNTIME_ENABLED:-false\}/g) ?? []).length,
+    2,
+  )
   assert.match(productionCompose, /PLACE_CONNECTOR_PUBLIC_ORIGIN:/)
   assert.match(productionCompose, /PLACE_CAPTURE_KEYRING_FILE: \/run\/secrets\/place_capture_keyring/)
   assert.match(productionCompose, /PLACE_CAPTURE_ROOT: \/var\/lib\/place\/captures/)

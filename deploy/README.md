@@ -6,7 +6,7 @@ candidate, while Backend and Worker stay internal. Browser-to-Backend and cross-
 connections are forbidden.
 
 `compose.yml` is the port-free product base. It accepts only deployment-injected Web, Admin Web, and
-Backend image references and keeps all Place processes under one product-owned Compose project and
+Backend image references and keeps all Gotgotgan processes under the `gotgotgan` Compose project and
 its default network:
 
 - `web`: standalone Next.js runtime;
@@ -18,7 +18,8 @@ its default network:
 `compose.local.yml`만 Docker build target과 명시적 standalone host port를 추가하며 Web integration과
 Backend transport는 기본적으로 source-only다. Admin Web은 `admin` profile을 선택했을 때 별도
 `admin-web-runtime` target과 기본 host port `3002`를 사용한다. `compose.production.yml`은 Backend
-production composition과 Web OIDC·membership·Import·Connector BFF를 활성화한다. 별도
+production composition과 Web OIDC·membership·Import BFF를 활성화한다. 설치형 Connector flag는
+기본 off이며 별도 명시 설정을 요구한다. 별도
 `compose.admin.production.yml`은 Admin OIDC와 Backend bridge를 실패 폐쇄로 활성화한다. Backend와 선택적 보존 정리
 Worker는 같은 보호 capture keyring과 외부 private capture volume을 사용한다. Backend host port를
 게시하지 않고 live Provider acquisition이나 상세 보강 Worker를 활성화하지 않는다. 주소, 파일,
@@ -69,7 +70,7 @@ Identity/Gateway gates.
 `compose.local.integration.yml`은 운영 오버레이를 수정하지 않고 로컬 통합에만 필요한 경계를
 추가한다. `identity.localhost`의 host-gateway 해석, localhost HTTP OIDC의 명시적 허용,
 PostGIS 준비 순서, 그리고 종료 후 제거되는 `database-prepare` 수명주기 작업이다. Web과 Backend는 기존
-`compose.production.yml`의 실제 OIDC·membership·Import·Connector 조립을 그대로 사용하므로
+`compose.production.yml`의 실제 OIDC·membership·Import 조립을 그대로 사용하므로
 로컬 전용 대체 인증이나 우회 API를 만들지 않는다.
 
 Admin Web은 같은 Compose 프로젝트의 형제 컨테이너지만 기본 stack 기동에는 포함되지 않는다.
@@ -137,7 +138,7 @@ network for server-to-server Backend calls and the existing private `place-data`
 session database.
 
 `database-runtime.json` and `compose.database.yml` declare the source-only Place-owned physical
-PostGIS runtime. The database Compose file remains under the `place` project, publishes no host port,
+PostGIS runtime. The database Compose file remains under the `gotgotgan` project, publishes no host port,
 and requires deployment-injected administrator, migration, runtime, volume, and data-network inputs.
 Production application composition is an activation input only. Disposable backup/restore and key
 recovery now have source evidence, while environment promotion still waits for retained operational

@@ -4,21 +4,21 @@ services:
       context: ..
       target: web-runtime
     ports:
-      - "${PLACE_WEB_PUBLISHED_PORT:?PLACE_WEB_PUBLISHED_PORT is required}:${PLACE_WEB_PORT:?PLACE_WEB_PORT is required}"
+      - "127.0.0.1:${PLACE_WEB_PUBLISHED_PORT:?PLACE_WEB_PUBLISHED_PORT is required}:${PLACE_WEB_PORT:?PLACE_WEB_PORT is required}"
 
   admin-web:
     build:
       context: ..
       target: admin-web-runtime
     ports:
-      - "${PLACE_ADMIN_WEB_PUBLISHED_PORT:?PLACE_ADMIN_WEB_PUBLISHED_PORT is required}:${PLACE_ADMIN_WEB_PORT:?PLACE_ADMIN_WEB_PORT is required}"
+      - "127.0.0.1:${PLACE_ADMIN_WEB_PUBLISHED_PORT:?PLACE_ADMIN_WEB_PUBLISHED_PORT is required}:${PLACE_ADMIN_WEB_PORT:?PLACE_ADMIN_WEB_PORT is required}"
 
   backend:
     build:
       context: ..
       target: backend-runtime
     ports:
-      - "${PLACE_HTTP_PUBLISHED_PORT:?PLACE_HTTP_PUBLISHED_PORT is required}:${PLACE_HTTP_PORT:?PLACE_HTTP_PORT is required}"
+      - "127.0.0.1:${PLACE_HTTP_PUBLISHED_PORT:?PLACE_HTTP_PUBLISHED_PORT is required}:${PLACE_HTTP_PORT:?PLACE_HTTP_PORT is required}"
 
   worker-check:
     build:

@@ -140,9 +140,9 @@ const clientId = process.env.PLACE_LOCAL_OIDC_CLIENT_ID
 const composeEnvironment = path.join(runtimeRoot, 'compose.env')
 const databaseEnvironment = path.join(runtimeRoot, 'database.env')
 const databaseValues = {
-  PLACE_WEB_IMAGE: 'place-web-local',
-  PLACE_ADMIN_WEB_IMAGE: 'place-admin-web-local',
-  PLACE_BACKEND_IMAGE: 'place-backend-local',
+  PLACE_WEB_IMAGE: 'gotgotgan-web-local',
+  PLACE_ADMIN_WEB_IMAGE: 'gotgotgan-admin-web-local',
+  PLACE_BACKEND_IMAGE: 'gotgotgan-backend-local',
   PLACE_WEB_HOST: '0.0.0.0',
   PLACE_WEB_PORT: '3000',
   PLACE_WEB_PUBLISHED_PORT: String(webPublishedPort),
@@ -152,7 +152,7 @@ const databaseValues = {
   PLACE_HTTP_HOST: '0.0.0.0',
   PLACE_HTTP_PORT: '3001',
   PLACE_HTTP_PUBLISHED_PORT: String(backendPublishedPort),
-  PLACE_DATA_NETWORK: 'place-data-local',
+  PLACE_DATA_NETWORK: 'gotgotgan-data-local',
   PLACE_POSTGRES_DATA_VOLUME: 'place-postgres-data-local',
   PLACE_POSTGRES_ADMIN_USER: 'place_admin',
   PLACE_POSTGRES_ADMIN_PASSWORD_FILE: hostPath(files.administratorPassword),

@@ -29,8 +29,10 @@ test('local runtime preparation is secret-safe, resumable, and origin-bound', as
       path.join(runtimeRoot, 'database.env'),
       'utf8',
     )
-    assert.match(databaseEnvironment, /^PLACE_DATA_NETWORK=place-data-local$/m)
-    assert.match(databaseEnvironment, /^PLACE_ADMIN_WEB_IMAGE=place-admin-web-local$/m)
+    assert.match(databaseEnvironment, /^PLACE_DATA_NETWORK=gotgotgan-data-local$/m)
+    assert.match(databaseEnvironment, /^PLACE_WEB_IMAGE=gotgotgan-web-local$/m)
+    assert.match(databaseEnvironment, /^PLACE_ADMIN_WEB_IMAGE=gotgotgan-admin-web-local$/m)
+    assert.match(databaseEnvironment, /^PLACE_BACKEND_IMAGE=gotgotgan-backend-local$/m)
     assert.match(databaseEnvironment, /^PLACE_ADMIN_WEB_HOST=0\.0\.0\.0$/m)
     assert.match(databaseEnvironment, /^PLACE_ADMIN_WEB_PORT=3000$/m)
     assert.match(databaseEnvironment, /^PLACE_ADMIN_WEB_PUBLISHED_PORT=3002$/m)
@@ -76,9 +78,37 @@ test('local runtime preparation is secret-safe, resumable, and origin-bound', as
     )
     assert.doesNotMatch(composeEnvironment, /test-only-client-secret/)
     assert.doesNotMatch(composeEnvironment, new RegExp(originalPassword.trim()))
+
+    // A repository move invalidates old bind paths, not the protected secret material.
+    const oidcKeyringPath = path.join(runtimeRoot, 'secrets', 'place_oidc_encryption_keyring')
+    const originalKeyring = await readFile(oidcKeyringPath, 'utf8')
+    await writeFile(path.join(runtimeRoot, 'compose.env'), composeEnvironment.replaceAll(
+      runtimeRoot.replaceAll('\\', '/'), '/obsolete/workspace/place/.runtime/local',
+    ))
+    await execFileAsync(process.execPath, [preparer], {
+      cwd: repositoryRoot,
+      env: { ...environment, PLACE_LOCAL_OIDC_CLIENT_ID: 'place-local-client-id' },
+    })
+    const repairedEnvironment = await readFile(path.join(runtimeRoot, 'compose.env'), 'utf8')
+    assert.equal(repairedEnvironment, composeEnvironment)
+    assert.equal(await readFile(adminPasswordPath, 'utf8'), originalPassword)
+    assert.equal(await readFile(oidcKeyringPath, 'utf8'), originalKeyring)
+    assert.match(repairedEnvironment, /^PLACE_POSTGRES_DATA_VOLUME=place-postgres-data-local$/m)
+    assert.match(repairedEnvironment, /^PLACE_CAPTURE_VOLUME=place-captures-local$/m)
   } finally {
     await rm(runtimeRoot, { recursive: true, force: true })
   }
+})
+
+test('local Compose uses one gotgotgan project and loopback-only published ports', async () => {
+  for (const file of ['compose.yml', 'compose.database.yml']) {
+    const content = await readFile(path.join(repositoryRoot, 'deploy', file), 'utf8')
+    assert.match(content, /^name: gotgotgan$/m)
+  }
+  const local = await readFile(path.join(repositoryRoot, 'deploy', 'compose.local.yml'), 'utf8')
+  const ports = local.split('\n').filter((line) => line.includes('PUBLISHED_PORT'))
+  assert.equal(ports.length, 3)
+  assert.ok(ports.every((line) => line.includes('"127.0.0.1:')))
 })
 
 test('local runtime preparation rejects non-local HTTP origins', async () => {

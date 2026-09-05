@@ -1,5 +1,22 @@
 # 로컬 개발
 
+## 현재 실행 기준
+
+사용자 확인용 서버는 호스트의 `next dev`/`next start`가 아니라 `gotgotgan` Compose로 실행한다.
+`package.json`의 `compose:local`이 실제 오버레이 조합을 소유한다. 준비된 환경의 재기동은
+`npm run compose:local -- up -d --wait postgres backend web`, 별도 관리자 화면은
+`npm run compose:local -- --profile admin up -d --wait admin-web`을 사용한다.
+서비스명을 생략한 `up`은 승인 작업 처리 worker도 시작하므로 사용하지 않는다.
+
+저장소 경로를 옮겼으면 기존 비밀 파일을 유지한 채 `prepare:local`로 파일 참조를 다시 생성한다.
+옛 컨테이너를 단순 `start`하면 사라진 옛 bind 경로 때문에 시작 단계에서 실패할 수 있다.
+[`local-runtime.test.mjs`](../../tests/deployment/local-runtime.test.mjs)는 경로 복구 시 키·비밀번호·
+영속 볼륨이 유지되는지 검증한다. `PLACE_*`, DB 역할/이름, 기존 영속 볼륨 이름은 현재 저장 계약이다.
+컨테이너의 제품명 변경과 함께 일괄 치환하거나 `down -v`로 초기화하지 않는다.
+
+로그인 완료, 개인 Library 사용, 실제 Provider 가져오기는 각각 별도 확인이다. `/readyz` 성공만으로
+이들이 검증됐다고 보지 않는다. 관리자 인증은 아래 별도 client 준비 조건을 따른다.
+
 ## 소스 검증
 
 저장소 루트에서 의존성을 설치한 뒤 계약, Web, Backend를 각각 검증한다.
@@ -20,7 +37,7 @@ npm run test:e2e
 
 ## 전체 로컬 스택
 
-로컬 스택은 하나의 `place` Compose 프로젝트 아래 `postgres`, `backend`, `web`을 두고, 필요할 때
+로컬 스택은 하나의 `gotgotgan` Compose 프로젝트 아래 `postgres`, `backend`, `web`을 두고, 필요할 때
 별도 `admin-web` 형제 컨테이너를 `admin` profile로 추가한다.
 Identity와 Gateway의 소스나 데이터베이스를 가져오지 않고, 실행 중인 공통 Identity의 공개 OIDC
 계약만 사용한다. 기본 주소는 코드에 고정하지 않으며 아래 실행 환경에서 주입한다.
@@ -43,11 +60,11 @@ PostgreSQL 역할별 비밀번호와 URL, OIDC 세션 암호화 키링, 수집 �
 외부 네트워크와 수집 볼륨은 한 번만 만든다. 이미 존재하면 다시 만들지 않는다.
 
 ```powershell
-docker network inspect place-data-local
+docker network inspect gotgotgan-data-local
 docker volume inspect place-captures-local
 ```
 
-없는 리소스만 각각 `docker network create place-data-local`,
+없는 리소스만 각각 `docker network create --internal gotgotgan-data-local`,
 `docker volume create place-captures-local`로 만든다. 그다음 PostGIS와 일회성 마이그레이션
 작업을 실행한다.
 
@@ -90,13 +107,9 @@ npm run prepare:local
 
 ### 4. Identity 플랫폼 권한 Backend 준비
 
-Place OIDC client 등록이 끝난 뒤 Identity 저장소에서 전용 DB role·migration·ES256 키·허용 audience를
-한 번 준비한다. 이 단계는 사용자에게 역할을 부여하지 않는다.
-
-```powershell
-Set-Location C:\Users\PC\workspace\identity
-.\scripts\initialize-platform-access.ps1 -Start
-```
+기존 Identity의 private entitlement endpoint와 JWKS 연결을 먼저 확인한다. 새 DB 역할, 키,
+audience나 Identity 서비스를 만드는 것은 이 프로젝트의 재기동 작업에 포함하지 않는다.
+준비가 안 되어 있으면 Identity 운영자의 별도 승인을 받아 해당 프로젝트의 절차를 따른다.
 
 Place Backend만 Identity의 비공개 `identity-services` 네트워크에 참가한다. 준비되지 않은 상태에서
 `PLACE_PLATFORM_ACCESS_ENABLED=true`로 실행하면 권한 검증은 실패 폐쇄한다.
@@ -141,13 +154,12 @@ Docker Desktop 재시작처럼 Web과 PostgreSQL이 동시에 시작되면 Web�
 healthcheck는 준비 완료를 주장하지 않으며, PostgreSQL이 복구되면 Web 컨테이너를 수동 재시작하지
 않고 `/readyz`가 회복되어야 한다. 재시도 횟수와 간격의 곱은 구성 로더가 최대 5분으로 제한한다.
 
-### 6. Connector 설치 전 확인
+### 6. 가져오기 활성화 경계
 
-Web 로그인, Place 동의·membership 생성, 가져오기 페이지의 grant 발급까지 확인한 뒤에만
-`apps/member-connector/.output/chrome-mv3`를 Whale/Chrome/Edge의 압축 해제 확장으로 설치한다.
-Firefox는 별도 산출물을 사용한다. 현재 NAVER Adapter는 브라우저의 기존 로그인 세션을 사용한다.
-Kakao·Google도 같은 Connector 경계 안에 별도 Provider Adapter로 추가하며, 어느 경우에도 계정
-비밀번호를 Place 서버로 전송하거나 저장하지 않는다.
+사용자는 Desktop·로컬 agent·확장을 설치하지 않는다. 공유 링크를 주 경로로 정한 이유와
+활성화 조건은 [ADR 0025](../adr/0025-web-one-shot-saved-place-imports.md)를 따른다.
+Compose 재기동은 공유 링크 수집, 원격 로그인, 상세 수집이나 freshness scheduler의 활성화 승인이
+아니다. 설치형 Connector flag는 기본 off이며 기존 parser/계약의 존재와 제품 사용 가능성을 구분한다.
 
 ## 릴리스 준비
 
