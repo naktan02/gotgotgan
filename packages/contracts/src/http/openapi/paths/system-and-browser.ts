@@ -1,4 +1,4 @@
-import { anonymous, browserSession, described, operation, ref } from '../model.js'
+import { adminBrowserSession, anonymous, browserSession, described, operation, ref } from '../model.js'
 import {
   boundedCursorParameter,
   boundedLimitParameter,
@@ -50,7 +50,26 @@ export const systemAndBrowserPaths = {
     '401': ref('responses', 'AuthenticationRequired'),
     '403': ref('responses', 'AccessDenied'),
     '503': ref('responses', 'BrowserBackendUnavailable'),
-  }, { security: browserSession }) },
+  }, { security: adminBrowserSession }) },
+  '/api/admin/catalog': { post: operation('searchPlaceCatalogForAdmin', {
+    '200': described('Return public-only internal catalog results after administrator authorization', 'CatalogPlaceSearchResponse'),
+    '400': ref('responses', 'ProductRequestInvalid'),
+    '401': ref('responses', 'AuthenticationRequired'),
+    '403': ref('responses', 'AccessDenied'),
+    '503': ref('responses', 'BrowserBackendUnavailable'),
+  }, { security: adminBrowserSession, requestSchema: 'CatalogPlaceSearchRequest' }) },
+  '/api/admin/catalog/{placeId}': {
+    parameters: [pathParameters.placeId],
+    get: operation('getPublicPlaceDetailForAdmin', {
+      '200': described('Return canonical public detail without personal overlay after administrator authorization', 'PublicPlaceDetailResponse'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '410': ref('responses', 'PlaceRetired'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, { security: adminBrowserSession }),
+  },
   '/api/membership-consents/current': { get: operation(
     'getCurrentPlaceMembershipConsentsForBrowser',
     {

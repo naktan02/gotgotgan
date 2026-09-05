@@ -1,4 +1,5 @@
 .shell { min-height: 100vh; }
+.mobileNavigationToggle { display: none; }
 
 .sidebar {
   position: fixed;
@@ -66,6 +67,7 @@
   font-weight: 750;
   text-decoration: none;
 }
+.activeNav:not([aria-current="page"]) { background: transparent; color: #dfe9f8; }
 
 .navDot { width: 0.45rem; height: 0.45rem; border-radius: 50%; background: #88b4ff; }
 
@@ -166,7 +168,9 @@
 
 @media (max-width: 760px) {
   .sidebar { position: static; width: 100%; max-height: none; }
-  .navigation { grid-template-columns: 1fr 1fr; }
+  .navigation { display: none; grid-template-columns: 1fr 1fr; }
+  .navigation.navigationOpen { display: grid; }
+  .mobileNavigationToggle { display: block; margin-left: auto; border: 1px solid #91a5c3; border-radius: 0.4rem; background: transparent; color: white; padding: 0.5rem; }
   .sidebarBoundary { display: none; }
   .application { margin-left: 0; }
   .topbar { position: static; align-items: flex-start; }

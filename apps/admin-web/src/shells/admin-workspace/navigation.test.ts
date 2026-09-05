@@ -3,10 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { adminNavigation } from './navigation'
 
 describe('administrator navigation delivery states', () => {
-  it('exposes only the access dashboard until owning Backend Interfaces exist', () => {
+  it('exposes the dashboard and read-only catalog with real Backend Interfaces', () => {
     const items = adminNavigation.flatMap((group) => group.items)
     expect(items.filter((item) => item.enabled).map((item) => item.label)).toEqual([
       '접근 및 Capability',
+      '장소 데이터',
     ])
     expect(
       items.filter((item) => !item.enabled).every(

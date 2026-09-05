@@ -1,0 +1,20 @@
+.catalog { display: grid; gap: 1rem; }
+.notice { padding: 1rem; border: 1px solid #d6e1f0; border-radius: 0.7rem; background: #f1f6fc; color: #364961; line-height: 1.6; }
+.search { display: flex; flex-wrap: wrap; align-items: center; gap: 0.7rem; }
+.search label { font-weight: 700; }
+.search input { flex: 1; min-width: 12rem; padding: 0.7rem; border: 1px solid #b9c8db; border-radius: 0.4rem; }
+.catalog button { padding: 0.65rem 1rem; border: 1px solid #b9c8db; border-radius: 0.4rem; background: white; color: #173d72; cursor: pointer; }
+.catalog button:focus-visible, .search input:focus-visible { outline: 3px solid #2468d9; outline-offset: 2px; }
+.catalog button:disabled { cursor: wait; opacity: 0.6; }
+.panes { display: grid; grid-template-columns: minmax(16rem, 1fr) minmax(18rem, 1.15fr); gap: 1rem; }
+.results, .detail { padding: 1rem; border: 1px solid #d6e1f0; border-radius: 0.7rem; background: white; min-width: 0; }
+.panes h2 { font-size: 1rem; }
+.panes h2 small { font-weight: 400; color: #536780; }
+.results ul { display: grid; gap: 0.5rem; list-style: none; padding: 0; }
+.results li button { display: grid; width: 100%; gap: 0.35rem; text-align: left; }
+.results li button.selected { border-color: #2468d9; background: #eef5ff; }
+.results li span, .results li small { color: #536780; }
+.detail dl { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: 0.75rem; line-height: 1.5; }
+.detail dt { color: #536780; }
+.detail dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 1000px) { .panes { grid-template-columns: minmax(0, 1fr); } }

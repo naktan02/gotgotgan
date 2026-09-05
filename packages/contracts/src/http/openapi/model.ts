@@ -1,6 +1,7 @@
 export const anonymous: readonly unknown[] = []
 export const bearer = [{ placeBearer: [] }]
 export const browserSession = [{ placeBrowserSession: [] }]
+export const adminBrowserSession = [{ placeAdminBrowserSession: [] }]
 export const connectorGrant = [{ placeConnector: [] }]
 export const optionalBearer = [{ placeBearer: [] }, {}]
 

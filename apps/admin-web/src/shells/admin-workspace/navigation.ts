@@ -2,6 +2,7 @@ export type AdminNavigationItem = Readonly<{
   label: string
   enabled: boolean
   detail?: string
+  href?: string
 }>
 
 export type AdminNavigationGroup = Readonly<{
@@ -12,11 +13,11 @@ export type AdminNavigationGroup = Readonly<{
 const missing = 'Backend Interface 미구현'
 
 export const adminNavigation: readonly AdminNavigationGroup[] = [
-  { label: '운영 대시보드', items: [{ label: '접근 및 Capability', enabled: true }] },
+  { label: '운영 대시보드', items: [{ label: '접근 및 Capability', enabled: true, href: '/' }] },
   {
     label: '장소 관리',
     items: [
-      { label: '장소 데이터', enabled: false, detail: missing },
+      { label: '장소 데이터', enabled: true, href: '/catalog' },
       { label: '중복·병합/분리', enabled: false, detail: missing },
       { label: '분류 관리', enabled: false, detail: missing },
       { label: '휴·폐업 검수', enabled: false, detail: missing },

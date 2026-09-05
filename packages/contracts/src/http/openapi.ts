@@ -386,6 +386,7 @@ export function buildOpenApiDocument() {
       securitySchemes: {
         placeBearer: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
         placeBrowserSession: { type: 'apiKey', in: 'cookie', name: '__Host-place_session' },
+        placeAdminBrowserSession: { type: 'apiKey', in: 'cookie', name: '__Host-place_admin_session' },
         placeConnector: { type: 'http', scheme: 'PlaceConnector' },
       },
       schemas: Object.fromEntries(

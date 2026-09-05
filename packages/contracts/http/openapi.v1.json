@@ -123,7 +123,7 @@
         "summary": "getCurrentPlaceAdminSession",
         "security": [
           {
-            "placeBrowserSession": []
+            "placeAdminBrowserSession": []
           }
         ],
         "responses": {
@@ -142,6 +142,103 @@
           },
           "403": {
             "$ref": "#/components/responses/AccessDenied"
+          },
+          "503": {
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
+          }
+        }
+      }
+    },
+    "/api/admin/catalog": {
+      "post": {
+        "operationId": "searchPlaceCatalogForAdmin",
+        "summary": "searchPlaceCatalogForAdmin",
+        "security": [
+          {
+            "placeAdminBrowserSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogPlaceSearchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return public-only internal catalog results after administrator authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogPlaceSearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "503": {
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
+          }
+        }
+      }
+    },
+    "/api/admin/catalog/{placeId}": {
+      "parameters": [
+        {
+          "name": "placeId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getPublicPlaceDetailForAdmin",
+        "summary": "getPublicPlaceDetailForAdmin",
+        "security": [
+          {
+            "placeAdminBrowserSession": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return canonical public detail without personal overlay after administrator authorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPlaceDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "410": {
+            "$ref": "#/components/responses/PlaceRetired"
           },
           "503": {
             "$ref": "#/components/responses/BrowserBackendUnavailable"
@@ -9523,6 +9620,11 @@
         "type": "apiKey",
         "in": "cookie",
         "name": "__Host-place_session"
+      },
+      "placeAdminBrowserSession": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__Host-place_admin_session"
       },
       "placeConnector": {
         "type": "http",

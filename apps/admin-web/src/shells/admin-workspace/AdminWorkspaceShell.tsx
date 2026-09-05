@@ -1,6 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import { AdminAccessGate, useAdminAccess } from '../../features/admin-access/public/index'
+import { CatalogInspection } from '../../features/catalog-inspection/public/index'
 
 import { adminNavigation } from './navigation'
 import styles from './admin-workspace.module.css'
@@ -24,14 +26,14 @@ function CapabilityCards({ ready }: Readonly<{ ready: boolean }>) {
     {
       title: 'Server-side Backend 중계',
       state: ready ? 'Backend 응답 확인됨' : '응답 확인 대기',
-      detail: '고정된 Backend origin의 /v1/me만 호출하고 token과 내부 주소를 브라우저에 내보내지 않습니다.',
+      detail: '고정된 Backend 경계에서 권한과 공개 장소를 조회하고 token과 내부 주소는 노출하지 않습니다.',
       available: ready,
     },
     {
-      title: '운영 작업 화면',
-      state: 'Backend Interface 미구현',
-      detail: '장소·수집·사용자·시스템 작업은 owning Interface가 생긴 순서대로 활성화합니다.',
-      available: false,
+      title: '장소 데이터 조회',
+      state: ready ? '읽기 전용 조회 가능' : '세션 확인 대기',
+      detail: '내부 공개 카탈로그 검색과 상세 조회를 제공합니다. 검수·변경 기능은 활성화하지 않습니다.',
+      available: ready,
     },
   ] as const
 
@@ -60,8 +62,9 @@ function CapabilityCards({ ready }: Readonly<{ ready: boolean }>) {
   )
 }
 
-export function AdminWorkspaceShell() {
+export function AdminWorkspaceShell({ page = 'dashboard' }: Readonly<{ page?: 'dashboard' | 'catalog' }>) {
   const access = useAdminAccess()
+  const [navigationOpen, setNavigationOpen] = useState(false)
   const ready = access.state.kind === 'ready'
   return (
     <div className={styles.shell}>
@@ -69,13 +72,15 @@ export function AdminWorkspaceShell() {
         <div className={styles.brand}>
           <span className={styles.mark}>곳</span>
           <div><strong>곳곳간</strong><small>Admin</small></div>
+          <button className={styles.mobileNavigationToggle} aria-controls="admin-navigation"
+            aria-expanded={navigationOpen} onClick={() => setNavigationOpen(!navigationOpen)} type="button">메뉴</button>
         </div>
-        <nav className={styles.navigation} aria-label="관리자 메뉴">
+        <nav className={`${styles.navigation} ${navigationOpen ? styles.navigationOpen : ''}`} id="admin-navigation" aria-label="관리자 메뉴">
           {adminNavigation.map((group) => (
             <section className={styles.navGroup} key={group.label}>
               <h2>{group.label}</h2>
               {group.items.map((item) => item.enabled ? (
-                <a className={styles.activeNav} href="/" aria-current="page" key={item.label}>
+                <a className={styles.activeNav} href={item.href} aria-current={item.href === (page === 'catalog' ? '/catalog' : '/') ? 'page' : undefined} key={item.label}>
                   <span className={styles.navDot} />{item.label}
                 </a>
               ) : (
@@ -120,12 +125,12 @@ export function AdminWorkspaceShell() {
           <div className={styles.pageHeading}>
             <div>
               <p>Operations control plane</p>
-              <h1>운영 대시보드</h1>
+              <h1>{page === 'catalog' ? '장소 데이터' : '운영 대시보드'}</h1>
               <span>실제 Backend Interface와 현재 운영자 권한으로 확인된 정보만 표시합니다.</span>
             </div>
           </div>
-          <AdminAccessGate state={access.state} retry={access.retry} />
-          <CapabilityCards ready={ready} />
+          {(page === 'dashboard' || !ready) && <AdminAccessGate state={access.state} retry={access.retry} />}
+          {page === 'catalog' ? ready && <CatalogInspection /> : <CapabilityCards ready={ready} />}
         </main>
       </div>
     </div>
