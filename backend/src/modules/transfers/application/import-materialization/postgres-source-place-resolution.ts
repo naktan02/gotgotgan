@@ -1,7 +1,10 @@
 import type { Pool, PoolClient } from 'pg'
 
 import { deterministicOperationId } from '../identity.js'
-import type { VerifiedSourcePlaceMaterializerPort } from './verified-source-place-materializer.js'
+import type {
+  VerifiedSourcePlaceMaterialization,
+  VerifiedSourcePlaceMaterializerPort,
+} from './verified-source-place-materializer.js'
 import {
   PostgresImportLease,
   type ClaimedImportOperation,
@@ -18,6 +21,17 @@ type PolicyCreateRow = Readonly<{
   source_observation_id: string | null
   place_candidate_id: string | null
   detail_normalized_at: Date | null
+  evidence_snapshot_id: string | null
+  acquisition_kind: NonNullable<VerifiedSourcePlaceMaterialization['snapshotEvidence']>['acquisitionKind'] | null
+  parser_version: string | null
+  content_digest: string
+  observed_at: Date
+  captured_at: Date
+  observed_name: string
+  observed_address: string | null
+  observed_category: string | null
+  latitude: number | null
+  longitude: number | null
 }>
 
 export class PostgresSourcePlaceResolution {
@@ -33,18 +47,24 @@ export class PostgresSourcePlaceResolution {
   ): Promise<'ready' | 'cancelled'> {
     const rows = await this.policyCreateRows(operation, sourceListId)
     for (const row of rows) {
+      const snapshotEvidence = row.evidence_snapshot_id === null ? undefined :
+        this.snapshotEvidence(row)
       if (row.item_key === null || row.provider_place_id === null ||
-        row.match_reason !== 'missing-identity' ||
-        row.source_observation_id === null || row.place_candidate_id === null ||
-        row.detail_normalized_at === null) {
+        row.match_reason !== 'missing-identity' || (snapshotEvidence === undefined && (
+          row.source_observation_id === null || row.place_candidate_id === null ||
+          row.detail_normalized_at === null))) {
         throw new Error('import-invariant-violated')
       }
       if (row.checkpoint_place_id !== null) continue
       const itemKey = row.item_key
       const providerPlaceId = row.provider_place_id
-      const sourceObservationId = row.source_observation_id
-      const placeCandidateId = row.place_candidate_id
-      const detailNormalizedAt = row.detail_normalized_at
+      const sourceObservationId = row.source_observation_id ?? deterministicOperationId(
+        'transfer-snapshot-observation', row.evidence_snapshot_id!, row.source_list_id, row.source_item_id,
+      )
+      const placeCandidateId = row.place_candidate_id ?? deterministicOperationId(
+        'transfer-snapshot-candidate', row.evidence_snapshot_id!, row.source_list_id, row.source_item_id,
+      )
+      const evidenceAt = row.detail_normalized_at ?? row.captured_at
       const resolved = await this.lease.withHeartbeat(operation, () => this.materializer.materialize({
         decisionId: deterministicOperationId(
           'transfer-policy-create-decision', operation.id, row.source_list_id, row.source_item_id,
@@ -57,8 +77,9 @@ export class PostgresSourcePlaceResolution {
         sourceObservationId,
         placeCandidateId,
         occurredAt: new Date(Math.max(
-          operation.created_at.getTime(), detailNormalizedAt.getTime(),
+          operation.created_at.getTime(), evidenceAt.getTime(),
         )).toISOString(),
+        ...(snapshotEvidence === undefined ? {} : { snapshotEvidence }),
       }))
       if (await this.checkpoint(operation, itemKey, resolved.placeId) === 'cancelled') {
         return 'cancelled'
@@ -78,7 +99,13 @@ export class PostgresSourcePlaceResolution {
               item.source_list_id, item.source_item_id, snapshot_item.provider_place_id,
               snapshot_item.match_reason,
               detail.source_observation_id, detail.place_candidate_id,
-              detail.normalized_at AS detail_normalized_at
+              detail.normalized_at AS detail_normalized_at,
+              item.evidence_snapshot_id, snapshot.acquisition_kind, snapshot.parser_version,
+              snapshot.content_digest, snapshot.observed_at, snapshot.captured_at,
+              snapshot_item.observed_name, snapshot_item.observed_address,
+              snapshot_item.observed_category,
+              ST_Y(snapshot_item.observed_location) AS latitude,
+              ST_X(snapshot_item.observed_location) AS longitude
        FROM transfers.import_plan_items AS item
        JOIN transfers.import_plans AS plan ON plan.id = item.plan_id
        JOIN transfers.source_snapshots AS snapshot ON snapshot.id = plan.snapshot_id
@@ -101,6 +128,23 @@ export class PostgresSourcePlaceResolution {
       [operation.resource_id, sourceListId, operation.id],
     )
     return result.rows
+  }
+
+  private snapshotEvidence(row: PolicyCreateRow) {
+    if (row.acquisition_kind === null || row.parser_version === null ||
+      row.observed_name.trim().length === 0) throw new Error('import-invariant-violated')
+    return {
+      acquisitionKind: row.acquisition_kind,
+      parserVersion: row.parser_version,
+      payloadChecksum: row.content_digest,
+      observedAt: row.observed_at.toISOString(),
+      acquiredAt: row.captured_at.toISOString(),
+      name: row.observed_name,
+      address: row.observed_address,
+      categoryLabel: row.observed_category,
+      location: row.latitude === null || row.longitude === null
+        ? null : { latitude: row.latitude, longitude: row.longitude },
+    }
   }
 
   private async checkpoint(

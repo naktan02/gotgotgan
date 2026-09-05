@@ -198,7 +198,7 @@ const importPlanPreviewItemV3Schema = z.object({
   placeId: uuidSchema.nullable(),
   status: z.enum(['add', 'already-present', 'unresolved', 'skipped']),
   decision: z.enum(['snapshot-match', 'policy-create', 'link', 'skip', 'none']),
-  // Provider detail work advances independently; refresh-evidence pins it before revising the plan.
+  // Extended detail is independent of the captured minimum evidence used to approve an import.
   providerDetailStatus: z.enum(['pending', 'available', 'unavailable']).nullable(),
 }).strict().superRefine((item, context) => {
   const resolved = item.status === 'add' || item.status === 'already-present'
@@ -212,14 +212,7 @@ const importPlanPreviewItemV3Schema = z.object({
   if (!decisionValid) {
     context.addIssue({ code: 'custom', message: 'preview item decision shape is invalid' })
   }
-  const pendingDetail = item.status === 'unresolved' && item.decision === 'none' &&
-    item.placeId === null && item.providerPlaceId !== null
-  const detailStatusValid = item.providerDetailStatus === null
-    ? item.decision !== 'policy-create'
-    : item.providerDetailStatus === 'available'
-      ? pendingDetail || item.decision === 'policy-create'
-      : pendingDetail
-  if (!detailStatusValid) {
+  if (item.providerDetailStatus !== null && item.providerPlaceId === null) {
     context.addIssue({
       code: 'custom', path: ['providerDetailStatus'],
       message: 'provider detail status shape is invalid',

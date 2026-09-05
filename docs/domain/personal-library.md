@@ -81,6 +81,10 @@ unlisted/public 전환은 같은 링크를 유지한다. private 전환은 ID를
 
 ## Provider 목록 가져오기
 
+상세정보가 아직 없더라도 현재 회원의 Collection-first 목록에는 가져온 최소 이름·좌표를 표시한다.
+이 정보는 본인의 성공한 가져오기에서만 읽는 미검증 개인 표시 정보이며 공개 장소 profile과 구분한다.
+다른 회원의 목록이나 공개 공유본에는 이 개인 표시 정보를 전달하지 않는다.
+
 연결 계정에서 가져온 Provider 폴더는 회원별 private Collection을 처음 만드는 입력이다. Provider의
 목록 ID·이름·순서는 `Collection Import Provenance`로 보존하고, 목록 안 장소 순서는 Collection
 membership ordering으로 보존한다. 같은 Provider 연결과 목록 ID를 다시 가져오면 같은 Collection에

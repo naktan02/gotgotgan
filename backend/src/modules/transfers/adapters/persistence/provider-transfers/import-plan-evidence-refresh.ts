@@ -13,7 +13,7 @@ type RefreshEvidenceCommand = Extract<
 >
 
 /**
- * Refreshes only undecided V3 draft items from current server-verified Provider detail evidence.
+ * Pins available detail or minimum snapshot evidence for undecided V3 draft items.
  * User decisions and already-pinned policy evidence are outside this module's write set.
  */
 export class ImportPlanEvidenceRefresh {
@@ -66,7 +66,9 @@ export class ImportPlanEvidenceRefresh {
       const refreshed = await client.query(
         `WITH ready AS (
            SELECT item.source_list_id, item.source_item_id,
-                  detail.source_observation_id, detail.place_candidate_id
+                  detail.source_observation_id, detail.place_candidate_id,
+                  CASE WHEN detail.source_observation_id IS NULL THEN snapshot.id
+                    ELSE NULL END AS evidence_snapshot_id
            FROM transfers.import_plan_items AS item
            JOIN transfers.import_plans AS owned_plan ON owned_plan.id = item.plan_id
            JOIN transfers.source_snapshots AS snapshot ON snapshot.id = owned_plan.snapshot_id
@@ -74,11 +76,11 @@ export class ImportPlanEvidenceRefresh {
              ON snapshot_item.snapshot_id = owned_plan.snapshot_id
             AND snapshot_item.source_list_id = item.source_list_id
             AND snapshot_item.source_item_id = item.source_item_id
-           JOIN ingestion.provider_place_detail_statuses AS detail_status
+           LEFT JOIN ingestion.provider_place_detail_statuses AS detail_status
              ON detail_status.provider_key = snapshot.provider_key
             AND detail_status.provider_place_id = snapshot_item.provider_place_id
             AND detail_status.status = 'available'
-           JOIN ingestion.provider_place_detail_observations AS detail
+           LEFT JOIN ingestion.provider_place_detail_observations AS detail
              ON detail.provider_key = detail_status.provider_key
             AND detail.provider_place_id = detail_status.provider_place_id
             AND detail.source_observation_id = detail_status.last_detail_observation_id
@@ -92,11 +94,16 @@ export class ImportPlanEvidenceRefresh {
              AND snapshot_item.canonical_place_id IS NULL
              AND snapshot_item.match_reason = 'missing-identity'
              AND snapshot_item.provider_place_id IS NOT NULL
+             AND btrim(snapshot_item.observed_name) <> ''
+             AND (detail.source_observation_id IS NOT NULL OR (
+               snapshot.acquisition_kind IS NOT NULL AND snapshot.parser_version IS NOT NULL
+             ))
          )
          UPDATE transfers.import_plan_items AS item
          SET preview_status = 'add', decision_kind = 'policy-create',
              evidence_source_observation_id = ready.source_observation_id,
-             evidence_place_candidate_id = ready.place_candidate_id
+             evidence_place_candidate_id = ready.place_candidate_id,
+             evidence_snapshot_id = ready.evidence_snapshot_id
          FROM ready
          WHERE item.plan_id = $1::uuid
            AND item.source_list_id = ready.source_list_id

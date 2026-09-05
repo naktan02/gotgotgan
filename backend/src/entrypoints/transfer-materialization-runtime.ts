@@ -4,6 +4,7 @@ import {
   IngestionIdConflictError,
   InvalidIngestionRecordError,
   materializeVerifiedProviderPlace,
+  materializeSnapshotProviderPlace,
   PostgresIngestionStore,
   type CanonicalPlaceMaterializationPort,
   VerifiedProviderPlaceMaterializationRejectedError,
@@ -80,7 +81,7 @@ export async function runTransferMaterialization(
     const placeMaterializer: VerifiedSourcePlaceMaterializerPort = {
       async materialize(input) {
         try {
-          const result = await materializeVerifiedProviderPlace({
+          const materialization = {
             evidence: {
               decisionId: input.decisionId,
               proposedPlaceId: input.proposedPlaceId,
@@ -89,12 +90,21 @@ export async function runTransferMaterialization(
               sourceObservationId: input.sourceObservationId,
               placeCandidateId: input.placeCandidateId,
               occurredAt: input.occurredAt,
-              policyReference: 'transfer-verified-provider-detail-policy-create.v1',
-              rationale: 'approved-import:server-verified-provider-detail',
+              policyReference: input.snapshotEvidence === undefined
+                ? 'transfer-verified-provider-detail-policy-create.v1'
+                : 'transfer-source-snapshot-policy-create.v1',
+              rationale: input.snapshotEvidence === undefined
+                ? 'approved-import:server-verified-provider-detail'
+                : 'approved-import:minimum-source-snapshot',
             },
             ingestionStore,
             canonical,
-          })
+          }
+          const result = input.snapshotEvidence === undefined
+            ? await materializeVerifiedProviderPlace(materialization)
+            : await materializeSnapshotProviderPlace({
+                ...materialization, snapshot: input.snapshotEvidence,
+              })
           const resolved = await canonicalStore.resolve(result.canonicalPlaceId)
           if (resolved.status !== 'active') {
             throw new SourcePlaceMaterializationError(

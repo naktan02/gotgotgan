@@ -13,7 +13,10 @@ import {
   matchesLibraryPlaceFacets,
 } from '../../../application/library-place-facets.js'
 import type { PersonalLibraryWorkspace } from '../../../application/ports/collection-first.js'
-import type { LibraryPlaceSummaryReader } from '../../../application/ports/library-place-summary-reader.js'
+import type {
+  LibraryPlaceSummaryReader,
+  MemberLibraryPlaceSummaryReader,
+} from '../../../application/ports/library-place-summary-reader.js'
 import type { PersonalLibraryWorkspaceQuery } from '../../../domain/collection-first.js'
 import { InvalidLibraryQueryError, type LibraryPlaceSummary } from '../../../domain/queries.js'
 import { type CollectionRow, toCollectionWorkspaceSummary } from './collection-record.js'
@@ -33,17 +36,28 @@ type FilterUniverseRow = Readonly<{
 async function summariesById(
   read: LibraryPlaceSummaryReader,
   placeIds: readonly string[],
+  memberId: string,
+  readMember?: MemberLibraryPlaceSummaryReader,
 ): Promise<ReadonlyMap<string, LibraryPlaceSummary>> {
   const requested = new Set(placeIds)
-  return new Map((await read(placeIds))
+  const summaries = new Map((await read(placeIds))
     .filter((summary) => requested.has(summary.placeId))
     .map((summary) => [summary.placeId, summary]))
+  const missing = placeIds.filter((placeId) => !summaries.has(placeId))
+  if (readMember !== undefined && missing.length > 0) {
+    const allowed = new Set(missing)
+    for (const summary of await readMember(memberId, missing)) {
+      if (allowed.has(summary.placeId)) summaries.set(summary.placeId, summary)
+    }
+  }
+  return summaries
 }
 
 export class PostgresPersonalLibraryWorkspace implements PersonalLibraryWorkspace {
   constructor(
     private readonly pool: Pool,
     private readonly readPlaceSummaries: LibraryPlaceSummaryReader,
+    private readonly readMemberSummaries?: MemberLibraryPlaceSummaryReader,
   ) {}
 
   async open(query: PersonalLibraryWorkspaceQuery) {
@@ -121,6 +135,7 @@ export class PostgresPersonalLibraryWorkspace implements PersonalLibraryWorkspac
     const summaries = await summariesById(
       this.readPlaceSummaries,
       scannedRows.map((row) => row.canonical_place_id),
+      query.memberId, this.readMemberSummaries,
     )
     const matchingRows = scannedRows.filter((row) => matchesLibraryPlaceFacets(
       summaries.get(row.canonical_place_id),
@@ -145,6 +160,7 @@ export class PostgresPersonalLibraryWorkspace implements PersonalLibraryWorkspac
     const filterSummaries = await summariesById(
       this.readPlaceSummaries,
       filterUniverseResult.rows.map((row) => row.canonical_place_id),
+      query.memberId, this.readMemberSummaries,
     )
     const availableFacets = buildLibraryPlaceFacets({
       summaries: [...filterSummaries.values()],

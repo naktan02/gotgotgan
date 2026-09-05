@@ -46,10 +46,11 @@ ImportPlan과 Collection Materialization 경계는 획득 방식과 무관하며
 - 확장 미설치만으로 가져오기가 불가능하다고 표시하지 않는다. 다만 아직 검증된 production 실행
   Adapter가 없으므로 현재 capability는 계속 `source-only`/`integration-gated`다.
 - DOM/OCR 폴더나 전역 전략 framework는 실제 두 번째 구현이 생길 때 만든다.
-- Connector가 선언한 provenance는 획득 감사 정보로만 사용한다. 전역 Canonical Place 생성은 서버가
-  별도로 수집한 available Provider detail observation과 normalized candidate가 있을 때만 허용한다.
-- ImportPlan은 선택한 detail observation과 candidate ID를 고정한다. 이후 상세정보가 갱신되어도 승인된
-  작업의 재시도는 증거를 바꾸지 않는다.
+- Connector가 선언한 provenance는 획득 감사 정보로만 사용한다. 2026-09-05 제품 흐름 정정에 따라
+  최소 snapshot의 안정적인 Provider ID와 이름을 근거로 Place를 생성할 수 있으며 상세 수집을 기다리지
+  않는다. 서버 attestation으로 격상하거나 기존 Canonical 정보를 덮어쓰지는 않는다.
+- ImportPlan은 원본 snapshot item 또는 기존 detail observation/candidate 근거를 고정한다.
+  이후 상세정보가 갱신되어도 승인된 작업의 재시도는 증거를 바꾸지 않는다.
 - provenance rollout은 migration과 새 계약을 읽는 Web·Backend를 먼저 배포한 뒤 Connector 기록을
   활성화한다.
   기존 Connector manifest는 계속 수용하며, 공개 SourceSnapshot v2 응답 형태는 바꾸지 않는다.

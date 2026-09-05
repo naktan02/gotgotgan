@@ -28,27 +28,30 @@ Collection에는 직전 receipt revision을 전달한다. 부분 실패는 계�
 resume 후 lease/retry 경로로만 재개한다.
 
 Connector manifest의 acquisition kind와 parser version은 획득 감사 정보이지 서버 attestation이
-아니다. 미등록 Provider identity를 전역 Canonical Place로 만드는 계획은 서버 측 Provider detail
-worker가 남긴 `available` observation과 normalized candidate가 있을 때만 세운다. Worker는 실행 시에도
-계획에 FK로 고정된 동일 observation/candidate를 다시 확인하고 그 evidence ID를 resolution decision에
-직접 연결한다. 상세정보가 갱신되어도 재시도는 최초 계획의 증거를 바꾸지 않으며, Place 생성 결과는
+아니다. 미등록 Provider identity는 안정적인 ID와 이름을 가진 최소 snapshot 근거로 생성할 수 있다.
+새 V3 계획은 원본 snapshot item을 FK로 고정하고 Worker가 그 최소 정보를 immutable observation과
+candidate로 정규화한다. 기존 상세 evidence 기반 승인 계획도 그대로 재생한다. 어느 경로도 기존
+Canonical Place를 외부 payload로 덮어쓰지 않는다. 재시도는 최초 계획의 증거를 바꾸지 않으며, Place 생성 결과는
 취소 종결보다 먼저 operation item에 체크포인트한다.
 
 Trusted capture와 Connector capture가 SourceSnapshot을 기록하면 같은 transaction에서
-`missing-identity` Provider Place ID만 Ingestion의 최초 상세 예약 함수에 전달한다. Transfers는 상세
+Provider Place ID를 Ingestion의 최초 상세 예약 함수에 전달한다. Canonical 매칭 여부와 상세 보유 여부는
+독립적이다. Transfers는 상세
 상태나 Job lifecycle을 직접 쓰지 않으며 이미 상세가 끝난 identity의 재수집 정책도 소유하지 않는다.
 
 V3 ImportPlan의 `refresh-evidence` command는 plan revision을 확인하고 draft plan 행을 잠근 뒤,
 아직 사용자 결정이 없는 `unresolved`/`missing-identity` 항목만 현재 `available` 상세
-observation/candidate에 `policy-create`로 고정한다. `link`, `skip`, snapshot match와 이미 고정된
+observation/candidate 또는 유효한 최소 snapshot에 `policy-create`로 고정한다. `link`, `skip`, snapshot match와 이미 고정된
 policy evidence는 다시 쓰지 않으며 여러 항목이 바뀌어도 plan revision은 한 번만 증가한다. 승인된
-plan은 application 검사와 DB trigger 양쪽에서 불변이다. 상세가 아직 준비되지 않은 no-op refresh도
-정상 command receipt를 남기므로, 이후 상세가 준비된 뒤의 새 시도는 새 command ID를 사용한다.
+plan은 application 검사와 DB trigger 양쪽에서 불변이다. 변경할 항목이 없는 no-op refresh도
+정상 command receipt를 남긴다. 이 명령은 기존 미결정 draft를 명시적으로 재검토할 때만 사용하며
+새 가져오기 흐름의 선행 단계가 아니다.
 
 V3 item의 `providerDetailStatus`는 `pending`/`available`/`unavailable`인 상세 Job의 현재 운영
 상태를 보여주는 live projection이다. 이는 ImportPlan 결정이나 승인 snapshot이 아니므로 상태가
-달라져도 `planRevision`은 바뀌지 않는다. `policy-create`는 고정 evidence가 있으므로 `available`,
-사용자가 `link`/`skip`한 항목과 상세 보강 대상이 아닌 항목은 `null`로 투영한다. standalone plan
+달라져도 `planRevision`은 바뀌지 않는다. `policy-create`라도 상세는 `pending` 또는 `unavailable`일 수
+있으며 저장 승인을 막지 않는다. 상세 상태가 없으면 `null`이다. Web은 상세 완료를 기다리거나
+`refresh-evidence`를 자동 호출하지 않는다. standalone plan
 조회는 read-only repeatable-read snapshot을 사용하고 command 내부 projection은 plan shared lock을
 사용해 plan revision과 item 결정이 서로 다른 시점에서 섞이지 않게 한다.
 

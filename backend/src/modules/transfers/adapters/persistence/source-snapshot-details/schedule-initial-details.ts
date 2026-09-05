@@ -16,9 +16,7 @@ export async function scheduleInitialProviderPlaceDetails(
      )
      FROM transfers.source_snapshot_items AS item
      WHERE item.snapshot_id = $1::uuid
-       AND item.provider_place_id IS NOT NULL
-       AND item.canonical_place_id IS NULL
-       AND item.match_reason = 'missing-identity'`,
+       AND item.provider_place_id IS NOT NULL`,
     [input.snapshotId, input.providerKey, input.requestedAt],
   )
 }

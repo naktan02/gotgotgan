@@ -18,7 +18,7 @@ export type VerifiedProviderPlaceMaterialization = Readonly<{
   rationale: string
 }>
 
-/** Creates-or-resolves a Provider identity from server-verified detail evidence. */
+/** Creates-or-resolves from immutable evidence; never overwrites an existing identity. */
 export async function materializeVerifiedProviderPlace(input: Readonly<{
   evidence: VerifiedProviderPlaceMaterialization
   ingestionStore: IngestionStore

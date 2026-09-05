@@ -23,6 +23,8 @@ export {
 export { materializeSuggestedPlace } from './application/materialize-suggested-place.js'
 export {
   materializeVerifiedProviderPlace,
+  materializeSnapshotProviderPlace,
+  type SnapshotProviderPlaceEvidence,
   VerifiedProviderPlaceMaterializationRejectedError,
   type VerifiedProviderPlaceMaterialization,
 } from './application/provider-place-materialization/index.js'

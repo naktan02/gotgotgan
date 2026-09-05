@@ -132,7 +132,7 @@ export function createDataTransferSettingsGateway(fetcher: typeof fetch = fetch)
       unsupported: total.unsupported + mapping.preview.skippedCount,
     }), { add: 0, alreadyPresent: 0, reviewRequired: 0, unsupported: 0 })
     const providerDetails = plan.mappings.flatMap((mapping) => mapping.preview.items).reduce(
-      (total, item) => item.status !== 'unresolved' || item.decision !== 'none'
+      (total, item) => item.status === 'skipped'
         ? total
         : {
             pending: total.pending + Number(item.providerDetailStatus === 'pending'),
@@ -309,16 +309,6 @@ export function createDataTransferSettingsGateway(fetcher: typeof fetch = fetch)
         signal,
       )
       return importPreview(plan)
-    },
-
-    async refreshImportEvidence(input, signal) {
-      const result = await post(fetcher, '/api/v3/transfers/import-plan-commands', {
-        schemaVersion: 'import-plan-command.v3', commandId: input.commandId,
-        kind: 'refresh-evidence', planId: input.planId,
-        expectedPlanRevision: input.expectedPlanRevision,
-      }, (value) => importPlanCommandResultV3Schema.safeParse(value), signal)
-      if (result.outcome === 'rejected') throw rejection(result.rejection.code)
-      return importPreview(result.plan)
     },
 
     async approveImport(input, signal) {

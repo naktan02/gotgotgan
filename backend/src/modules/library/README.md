@@ -16,6 +16,12 @@ Compatibility Adapter의 현재 구현이다. 새 기능을 이 경계에 추가
 Collection-first Interface로 전환한 뒤 제거한다. `000035` migration은 이 전환에 필요한 revision,
 v2 operation receipt, N:1 source-list binding과 부분 복사 provenance를 additive하게 준비한다.
 
+현재 `PersonalLibraryWorkspace`는 공개 장소 summary가 없는 항목에 한해 별도 회원 전용 reader로
+성공한 가져오기의 최소 이름·좌표를 표시한다. Transfers 공개 Interface를 조립 계층이 주입하며 Library가
+Transfers table을 직접 join하지 않는다. 이 값은 `unverified`이고 지역·Taxonomy를 추측하지 않는다.
+공개 summary가 있으면 그것을 우선하며, 공개 Collection·다른 회원·legacy v1 reader에는 이 보강을
+주입하지 않는다. 개인 즐겨찾기 별명이 공개 장소 정보로 발행되는 경로도 만들지 않는다.
+
 application interface는 멱등 domain command를 받는다. persistence는 table별 repository가
 아니라 하나의 깊은 adapter로 제공한다. 공개 Collection 조회는 owner ID, Tag, Rating,
 Visit, private record를 반환할 수 없는 별도 허용 목록 projection을 사용한다.

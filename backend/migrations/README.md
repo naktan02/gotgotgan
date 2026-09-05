@@ -1,5 +1,10 @@
 # Backend migrations
 
+`000048`은 ImportPlan의 `policy-create`에 원본 snapshot item 근거를 추가한다. 기존 상세
+observation/candidate FK는 유지하고 두 근거 중 정확히 하나만 선택한다. 복합 FK는 계획과 같은
+snapshot의 정확한 source-list/item을 보장하며 승인 뒤 근거 변경을 거부한다. 이 migration은
+상세 Worker를 실행하거나 기존 승인 계획의 근거를 다시 쓰지 않는다.
+
 This directory owns ordered TypeScript schema migrations executed only by the database preparation
 operator command as `place_owner`. Filenames use a zero-padded monotonic prefix. Never edit an
 applied migration; append a new file and keep every schema, grant, index, and rollback explicit.

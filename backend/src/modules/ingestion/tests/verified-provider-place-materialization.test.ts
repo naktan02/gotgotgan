@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   materializeVerifiedProviderPlace,
+  materializeSnapshotProviderPlace,
   VerifiedProviderPlaceMaterializationRejectedError,
   type CanonicalPlaceMaterializationPort,
   type IngestionRecord,
@@ -34,6 +35,33 @@ function recordingStore(records: IngestionRecord[]): IngestionStore {
 }
 
 describe('verified Provider place materialization', () => {
+  it('records and replays minimum bookmark evidence without detail or coordinates', async () => {
+    const records: IngestionRecord[] = []
+    const canonical: CanonicalPlaceMaterializationPort = {
+      apply: vi.fn(async () => ({ status: 'identity-already-linked' as const })),
+      resolveProviderIdentity: vi.fn(async () => ({
+        status: 'linked' as const, placeId: evidence.proposedPlaceId,
+      })),
+    }
+    const input = {
+      evidence: { ...evidence, policyReference: 'transfer-source-snapshot-policy-create.v1' },
+      snapshot: {
+        acquisitionKind: 'browser-network' as const,
+        parserVersion: 'saved-place.v1', payloadChecksum: 'c'.repeat(64),
+        observedAt: '2026-09-03T00:00:00.000Z', acquiredAt: '2026-09-03T00:00:01.000Z',
+        name: '롯데월드', address: null, categoryLabel: '놀이공원', location: null,
+      },
+      ingestionStore: recordingStore(records), canonical,
+    }
+    await materializeSnapshotProviderPlace(input)
+    await materializeSnapshotProviderPlace(input)
+    expect(records.map((record) => record.kind)).toEqual([
+      'source-observation', 'place-candidate', 'resolution-decision',
+    ])
+    expect(records[0]).toMatchObject({ observationKind: 'general', facts: { name: '롯데월드' } })
+    expect(records[1]).not.toHaveProperty('location')
+  })
+
   it('records a decision over existing verified detail evidence before creating', async () => {
     const records: IngestionRecord[] = []
     const canonical: CanonicalPlaceMaterializationPort = {

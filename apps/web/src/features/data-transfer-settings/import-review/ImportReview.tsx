@@ -95,10 +95,8 @@ export function ImportTab({ workflow }: Readonly<{ workflow: DataTransferSetting
             <div><dt>확인 필요</dt><dd>{summaryValue(workflow.importPreview.summary.reviewRequired)}</dd></div>
             <div><dt>처리 불가</dt><dd>{summaryValue(workflow.importPreview.summary.unsupported)}</dd></div>
           </dl>
-          {workflow.importPreview.providerDetails.pending > 0 && <p className={styles.notice} role="status">{workflow.importPreview.providerDetails.pending.toLocaleString('ko-KR')}개 장소의 상세 확인 중입니다. 완료되면 이 미리보기를 자동으로 갱신합니다.</p>}
-          {workflow.importPreview.providerDetails.available > 0 && <p className={styles.notice} role="status">확인된 장소 상세를 안전한 가져오기 근거로 반영하고 있습니다.</p>}
-          {workflow.importPreview.providerDetails.unavailable > 0 && <p className={styles.blocked}>{workflow.importPreview.providerDetails.unavailable.toLocaleString('ko-KR')}개 장소의 상세를 확인하지 못했습니다. 해당 장소를 건너뛰거나 나중에 새 스냅샷으로 다시 확인해 주세요.</p>}
-          {workflow.importEvidenceState.kind === 'error' && <p className={styles.blocked} role="alert">{workflow.importEvidenceState.message}</p>}
+          <p className={styles.notice} role="status">목록에서 가져온 기본 장소 정보로 저장합니다. 메뉴 등 상세정보 보강은 현재 보류 중이며, 가져오기 완료와 별개입니다.</p>
+          {workflow.importPreview.providerDetails.pending + workflow.importPreview.providerDetails.unavailable > 0 && <p className={styles.notice}>상세정보 미보유 {summaryValue(workflow.importPreview.providerDetails.pending + workflow.importPreview.providerDetails.unavailable)}개 항목 · 상세정보가 없어도 기본 정보가 유효한 장소는 저장할 수 있습니다.</p>}
           {(workflow.importPreview.summary.alreadyPresent === null || workflow.importPreview.summary.unsupported === null) && <p className={styles.notice}>대상 컬렉션의 중복·처리 불가 세부 수량은 현재 백엔드가 제공하지 않아 ‘—’로 표시합니다.</p>}
           {workflow.importPreview.matches.some((item) => item.status === 'review-required') && <ul className={styles.previewItems} aria-label="매칭 확인이 필요한 장소">
             {workflow.importPreview.matches.filter((item) => item.status === 'review-required').map((item) => <ImportMatchDecision item={item} key={`${item.sourceListId}:${item.sourceItemId}`} workflow={workflow} />)}
@@ -125,11 +123,11 @@ function ImportMatchDecision({ item, workflow }: Readonly<{
   const stateKey = `${item.sourceListId}:${item.sourceItemId}`
   const state = workflow.importDecisions[stateKey]
   return <li>
-    <div><strong>{item.sourceName}</strong><small>{item.sourceAddress ?? '주소 정보 없음'} · {item.sourceListName}{item.providerDetailStatus === 'pending' ? ' · 상세 확인 중' : ''}</small></div>
+    <div><strong>{item.sourceName}</strong><small>{item.sourceAddress ?? '주소 정보 없음'} · {item.sourceListName}</small></div>
     <div className={styles.decisionActions}>
       <button disabled={state?.kind === 'working'} onClick={() => void workflow.decideImportItem(item.sourceListId, item.sourceItemId, { kind: 'skip' })} type="button">건너뛰기</button>
     </div>
-    <p className={item.providerDetailStatus === 'pending' ? styles.notice : styles.blocked}>{item.providerDetailStatus === 'pending' ? '외부 서비스의 상세정보를 확인하고 있습니다. 완료되면 자동으로 다시 검토합니다.' : item.providerDetailStatus === 'unavailable' ? '외부 서비스의 상세정보를 확인하지 못했습니다. 이 장소는 건너뛰거나 새 스냅샷에서 다시 확인할 수 있습니다.' : '외부 장소 식별자와 안전한 연결 가능 근거가 없어 임의 장소 연결은 막았습니다. 현재는 건너뛴 뒤 재수집할 수 있습니다.'}</p>
+    <p className={styles.blocked}>기본 장소 정보나 연결 상태를 확인해야 합니다. 임의 장소 연결은 막았으며, 현재는 건너뛴 뒤 재수집할 수 있습니다.</p>
     <ActionFeedback state={state} />
   </li>
 }

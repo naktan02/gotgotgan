@@ -164,11 +164,6 @@ export type DataTransferSettingsGateway = Readonly<{
     mappings: readonly ImportMapping[]
   }>, signal?: AbortSignal): Promise<ImportPlanPreview>
   importPlan(planId: string, signal?: AbortSignal): Promise<ImportPlanPreview>
-  refreshImportEvidence(input: Readonly<{
-    commandId: string
-    planId: string
-    expectedPlanRevision: string
-  }>, signal?: AbortSignal): Promise<ImportPlanPreview>
   approveImport(input: Readonly<{
     commandId: string
     planId: string

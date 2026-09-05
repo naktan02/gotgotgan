@@ -139,16 +139,7 @@ export class ImportPlanProjection {
         `SELECT planned.source_item_id, snapshot_item.provider_place_id,
                 snapshot_item.observed_name, snapshot_item.observed_address,
                 planned.resolved_place_id, planned.preview_status, planned.decision_kind,
-                CASE
-                  WHEN planned.decision_kind = 'policy-create' THEN 'available'
-                  WHEN planned.preview_status = 'unresolved'
-                    AND planned.decision_kind = 'none'
-                    AND snapshot_item.canonical_place_id IS NULL
-                    AND snapshot_item.match_reason = 'missing-identity'
-                    AND snapshot_item.provider_place_id IS NOT NULL
-                    THEN detail_status.status
-                  ELSE NULL
-                END AS provider_detail_status
+                detail_status.status AS provider_detail_status
          FROM transfers.import_plan_items AS planned
          JOIN transfers.source_snapshot_items AS snapshot_item
            ON snapshot_item.snapshot_id = $3::uuid

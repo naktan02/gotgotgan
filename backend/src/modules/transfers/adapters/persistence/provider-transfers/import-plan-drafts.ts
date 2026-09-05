@@ -59,8 +59,8 @@ export class ImportPlanDrafts {
         command.commandId, memberId, kind, fingerprint, 'snapshot-changed', at, contractMajor,
       )
     }
-    const verifiedDetailItems = contractMajor === 3
-      ? await this.snapshots.verifiedDetailItems(memberId, command.snapshotId)
+    const evidenceItems = contractMajor === 3
+      ? await this.snapshots.materializationEvidenceItems(memberId, command.snapshotId)
       : new Map<string, never>()
     if (new Set(command.mappings.map((mapping) => mapping.sourceListId)).size !==
       command.mappings.length) {
@@ -181,7 +181,7 @@ export class ImportPlanDrafts {
             entry.expectedBindingVersion, operationId],
         )
         for (const item of entry.sourceList.items) {
-          const verifiedDetail = verifiedDetailItems.get(JSON.stringify([
+          const evidence = evidenceItems.get(JSON.stringify([
             entry.sourceList.sourceListId, item.sourceItemId,
           ]))
           const resolved = item.match.status === 'matched' && item.providerPlaceId !== null
@@ -190,7 +190,7 @@ export class ImportPlanDrafts {
           const policyCreate = contractMajor === 3 && resolved === null &&
             item.providerPlaceId !== null &&
             item.match.status === 'unresolved' && item.match.reason === 'missing-identity' &&
-            verifiedDetail !== undefined
+            evidence !== undefined
           const status = resolved === null
             ? policyCreate ? 'add' : 'unresolved'
             : entry.existingPlaceIds.has(resolved) ? 'already-present' : 'add'
@@ -198,13 +198,14 @@ export class ImportPlanDrafts {
             `INSERT INTO transfers.import_plan_items (
                plan_id, source_list_id, source_item_id, resolved_place_id,
                preview_status, decision_kind,
-               evidence_source_observation_id, evidence_place_candidate_id
-             ) VALUES ($1::uuid,$2,$3,$4::uuid,$5,$6,$7::uuid,$8::uuid)`,
+               evidence_source_observation_id, evidence_place_candidate_id, evidence_snapshot_id
+             ) VALUES ($1::uuid,$2,$3,$4::uuid,$5,$6,$7::uuid,$8::uuid,$9::uuid)`,
             [command.planId, entry.sourceList.sourceListId, item.sourceItemId, resolved,
               status, policyCreate ? 'policy-create'
                 : resolved === null ? 'none' : 'snapshot-match',
-              policyCreate ? verifiedDetail!.sourceObservationId : null,
-              policyCreate ? verifiedDetail!.placeCandidateId : null],
+              policyCreate ? evidence!.sourceObservationId : null,
+              policyCreate ? evidence!.placeCandidateId : null,
+              policyCreate ? evidence!.snapshotId : null],
           )
         }
       }
@@ -338,7 +339,8 @@ export class ImportPlanDrafts {
       await client.query(
         `UPDATE transfers.import_plan_items
          SET resolved_place_id = $4::uuid, preview_status = $5, decision_kind = $6,
-             evidence_source_observation_id = NULL, evidence_place_candidate_id = NULL
+             evidence_source_observation_id = NULL, evidence_place_candidate_id = NULL,
+             evidence_snapshot_id = NULL
          WHERE plan_id = $1::uuid AND source_list_id = $2 AND source_item_id = $3`,
         [command.planId, command.sourceListId, command.sourceItemId,
           resolvedPlaceId, status, command.decision.kind],

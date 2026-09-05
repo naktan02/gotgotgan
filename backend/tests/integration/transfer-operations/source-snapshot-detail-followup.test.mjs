@@ -13,6 +13,12 @@ import {
 const providerPlaceId = 'shared-provider-place'
 const unavailableProviderPlaceId = 'unavailable-provider-place'
 const concurrentProviderPlaceId = 'concurrent-provider-place'
+const independentDetailFollowups = ['ambiguous-provider-place', 'matched-provider-place'].map(
+  (provider_place_id) => ({
+    provider_key: 'kakao', provider_place_id, status: 'pending',
+    job_count: 1, active_job_count: 1,
+  }),
+)
 
 async function makeDetailAvailable(database, ingestion, providerKey, availableAt) {
   const observationId = transferOperationId(470)
@@ -214,7 +220,7 @@ test('saved-place snapshots schedule one detail follow-up per provider identity'
       }],
     }
     assert.equal((await transfers.recordSourceSnapshot(trustedCapture)).status, 'applied')
-    assert.deepEqual(await detailFollowups(database), [{
+    assert.deepEqual(await detailFollowups(database), [...independentDetailFollowups, {
       provider_key: 'kakao',
       provider_place_id: providerPlaceId,
       status: 'pending',
@@ -242,7 +248,7 @@ test('saved-place snapshots schedule one detail follow-up per provider identity'
       observedAt: '2026-09-03T02:10:05.000Z',
       capturedAt: '2026-09-03T02:10:06.000Z',
     })).status, 'applied')
-    assert.deepEqual(await detailFollowups(database), [{
+    assert.deepEqual(await detailFollowups(database), [...independentDetailFollowups, {
       provider_key: 'kakao',
       provider_place_id: providerPlaceId,
       status: 'available',
@@ -391,13 +397,13 @@ test('saved-place snapshots schedule one detail follow-up per provider identity'
       operationId,
       manifest,
     })).outcome, 'replayed')
-    assert.deepEqual(await detailFollowups(database), [{
+    assert.deepEqual(await detailFollowups(database), [independentDetailFollowups[0], {
       provider_key: 'kakao',
       provider_place_id: concurrentProviderPlaceId,
       status: 'pending',
       job_count: 1,
       active_job_count: 1,
-    }, {
+    }, independentDetailFollowups[1], {
       provider_key: 'kakao',
       provider_place_id: providerPlaceId,
       status: 'available',

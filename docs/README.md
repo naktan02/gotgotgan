@@ -41,8 +41,9 @@ Provider Place ID가 안정된 item은 Source List·Item ID와 함께 `enriching
 Identity별 공동 materialization job은 기존 Canonical link를 재사용하고, 없으면 가져온 snapshot을
 근거로 create/link한 뒤 회원의 private Collection에 즉시 멱등 저장한다. Provider 상세 상태와 후속
 보강 Job은 이 저장 수명주기와 분리된다. 새 SourceSnapshot은 같은 transaction에서 최초 상세 작업을
-예약한다. V3 ImportPlan은 현재 상세 상태를 읽되, 검증된 상세가 준비된 뒤 명시적인 revision-bound
-명령으로 아직 결정하지 않은 항목에만 evidence를 고정한다. Migration `000021`과 Provider-neutral Worker/PostgreSQL
+예약한다. V3 ImportPlan은 최소 snapshot 근거를 고정해 상세 준비 없이 승인·저장을 완료한다.
+상세 상태는 별도 정보이며 Web은 완료 대기나 자동 evidence 갱신을 하지 않는다.
+Migration `000021`과 Provider-neutral Worker/PostgreSQL
 Adapter는 lease·retry·immutable detail Observation/Candidate와 `pending`/`available`/`unavailable`
 전이를 구현했다. TraceForge Runner 기반 NAVER read-only Adapter가 추가됐고, Migration `000043`은
 오래된 상세를 append-only Job으로 다시 관찰해 `initial`/`unchanged`/`changed`로 연결한다. production

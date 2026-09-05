@@ -16,7 +16,6 @@ import type {
   TransferProviderKey,
 } from './data-transfer-settings-model'
 import { DataTransferSettingsProblem } from './data-transfer-settings-model'
-import { useProviderDetailSync } from './import-review/use-provider-detail-sync'
 
 type LoadState = 'loading' | 'ready' | 'authentication-required' | 'forbidden' | 'unavailable'
 type ActionState = Readonly<{ kind: 'idle' | 'working' | 'done' }> | Readonly<{ kind: 'error'; message: string }>
@@ -57,16 +56,6 @@ export function useDataTransferSettings(
   const [importState, setImportState] = useState<ActionState>({ kind: 'idle' })
   const [importApproval, setImportApproval] = useState<ActionState>({ kind: 'idle' })
   const [importDecisions, setImportDecisions] = useState<Record<string, ActionState>>({})
-  const importPreviewRef = useRef<ImportPlanPreview | undefined>(undefined)
-  const getImportPreview = useCallback(() => importPreviewRef.current, [])
-  const replaceImportPreview = useCallback((next: ImportPlanPreview | undefined) => {
-    importPreviewRef.current = next
-    setImportPreview(next)
-  }, [])
-  const importEvidenceState = useProviderDetailSync({
-    active: tab === 'import', gateway, preview: importPreview,
-    getPreview: getImportPreview, onPreview: replaceImportPreview,
-  })
 
   const [exportProvider, setExportProvider] = useState<TransferProviderKey>('naver')
   const [exportConnectionId, setExportConnectionId] = useState('')
@@ -180,10 +169,10 @@ export function useDataTransferSettings(
   const changeImportProvider = useCallback((key: TransferProviderKey) => {
     setImportProvider(key)
     setImportConnectionId(provider(key)?.connections.find((connection) => connection.state === 'ready')?.connectionId ?? '')
-    setSnapshot(undefined); setMappings([]); replaceImportPreview(undefined)
+    setSnapshot(undefined); setMappings([]); setImportPreview(undefined)
     setImportState({ kind: 'idle' }); setImportApproval({ kind: 'idle' }); setImportDecisions({})
     snapshotCommand.current = undefined; importPreviewCommand.current = undefined; importApprovalCommand.current = undefined
-  }, [provider, replaceImportPreview])
+  }, [provider])
 
   const acquireSnapshot = useCallback(async () => {
     if (importConnectionId === '') return
@@ -202,7 +191,7 @@ export function useDataTransferSettings(
         selected: true,
         target: { kind: 'new', collectionId: crypto.randomUUID(), name: list.name },
       })))
-      replaceImportPreview(undefined)
+      setImportPreview(undefined)
       setImportDecisions({})
       setImportState({ kind: 'done' })
     } catch (error) {
@@ -213,12 +202,12 @@ export function useDataTransferSettings(
           : failureMessage(error, '저장된 외부 목록 스냅샷을 불러오지 못했습니다.'),
       })
     }
-  }, [gateway, importConnectionId, importProvider, replaceImportPreview])
+  }, [gateway, importConnectionId, importProvider])
 
   const updateMapping = useCallback((sourceListId: string, update: (current: ImportMapping) => ImportMapping) => {
     setMappings((current) => current.map((mapping) => mapping.sourceListId === sourceListId ? update(mapping) : mapping))
-    replaceImportPreview(undefined); setImportApproval({ kind: 'idle' }); importPreviewCommand.current = undefined
-  }, [replaceImportPreview])
+    setImportPreview(undefined); setImportApproval({ kind: 'idle' }); importPreviewCommand.current = undefined
+  }, [])
 
   const previewImport = useCallback(async () => {
     if (snapshot === undefined || mappings.every((mapping) => !mapping.selected)) {
@@ -234,12 +223,12 @@ export function useDataTransferSettings(
         mappings: mappings.filter((mapping) => mapping.selected),
       })
       importPreviewCommand.current = undefined
-      replaceImportPreview(preview)
+      setImportPreview(preview)
       setImportState({ kind: 'done' })
     } catch (error) {
       setImportState({ kind: 'error', message: failureMessage(error, '가져오기 미리보기를 만들지 못했습니다.') })
     }
-  }, [gateway, mappings, replaceImportPreview, snapshot])
+  }, [gateway, mappings, snapshot])
 
   const approveImport = useCallback(async () => {
     if (importPreview === undefined || !importPreview.approvalEligible) return
@@ -280,7 +269,7 @@ export function useDataTransferSettings(
         decision,
       })
       importDecisionCommands.current.delete(commandKey)
-      replaceImportPreview(next)
+      setImportPreview(next)
       setImportApproval({ kind: 'idle' })
       setImportDecisions((current) => ({ ...current, [stateKey]: { kind: 'done' } }))
     } catch (error) {
@@ -288,7 +277,7 @@ export function useDataTransferSettings(
         kind: 'error', message: failureMessage(error, '장소 매칭 결정을 반영하지 못했습니다.'),
       } }))
     }
-  }, [gateway, importPreview, replaceImportPreview])
+  }, [gateway, importPreview])
 
   const selectedExportCollection = useMemo(() => overview?.collections.find(
     (collection) => collection.collectionId === exportCollectionId,
@@ -420,14 +409,14 @@ export function useDataTransferSettings(
   return {
     tab, overview, loadState, providerActions, providerOperations,
     importProvider, importConnectionId, snapshot, mappings, importPreview, importState,
-    importApproval, importDecisions, importEvidenceState,
+    importApproval, importDecisions,
     exportProvider, exportConnectionId, exportCollectionId, exportCollectionState, exportSelectionKind, exportPlaceIds,
     targetKind, targetListName, targetListId, targetLists, targetListState, exportPreview, exportState, exportApproval,
     selectedExportCollection,
     setTab, retry: load, connectionCommand,
     changeImportProvider,
     setImportConnectionId: (value: string) => {
-      setImportConnectionId(value); setSnapshot(undefined); setMappings([]); replaceImportPreview(undefined)
+      setImportConnectionId(value); setSnapshot(undefined); setMappings([]); setImportPreview(undefined)
       setImportState({ kind: 'idle' }); setImportApproval({ kind: 'idle' }); setImportDecisions({})
       snapshotCommand.current = undefined; importPreviewCommand.current = undefined; importApprovalCommand.current = undefined
     },

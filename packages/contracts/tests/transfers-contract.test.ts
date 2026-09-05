@@ -84,7 +84,12 @@ describe('provider transfer contracts', () => {
     expect(importPlanV3Schema.safeParse(plan).success).toBe(true)
     expect(importPlanV2Schema.safeParse({ ...plan, schemaVersion: 'import-plan.v2' }).success)
       .toBe(false)
-    for (const providerDetailStatus of ['pending', 'available', 'unavailable'] as const) {
+    for (const providerDetailStatus of ['pending', 'available', 'unavailable', null] as const) {
+      expect(importPlanV3Schema.safeParse({
+        ...plan,
+        mappings: [{ ...plan.mappings[0], preview: { ...plan.mappings[0].preview,
+          items: [{ ...policyItem, providerDetailStatus }] } }],
+      }).success).toBe(true)
       expect(importPlanV3Schema.safeParse({
         ...plan,
         approval: { eligible: false, reason: 'unresolved-places' },
@@ -100,7 +105,8 @@ describe('provider transfer contracts', () => {
       { ...policyItem, placeId: id },
       { ...policyItem, status: 'already-present' },
       { ...policyItem, decision: 'none' },
-      { ...policyItem, providerDetailStatus: 'pending' },
+      { ...policyItem, providerDetailStatus: 'complete' },
+      { ...policyItem, providerPlaceId: null, status: 'unresolved', decision: 'none' },
     ]) {
       expect(importPlanV3Schema.safeParse({
         ...plan,

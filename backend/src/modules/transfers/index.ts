@@ -1,4 +1,5 @@
 export { PostgresProviderTransfers } from './adapters/persistence/postgres-provider-transfers.js'
+export { PostgresMemberImportedPlaces } from './adapters/persistence/postgres-member-imported-places.js'
 export { PostgresTransferOperations } from './adapters/persistence/postgres-transfer-operations.js'
 export { PostgresConnectorCaptures } from './adapters/persistence/postgres-connector-captures.js'
 export { PostgresOutboundExecutions } from './adapters/persistence/postgres-outbound-executions.js'

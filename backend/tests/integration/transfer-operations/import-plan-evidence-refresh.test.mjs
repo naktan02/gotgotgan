@@ -43,8 +43,8 @@ async function recordSnapshot(transfers, input) {
   })
 }
 
-async function createPlan(transfers, input) {
-  return transfers.applyImportPlanCommandV3(transferOperationIds.memberId, {
+async function createPlan(transfers, input, database) {
+  const created = await transfers.applyImportPlanCommandV3(transferOperationIds.memberId, {
     schemaVersion: 'import-plan-command.v3',
     kind: 'create',
     commandId: input.commandId,
@@ -60,6 +60,13 @@ async function createPlan(transfers, input) {
       },
     }],
   })
+  // Reproduce pre-correction persisted drafts without changing immutable snapshots.
+  await database.pool.query(
+    `UPDATE transfers.import_plan_items SET preview_status = 'unresolved',
+       decision_kind = 'none', evidence_snapshot_id = NULL
+     WHERE plan_id = $1::uuid AND evidence_snapshot_id IS NOT NULL`, [input.planId],
+  )
+  return { ...created, value: await transfers.getImportPlanV3(transferOperationIds.memberId, input.planId) }
 }
 
 async function makeDetailAvailable(input) {
@@ -190,7 +197,7 @@ test('V3 draft refresh pins exact available evidence once and preserves user dec
     })
     const created = await createPlan(transfers, {
       commandId: transferOperationId(503), planId, collectionId, snapshot,
-    })
+    }, database)
     assert.equal(created.status, 'applied')
     assert.deepEqual(created.value.mappings[0].preview.items.map((candidate) => ({
       id: candidate.sourceItemId,
@@ -223,8 +230,8 @@ test('V3 draft refresh pins exact available evidence once and preserves user dec
         decision: { kind: 'link', placeId: transferOperationIds.placeId },
       },
     )
-    assert.equal(item(linked.value, 'skip').providerDetailStatus, null)
-    assert.equal(item(linked.value, 'link').providerDetailStatus, null)
+    assert.equal(item(linked.value, 'skip').providerDetailStatus, 'pending')
+    assert.equal(item(linked.value, 'link').providerDetailStatus, 'pending')
 
     await makeDetailAvailable({
       database, ingestion, providerPlaceId: autoA,
@@ -260,12 +267,12 @@ test('V3 draft refresh pins exact available evidence once and preserves user dec
       status: item(refreshed.value, 'skip').status,
       decision: item(refreshed.value, 'skip').decision,
       detail: item(refreshed.value, 'skip').providerDetailStatus,
-    }, { status: 'skipped', decision: 'skip', detail: null })
+    }, { status: 'skipped', decision: 'skip', detail: 'pending' })
     assert.deepEqual({
       status: item(refreshed.value, 'link').status,
       decision: item(refreshed.value, 'link').decision,
       detail: item(refreshed.value, 'link').providerDetailStatus,
-    }, { status: 'add', decision: 'link', detail: null })
+    }, { status: 'add', decision: 'link', detail: 'pending' })
     assert.deepEqual(await storedItems(database, planId), [{
       source_item_id: 'auto-a', preview_status: 'add', decision_kind: 'policy-create',
       evidence_source_observation_id: observationA,
@@ -352,7 +359,7 @@ test('concurrent evidence refresh and user decision allow exactly one revision w
     })
     const created = await createPlan(transfers, {
       commandId: transferOperationId(603), planId, collectionId, snapshot,
-    })
+    }, database)
     await makeDetailAvailable({
       database, ingestion, providerPlaceId,
       observationId: transferOperationId(610), candidateId: transferOperationId(611),
@@ -460,7 +467,7 @@ test('standalone V3 projection cannot mix an old revision with refreshed items',
     })
     const created = await createPlan(transfers, {
       commandId: transferOperationId(653), planId, collectionId, snapshot,
-    })
+    }, database)
     await makeDetailAvailable({
       database, ingestion, providerPlaceId,
       observationId: transferOperationId(660), candidateId: transferOperationId(661),

@@ -6,6 +6,18 @@ export type VerifiedSourcePlaceMaterialization = Readonly<{
   sourceObservationId: string
   placeCandidateId: string
   occurredAt: string
+  snapshotEvidence?: Readonly<{
+    acquisitionKind: 'documented-api' | 'account-export' | 'structured-web' |
+      'browser-network' | 'browser-dom' | 'manual-capture'
+    parserVersion: string
+    payloadChecksum: string
+    observedAt: string
+    acquiredAt: string
+    name: string
+    address: string | null
+    categoryLabel: string | null
+    location: Readonly<{ latitude: number; longitude: number }> | null
+  }>
 }>
 
 export class SourcePlaceMaterializationError extends Error {

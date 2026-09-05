@@ -64,6 +64,7 @@ import { PostgresAreaCatalog } from '../../modules/areas/index.js'
 import { PostgresTaxonomyStore } from '../../modules/taxonomy/index.js'
 import {
   PostgresConnectorCaptures,
+  PostgresMemberImportedPlaces,
   PostgresOutboundExecutions,
   PostgresProviderTransfers,
   PostgresTransferOperations,
@@ -166,6 +167,7 @@ export async function createProductionHttpRuntime(
         }
       },
     )
+    const memberImportedPlaces = new PostgresMemberImportedPlaces(pool)
     const personalLibraryWorkspace = new PostgresPersonalLibraryWorkspace(
       pool,
       async (placeIds) => (await localSearch.getCatalogPlaceDocuments(placeIds)).map((document) => ({
@@ -181,6 +183,15 @@ export async function createProductionHttpRuntime(
           status: document.evidenceStatus,
           projectedAt: document.projectedAt,
         },
+      })),
+      async (memberId, placeIds) => (await memberImportedPlaces.read(memberId, placeIds)).map((item) => ({
+        placeId: item.placeId,
+        name: item.observedName,
+        areaLabel: null,
+        location: item.observedLocation,
+        primaryTaxonomy: null,
+        taxonomyKeys: [],
+        evidence: { status: 'unverified' as const, projectedAt: item.capturedAt },
       })),
     )
     const publicCollectionDiscovery = new PostgresPublicCollectionDiscovery(
