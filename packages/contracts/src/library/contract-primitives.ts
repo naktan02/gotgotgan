@@ -3,6 +3,15 @@ import { z } from 'zod'
 import { uuidSchema } from '../primitives.js'
 
 export const libraryCursorSchema = z.string().min(1).max(2_048)
+export const librarySearchTextSchema = z.string().trim().max(160).refine(
+  (value) => !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value),
+  'search text must not contain control characters',
+)
+export const libraryPlaceFacetSchema = z.object({
+  key: z.string().min(1).max(128),
+  label: z.string().min(1).max(300),
+  count: z.number().int().positive(),
+}).strict()
 export const libraryPageLimitSchema = z.coerce.number().int().min(1).max(50).default(20)
 export const libraryTagIdsSchema = z.preprocess(
   (value) => value === undefined ? [] : typeof value === 'string' ? [value] : value,

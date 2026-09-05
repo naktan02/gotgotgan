@@ -46,6 +46,8 @@ export {
   type OpaqueVersion,
   type PersonalLibraryWorkspaceQuery,
   type PersonalLibraryWorkspaceView,
+  type PersonalLibraryMapQuery,
+  type PersonalLibraryMapView,
   type PersonalRating,
   type PersonalRatingChange,
   type PersonalRatingReceipt,

@@ -11,6 +11,8 @@ import {
   personalLibraryWorkspaceHttpQueryV2Schema,
   personalLibraryWorkspaceRequestV2Schema,
   personalLibraryWorkspaceResponseV2Schema,
+  personalLibraryMapHttpQueryV2Schema,
+  personalLibraryMapResponseV2Schema,
   placeFilingCommandRequestV2Schema,
   placeFilingCommandResultV2Schema,
   placeFilingRequestV2Schema,
@@ -25,6 +27,33 @@ const commandId = '01992d20-3000-7000-8000-000000000021'
 const collectionRevision = 'collection-revision:01J670YJY00D3C4V7MZ31Q8N0Y'
 
 describe('Collection-first Personal Library v2 contracts', () => {
+  it('adds bounded independent text queries without changing absent-field defaults', () => {
+    expect(personalLibraryWorkspaceHttpQueryV2Schema.parse({ collectionQuery: ' 여행 ', placeQuery: '성수동 라멘' }))
+      .toMatchObject({ collectionQuery: '여행', placeQuery: '성수동 라멘' })
+    expect(personalLibraryWorkspaceHttpQueryV2Schema.safeParse({ placeQuery: 'a'.repeat(161) }).success).toBe(false)
+    expect(personalLibraryWorkspaceHttpQueryV2Schema.safeParse({ collectionQuery: ['a', 'b'] }).success).toBe(false)
+    expect(personalLibraryWorkspaceHttpQueryV2Schema.safeParse({ placeQuery: '\u0000' }).success).toBe(false)
+    expect(personalLibraryWorkspaceHttpQueryV2Schema.parse({ includeSelectedCollection: 'true' }))
+      .toMatchObject({ includeSelectedCollection: true })
+  })
+
+  it('uses a strict Collection-first map contract with honest coverage', () => {
+    const input = { west: -180, south: -85, east: 180, north: 85, zoom: 1, placeQuery: '성수동 라멘' }
+    expect(personalLibraryMapHttpQueryV2Schema.parse(input)).toMatchObject({ placeQuery: '성수동 라멘', rating: 'any' })
+    for (const extra of [{ memberId: placeId }, { scope: 'state' }, { collectionQuery: '여행' }, { placeCursor: 'page' }, { includeSelectedCollection: true }]) {
+      expect(personalLibraryMapHttpQueryV2Schema.safeParse({ ...input, ...extra }).success).toBe(false)
+    }
+    const projection = {
+      schemaVersion: 'personal-library-map.v2',
+      filter: { favoriteScope: { kind: 'all' }, ratingFilter: { kind: 'any' }, tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: [] },
+      viewport: { bounds: { west: -180, south: -85, east: 180, north: 85 }, zoom: 1 },
+      features: [], coverage: { representedPlaceCount: 0, unprojectedPlaceCount: 1, complete: false },
+    }
+    expect(personalLibraryMapResponseV2Schema.safeParse(projection).success).toBe(true)
+    expect(personalLibraryMapResponseV2Schema.safeParse({ ...projection,
+      coverage: { ...projection.coverage, complete: true },
+    }).success).toBe(false)
+  })
   it('uses Collection membership as the favorite scope and keeps Rating independent', () => {
     expect(personalLibraryWorkspaceRequestV2Schema.parse({})).toEqual({
       favoriteScope: { kind: 'all' },

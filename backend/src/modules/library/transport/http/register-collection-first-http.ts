@@ -6,6 +6,8 @@ import {
   libraryPlaceIdentifierParamsSchema,
   personalLibraryWorkspaceHttpQueryV2Schema,
   personalLibraryWorkspaceResponseV2Schema,
+  personalLibraryMapHttpQueryV2Schema,
+  personalLibraryMapResponseV2Schema,
   placeFilingCommandRequestV2Schema,
   placeFilingCommandResultV2Schema,
   placeFilingRequestV2Schema,
@@ -88,6 +90,38 @@ export function registerCollectionFirstHttpRoutes(
   application: FastifyInstance,
   dependencies: CollectionFirstHttpDependencies,
 ): void {
+  application.get('/v2/library/workspace/map', async (request, reply) => {
+    const memberId = await requireProductMember(request, reply, dependencies.authorizer, 'library.read')
+    if (memberId === undefined) return
+    const parsed = personalLibraryMapHttpQueryV2Schema.safeParse(request.query)
+    if (!parsed.success) return invalid(request, reply, 'Personal Library map query is invalid')
+    const controller = new AbortController()
+    const abort = () => { if (!reply.raw.writableFinished) controller.abort() }
+    reply.raw.once('close', abort)
+    try {
+      const input = parsed.data
+      const projection = await dependencies.workspace.openMap({
+        memberId,
+        favoriteScope: input.collectionId === undefined
+          ? { kind: 'all' } : { kind: 'collection', collectionId: input.collectionId },
+        ratingFilter: { kind: input.rating }, tagIds: input.tagIds, tagMatch: input.tagMatch,
+        areaKeys: input.areaKeys, taxonomyKeys: input.taxonomyKeys,
+        ...(input.placeQuery === undefined ? {} : { placeQuery: input.placeQuery }),
+        bounds: { west: input.west, south: input.south, east: input.east, north: input.north },
+        zoom: input.zoom,
+      }, AbortSignal.any([controller.signal, AbortSignal.timeout(5_000)]))
+      if (projection === undefined) {
+        return sendProductProblem(request, reply, 404, 'PLACE_LIBRARY_RESOURCE_NOT_FOUND', 'Library resource not found')
+      }
+      return reply.header('cache-control', 'no-store').status(200)
+        .send(personalLibraryMapResponseV2Schema.parse(projection))
+    } catch (error) {
+      return unavailable(request, reply, error)
+    } finally {
+      reply.raw.removeListener('close', abort)
+    }
+  })
+
   application.get('/v1/library/workspace', async (request, reply) => {
     const memberId = await requireProductMember(
       request, reply, dependencies.authorizer, 'library.read',
@@ -98,6 +132,7 @@ export function registerCollectionFirstHttpRoutes(
     try {
       const query = normalizePersonalLibraryWorkspaceQuery({
         memberId,
+        ...(parsed.data.includeSelectedCollection === true ? { includeSelectedCollection: true } : {}),
         favoriteScope: parsed.data.collectionId === undefined
           ? { kind: 'all' }
           : { kind: 'collection', collectionId: parsed.data.collectionId },
@@ -106,6 +141,8 @@ export function registerCollectionFirstHttpRoutes(
         tagMatch: parsed.data.tagMatch,
         areaKeys: parsed.data.areaKeys,
         taxonomyKeys: parsed.data.taxonomyKeys,
+        ...(parsed.data.collectionQuery === undefined ? {} : { collectionQuery: parsed.data.collectionQuery }),
+        ...(parsed.data.placeQuery === undefined ? {} : { placeQuery: parsed.data.placeQuery }),
         ...(parsed.data.collectionCursor === undefined
           ? {}
           : { collectionCursor: parsed.data.collectionCursor }),
@@ -121,6 +158,18 @@ export function registerCollectionFirstHttpRoutes(
       }
       const response = personalLibraryWorkspaceResponseV2Schema.parse({
         schemaVersion: workspace.schemaVersion,
+        ...(workspace.selectedCollection === undefined ? {} : {
+          selectedCollection: {
+            collectionId: workspace.selectedCollection.collectionId,
+            name: workspace.selectedCollection.name,
+            description: workspace.selectedCollection.description,
+            visibility: workspace.selectedCollection.visibility,
+            publicationId: workspace.selectedCollection.publicationId,
+            placeCount: workspace.selectedCollection.placeCount,
+            collectionRevision: workspace.selectedCollection.version,
+            updatedAt: workspace.selectedCollection.updatedAt,
+          },
+        }),
         filter: workspace.filter,
         collections: workspace.collections.items.map((collection) => ({
           collectionId: collection.collectionId,

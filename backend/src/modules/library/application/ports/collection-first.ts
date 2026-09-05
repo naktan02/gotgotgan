@@ -10,6 +10,8 @@ import type {
   LibraryWriteResult,
   PersonalLibraryWorkspaceQuery,
   PersonalLibraryWorkspaceView,
+  PersonalLibraryMapQuery,
+  PersonalLibraryMapView,
   PersonalRating,
   PersonalRatingChange,
   PersonalRatingReceipt,
@@ -24,6 +26,7 @@ import type {
 /** Read model for the member's Collection-centered library surface. */
 export interface PersonalLibraryWorkspace {
   open(query: PersonalLibraryWorkspaceQuery): Promise<PersonalLibraryWorkspaceView | undefined>
+  openMap(query: PersonalLibraryMapQuery, signal?: AbortSignal): Promise<PersonalLibraryMapView | undefined>
 }
 
 /** Atomic filing of one Place into or out of one or more explicitly named Collections. */

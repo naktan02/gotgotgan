@@ -30,6 +30,36 @@ function sessionRuntime() {
 }
 
 describe('browser library HTTP', () => {
+  it('forwards Collection-first map text and filters only through the authenticated fixed backend', async () => {
+    const fetcher = vi.fn(async (url: URL, init: RequestInit) => {
+      expect(url.pathname).toBe('/v2/library/workspace/map')
+      expect(url.searchParams.get('collectionId')).toBe(collectionId)
+      expect(url.searchParams.get('placeQuery')).toBe('성수동 라멘')
+      expect(url.searchParams.get('rating')).toBe('rated')
+      expect(url.searchParams.getAll('taxonomyKeys')).toEqual(['food.ramen'])
+      expect(url.searchParams.has('scope')).toBe(false)
+      expect(new Headers(init.headers).get('authorization')).toBe('Bearer server-access-token')
+      return Response.json({
+        schemaVersion: 'personal-library-map.v2',
+        filter: { favoriteScope: { kind: 'collection', collectionId }, ratingFilter: { kind: 'rated' },
+          tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: ['food.ramen'], placeQuery: '성수동 라멘' },
+        viewport: { bounds: { west: -180, south: -85, east: 180, north: 85 }, zoom: 1 },
+        features: [], coverage: { representedPlaceCount: 0, unprojectedPlaceCount: 0, complete: true },
+      })
+    })
+    const http = createBrowserLibraryHttp({ resolveAuthRuntime: sessionRuntime, backend: backend(fetcher), createCorrelationRef: () => 'test-ref' })
+    const query = new URLSearchParams({ collectionId, placeQuery: '성수동 라멘', rating: 'rated', taxonomyKeys: 'food.ramen',
+      west: '-180', south: '-85', east: '180', north: '85', zoom: '1' })
+    const requestUrl = `https://place.example/api/library/workspace/map?${query}`
+    const response = await http.workspaceMap(new Request(requestUrl))
+    expect(response.status).toBe(200)
+    expect(await response.text()).not.toContain('server-access-token')
+    for (const extra of ['&memberId=forged', '&placeQuery=duplicate', '&collectionQuery=directory', '&placeCursor=page']) {
+      expect((await http.workspaceMap(new Request(requestUrl + extra))).status).toBe(400)
+    }
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+
   it('forwards a revision-checked public Collection copy without browser authority fields', async () => {
     const observed: unknown[] = []
     const http = createBrowserLibraryHttp({
@@ -365,6 +395,15 @@ describe('browser library HTTP', () => {
       `https://place-backend.example/v1/library/workspace?rating=rated&tagMatch=all&limit=20&collectionId=${collectionId}&tagIds=${tagA}&areaKeys=${areaKey}&taxonomyKeys=food.noodle.ramen`,
     ])
     expect(JSON.stringify(await response.json())).not.toMatch(/saved|wanted/i)
+    const search = new URLSearchParams({ collectionId, collectionQuery: '여행', placeQuery: '성수동 라멘', includeSelectedCollection: 'true' })
+    expect((await http.workspace(new Request(`https://place.example/api/library/workspace?${search}`))).status).toBe(200)
+    const forwarded = new URL(observed[1]!)
+    expect(forwarded.searchParams.get('collectionQuery')).toBe('여행')
+    expect(forwarded.searchParams.get('placeQuery')).toBe('성수동 라멘')
+    expect(forwarded.searchParams.get('includeSelectedCollection')).toBe('true')
+    for (const extra of ['&placeQuery=duplicate', '&includeSelectedCollection=false', '&memberId=forged']) {
+      expect((await http.workspace(new Request(`https://place.example/api/library/workspace?${search}${extra}`))).status).toBe(400)
+    }
   })
 
   it.each([

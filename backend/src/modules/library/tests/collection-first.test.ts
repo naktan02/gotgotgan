@@ -75,6 +75,7 @@ describe('Collection-first Library interfaces', () => {
       },
     }
     const workspace: PersonalLibraryWorkspace = {
+      openMap: async () => undefined,
       open: async () => expected,
     }
 
@@ -400,6 +401,17 @@ describe('Collection-first Library interfaces', () => {
       areaKeys: [], taxonomyKeys: [],
       limit: 51,
     })).toThrowError(expect.objectContaining({ field: 'limit' }))
+  })
+
+  it('normalizes search terms and rejects post-normalization expansion or control characters', () => {
+    const query = { memberId: context.memberId, favoriteScope: { kind: 'all' } as const,
+      ratingFilter: { kind: 'any' } as const, tagIds: [], tagMatch: 'all' as const,
+      areaKeys: [], taxonomyKeys: [], limit: 20 }
+    expect(normalizePersonalLibraryWorkspaceQuery({ ...query, placeQuery: '  성수동\t ＲＡＭＥＮ  ' }).placeQuery)
+      .toBe('성수동 ramen')
+    for (const placeQuery of ['x'.repeat(161), '\u0000', 'ﬃ'.repeat(100)]) {
+      expect(() => normalizePersonalLibraryWorkspaceQuery({ ...query, placeQuery })).toThrow()
+    }
   })
 
   it('exposes typed applied, replayed, and stable rejected outcomes', () => {

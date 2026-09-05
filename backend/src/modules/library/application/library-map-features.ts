@@ -63,61 +63,59 @@ function clusterBounds(
   }
 }
 
+/** Consumes unique Place IDs in bounded batches; retains only one accumulator per grid cell. */
+export function createLibraryMapAccumulator(input: Readonly<{ bounds: LibraryMapBounds; zoom: number }>) {
+  const { columns, rows } = gridSize(input.zoom)
+  const longitudeWidth = longitudeSpan(input.bounds)
+  const latitudeSpan = input.bounds.north - input.bounds.south
+  const cells = new Map<string, {
+    column: number; row: number; count: number
+    latitudeSum: number; longitudeSum: number
+    first: LocatedLibraryPlaceSummary
+  }>()
+  return {
+    add(place: LibraryPlaceSummary): void {
+      if (place.location === null || !withinBounds(place.location, input.bounds)) return
+      const located = place as LocatedLibraryPlaceSummary
+      const longitude = unwrapLongitude(place.location.longitude, input.bounds)
+      const column = Math.min(columns - 1, Math.floor(((longitude - input.bounds.west) / longitudeWidth) * columns))
+      const row = Math.min(rows - 1, Math.floor(((input.bounds.north - place.location.latitude) / latitudeSpan) * rows))
+      const key = `${row}:${column}`
+      const current = cells.get(key)
+      if (current === undefined) {
+        cells.set(key, { column, row, count: 1, latitudeSum: place.location.latitude,
+          longitudeSum: longitude, first: located })
+      } else {
+        current.count += 1
+        current.latitudeSum += place.location.latitude
+        current.longitudeSum += longitude
+        if (place.placeId.localeCompare(current.first.placeId) < 0) current.first = located
+      }
+    },
+    finish(): readonly LibraryMapFeature[] {
+      return [...cells.values()]
+        .sort((left, right) => left.row - right.row || left.column - right.column)
+        .map((cell): LibraryMapFeature => cell.count === 1 ? {
+          kind: 'place', placeId: cell.first.placeId, label: cell.first.name, location: cell.first.location,
+        } : {
+          kind: 'cluster', clusterId: `z${Math.floor(input.zoom)}-x${cell.column}-y${cell.row}`,
+          count: cell.count,
+          location: { latitude: cell.latitudeSum / cell.count,
+            longitude: normalizeLongitude(cell.longitudeSum / cell.count) },
+          bounds: clusterBounds(input.bounds, cell.column, cell.row, columns, rows),
+        })
+    },
+  }
+}
+
 export function projectLibraryMapFeatures(input: Readonly<{
   places: readonly LibraryPlaceSummary[]
   bounds: LibraryMapBounds
   zoom: number
 }>): readonly LibraryMapFeature[] {
-  const uniquePlaces = [...new Map(input.places.map((place) => [place.placeId, place])).values()]
-    .filter((place): place is LocatedLibraryPlaceSummary => place.location !== null)
-    .filter((place) => withinBounds(place.location, input.bounds))
-  const { columns, rows } = gridSize(input.zoom)
-  const viewportLongitudeSpan = longitudeSpan(input.bounds)
-  const latitudeSpan = input.bounds.north - input.bounds.south
-  const cells = new Map<string, {
-    column: number
-    row: number
-    places: LocatedLibraryPlaceSummary[]
-  }>()
-
-  for (const place of uniquePlaces) {
-    const column = Math.min(columns - 1, Math.floor(
-      ((unwrapLongitude(place.location.longitude, input.bounds) - input.bounds.west) /
-        viewportLongitudeSpan) * columns,
-    ))
-    const row = Math.min(rows - 1, Math.floor(
-      ((input.bounds.north - place.location.latitude) / latitudeSpan) * rows,
-    ))
-    const key = `${row}:${column}`
-    const cell = cells.get(key) ?? { column, row, places: [] }
-    cell.places.push(place)
-    cells.set(key, cell)
+  const accumulator = createLibraryMapAccumulator(input)
+  for (const place of new Map(input.places.map((place) => [place.placeId, place])).values()) {
+    accumulator.add(place)
   }
-
-  return [...cells.values()]
-    .sort((left, right) => left.row - right.row || left.column - right.column)
-    .map((cell): LibraryMapFeature => {
-      const ordered = cell.places.sort((left, right) => left.placeId.localeCompare(right.placeId))
-      const place = ordered[0]
-      if (ordered.length === 1 && place !== undefined) {
-        return {
-          kind: 'place',
-          placeId: place.placeId,
-          label: place.name,
-          location: place.location,
-        }
-      }
-      return {
-        kind: 'cluster',
-        clusterId: `z${Math.floor(input.zoom)}-x${cell.column}-y${cell.row}`,
-        count: ordered.length,
-        location: {
-          latitude: ordered.reduce((sum, item) => sum + item.location.latitude, 0) / ordered.length,
-          longitude: normalizeLongitude(ordered.reduce((sum, item) => (
-            sum + unwrapLongitude(item.location.longitude, input.bounds)
-          ), 0) / ordered.length),
-        },
-        bounds: clusterBounds(input.bounds, cell.column, cell.row, columns, rows),
-      }
-    })
+  return accumulator.finish()
 }

@@ -23,6 +23,7 @@ function dependencies(
       ? { status: 'authorized', memberId }
       : { status: 'authentication-required' },
     workspace: {
+      openMap: async () => undefined,
       open: async (query) => ({
         schemaVersion: 'personal-library-workspace.v2',
         filter: {
@@ -120,11 +121,49 @@ function fixture(overrides: Partial<CollectionFirstHttpDependencies> = {}) {
 }
 
 describe('Collection-first Library HTTP', () => {
+  it('passes independent text queries without accepting a browser member identity', async () => {
+    const open = vi.fn(dependencies().workspace.open)
+    const { app } = fixture({ workspace: { ...dependencies().workspace, open } })
+    const response = await app.inject({
+      method: 'GET', url: '/v1/library/workspace?collectionQuery=%EC%97%AC%ED%96%89&placeQuery=%EC%84%B1%EC%88%98%EB%8F%99%20%EB%9D%BC%EB%A9%98',
+      headers: { authorization: 'Bearer good' },
+    })
+    expect(response.statusCode).toBe(200)
+    expect(open).toHaveBeenCalledWith(expect.objectContaining({ memberId, collectionQuery: '여행', placeQuery: '성수동 라멘' }))
+    const invalid = await app.inject({ method: 'GET', url: `/v1/library/workspace?memberId=${memberId}`, headers: { authorization: 'Bearer good' } })
+    expect(invalid.statusCode).toBe(400)
+  })
+
+  it('authorizes the new map and passes the same Collection-first filters with a cancellation signal', async () => {
+    const openMap = vi.fn<CollectionFirstHttpDependencies['workspace']['openMap']>(async (query) => ({
+      schemaVersion: 'personal-library-map.v2',
+      filter: { favoriteScope: query.favoriteScope, ratingFilter: query.ratingFilter,
+        tagIds: query.tagIds, tagMatch: query.tagMatch, areaKeys: query.areaKeys, taxonomyKeys: query.taxonomyKeys,
+        ...(query.placeQuery === undefined ? {} : { placeQuery: query.placeQuery }),
+      },
+      viewport: { bounds: query.bounds, zoom: query.zoom }, features: [],
+      coverage: { representedPlaceCount: 0, unprojectedPlaceCount: 0, complete: true },
+    }))
+    const { app } = fixture({ workspace: { ...dependencies().workspace, openMap } })
+    const url = `/v2/library/workspace/map?collectionId=${collectionId}&placeQuery=ramen&rating=rated&taxonomyKeys=food.ramen&west=-180&south=-85&east=180&north=85&zoom=1`
+    expect((await app.inject({ method: 'GET', url })).statusCode).toBe(401)
+    expect(openMap).not.toHaveBeenCalled()
+    const response = await app.inject({ method: 'GET', url, headers: { authorization: 'Bearer good' } })
+    expect(response.statusCode).toBe(200)
+    expect(response.headers['cache-control']).toBe('no-store')
+    expect(openMap).toHaveBeenCalledWith(expect.objectContaining({ memberId,
+      favoriteScope: { kind: 'collection', collectionId }, placeQuery: 'ramen',
+      ratingFilter: { kind: 'rated' }, taxonomyKeys: ['food.ramen'],
+    }), expect.any(AbortSignal))
+    expect(response.body).not.toContain(memberId)
+    expect((await app.inject({ method: 'GET', url: `${url}&memberId=${memberId}`, headers: { authorization: 'Bearer good' } })).statusCode).toBe(400)
+  })
+
   it('returns only Collection-backed favorites and preserves unlocated Place summaries', async () => {
     const open = vi.fn<CollectionFirstHttpDependencies['workspace']['open']>(
       dependencies().workspace.open,
     )
-    const { app } = fixture({ workspace: { open } })
+    const { app } = fixture({ workspace: { ...dependencies().workspace, open } })
     const response = await app.inject({
       method: 'GET',
       url: `/v1/library/workspace?collectionId=${collectionId}&rating=unrated&limit=10`,
@@ -154,7 +193,7 @@ describe('Collection-first Library HTTP', () => {
   })
 
   it('does not disclose whether an unavailable scoped Collection belongs to another member', async () => {
-    const { app } = fixture({ workspace: { open: async () => undefined } })
+    const { app } = fixture({ workspace: { ...dependencies().workspace, open: async () => undefined } })
     const response = await app.inject({
       method: 'GET',
       url: `/v1/library/workspace?collectionId=${collectionId}`,

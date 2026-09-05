@@ -33,6 +33,8 @@ function queryFingerprint(query: PersonalLibraryWorkspaceQuery): string {
     tagMatch: query.tagMatch,
     areaKeys: [...query.areaKeys].sort(),
     taxonomyKeys: [...query.taxonomyKeys].sort(),
+    ...(query.collectionQuery ? { collectionQuery: query.collectionQuery } : {}),
+    ...(query.placeQuery ? { placeQuery: query.placeQuery } : {}),
   })).digest('base64url')
 }
 

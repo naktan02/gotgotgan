@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { placeSummarySchema } from '../places/index.js'
 import { uuidSchema } from '../primitives.js'
+import { personalLibraryOverlayV2Schema, personalLibraryCollectionSummaryV2Schema } from './workspace.js'
 import {
   libraryAreaFacetKeySchema as areaFacetKeySchema,
   libraryAreaKeysSchema as areaKeysSchema,
@@ -11,6 +12,7 @@ import {
   libraryOperationRejectionV2Schema,
   libraryPageLimitSchema as pageLimitSchema,
   libraryPlaceStateSchema,
+  libraryPlaceFacetSchema,
   libraryTagIdsSchema as tagIdsSchema,
   libraryTagMatchSchema,
   libraryTaxonomyFacetKeySchema as taxonomyFacetKeySchema,
@@ -32,6 +34,7 @@ export type {
   LibraryTagMatch,
 } from './contract-primitives.js'
 export * from './map.js'
+export * from './workspace.js'
 export * from './public-collections.js'
 
 export const libraryPlaceListQuerySchema = z.object({
@@ -107,12 +110,6 @@ export const libraryPlaceListResponseSchema = z.object({
     place: placeSummarySchema.nullable(),
   }).strict()).max(50),
   nextCursor: cursorSchema.optional(),
-}).strict()
-
-const libraryPlaceFacetSchema = z.object({
-  key: z.string().min(1).max(128),
-  label: z.string().min(1).max(300),
-  count: z.number().int().positive(),
 }).strict()
 
 export const libraryPlaceFacetsResponseSchema = z.object({
@@ -196,104 +193,6 @@ export const libraryPlaceOrganizationResponseSchema = z.object({
     }).strict(),
   ])).max(50),
   nextCursor: cursorSchema.optional(),
-}).strict()
-
-/**
- * Collection-first Personal Library contracts.
- *
- * These v2 schemas intentionally do not reuse the legacy saved/wanted state model. A Place is a
- * favorite when it belongs to at least one member-owned Collection; Personal Rating remains an
- * independent annotation and filter.
- */
-export const personalLibraryFavoriteScopeV2Schema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('all') }).strict(),
-  z.object({
-    kind: z.literal('collection'),
-    collectionId: uuidSchema,
-  }).strict(),
-])
-
-export const personalLibraryRatingFilterV2Schema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('any') }).strict(),
-  z.object({ kind: z.literal('rated') }).strict(),
-  z.object({ kind: z.literal('unrated') }).strict(),
-])
-
-export const personalLibraryOverlayV2Schema = z.object({
-  isFavorited: z.boolean(),
-  collectionCount: z.number().int().nonnegative(),
-  personalRating: z.number().min(0.1).max(5).multipleOf(0.1).nullable(),
-}).strict().refine(
-  (overlay) => overlay.isFavorited === (overlay.collectionCount > 0),
-  'isFavorited must reflect whether the Place belongs to at least one Collection',
-)
-
-export const personalLibraryCollectionSummaryV2Schema = z.object({
-  collectionId: uuidSchema,
-  name: z.string().min(1).max(120),
-  description: z.string().max(2_000).nullable(),
-  visibility: z.enum(['private', 'unlisted', 'public']),
-  publicationId: uuidSchema.nullable(),
-  placeCount: z.number().int().nonnegative(),
-  collectionRevision: libraryCollectionRevisionV2Schema,
-  updatedAt: z.iso.datetime({ offset: true }),
-}).strict()
-
-export const personalLibraryWorkspaceRequestV2Schema = z.object({
-  favoriteScope: personalLibraryFavoriteScopeV2Schema.default({ kind: 'all' }),
-  ratingFilter: personalLibraryRatingFilterV2Schema.default({ kind: 'any' }),
-  tagIds: tagIdsSchema,
-  tagMatch: libraryTagMatchSchema.default('all'),
-  areaKeys: areaKeysSchema,
-  taxonomyKeys: taxonomyKeysSchema,
-  collectionCursor: cursorSchema.optional(),
-  placeCursor: cursorSchema.optional(),
-  limit: pageLimitSchema,
-}).strict()
-
-/** Flat transport query projected into `personalLibraryWorkspaceRequestV2Schema` by the API. */
-export const personalLibraryWorkspaceHttpQueryV2Schema = z.object({
-  collectionId: uuidSchema.optional(),
-  rating: z.enum(['any', 'rated', 'unrated']).default('any'),
-  tagIds: tagIdsSchema,
-  tagMatch: libraryTagMatchSchema.default('all'),
-  areaKeys: areaKeysSchema,
-  taxonomyKeys: taxonomyKeysSchema,
-  collectionCursor: cursorSchema.optional(),
-  placeCursor: cursorSchema.optional(),
-  limit: pageLimitSchema,
-}).strict()
-
-export const personalLibraryWorkspaceResponseV2Schema = z.object({
-  schemaVersion: z.literal('personal-library-workspace.v2'),
-  filter: z.object({
-    favoriteScope: personalLibraryFavoriteScopeV2Schema,
-    ratingFilter: personalLibraryRatingFilterV2Schema,
-    tagIds: z.array(uuidSchema).max(20),
-    tagMatch: libraryTagMatchSchema,
-    areaKeys: z.array(areaFacetKeySchema).max(10),
-    taxonomyKeys: z.array(taxonomyFacetKeySchema).max(10),
-  }).strict(),
-  collections: z.array(personalLibraryCollectionSummaryV2Schema).max(50),
-  collectionNextCursor: cursorSchema.optional(),
-  places: z.array(z.object({
-    placeId: uuidSchema,
-    overlay: personalLibraryOverlayV2Schema,
-    place: placeSummarySchema.nullable(),
-  }).strict()).max(50),
-  placeNextCursor: cursorSchema.optional(),
-  availableFilters: z.object({
-    coverage: z.object({
-      favoritePlaceCount: z.number().int().nonnegative(),
-      sampledPlaceCount: z.number().int().nonnegative(),
-      projectedPlaceCount: z.number().int().nonnegative(),
-      complete: z.boolean(),
-    }).strict(),
-    areas: z.array(libraryPlaceFacetSchema.extend({ key: areaFacetKeySchema })).max(50),
-    taxonomies: z.array(libraryPlaceFacetSchema.extend({
-      key: taxonomyFacetKeySchema,
-    })).max(50),
-  }).strict(),
 }).strict()
 
 export const placeFilingRequestV2Schema = z.object({
@@ -462,13 +361,8 @@ export type LibraryTagListQuery = z.infer<typeof libraryTagListQuerySchema>
 export type LibraryTagListResponse = z.infer<typeof libraryTagListResponseSchema>
 export type LibraryPlaceOrganizationQuery = z.infer<typeof libraryPlaceOrganizationQuerySchema>
 export type LibraryPlaceOrganizationResponse = z.infer<typeof libraryPlaceOrganizationResponseSchema>
-export type PersonalLibraryFavoriteScopeV2 = z.infer<typeof personalLibraryFavoriteScopeV2Schema>
-export type PersonalLibraryRatingFilterV2 = z.infer<typeof personalLibraryRatingFilterV2Schema>
 export type PersonalLibraryOverlayV2 = z.infer<typeof personalLibraryOverlayV2Schema>
 export type PersonalLibraryCollectionSummaryV2 = z.infer<typeof personalLibraryCollectionSummaryV2Schema>
-export type PersonalLibraryWorkspaceRequestV2 = z.infer<typeof personalLibraryWorkspaceRequestV2Schema>
-export type PersonalLibraryWorkspaceHttpQueryV2 = z.infer<typeof personalLibraryWorkspaceHttpQueryV2Schema>
-export type PersonalLibraryWorkspaceResponseV2 = z.infer<typeof personalLibraryWorkspaceResponseV2Schema>
 export type PlaceFilingRequestV2 = z.infer<typeof placeFilingRequestV2Schema>
 export type PlaceFilingResponseV2 = z.infer<typeof placeFilingResponseV2Schema>
 export type PlaceFilingDesiredStateV2 = z.infer<typeof placeFilingDesiredStateV2Schema>

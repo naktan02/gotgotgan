@@ -7,6 +7,7 @@ import type {
   LibraryPlaceOrganizationQuery,
   LibraryTagListQuery,
   PersonalLibraryWorkspaceRequestV2,
+  PersonalLibraryMapRequestV2,
   PlaceFilingCommandRequestV2,
   PlaceFilingRequestV2,
   PublishedCollectionCopyCommandRequestV2,
@@ -67,6 +68,9 @@ function workspaceQueryString(query: PersonalLibraryWorkspaceRequestV2): URLSear
     parameters.set('collectionCursor', query.collectionCursor)
   }
   if (query.placeCursor !== undefined) parameters.set('placeCursor', query.placeCursor)
+  if (query.collectionQuery !== undefined) parameters.set('collectionQuery', query.collectionQuery)
+  if (query.placeQuery !== undefined) parameters.set('placeQuery', query.placeQuery)
+  if (query.includeSelectedCollection === true) parameters.set('includeSelectedCollection', 'true')
   return parameters
 }
 
@@ -97,6 +101,14 @@ export function createLibraryBackendClient(config: LibraryBackendClientConfig = 
   }
 
   return {
+    workspaceMap(accessToken: string, query: PersonalLibraryMapRequestV2, signal: AbortSignal) {
+      const parameters = workspaceQueryString({ ...query, limit: 20 })
+      parameters.delete('limit')
+      for (const key of ['west', 'south', 'east', 'north', 'zoom'] as const) {
+        parameters.set(key, String(query[key]))
+      }
+      return send(`/v2/library/workspace/map?${parameters}`, accessToken, signal)
+    },
     publicationCopyCommand(
       accessToken: string,
       body: PublishedCollectionCopyCommandRequestV2,

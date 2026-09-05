@@ -22,6 +22,40 @@ Transfers table을 직접 join하지 않는다. 이 값은 `unverified`이고 �
 공개 summary가 있으면 그것을 우선하며, 공개 Collection·다른 회원·legacy v1 reader에는 이 보강을
 주입하지 않는다. 개인 즐겨찾기 별명이 공개 장소 정보로 발행되는 경로도 만들지 않는다.
 
+## Collection-first 검색과 지도
+
+`personal-library-workspace.v2`의 선택 입력 `collectionQuery`와 `placeQuery`는 각각 최대 160자다.
+입력을 생략한 기존 요청·응답은 바뀌지 않는다. 새 소비자는 새 Backend와 함께 배포하며, 구버전
+서버에 검색이 지원된다고 가정하지 않는다. Collection 이름 검색은 회원 소유 directory 전체를 SQL로
+검색한 후 page한다. 장소 검색은 NFKC·공백·대소문자를 정규화하고 모든 공백 구분 단어가 이름,
+지역 표시명, 현재 primary 분류 표시명 또는 해당 회원의 Tag 이름에 포함되는지 검사한다. 자연어
+지역 해석이나 미등록 음식 세부 분류를 추론하지 않으며, 메모·다른 회원 Tag·공개 publication은 읽지 않는다.
+
+지역·분류 또는 검색어가 있는 장소 page는 요청당 최대 500개 membership 후보를 검사한다.
+일치 결과가 없는 page라도 남은 후보가 있으면 `placeNextCursor`가 있으므로 소비자는 이어 읽기를
+종료하면 안 된다. Collection과 장소 cursor는 회원·scope·필터·검색어에 묶이고 다른 조건에 재사용할
+수 없다. 결과 총수를 현재 page 수로 꾸미지 않는다. `availableFilters`는 선택 Collection 또는 전체
+membership의 최대 2,000개 표본과 축별 상위 50개이며, 선택한 Tag·Rating·검색어의 전체 집계가 아니다.
+sample/projected coverage와 `complete`를 함께 표시해야 하며 미투영은 분류 부재의 증거가 아니다.
+
+선택 목록이 directory 첫 page 밖에 있어도 이름·revision이 사라지지 않도록 새 UI는
+`includeSelectedCollection=true`로 현행 `selectedCollection` summary를 명시적으로 요청한다.
+이 metadata는 별도 소유권 확인을 거치고 directory 검색어와 독립적이다. 입력 생략 또는 전체 scope는
+해당 필드를 생략하므로 기존 strict v2 응답 소비자를 변경하지 않는다.
+
+새 `GET /v2/library/workspace/map` (`personal-library-map.v2`)는 frozen legacy map v1과 분리한다.
+동일 회원 membership·Rating·Tag·지역·분류·`placeQuery` 조건을 목록과 공유하고, 목록 cursor 없이
+500개씩 모든 후보를 읽는다. public/member summary port와 같은 텍스트 predicate를 재사용하며
+grid cell별 누적값만 메모리에 보존해 모든 좌표를 최대 500개 point/cluster로 표현한다. 알려진 위치가
+없는 일치 장소와 아직 검색 일치 여부조차 판단할 수 없는 미투영 후보는 `unprojectedPlaceCount`로
+드러낸다. 요청 종료·5초 deadline을 batch 경계에서 검사하며, 끝까지 읽지 못하면 503으로 실패하고
+부분 결과를 `complete`로 보내지 않는다. 내부 SQL·summary 호출 하나의 즉시 강제 취소는 제공하지 않는다.
+
+회귀 근거는 `backend/tests/integration/library-queries/workspace-search-map.test.mjs`다. 실제 임시
+PostGIS에서 500개 이후 일치 결과, 회원·Tag 격리, query-bound cursor, directory 전체 검색,
+목록과 별개인 전체 지도 집계와 batch 경계 취소를 검증한다. 실제 서비스 활성화나 외부 지도 공급자
+연동 성공을 의미하지 않는다.
+
 application interface는 멱등 domain command를 받는다. persistence는 table별 repository가
 아니라 하나의 깊은 adapter로 제공한다. 공개 Collection 조회는 owner ID, Tag, Rating,
 Visit, private record를 반환할 수 없는 별도 허용 목록 projection을 사용한다.

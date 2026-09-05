@@ -13,6 +13,9 @@ import {
   libraryTaxonomyKeysParameter,
   pathParameters,
   personalLibraryRatingParameter,
+  personalLibraryCollectionQueryParameter,
+  personalLibrarySelectedCollectionParameter,
+  personalLibraryPlaceQueryParameter,
   placeCursorParameter,
   publicCollectionSearchParameter,
   publicCollectionSortParameter,
@@ -37,6 +40,9 @@ export const libraryPaths = {
       parameters: [
         libraryMapCollectionIdParameter,
         personalLibraryRatingParameter,
+        personalLibraryCollectionQueryParameter,
+        personalLibrarySelectedCollectionParameter,
+        personalLibraryPlaceQueryParameter,
         libraryTagIdsParameter,
         libraryTagMatchParameter,
         libraryAreaKeysParameter,
@@ -112,6 +118,9 @@ export const libraryPaths = {
       parameters: [
         libraryMapCollectionIdParameter,
         personalLibraryRatingParameter,
+        personalLibraryCollectionQueryParameter,
+        personalLibrarySelectedCollectionParameter,
+        personalLibraryPlaceQueryParameter,
         libraryTagIdsParameter,
         libraryTagMatchParameter,
         libraryAreaKeysParameter,
@@ -347,5 +356,33 @@ export const libraryPaths = {
       security: anonymous,
       parameters: [boundedCursorParameter, boundedLimitParameter],
     }),
+  },
+  '/api/library/workspace/map': {
+    get: operation('getPersonalLibraryMapForBrowserV2', {
+      '200': described('Return viewport-complete Collection-backed favorites matching the place filters', 'PersonalLibraryMapV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, { security: browserSession, parameters: [
+      libraryMapCollectionIdParameter, personalLibraryRatingParameter, personalLibraryPlaceQueryParameter,
+      libraryTagIdsParameter, libraryTagMatchParameter, libraryAreaKeysParameter, libraryTaxonomyKeysParameter,
+      ...libraryMapViewportParameters,
+    ] }),
+  },
+  '/v2/library/workspace/map': {
+    get: operation('getPersonalLibraryMapV2', {
+      '200': described('Return owner-scoped matching Place points and clusters independently of list pagination', 'PersonalLibraryMapV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'LibraryQueryUnavailable'),
+    }, { security: bearer, parameters: [
+      libraryMapCollectionIdParameter, personalLibraryRatingParameter, personalLibraryPlaceQueryParameter,
+      libraryTagIdsParameter, libraryTagMatchParameter, libraryAreaKeysParameter, libraryTaxonomyKeysParameter,
+      ...libraryMapViewportParameters,
+    ] }),
   },
 }

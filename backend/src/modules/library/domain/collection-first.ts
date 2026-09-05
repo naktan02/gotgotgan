@@ -1,4 +1,4 @@
-import type { LibraryPlaceSummary, LibraryTagMatch } from './queries.js'
+import type { LibraryMapBounds, LibraryMapFeature, LibraryPlaceSummary, LibraryTagMatch } from './queries.js'
 
 declare const opaqueVersionBrand: unique symbol
 
@@ -47,6 +47,9 @@ export type CollectionFavoritePlace = Readonly<{
 }>
 
 export type PersonalLibraryWorkspaceQuery = Readonly<{
+  includeSelectedCollection?: boolean | undefined
+  collectionQuery?: string | undefined
+  placeQuery?: string | undefined
   memberId: string
   favoriteScope: Readonly<{ kind: 'all' }> | Readonly<{ kind: 'collection'; collectionId: string }>
   ratingFilter: Readonly<{ kind: 'any' }> | Readonly<{ kind: 'rated' }> | Readonly<{ kind: 'unrated' }>
@@ -61,7 +64,10 @@ export type PersonalLibraryWorkspaceQuery = Readonly<{
 
 export type PersonalLibraryWorkspaceView = Readonly<{
   schemaVersion: 'personal-library-workspace.v2'
+  selectedCollection?: CollectionWorkspaceSummary | undefined
   filter: Readonly<{
+    collectionQuery?: string | undefined
+    placeQuery?: string | undefined
     favoriteScope: PersonalLibraryWorkspaceQuery['favoriteScope']
     ratingFilter: PersonalLibraryWorkspaceQuery['ratingFilter']
     tagIds: readonly string[]
@@ -86,6 +92,24 @@ export type PersonalLibraryWorkspaceView = Readonly<{
     }>
     areas: readonly Readonly<{ key: string; label: string; count: number }>[]
     taxonomies: readonly Readonly<{ key: string; label: string; count: number }>[]
+  }>
+}>
+
+export type PersonalLibraryMapQuery = Omit<PersonalLibraryWorkspaceQuery,
+  'collectionQuery' | 'collectionCursor' | 'placeCursor' | 'limit' | 'includeSelectedCollection'> & Readonly<{
+    bounds: LibraryMapBounds
+    zoom: number
+  }>
+
+export type PersonalLibraryMapView = Readonly<{
+  schemaVersion: 'personal-library-map.v2'
+  filter: Omit<PersonalLibraryWorkspaceView['filter'], 'collectionQuery'>
+  viewport: Readonly<{ bounds: LibraryMapBounds; zoom: number }>
+  features: readonly LibraryMapFeature[]
+  coverage: Readonly<{
+    representedPlaceCount: number
+    unprojectedPlaceCount: number
+    complete: boolean
   }>
 }>
 

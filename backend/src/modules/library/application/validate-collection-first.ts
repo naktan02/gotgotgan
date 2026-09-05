@@ -89,6 +89,13 @@ export function normalizePersonalLibraryWorkspaceQuery(
     invalid('taxonomyKeys', 'taxonomyKeys must contain at most 10 unique entries')
   }
   return {
+    ...(query.includeSelectedCollection === true ? { includeSelectedCollection: true } : {}),
+    ...(query.collectionQuery === undefined ? {} : {
+      collectionQuery: normalizeLibrarySearchText(query.collectionQuery),
+    }),
+    ...(query.placeQuery === undefined ? {} : {
+      placeQuery: normalizeLibrarySearchText(query.placeQuery),
+    }),
     memberId: requireIdentifier(query.memberId, 'memberId'),
     favoriteScope: query.favoriteScope.kind === 'all'
       ? query.favoriteScope
@@ -112,6 +119,14 @@ export function normalizePersonalLibraryWorkspaceQuery(
       : { placeCursor: requireText(query.placeCursor, 'placeCursor', 2_000) }),
     limit: requirePageLimit(query.limit),
   }
+}
+
+export function normalizeLibrarySearchText(value: string): string {
+  const normalized = value.normalize('NFKC').trim().replace(/\s+/gu, ' ').toLowerCase()
+  if (value.length > 160 || normalized.length > 160 || /[\u0000-\u001f\u007f]/u.test(normalized)) {
+    invalid('query', 'query must contain at most 160 printable characters')
+  }
+  return normalized
 }
 
 export function normalizePlaceFilingMutation(

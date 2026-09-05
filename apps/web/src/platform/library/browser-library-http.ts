@@ -27,6 +27,8 @@ import {
   libraryTagListResponseSchema,
   personalLibraryWorkspaceRequestV2Schema,
   personalLibraryWorkspaceResponseV2Schema,
+  personalLibraryMapHttpQueryV2Schema,
+  personalLibraryMapResponseV2Schema,
   placeFilingCommandRequestV2Schema,
   placeFilingCommandResultV2Schema,
   placeFilingRequestV2Schema,
@@ -214,7 +216,7 @@ export function createBrowserLibraryHttp(dependencies: Dependencies) {
       const url = new URL(request.url)
       const allowed = new Set([
         'collectionId', 'rating', 'tagIds', 'tagMatch', 'areaKeys', 'taxonomyKeys',
-        'collectionCursor', 'placeCursor', 'limit',
+        'collectionCursor', 'placeCursor', 'limit', 'collectionQuery', 'placeQuery', 'includeSelectedCollection',
       ])
       if ([...url.searchParams.keys()].some((key) => !allowed.has(key))) {
         return Promise.resolve(invalid())
@@ -229,10 +231,16 @@ export function createBrowserLibraryHttp(dependencies: Dependencies) {
       const collectionCursor = single('collectionCursor')
       const placeCursor = single('placeCursor')
       const limit = single('limit')
-      if ([collectionId, rating, tagMatch, collectionCursor, placeCursor, limit].includes(null)) {
+      const collectionQuery = single('collectionQuery')
+      const placeQuery = single('placeQuery')
+      const includeSelectedCollection = single('includeSelectedCollection')
+      if ([collectionId, rating, tagMatch, collectionCursor, placeCursor, limit, collectionQuery, placeQuery, includeSelectedCollection].includes(null)) {
         return Promise.resolve(invalid())
       }
       const query = personalLibraryWorkspaceRequestV2Schema.safeParse({
+        ...(includeSelectedCollection === undefined ? {} : {
+          includeSelectedCollection: includeSelectedCollection === 'true' ? true : includeSelectedCollection,
+        }),
         favoriteScope: collectionId === undefined
           ? { kind: 'all' }
           : { kind: 'collection', collectionId },
@@ -241,6 +249,8 @@ export function createBrowserLibraryHttp(dependencies: Dependencies) {
         tagMatch: tagMatch ?? 'all',
         areaKeys: url.searchParams.getAll('areaKeys'),
         taxonomyKeys: url.searchParams.getAll('taxonomyKeys'),
+        ...(collectionQuery === undefined ? {} : { collectionQuery }),
+        ...(placeQuery === undefined ? {} : { placeQuery }),
         ...(collectionCursor === undefined ? {} : { collectionCursor }),
         ...(placeCursor === undefined ? {} : { placeCursor }),
         limit: limit ?? '20',
@@ -251,6 +261,18 @@ export function createBrowserLibraryHttp(dependencies: Dependencies) {
         (accessToken) => dependencies.backend.workspace(accessToken, query, request.signal),
         personalLibraryWorkspaceResponseV2Schema,
       )
+    },
+    workspaceMap(request: Request): Promise<Response> {
+      const query = parseQuery(request, personalLibraryMapHttpQueryV2Schema, ['tagIds', 'areaKeys', 'taxonomyKeys'])
+      if (query === undefined) return Promise.resolve(invalid())
+      return invoke(request, (accessToken) => dependencies.backend.workspaceMap(accessToken, {
+        favoriteScope: query.collectionId === undefined
+          ? { kind: 'all' } : { kind: 'collection', collectionId: query.collectionId },
+        ratingFilter: { kind: query.rating }, tagIds: query.tagIds, tagMatch: query.tagMatch,
+        areaKeys: query.areaKeys, taxonomyKeys: query.taxonomyKeys,
+        ...(query.placeQuery === undefined ? {} : { placeQuery: query.placeQuery }),
+        west: query.west, south: query.south, east: query.east, north: query.north, zoom: query.zoom,
+      }, request.signal), personalLibraryMapResponseV2Schema)
     },
     filing(request: Request, placeId: string): Promise<Response> {
       const identifier = libraryPlaceIdentifierParamsSchema.safeParse({ placeId }).data

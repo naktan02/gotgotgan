@@ -193,6 +193,24 @@ export const personalLibraryRatingParameter = {
   schema: { type: 'string', enum: ['any', 'rated', 'unrated'], default: 'any' },
 }
 
+export const personalLibraryCollectionQueryParameter = {
+  name: 'collectionQuery', in: 'query', required: false,
+  description: 'Member-owned Collection name substring search, independently paginated.',
+  schema: { type: 'string', maxLength: 160 },
+}
+
+export const personalLibrarySelectedCollectionParameter = {
+  name: 'includeSelectedCollection', in: 'query', required: false,
+  description: 'Opt in to current selected Collection metadata independently of the directory page.',
+  schema: { type: 'boolean', const: true },
+}
+
+export const personalLibraryPlaceQueryParameter = {
+  name: 'placeQuery', in: 'query', required: false,
+  description: 'All whitespace-separated terms must occur in the Place name, area, primary classification, or own tags. No public note projection.',
+  schema: { type: 'string', maxLength: 160 },
+}
+
 export const collectionCursorParameter = {
   name: 'collectionCursor', in: 'query', required: false,
   schema: { type: 'string', minLength: 1, maxLength: 2_048 },
