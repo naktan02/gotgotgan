@@ -5,6 +5,48 @@
 분리한다. 캡처는 짧은 수명의 일회성 곳곳간 grant로만 제출하며 Provider cookie·token·profile 경로를
 서버로 보내지 않는다.
 
+## 전용 Desktop 로그인·수집 연결 확인
+
+Electron `44.2.0` 실행 Adapter를 추가했다. 확장 프로그램·Playwright·별도 browser-control을 사용하지
+않는다. NAVER 로그인 창과 곳곳간 로컬 제어 화면은 서로 다른 임시 session을 사용하며, 앱을 종료하면
+다시 로그인해야 한다. NAVER 창에는 preload나 Node 권한을 주지 않고 sandbox·context isolation·web
+security를 유지한다. 로그인과 2차 인증·보안 확인은 사용자가 직접 수행하며 수집 중에는 로그인 창을
+열지 않는다. 로그인 창을 닫았다는 사실만으로 인증 성공이라고 표시하지 않는다.
+
+```powershell
+npm run desktop:naver --workspace @place/member-connector
+```
+
+로컬 화면의 `NAVER 로그인`을 눌러 로그인하고 NAVER 창을 닫은 뒤 `기본 정보 수집`을 누른다.
+session-bound GET Adapter는 기존에 관측한 folders와 목록별 bookmarks 두 경로만 허용한다. 요청은
+15초·4 MiB, 전체 실행은 10분·2,500회 요청·500개 목록·100,000개 항목·응답 합계 64 MiB로 제한하고 redirect를
+따라가지 않는다. 인증 만료·응답 변경·요청 제한은 재시도 안내로 멈추며 우회하지 않는다.
+
+기존 `NaverApiSavedPlaceSource`와 `NaverSavedPlaceSnapshotNormalizer`를 재사용해 최소 정보가
+정규화되는지 확인한 뒤 **목록·항목 수만** 제어 화면에 반환한다. 현재 계정 identity 관측·grant 연결은
+미완성이므로 이 실행은 서버나 파일에 저장하지 않으며 `serverSaved: false`를 유지한다. 개인 필드,
+cookie·token·provider 응답·profile 경로는 화면·로그에 내보내지 않는다. 상세정보 수집과 TraceForge는
+활성화하지 않는다. 실제 NAVER 로그인·내부 API 호환성은 사용자 동작을 포함한 live 검증 전까지
+`integration-gated`다.
+
+제어 화면은 exact custom-protocol 정적 자산만 읽고 CSP로 네트워크·frame을 금지한다. IPC는 해당
+webContents의 정확한 main-frame URL만 받으며 로그인·수집·취소 세 명령만 허용한다. 임의 URL,
+스크립트, 파일, 원본 응답을 전달하는 IPC나 외부 앱 실행 기능은 없다. 창 이동·새 창·download·권한은
+거부하거나 NAVER의 정확한 로그인 origin 목록으로 제한한다.
+
+`application/preview-saved-library.ts`는 source·session·normalizer만 조합한다. 실행 호스트별 window,
+session HTTP, IPC 및 취소 수명주기는 `adapters/browser/electron/`에 격리하고 로컬 화면 자산은
+그 아래 `control/`이 소유한다. `entrypoints/desktop/`은 process 조립과 로컬 smoke만 수행한다.
+
+```powershell
+npm run check:desktop --workspace @place/member-connector
+```
+
+이 opt-in smoke는 실제 Electron의 숨김 **로컬 화면만** 열어 자산·preload·제한된 IPC를 확인한다.
+고정된 로컬 검사 script는 Provider 창을 열거나 수집하지 않으며 로그인·계정 데이터를 사용하지 않는다.
+일반 Connector 검사에는 결정적 host·transport·parser 테스트가 포함된다. GUI 없는 CI에서는 실제
+Electron smoke용 display 환경을 별도로 준비해야 하므로 기본 `check`에 GUI 실행을 강제하지 않는다.
+
 현재는 provider-neutral application 경계, 선택형 WebExtensions browser Adapter, NAVER API Provider Adapter,
 v2 immutable snapshot·승인 기반 export coordinator, WXT entrypoint와 Chromium·Firefox build 검증을
 source-only로 구현했다. Backend v2 receiver와 실행 control-plane, 회원 session 전용 grant BFF는
@@ -14,7 +56,8 @@ attempt spool, 암호화 reconciliation vault와 v2 HTTP Adapter는 source-only�
 storage만으로 재시작 가능한 안전한 key 보관을 증명하지 못했다. 또한 검증된 account fingerprint
 Adapter, 전용 Connector origin, 실제 Provider write Adapter가 없다. 따라서 어떤 실행 호스트도 제거된
 v1 capture 경로로 우회하지 않고 현재 지원 Provider를 빈 목록으로 알린다. production 실행 호스트
-채택과 로그인된 NAVER session 검증은 `integration-gated`다.
+연결과 로그인된 NAVER session 검증은 `integration-gated`다. 위 Desktop 연결 확인은 서버 제출 기능을
+갖지 않으므로 이 production capability를 열지 않는다.
 
 전용 Playwright profile을 쓰는 기존 로그인·비식별 네트워크 관찰·NAVER 전체 저장 목록 bounded
 수집기는 진단 CLI로 남아 있다. 실관찰에서 평소 브라우저의 로그인 상태를 재사용하지 못했으므로 주

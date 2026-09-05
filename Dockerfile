@@ -8,8 +8,10 @@ COPY apps/member-connector/package.json ./apps/member-connector/package.json
 COPY backend/package.json ./backend/package.json
 COPY packages/browser-auth/package.json ./packages/browser-auth/package.json
 COPY packages/contracts/package.json ./packages/contracts/package.json
+COPY vendor ./vendor
 COPY .tools ./.tools
-RUN npm ci
+RUN npm ci --workspace @place/web --workspace @place/admin-web --workspace @place/backend \
+    --workspace @place/contracts --workspace @place/browser-auth --include-workspace-root
 
 FROM dependencies AS contracts-build
 COPY packages/contracts ./packages/contracts
@@ -61,6 +63,7 @@ COPY apps/member-connector/package.json ./apps/member-connector/package.json
 COPY backend/package.json ./backend/package.json
 COPY packages/browser-auth/package.json ./packages/browser-auth/package.json
 COPY packages/contracts/package.json ./packages/contracts/package.json
+COPY vendor ./vendor
 RUN npm ci --omit=dev --workspace @place/backend --include-workspace-root
 
 FROM node:22.23.2-alpine3.24@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS backend-runtime

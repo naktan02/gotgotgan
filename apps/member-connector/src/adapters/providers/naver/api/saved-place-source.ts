@@ -12,7 +12,7 @@ import {
   NaverSavedPlaceCollector,
 } from './saved-place-collector.js'
 
-const apiBaseUrl = 'https://pages.map.naver.com/save-pages/api/maps-bookmark/v3/'
+import { naverSavedPlaceApiBaseUrl as apiBaseUrl } from './request-policy.js'
 
 function compactText(value: string, maximum: number): string {
   return [...value].slice(0, maximum).join('')

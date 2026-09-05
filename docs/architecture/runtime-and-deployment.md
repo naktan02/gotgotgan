@@ -20,8 +20,14 @@ NAVER 목록 수집 Adapter는 별도 browser artifact에 있으며 Worker나 Do
 회원 PC용 `member-connector`는 배포 Web/Backend/Worker나 Docker 수평 확장 단위가 아니다. 특정 확장
 프로그램을 필수 runtime으로 정하지 않고 실행 호스트 Adapter가 profile·창·network·memory 수명주기를
 소유한다. 완료·취소·실패 때 listener, 창, 요청과 메모리를 닫는다. 현재 WebExtension은 선택형
-source-only Adapter이고 desktop shell과 개발 중인 browser-control 프로젝트는 채택 전이다. 회원 기기
+source-only Adapter이며 2026-09-05 승인된 desktop shell은 NAVER 로그인·최소 목록 수집부터 구현한다.
+개발 중인 browser-control 프로젝트는 도입하지 않는다. 회원 기기
 산출물은 production Docker image나 Compose service가 아니다.
+
+서버 Docker build의 `npm ci`는 Web·Admin·Backend와 공유 계약/auth workspace만 선택한다.
+회원 기기 전용 Electron 의존성과 binary를 서버 build에 설치하지 않는다.
+이미 선언된 파일 의존성이 설치 시 존재하도록 build와 production dependency stage 모두 저장소의
+`vendor/` package artifact를 복사한다. 이 조치는 TraceForge 코드를 바꾸거나 상세 Worker를 활성화하지 않는다.
 
 현재 WXT 기반 source는 Chromium Manifest V3와 Firefox Manifest V3 산출물을 결정적으로 만든다.
 Chromium 산출물은 Chrome·Edge·Whale이 공유하며 browser Adapter가 Whale을 Chrome보다 먼저 식별한다.

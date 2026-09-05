@@ -174,6 +174,9 @@ test('production composition consumes immutable images while local composition o
   assert.equal(JSON.parse(adminIdentityManifest).serviceId, 'place-admin')
   assert.equal(JSON.parse(adminIdentityManifest).devMode, false)
   assert.match(dockerfile, /COPY \.tools \.\/\.tools\s+RUN npm ci/)
+  assert.match(dockerfile, /RUN npm ci --workspace @place\/web --workspace @place\/admin-web --workspace @place\/backend/)
+  assert.doesNotMatch(dockerfile, /RUN npm ci[^\n]*--workspace @place\/member-connector/)
+  assert.equal((dockerfile.match(/COPY vendor \.\/vendor/g) ?? []).length, 2)
   assert.match(dockerfile, /COPY --chown=node:node backend\/migrations \.\/backend\/migrations/)
   assert.match(
     dockerfile,

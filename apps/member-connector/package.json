@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-desktop-assets.mjs",
     "build:extension:chromium": "wxt build -b chrome --mv3",
     "build:extension:firefox": "wxt build -b firefox --mv3",
     "typecheck": "tsc --noEmit && npm run typecheck:extension",
@@ -15,7 +15,9 @@
     "check": "npm run check:architecture && npm run typecheck && npm run test && npm run build && node dist/entrypoints/cli/main.js --check && npm run check:extension",
     "login:naver": "npm run build && node dist/entrypoints/cli/main.js --login-naver",
     "observe:naver": "npm run build && node dist/entrypoints/cli/main.js --observe-naver",
-    "collect:naver": "npm run build && node dist/entrypoints/cli/main.js --collect-naver"
+    "collect:naver": "npm run build && node dist/entrypoints/cli/main.js --collect-naver",
+    "desktop:naver": "npm run build && electron dist/entrypoints/desktop/main.js --desktop-naver",
+    "check:desktop": "npm run build && electron dist/entrypoints/desktop/main.js --check-desktop"
   },
   "dependencies": {
     "@place/contracts": "0.1.0",
@@ -24,6 +26,7 @@
   },
   "devDependencies": {
     "@types/node": "22.0.0",
+    "electron": "44.2.0",
     "typescript": "5.7.3",
     "vite": "6.4.3",
     "vitest": "4.1.11",
