@@ -1,6 +1,7 @@
-.settings, .published { width: min(760px, calc(100% - 32px)); margin: 28px auto; border: 1px solid var(--line); border-radius: var(--radius-surface); background: var(--surface); padding: clamp(20px, 4vw, 36px); }
+.publicPage { height: 100%; min-height: 0; overflow: auto; }
+.settings, .published { width: min(760px, calc(100% - 32px)); margin: 28px auto; border: 1px solid var(--line); border-radius: var(--radius-surface); background: var(--surface); padding: clamp(18px, 3vw, 28px); }
 .settings header p, .published header p { margin: 0 0 6px; color: var(--accent); font-size: 12px; font-weight: 700; }
-.settings h1, .published h1 { margin: 0; font-size: clamp(28px, 5vw, 40px); letter-spacing: -.04em; }
+.settings h1, .published h1 { margin: 0; font-size: 24px; letter-spacing: -.04em; }
 .settings header span, .published header span { display: block; margin-top: 10px; color: var(--muted); line-height: 1.6; }
 .settings form { display: grid; gap: 9px; margin-top: 28px; }
 .settings form > label, .settings legend { color: var(--ink); font-size: 13px; font-weight: 700; }
@@ -19,14 +20,14 @@
 .actions button:disabled { cursor: wait; opacity: .55; }
 .actions a, .primaryLink { color: var(--accent); font-weight: 700; text-decoration: none; }
 .error { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; border-radius: var(--radius-control); background: #fff2f2; color: var(--danger); padding: 11px 13px; font-size: 13px; }
-.settings aside { display: grid; gap: 5px; margin-top: 24px; border-radius: var(--radius-control); background: var(--accent-soft); padding: 14px; color: #315c4d; font-size: 12px; line-height: 1.6; }
+.settings aside { display: grid; gap: 5px; margin-top: 24px; border-radius: var(--radius-control); background: var(--accent-soft); padding: 14px; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .published { min-height: 320px; }
 .published ul { display: grid; gap: 10px; margin: 26px 0 18px; padding: 0; list-style: none; }
 .published li a { display: grid; gap: 6px; border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--ink); padding: 16px; text-decoration: none; }
 .published li a:hover { border-color: var(--accent); }
 .published li span, .published li small, .published footer, .empty { color: var(--muted); }
-.published li small { font-size: 11px; }
-.published footer { margin-top: 28px; border-top: 1px solid var(--line); padding-top: 14px; font-size: 11px; }
+.published li small { font-size: 12px; }
+.published footer { margin-top: 28px; border-top: 1px solid var(--line); padding-top: 14px; font-size: 12px; }
 .loadError { color: var(--danger); font-size: 13px; }
 
 @media (max-width: 520px) {

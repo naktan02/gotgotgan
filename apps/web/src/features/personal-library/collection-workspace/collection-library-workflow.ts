@@ -1,7 +1,7 @@
 'use client'
 
 import type {
-  LibraryMapResponse,
+  PersonalLibraryMapResponseV2,
   LibraryTagListResponse,
   PersonalLibraryRatingFilterV2,
   PersonalLibraryWorkspaceResponseV2,
@@ -14,11 +14,12 @@ import {
 } from './collection-library-http'
 import { usePlaceFilingWorkflow } from '../place-filing/place-filing-workflow'
 import { createLibraryMapRequestGuard } from '../library-map/library-map-request-guard'
+import { useCollectionDirectory } from './collection-directory-workflow'
 
 type PageStatus = 'loading' | 'ready' | 'authentication-required' | 'forbidden' | 'not-found' | 'unavailable' | 'error'
 type MobileSurface = 'collections' | 'list' | 'map' | 'detail'
 
-const initialViewport: LibraryMapResponse['viewport'] = {
+const initialViewport: PersonalLibraryMapResponseV2['viewport'] = {
   bounds: { west: 126.90, south: 37.50, east: 127.10, north: 37.60 },
   zoom: 12,
 }
@@ -37,18 +38,21 @@ export function useCollectionLibraryWorkflow() {
   const [workspace, setWorkspace] = useState<PersonalLibraryWorkspaceResponseV2 | undefined>()
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | undefined>()
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | undefined>()
-  const [mobileSurface, setMobileSurface] = useState<MobileSurface>('list')
+  const [mobileSurface, setMobileSurface] = useState<MobileSurface>('collections')
+  const [collectionQuery, setCollectionQuery] = useState('')
+  const [placeQuery, setPlaceQuery] = useState('')
   const [ratingFilter, setRatingFilter] = useState<PersonalLibraryRatingFilterV2['kind']>('any')
   const [tagIds, setTagIds] = useState<readonly string[]>([])
   const [areaKeys, setAreaKeys] = useState<readonly string[]>([])
   const [taxonomyKeys, setTaxonomyKeys] = useState<readonly string[]>([])
   const [tags, setTags] = useState<LibraryTagListResponse['items']>([])
   const [tagError, setTagError] = useState(false)
+  const [tagNextCursor, setTagNextCursor] = useState<string | undefined>()
+  const [loadingMoreTags, setLoadingMoreTags] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [loadingMoreCollections, setLoadingMoreCollections] = useState(false)
   const [revision, setRevision] = useState(0)
   const [mapViewport, setMapViewport] = useState(initialViewport)
-  const [mapProjection, setMapProjection] = useState<LibraryMapResponse | undefined>()
+  const [mapProjection, setMapProjection] = useState<PersonalLibraryMapResponseV2 | undefined>()
   const [mapStatus, setMapStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const [newCollectionName, setNewCollectionName] = useState('')
   const [renameDraft, setRenameDraft] = useState('')
@@ -57,40 +61,43 @@ export function useCollectionLibraryWorkflow() {
   const [deleteArmed, setDeleteArmed] = useState(false)
   const requestSequence = useRef(0)
   const mapRequests = useRef(createLibraryMapRequestGuard())
+  const tagRequestSequence = useRef(0)
+  const tagController = useRef<AbortController | undefined>(undefined)
 
   const accessFailure = useCallback((status: number) => {
     setPageStatus(status === 401 ? 'authentication-required' : 'forbidden')
   }, [])
+  const directoryFailure = useCallback((reason: unknown) => setPageStatus(failureStatus(reason)), [])
+  const directory = useCollectionDirectory(collectionQuery, revision, directoryFailure)
+  const hasPlaceScope = mobileSurface !== 'collections'
 
   const loadWorkspace = useCallback(async (
-    cursors: Readonly<{ placeCursor?: string; collectionCursor?: string }> = {},
-    append?: 'places' | 'collections',
+    cursors: Readonly<{ placeCursor?: string }> = {},
+    append?: 'places',
     signal?: AbortSignal,
   ) => {
     const sequence = ++requestSequence.current
     if (append === 'places') setLoadingMore(true)
-    else if (append === 'collections') setLoadingMoreCollections(true)
     else setPageStatus('loading')
     try {
       const next = await collectionLibraryHttp.workspace({
         favoriteScope: selectedCollectionId === undefined
           ? { kind: 'all' }
           : { kind: 'collection', collectionId: selectedCollectionId },
+        ...(selectedCollectionId === undefined ? {} : { includeSelectedCollection: true }),
         ratingFilter: { kind: ratingFilter },
         tagIds: [...tagIds],
         tagMatch: 'all',
         areaKeys: [...areaKeys],
         taxonomyKeys: [...taxonomyKeys],
+        ...(placeQuery.trim() ? { placeQuery: placeQuery.trim() } : {}),
         ...(cursors.placeCursor === undefined ? {} : { placeCursor: cursors.placeCursor }),
-        ...(cursors.collectionCursor === undefined ? {} : {
-          collectionCursor: cursors.collectionCursor,
-        }),
         limit: 20,
       }, signal)
       if (sequence !== requestSequence.current) return
       setWorkspace((current) => {
         if (current === undefined || append === undefined) return next
-        if (append === 'places') return {
+        return {
           ...next,
           collections: current.collections,
           collectionNextCursor: current.collectionNextCursor,
@@ -98,20 +105,6 @@ export function useCollectionLibraryWorkflow() {
             !current.places.some((existing) => existing.placeId === candidate.placeId)
           ))],
         }
-        return {
-          ...next,
-          collections: [...current.collections, ...next.collections.filter((candidate) => (
-            !current.collections.some((existing) => existing.collectionId === candidate.collectionId)
-          ))],
-          places: current.places,
-          placeNextCursor: current.placeNextCursor,
-        }
-      })
-      setSelectedPlaceId((current) => {
-        if (append !== undefined) return current
-        return current !== undefined && next.places.some((row) => row.placeId === current)
-          ? current
-          : undefined
       })
       setPageStatus('ready')
     } catch (reason) {
@@ -123,9 +116,8 @@ export function useCollectionLibraryWorkflow() {
       setPageStatus(failureStatus(reason))
     } finally {
       if (sequence === requestSequence.current) setLoadingMore(false)
-      if (sequence === requestSequence.current) setLoadingMoreCollections(false)
     }
-  }, [areaKeys, ratingFilter, selectedCollectionId, tagIds, taxonomyKeys])
+  }, [areaKeys, placeQuery, ratingFilter, selectedCollectionId, tagIds, taxonomyKeys])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -133,14 +125,10 @@ export function useCollectionLibraryWorkflow() {
     return () => controller.abort()
   }, [loadWorkspace, revision])
 
-  useEffect(() => {
-    if (selectedCollectionId !== undefined || workspace?.collections[0] === undefined) return
-    setSelectedCollectionId(workspace.collections[0].collectionId)
-  }, [selectedCollectionId, workspace])
-
-  const selectedCollection = workspace?.collections.find((collection) => (
+  const selectedCollection = (workspace?.selectedCollection?.collectionId === selectedCollectionId
+    ? workspace?.selectedCollection : undefined) ?? workspace?.collections.find((collection) => (
     collection.collectionId === selectedCollectionId
-  ))
+  )) ?? directory.collections.find((collection) => collection.collectionId === selectedCollectionId)
 
   useEffect(() => {
     setRenameDraft(selectedCollection?.name ?? '')
@@ -149,21 +137,28 @@ export function useCollectionLibraryWorkflow() {
 
   useEffect(() => {
     const controller = new AbortController()
+    tagController.current?.abort()
+    tagController.current = controller
+    const sequence = ++tagRequestSequence.current
+    setLoadingMoreTags(false)
     collectionLibraryHttp.tags(controller.signal).then((page) => {
+      if (sequence !== tagRequestSequence.current) return
       setTags(page.items)
+      setTagNextCursor(page.nextCursor)
       setTagError(false)
     }).catch((reason) => {
+        if (sequence !== tagRequestSequence.current) return
         if (reason instanceof DOMException && reason.name === 'AbortError') return
         const status = reason instanceof CollectionLibraryProblem ? reason.status : 503
         if (status === 401 || status === 403) accessFailure(status)
         setTagError(true)
     })
-    return () => controller.abort()
+    return () => { tagRequestSequence.current += 1; tagController.current?.abort() }
   }, [accessFailure, revision])
 
   useEffect(() => {
     setMapProjection(undefined)
-    if (selectedCollectionId === undefined) {
+    if (!hasPlaceScope) {
       mapRequests.current.invalidate()
       setMapStatus('idle')
       return
@@ -172,8 +167,10 @@ export function useCollectionLibraryWorkflow() {
     const timeout = window.setTimeout(() => {
       setMapStatus('loading')
       collectionLibraryHttp.map({
-        scope: 'collection',
-        collectionId: selectedCollectionId,
+        favoriteScope: selectedCollectionId === undefined ? { kind: 'all' } : { kind: 'collection', collectionId: selectedCollectionId },
+        ratingFilter: { kind: ratingFilter },
+        tagIds: [...tagIds], tagMatch: 'all', areaKeys: [...areaKeys], taxonomyKeys: [...taxonomyKeys],
+        ...(placeQuery.trim() ? { placeQuery: placeQuery.trim() } : {}),
         west: mapViewport.bounds.west,
         south: mapViewport.bounds.south,
         east: mapViewport.bounds.east,
@@ -195,7 +192,7 @@ export function useCollectionLibraryWorkflow() {
       window.clearTimeout(timeout)
       mapRequests.current.cancel(request)
     }
-  }, [accessFailure, mapViewport, revision, selectedCollectionId])
+  }, [accessFailure, areaKeys, hasPlaceScope, mapViewport, placeQuery, ratingFilter, revision, selectedCollectionId, tagIds, taxonomyKeys])
 
   const refresh = useCallback(async () => {
     setRevision((current) => current + 1)
@@ -266,7 +263,9 @@ export function useCollectionLibraryWorkflow() {
       description: null,
     }, () => {
       setNewCollectionName('')
+      setCollectionQuery('')
       setSelectedCollectionId(collectionId)
+      setMobileSurface('list')
     })
   }
 
@@ -298,30 +297,39 @@ export function useCollectionLibraryWorkflow() {
       setSelectedCollectionId(undefined)
       setSelectedPlaceId(undefined)
       setDeleteArmed(false)
+      setMobileSurface('collections')
     })
   }
 
   const selectedPlace = workspace?.places.find((row) => row.placeId === selectedPlaceId)
 
   return {
-    pageStatus,
+    pageStatus: directory.error === undefined ? pageStatus : failureStatus(directory.error),
     workspace,
-    collections: workspace?.collections ?? [],
+    collections: directory.collections,
+    collectionNextCursor: directory.nextCursor,
+    loadingCollections: directory.loading,
     selectedCollectionId,
     selectedCollection,
     selectedPlaceId,
     selectedPlace,
     mobileSurface,
+    collectionQuery,
+    placeQuery,
+    setCollectionQuery,
+    setPlaceQuery,
     ratingFilter,
     tagIds,
     areaKeys,
     taxonomyKeys,
     tags,
     tagError,
+    tagNextCursor,
+    loadingMoreTags,
     availableFilters: workspace?.availableFilters,
     taxonomyOptions,
     loadingMore,
-    loadingMoreCollections,
+    loadingMoreCollections: directory.loadingMore,
     mapViewport,
     mapProjection,
     mapStatus,
@@ -334,6 +342,13 @@ export function useCollectionLibraryWorkflow() {
     handleAccessFailure: accessFailure,
     handleTagsChanged,
     selectCollection: (collectionId: string) => {
+      if (selectedCollectionId !== collectionId) {
+        setPlaceQuery('')
+        setRatingFilter('any')
+        setTagIds([])
+        setAreaKeys([])
+        setTaxonomyKeys([])
+      }
       setSelectedCollectionId(collectionId)
       setSelectedPlaceId(undefined)
       setMobileSurface('list')
@@ -342,11 +357,29 @@ export function useCollectionLibraryWorkflow() {
       setSelectedPlaceId(placeId)
       setMobileSurface('detail')
     },
+    selectAllPlaces: () => {
+      if (selectedCollectionId !== undefined) {
+        setPlaceQuery(''); setRatingFilter('any'); setTagIds([]); setAreaKeys([]); setTaxonomyKeys([])
+      }
+      setSelectedCollectionId(undefined)
+      setSelectedPlaceId(undefined)
+      setMobileSurface('list')
+    },
     closeDetail: () => {
       setSelectedPlaceId(undefined)
       setMobileSurface('list')
     },
     showMobileSurface: setMobileSurface,
+    showCollections: () => {
+      setSelectedPlaceId(undefined)
+      setMobileSurface('collections')
+    },
+    clearFilters: () => {
+      setRatingFilter('any')
+      setTagIds([])
+      setAreaKeys([])
+      setTaxonomyKeys([])
+    },
     setRatingFilter,
     toggleTag: (tagId: string) => setTagIds((current) => current.includes(tagId)
       ? current.filter((candidate) => candidate !== tagId)
@@ -363,14 +396,33 @@ export function useCollectionLibraryWorkflow() {
     recoverMissingCollection: () => {
       setSelectedCollectionId(undefined)
       setSelectedPlaceId(undefined)
+      setMobileSurface('collections')
       setRevision((current) => current + 1)
     },
     loadMore: () => workspace?.placeNextCursor === undefined
       ? undefined
       : loadWorkspace({ placeCursor: workspace.placeNextCursor }, 'places'),
-    loadMoreCollections: () => workspace?.collectionNextCursor === undefined
-      ? undefined
-      : loadWorkspace({ collectionCursor: workspace.collectionNextCursor }, 'collections'),
+    loadMoreCollections: directory.loadMore,
+    loadMoreTags: async () => {
+      if (tagNextCursor === undefined || loadingMoreTags) return
+      setLoadingMoreTags(true)
+      tagController.current?.abort()
+      const controller = new AbortController()
+      tagController.current = controller
+      const sequence = ++tagRequestSequence.current
+      try {
+        const page = await collectionLibraryHttp.tags(controller.signal, tagNextCursor)
+        if (sequence !== tagRequestSequence.current) return
+        setTags((current) => [...current, ...page.items.filter((tag) => !current.some((item) => item.tagId === tag.tagId))])
+        setTagNextCursor(page.nextCursor)
+        setTagError(false)
+      } catch (reason) {
+        if (sequence !== tagRequestSequence.current || (reason instanceof DOMException && reason.name === 'AbortError')) return
+        const status = reason instanceof CollectionLibraryProblem ? reason.status : 503
+        if (status === 401 || status === 403) accessFailure(status)
+        setTagError(true)
+      } finally { if (sequence === tagRequestSequence.current) setLoadingMoreTags(false) }
+    },
     setNewCollectionName,
     setRenameDraft,
     armDelete: () => setDeleteArmed(true),

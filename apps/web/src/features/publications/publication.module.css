@@ -1,4 +1,4 @@
-.page { min-height: 100vh; padding: 48px 24px; }
+.page { height: 100%; min-height: 0; overflow: auto; padding: 24px; }
 .article { max-width: 760px; margin: 0 auto; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 32px; }
 .eyebrow { margin: 0 0 12px; color: var(--accent); font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .title { margin: 0; font-size: clamp(28px, 5vw, 44px); line-height: 1.1; }
@@ -14,7 +14,8 @@
 .placeSummary strong { overflow-wrap: anywhere; font-size: 15px; }
 .placeSummary span, .pending { color: var(--muted); font-size: 12px; line-height: 1.6; }
 .selectedItem { background: var(--accent-soft); }
-.mapSection { margin-top: 28px; }
+.mapSection { grid-column: 2; grid-row: 1; min-width: 0; height: 100%; min-height: 0; }
+.mapSection > section { height: 100%; min-height: 0; border: 0; }
 .count { margin: 24px 0 0; color: var(--muted); font-size: 13px; }
 .loadMore { display: grid; place-items: center; min-height: 72px; }
 .loadMore button { min-height: 40px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--ink); padding: 9px 14px; font: inherit; }
@@ -32,6 +33,34 @@
 .placeDetailContent dt { color: var(--muted); font-size: 12px; }
 .placeDetailContent dd { margin: 0; overflow-wrap: anywhere; font-size: 13px; }
 .placeDetailError { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--danger, #b42318); }
+
+.sharedPage { height: 100%; min-height: 0; }
+.collectionWorkspace { --panel-width: 380px; position: relative; display: grid; grid-template-columns: var(--panel-width) minmax(0, 1fr); height: 100%; min-height: 0; overflow: hidden; }
+.collectionWorkspace[data-collapsed='true'] { grid-template-columns: 0 minmax(0, 1fr); }
+.collectionWorkspace [hidden] { display: none; }
+.collectionPanel { grid-column: 1; grid-row: 1; min-width: 0; min-height: 0; border-right: 1px solid var(--line); background: var(--surface); overflow-y: auto; }
+.collectionPanel:focus { outline: none; }
+.collectionDirectory { height: 100%; overflow-y: auto; overscroll-behavior: contain; padding: 20px 18px; }
+.collectionHeader h1 { margin: 0; color: var(--ink); font-size: 22px; line-height: 1.45; letter-spacing: -.03em; overflow-wrap: anywhere; }
+.collectionHeader > p { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+.collectionHeader details { margin-top: 12px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.collectionHeader summary { min-height: 36px; align-content: center; cursor: pointer; }
+.collectionWorkspace .actions { margin-top: 14px; padding: 12px; border-radius: 8px; }
+.collectionWorkspace .actions p { font-size: 12px; }
+.collectionWorkspace .actions button { background: var(--accent); border-color: var(--accent); color: white; min-height: 44px; width: 100%; }
+.collectionWorkspace .list { margin-top: 12px; }
+.collectionWorkspace .placeDetail { margin: 0; padding: 18px; border: 0; border-radius: 0; }
+.panelToggle { position: absolute; z-index: 3; left: var(--panel-width); top: 50%; transform: translateY(-50%); min-height: 54px; padding: 8px 7px; border: 1px solid var(--line-strong); border-left: 0; border-radius: 0 8px 8px 0; background: var(--surface); color: var(--accent); cursor: pointer; }
+.collectionWorkspace[data-collapsed='true'] .panelToggle { left: 0; }
+@media (max-width: 760px) {
+  .collectionWorkspace { --map-controls-bottom: 10px; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 38fr) minmax(0, 62fr); }
+  .collectionWorkspace[data-collapsed='true'] { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 0; }
+  .mapSection { grid-column: 1; grid-row: 1; }
+  .collectionPanel { grid-column: 1; grid-row: 2; height: 100%; border: 1px solid var(--line); overflow: hidden auto; }
+  .panelToggle, .collectionWorkspace[data-collapsed='true'] .panelToggle { left: 12px; top: 12px; transform: none; min-height: 40px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; }
+  .collectionDirectory { padding: 16px; }
+  .collectionHeader h1 { font-size: 20px; }
+}
 
 @media (max-width: 520px) {
   .page { padding: 12px 10px; }

@@ -32,6 +32,7 @@ ENV NODE_ENV=production \
 WORKDIR /app
 COPY --from=web-build --chown=node:node /workspace/apps/web/.next/standalone ./
 COPY --from=web-build --chown=node:node /workspace/apps/web/.next/static ./apps/web/.next/static
+COPY --from=web-build --chown=node:node /workspace/apps/web/public ./apps/web/public
 USER node
 CMD ["node", "apps/web/server.js"]
 

@@ -88,6 +88,23 @@ function workflow(overrides: Partial<PublicCollectionDiscoveryWorkflow> = {}) {
 }
 
 describe('Public Collection discovery view', () => {
+  it('keeps the directory and detail in one controlled working surface with a separate map', () => {
+    const markup = renderToStaticMarkup(<PublicCollectionDiscoveryView MapRenderer={FakeMap} workflow={workflow({ mobileSurface: 'detail' })} />)
+    expect(markup).toContain('id="discovery-working-panel"')
+    expect(markup).toContain('aria-controls="discovery-working-panel"')
+    expect(markup).toContain('공개 목록 패널 접기')
+    expect(markup).toContain('전체 목록 지도 열기')
+    expect(markup).toMatch(/class="[^"]*directorySurface[^"]*" hidden=""/)
+  })
+
+  it('bounds a large classification chooser instead of rendering every choice at once', () => {
+    const markup = renderToStaticMarkup(<PublicCollectionDiscoveryView MapRenderer={FakeMap} workflow={workflow({
+      directory: { items: [collection], availableFilters: { areas: [], topics: [], taxonomies: Array.from({ length: 150 }, (_, index) => ({ key: `type-${index}`, label: `음식 종류 ${index}` })) } },
+    })} />)
+    expect(markup).toContain('장소 유형 후보 검색')
+    expect(markup).toContain('후보 40개 표시')
+    expect(markup).not.toContain('음식 종류 149')
+  })
   it('renders discovery filters, author context, map preview, and explicit copy choices', () => {
     const markup = renderToStaticMarkup(
       <PublicCollectionDiscoveryView MapRenderer={FakeMap} workflow={workflow()} />,

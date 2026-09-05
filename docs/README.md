@@ -22,6 +22,7 @@ cookie 재사용을 전제로 하지 않는다. [`회원 로컬 커넥터`](../a
 - Test scope, fixtures, Playwright, or live checks: `testing/README.md`.
 - Local execution, worker lifecycle, deployment, backup, or incidents: `operations/README.md`.
 - A durable decision or supersession: `adr/README.md`.
+- Verified symptoms, causes and recurrence probes: `incidents/README.md`.
 
 Delivery state is **source-only; Stages 6.5, 7.5–7.17, and 11A–11E2B3 complete, with Stages 2, 7, and 11 in progress and Stage 8 paused after 8B**. A Place-owned physical PostGIS runtime is
 implemented and tested in disposable environments but not deployed or active. No provider account, browser profile, map credential, Identity

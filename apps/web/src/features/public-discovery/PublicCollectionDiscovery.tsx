@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, type FormEvent, type RefObject } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type RefObject } from 'react'
 
 import type { PlaceMapBounds, PlaceMapRenderer } from '@/platform/maps/public'
 
@@ -154,42 +154,25 @@ function ReportForm({ workflow }: Readonly<{ workflow: PublicCollectionDiscovery
 
 function DetailPanel({
   detail,
-  MapRenderer,
   workflow,
 }: Readonly<{
   detail: DiscoveryCollectionDetail
-  MapRenderer: PlaceMapRenderer
   workflow: PublicCollectionDiscoveryWorkflow
 }>) {
-  const bounds = boundsFor(detail.places)
-  const markers = detail.places.flatMap((item) => item.place?.location === null || item.place?.location === undefined
-    ? [] : [{ id: item.placeId, label: item.place.name, location: item.place.location }])
   return <article aria-labelledby="selected-collection-title" className={styles.detailPanel}>
     <header className={styles.detailHeader}>
       <h2 id="selected-collection-title">{detail.name}</h2>
-      <p>{detail.description ?? '작성자가 설명을 추가하지 않았습니다.'}</p>
+      {detail.description && <details><summary>목록 소개</summary><p>{detail.description}</p></details>}
       <div className={styles.detailOwner}>
         <span aria-hidden="true" className={styles.ownerAvatar}>{detail.owner.displayName.slice(0, 1)}</span>
         <a href={`/people/${encodeURIComponent(detail.owner.handle)}`}>{detail.owner.displayName} · @{detail.owner.handle}</a>
         <span>{displayDate(detail.updatedAt)} 업데이트</span>
       </div>
     </header>
-    <div className={styles.mapWrap}>
-      {bounds === undefined ? <div className={styles.mapEmpty}>위치가 확인된 장소가 없어 목록으로 보여드려요.</div> : <MapRenderer
-        ariaLabel={`${detail.name} 지도 미리보기`}
-        bounds={bounds}
-        description={`공개된 장소 ${markers.length}곳을 지도에 표시했습니다.`}
-        markers={markers}
-        onSelect={workflow.setMapSelectedPlaceId}
-        selectedMarkerId={workflow.selectedMapPlaceId}
-        title={`${detail.placeCount}곳 지도 미리보기`}
-        zoom={11}
-      />}
-    </div>
     <section className={styles.places}>
       <div className={styles.placesHeader}><h3>이 목록에 포함된 장소</h3><span>{detail.places.length}/{detail.placeCount}곳 · 일부 복사할 장소를 선택하세요</span></div>
       <ol aria-label="공개 목록 장소" className={styles.placeList}>
-        {detail.places.map((item) => <li className={styles.placeItem} key={item.placeId}>
+        {detail.places.map((item) => <li className={styles.placeItem} data-selected={workflow.selectedMapPlaceId === item.placeId} key={item.placeId}>
           <label>
             <input aria-label={`${item.place?.name ?? '정보 준비 중인 장소'} 일부 복사 선택`} checked={workflow.selectedPlaceIds.has(item.placeId)} onChange={() => workflow.togglePlace(item.placeId)} type="checkbox" />
             {item.place === null ? <span className={styles.pendingPlace}>장소 정보 준비 중</span> : <>
@@ -197,6 +180,7 @@ function DetailPanel({
               <span>{[item.place.taxonomyLabel, item.place.areaLabel].filter(Boolean).join(' · ') || '분류 준비 중'}</span>
             </>}
           </label>
+          {item.place?.location != null && <button aria-label={`${item.place.name} 지도에서 선택`} onClick={() => workflow.setMapSelectedPlaceId(item.placeId)} type="button">지도</button>}
         </li>)}
       </ol>
       {detail.nextCursor !== undefined && <button className={styles.loadMore} disabled={workflow.detailLoadingMore} onClick={() => void workflow.loadMoreDetail()} type="button">{workflow.detailLoadingMore ? '불러오는 중…' : '장소 더 보기'}</button>}
@@ -223,55 +207,124 @@ function DetailPanel({
   </article>
 }
 
+function DiscoveryMap({ MapRenderer, workflow }: Readonly<{
+  MapRenderer: PlaceMapRenderer
+  workflow: PublicCollectionDiscoveryWorkflow
+}>) {
+  const collection = workflow.detail
+  const [viewport, setViewport] = useState({ bounds: boundsFor(collection?.places ?? []) ?? { west: -180, east: 180, south: -60, north: 85 }, zoom: collection === undefined ? 1 : 11 })
+  const initialPlaces = useRef(collection?.places)
+  initialPlaces.current = collection?.places
+  useEffect(() => {
+    const bounds = boundsFor(initialPlaces.current ?? [])
+    if (bounds !== undefined) setViewport({ bounds, zoom: 11 })
+  }, [collection?.publicationId])
+  const markers = collection?.places.flatMap((item) => item.place?.location == null
+    ? [] : [{ id: item.placeId, label: item.place.name, location: item.place.location }]) ?? []
+  return <div className={styles.mapWrap}>
+    <MapRenderer ariaLabel="공개 목록 지도" bounds={viewport.bounds}
+      description={collection === undefined ? '목록을 선택하면 공개 장소를 지도에서 볼 수 있습니다.' : `불러온 장소 중 위치가 있는 ${markers.length}곳 미리보기입니다. 전체 ${collection.placeCount}곳과 다를 수 있습니다.`}
+      markers={markers} onSelect={workflow.setMapSelectedPlaceId} onViewportChange={setViewport}
+      selectedMarkerId={workflow.selectedMapPlaceId} title={collection?.name ?? '공개 목록 지도'} zoom={viewport.zoom} />
+    {collection !== undefined && <p className={styles.mapCoverage}>불러온 장소 {markers.length}곳 지도 미리보기 · <a href={`/share/collections/${collection.publicationId}`}>전체 목록 지도 열기</a></p>}
+  </div>
+}
+
+function SearchableFilter({ label, emptyLabel, options, value, onChange }: Readonly<{
+  label: string
+  emptyLabel: string
+  options: readonly Readonly<{ key: string; label: string }>[]
+  value: string
+  onChange: (value: string) => void
+}>) {
+  const [query, setQuery] = useState('')
+  const matches = options.filter((option) => option.label.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
+  const visible = matches.slice(0, 40)
+  const selected = options.find((option) => option.key === value)
+  if (selected !== undefined && !visible.some((option) => option.key === value)) visible.unshift(selected)
+  return <div aria-label={`${label} 선택`} className={styles.searchableFilter} role="group">
+    <span>{label}</span>
+    {options.length > 12 && <input aria-label={`${label} 후보 검색`} onChange={(event) => setQuery(event.target.value)} placeholder="분류 이름으로 찾기" value={query} />}
+    <select aria-label={`${label} 필터`} onChange={(event) => onChange(event.target.value)} value={value}>
+      <option value="">{emptyLabel}</option>
+      {visible.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
+    </select>
+    {matches.length > 40 && <small>후보 40개 표시 · 검색어로 좁혀 주세요.</small>}
+  </div>
+}
+
 export function PublicCollectionDiscoveryView({
   MapRenderer,
   workflow,
 }: Readonly<{ MapRenderer: PlaceMapRenderer; workflow: PublicCollectionDiscoveryWorkflow }>) {
   const detailPanel = useRef<HTMLElement>(null)
   const selectedCollectionButton = useRef<HTMLButtonElement>(null)
+  const directoryPanel = useRef<HTMLDivElement>(null)
+  const directoryScroll = useRef(0)
+  const [collapsed, setCollapsed] = useState(false)
+  const activeFilters = [
+    { field: 'areaKey' as const, prefix: '지역', choices: workflow.directory?.availableFilters.areas },
+    { field: 'taxonomyKey' as const, prefix: '장소 유형', choices: workflow.directory?.availableFilters.taxonomies },
+    { field: 'topicKey' as const, prefix: '주제', choices: workflow.directory?.availableFilters.topics },
+  ].flatMap(({ field, prefix, choices }) => {
+    const value = workflow.filters[field]
+    if (value === '') return []
+    return [{ field, label: `${prefix}: ${choices?.find((item) => item.key === value)?.label ?? '선택됨'}` }]
+  })
   const submit = (event: FormEvent) => { event.preventDefault(); workflow.submitSearch() }
   const openDetail = (publicationId: string) => {
+    directoryScroll.current = directoryPanel.current?.scrollTop ?? 0
     workflow.select(publicationId)
-    if (window.matchMedia('(max-width: 820px)').matches) {
-      window.requestAnimationFrame(() => detailPanel.current?.focus())
-    }
+    setCollapsed(false)
+    window.requestAnimationFrame(() => detailPanel.current?.focus())
   }
   const showDirectory = () => {
     workflow.showMobileDirectory()
-    window.requestAnimationFrame(() => selectedCollectionButton.current?.focus())
+    window.requestAnimationFrame(() => {
+      if (directoryPanel.current !== null) directoryPanel.current.scrollTop = directoryScroll.current
+      selectedCollectionButton.current?.focus({ preventScroll: true })
+    })
   }
-  return <section aria-labelledby="discovery-title" className={styles.workspace}>
+  return <section aria-label="공개 목록 둘러보기" className={styles.workspace} data-collapsed={collapsed}>
+    <div className={styles.workingPanel} hidden={collapsed} id="discovery-working-panel">
+    <div className={styles.directorySurface} hidden={workflow.mobileSurface === 'detail'}>
     <header className={styles.pageHeader}>
-      <div><p className={styles.eyebrow}>PUBLIC COLLECTIONS</p><h1 id="discovery-title">둘러보기</h1><p>다른 사람이 공개한 장소 목록을 발견하고 내 곳곳간으로 가져오세요.</p></div>
+      <div><h1 id="discovery-title">공개 목록 찾기</h1><p>다른 사람이 전체 공개한 목록을 검색합니다.</p></div>
       <form className={styles.search} onSubmit={submit} role="search">
         <svg aria-hidden="true" fill="none" viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5" /><path d="m12.5 12.5 4 4" /></svg>
         <input aria-label="공개 목록 검색" onChange={(event) => workflow.setDraftQuery(event.target.value)} placeholder="공개 목록 주제 검색" value={workflow.draftQuery} />
         <button type="submit">검색</button>
       </form>
     </header>
+    {activeFilters.length > 0 && <div aria-label="적용한 공개 목록 필터" className={styles.selectedFilters}>
+      {activeFilters.map((filter) => <button aria-label={`${filter.label} 해제`} key={filter.field} onClick={() => workflow.changeFilter(filter.field, '')} type="button">{filter.label} ×</button>)}
+    </div>}
+    <details className={styles.filterDisclosure}><summary>목록 필터·정렬</summary>
     <div aria-label="공개 목록 필터" className={styles.filterBar}>
-      <label><span className={styles.visuallyHidden}>지역</span><select aria-label="지역 필터" onChange={(event) => workflow.changeFilter('areaKey', event.target.value)} value={workflow.filters.areaKey}><option value="">모든 지역</option>{workflow.directory?.availableFilters.areas.map((item) => <option key={item.key} value={item.key}>{item.label}{item.count === undefined ? '' : ` (${item.count})`}</option>)}</select></label>
-      <label><span className={styles.visuallyHidden}>장소 유형</span><select aria-label="장소 유형 필터" onChange={(event) => workflow.changeFilter('taxonomyKey', event.target.value)} value={workflow.filters.taxonomyKey}><option value="">모든 장소 유형</option>{workflow.directory?.availableFilters.taxonomies.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}</select></label>
-      <label><span className={styles.visuallyHidden}>주제</span><select aria-label="주제 필터" onChange={(event) => workflow.changeFilter('topicKey', event.target.value)} value={workflow.filters.topicKey}><option value="">모든 주제</option>{workflow.directory?.availableFilters.topics.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}</select></label>
+      <SearchableFilter emptyLabel="모든 지역" label="지역" onChange={(value) => workflow.changeFilter('areaKey', value)} options={workflow.directory?.availableFilters.areas ?? []} value={workflow.filters.areaKey} />
+      <SearchableFilter emptyLabel="모든 장소 유형" label="장소 유형" onChange={(value) => workflow.changeFilter('taxonomyKey', value)} options={workflow.directory?.availableFilters.taxonomies ?? []} value={workflow.filters.taxonomyKey} />
+      <SearchableFilter emptyLabel="모든 주제" label="주제" onChange={(value) => workflow.changeFilter('topicKey', value)} options={workflow.directory?.availableFilters.topics ?? []} value={workflow.filters.topicKey} />
       <label><span className={styles.visuallyHidden}>공개 범위</span><select aria-label="공개 범위 필터" disabled value="public"><option value="public">전체 공개만</option></select></label>
       <label><span className={styles.visuallyHidden}>정렬</span><select aria-label="정렬" onChange={(event) => workflow.changeFilter('sort', event.target.value as 'recent' | 'largest' | 'name')} value={workflow.filters.sort}><option value="recent">최신순</option><option value="largest">장소 많은 순</option><option value="name">이름순</option></select></label>
       <button className={styles.resetButton} onClick={workflow.resetFilters} type="button">필터 초기화</button>
       <span className={styles.resultCount}>{workflow.directory?.items.length ?? 0}개 목록 표시</span>
-    </div>
-    <div className={styles.content} data-mobile-surface={workflow.mobileSurface}>
-      <div className={styles.directory}>
+    </div></details>
+      <div className={styles.directory} ref={directoryPanel}>
         {workflow.directoryState !== 'ready' ? <StatePanel context="directory" retry={workflow.retryDirectory} state={workflow.directoryState} />
           : workflow.directory?.items.length === 0 ? <div className={styles.statePanel}><strong>조건에 맞는 공개 목록이 없습니다</strong><p>검색어나 필터를 줄여 다른 목록을 찾아보세요.</p><button onClick={workflow.resetFilters} type="button">모든 목록 보기</button></div>
             : <><ol aria-label="공개 컬렉션 검색 결과" className={styles.directoryList}>{workflow.directory?.items.map((collection) => <li key={collection.publicationId}><CollectionCard buttonRef={collection.publicationId === workflow.selectedPublicationId ? selectedCollectionButton : undefined} collection={collection} onSelect={() => openDetail(collection.publicationId)} selected={collection.publicationId === workflow.selectedPublicationId} /></li>)}</ol>{workflow.directory?.nextCursor !== undefined && <button className={styles.loadMore} disabled={workflow.directoryLoadingMore} onClick={() => void workflow.loadMoreDirectory()} type="button">{workflow.directoryLoadingMore ? '불러오는 중…' : '목록 더 보기'}</button>}{workflow.directoryPageError && <p className={`${styles.actionStatus} ${styles.errorStatus}`} role="alert">다음 공개 목록을 불러오지 못했습니다. 다시 시도해 주세요.</p>}</>}
       </div>
-      <aside aria-label="선택한 공개 목록" className={styles.detail} ref={detailPanel} tabIndex={-1}>
+      </div>
+      <aside aria-label="선택한 공개 목록" className={styles.detail} hidden={workflow.mobileSurface !== 'detail'} ref={detailPanel} tabIndex={-1}>
         <button className={styles.mobileBack} onClick={showDirectory} type="button">← 공개 목록으로</button>
         {workflow.selectedPublicationId === undefined || workflow.selectedPublicationId === '' ? <div className={styles.statePanel}><strong>목록을 선택해 주세요</strong><p>선택한 공개 목록의 장소와 지도, 복사 옵션이 여기에 표시됩니다.</p></div>
           : workflow.detailState !== 'ready' ? <StatePanel context="detail" retry={workflow.retryDetail} state={workflow.detailState} />
             : workflow.detail === undefined ? <div className={styles.statePanel}><strong>목록 상세를 준비 중입니다</strong></div>
-              : <DetailPanel MapRenderer={MapRenderer} detail={workflow.detail} workflow={workflow} />}
+              : <DetailPanel detail={workflow.detail} workflow={workflow} />}
       </aside>
     </div>
+    <button aria-controls="discovery-working-panel" aria-expanded={!collapsed} aria-label={collapsed ? '공개 목록 패널 펼치기' : '공개 목록 패널 접기'} className={styles.panelToggle} onClick={() => setCollapsed(!collapsed)} type="button">{collapsed ? '목록 ›' : '‹ 접기'}</button>
+    <DiscoveryMap MapRenderer={MapRenderer} workflow={workflow} />
   </section>
 }
 

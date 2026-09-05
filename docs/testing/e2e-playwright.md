@@ -6,6 +6,44 @@ shell, and own reviewed Windows and Linux screenshot baselines. CI retains Playw
 actual images, diffs, and traces on failure. Each user-visible milestone adds success, denial, loading, empty, error, and recovery paths
 that it actually introduces.
 
+## 현재 프론트엔드 완료 기준 (2026-09-05)
+
+현재 지도 중심 화면 구조는 아래 과거 단계의 패널 설명과 테스트 개수보다 우선한다.
+데스크톱은 아이콘 아래 작은 글씨가 있는 고정 메뉴를, 모바일은 햄버거 메뉴 대신 고정 하단
+내비게이션을 사용한다. 설정 E2E는 현재 페이지 링크를 확인하고, 제품 내비게이션을 숨기지 않은 채
+패밀리 서비스 그룹만 독립적으로 펼치고 접는다. 설정 탭의 방향키·Home·End 이동은 유지한다.
+공통 헤더에는 전역 검색 입력을 두지 않는다.
+
+내 곳곳간은 Collection 목록부터 표시한다. Collection의 장소 목록과 선택한 장소 상세는 같은
+작업 패널을 교체하며, 접기 동작은 작업 상태를 보존하면서 지도를 넓힌다. 모바일에서도 작업 패널
+위에 지도가 보인다. 현재 fixture는 검색·필터 범위, 제한된 필터 후보, 뒤로 가기 상태, 지도와 목록의
+일치 여부를 검증한다. 실제 공급자 데이터나 거리 지도 타일의 가용성을 입증하지는 않는다.
+공개 Collection과 둘러보기 상세도 지도를 가리는 별도 열을 추가하지 않는다.
+
+설정 스크린샷 검증 대상은 공유 링크 배치 검토(데스크톱·모바일), 좁은 화면의 배치 검토와 목적지
+매핑 검토, 격리된 원격 로그인 베타(데스크톱·모바일)다. 기준 이미지를 승인하기 전에 헤더, 고정
+메뉴·하단 내비게이션, 내부 스크롤, 조작 요소의 가독성, 명확한 연동 준비 중 상태를 검토한다.
+Windows 기준 이미지는 Windows Chromium으로, Linux 기준 이미지는 버전이 고정된 Playwright
+Linux Chromium 이미지로 생성한다. 다른 운영체제의 이미지를 복사하거나 이름만 바꾸지 않는다.
+각 운영체제의 실제 캡처를 검토한 뒤 `--update-snapshots` 없이 같은 테스트를 다시 실행한다.
+이 수집 fixture는 원격 로그인 화면을 열지 않으며 공급자 연동 성공을 입증하지 않는다.
+
+### Linux에서 Windows 개발 서버를 검증할 때의 주의사항
+
+2026-09-05 기준 이미지 생성 중 Linux에서 Windows Next 개발 서버를
+`http://host.docker.internal:<port>`로 열면 HTML은 200이지만 개발용 스크립트 청크는 403으로
+거부되는 것을 확인했다. 이 HTTP origin에서는 보안 컨텍스트용 `crypto.randomUUID`도 없었다.
+제품 보안 설정을 완화하지 않고, 컨테이너 내부 loopback 프록시로 테스트 전용
+`http://127.0.0.1:<port>` origin을 유지했다. 프록시는 HTTP와 WebSocket upgrade를 모두 전달해야
+한다. HTTP만 전달하면 모든 JavaScript 응답이 200이어도 개발용 HMR 연결을 기다리며 hydration이
+멈췄다. 결정적인 확인 항목은 HTML·청크 요청 성공, WebSocket upgrade 성공,
+`isSecureContext === true`, hydration 이후 fixture 기반 설정 화면 표시다. 같은 경로에서 버전이
+고정된 Linux Chromium 테스트를 실행하고, 업데이트 모드 없이 Linux 자체 기준 이미지와 비교한다.
+프로덕션 standalone 검증에는 HMR 전달이 필요하지 않다.
+
+목적지 매핑 캡처는 문서 전체에 영향을 주는 `scrollIntoView({ block: 'start' })` 대신 설정 소유
+컨테이너만 스크롤한다. 테스트는 공통 헤더가 화면 영역 안에 남아 있는지도 확인한다.
+
 Stage 7 브라우저 UI E2E는 test-owned BFF fixture로 connection 목록, import 시작, partial progress,
 cancel/resume, duplicate/incomplete review를 desktop/mobile에서 검증한다. 첫 review 응답을 의도적으로
 실패시킨 뒤 같은 command ID로 재시도하며, request에 token/profile/cookie/secret이 없음을 확인한다.

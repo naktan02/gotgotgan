@@ -31,6 +31,11 @@ test('Admin catalog search, paging, public detail and denied access', async ({ p
     await expect(page.getByRole('navigation', { name: '관리자 메뉴' })).toBeVisible()
     await toggle.click()
     await expect(page.getByRole('navigation', { name: '관리자 메뉴' })).toBeHidden()
+  } else {
+    await page.getByRole('button', { name: '관리자 메뉴 접기' }).click()
+    await expect(page.getByRole('navigation', { name: '관리자 메뉴' })).toBeHidden()
+    await page.getByRole('button', { name: '관리자 메뉴 펼치기' }).click()
+    await expect(page.getByRole('navigation', { name: '관리자 메뉴' })).toBeVisible()
   }
   await page.getByRole('textbox', { name: '장소·지역·분류 검색' }).fill('카페')
   await page.getByRole('button', { name: '검색', exact: true }).click()

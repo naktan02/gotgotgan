@@ -1,4 +1,9 @@
-# Data transfer settings
+# 계정·데이터 설정
+
+설정은 자체 스크롤 영역과 상단에 고정되는 여섯 탭을 사용한다. 계정·공개 프로필 탭의 안내와
+이동 링크는 전송 capability 장애에 종속되지 않는다. 실제 프로필 읽기/쓰기는 해당 화면의 기존
+인증 경계를 다시 통과하고, 연결·가져오기·내보내기와 승인은 기존 capability gate를 그대로 따른다.
+로그인/로그아웃은 공통 상단이 소유하며 이 화면에서 POST 전용 로그아웃 URL을 GET 링크로 열지 않는다.
 
 `/settings`는 기존 Workspace Shell 안에서 이 feature의 public entry만 조합한다. 화면은
 `DataTransferSettingsGateway`가 제공하는 capability를 그대로 표현하며, 특정 Provider가 실제로

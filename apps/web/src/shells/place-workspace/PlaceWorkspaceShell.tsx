@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
+import { publicProfileRecordSchema } from '@place/contracts/profiles'
 
 import {
   createOperationPollController,
@@ -10,6 +11,7 @@ import {
 } from '../../features/operation-history/public/index'
 import type { FamilyNavigation } from '@/platform/family-navigation/family-navigation'
 
+import { WorkspaceHeader } from './WorkspaceHeader'
 import styles from './place-workspace-shell.module.css'
 
 const placeNavigation = [
@@ -36,69 +38,37 @@ function NavigationIcon({ id }: Readonly<{ id: NavigationPage }>) {
   )
 }
 
-function DefaultSearch() {
-  return (
-    <form action="/" className={styles.defaultSearch} role="search">
-      <svg aria-hidden="true" fill="none" viewBox="0 0 20 20">
-        <circle cx="8.5" cy="8.5" r="5" /><path d="m12.5 12.5 4 4" />
-      </svg>
-      <input aria-label="곳곳간 카탈로그 검색" name="q" placeholder="장소, 지역, 분류로 검색" />
-    </form>
-  )
-}
-
 export function PlaceWorkspaceShell({
   children,
   currentPage = 'home',
   familyNavigation,
-  topbarSearch,
   account,
 }: Readonly<{
   children?: React.ReactNode
   currentPage?: NavigationPage
   familyNavigation: FamilyNavigation
-  topbarSearch?: React.ReactNode
   account?: Readonly<{ label: string; href?: string }>
 }>) {
-  const [navigationOpen, setNavigationOpen] = useState(false)
-  const [familyOpen, setFamilyOpen] = useState(true)
+  const [familyOpen, setFamilyOpen] = useState(false)
   const [resolvedAccount, setResolvedAccount] = useState(account)
   const [operationIndicator, setOperationIndicator] = useState<OperationIndicator>()
-  const menuButton = useRef<HTMLButtonElement>(null)
-  const sidebar = useRef<HTMLElement>(null)
-
-  const closeNavigation = (restoreFocus = false) => {
-    setNavigationOpen(false)
-    if (restoreFocus) window.setTimeout(() => menuButton.current?.focus())
-  }
-
+  const familyRef = useRef<HTMLElement>(null)
+  const familyButton = useRef<HTMLButtonElement>(null)
   useEffect(() => {
-    if (!navigationOpen) return
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeNavigation(true)
-      if (event.key === 'Tab' && window.matchMedia('(max-width: 720px)').matches) {
-        const focusable = [...(sidebar.current?.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled])',
-        ) ?? [])].filter((item) => !item.hasAttribute('hidden'))
-        const first = focusable[0]
-        const last = focusable.at(-1)
-        if (first === undefined || last === undefined) return
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault()
-          last.focus()
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault()
-          first.focus()
-        }
-      }
+    if (!familyOpen) return
+    const closeOutside = (event: PointerEvent) => {
+      if (!familyRef.current?.contains(event.target as Node)) setFamilyOpen(false)
     }
-    window.addEventListener('keydown', onKeyDown)
-    if (window.matchMedia('(max-width: 720px)').matches) {
-      sidebar.current?.querySelector<HTMLElement>('a, button')?.focus()
+    const closeEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setFamilyOpen(false); familyButton.current?.focus() }
     }
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [navigationOpen])
-
+    document.addEventListener('pointerdown', closeOutside)
+    document.addEventListener('keydown', closeEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside)
+      document.removeEventListener('keydown', closeEscape)
+    }
+  }, [familyOpen])
   useEffect(() => {
     setResolvedAccount(account)
     if (account !== undefined) return
@@ -107,9 +77,15 @@ export function PlaceWorkspaceShell({
       cache: 'no-store',
       credentials: 'same-origin',
       signal: controller.signal,
-    }).then((response) => {
-      if ([200, 403, 404].includes(response.status)) {
+    }).then(async (response) => {
+      if (controller.signal.aborted) return
+      if (response.status === 404) {
         setResolvedAccount({ label: '내 계정', href: '/profile' })
+      } else if (response.ok) {
+        const profile = publicProfileRecordSchema.safeParse(await response.json())
+        if (profile.success && !controller.signal.aborted) {
+          setResolvedAccount({ label: profile.data.displayName, href: '/profile' })
+        }
       }
     }).catch(() => undefined)
     return () => controller.abort()
@@ -140,52 +116,18 @@ export function PlaceWorkspaceShell({
   const attentionCount = operationIndicator?.attentionCount ?? 0
   const operationStatus = (operationIndicator?.activeCount ?? 0) > 0
     ? `작업 ${operationIndicator?.activeCount ?? 0}개`
-    : attentionCount > 0 ? `확인 ${attentionCount}개` : '카탈로그'
+    : attentionCount > 0 ? `확인 ${attentionCount}개` : '작업 내역'
 
   return (
     <div className={styles.workspace}>
-      <header className={styles.topbar}>
-        <button
-          aria-controls="place-navigation"
-          aria-expanded={navigationOpen}
-          aria-label={navigationOpen ? '메뉴 닫기' : '메뉴 열기'}
-          className={styles.menuButton}
-          ref={menuButton}
-          onClick={() => setNavigationOpen((current) => !current)}
-          type="button"
-        >
-          <span aria-hidden="true" className={styles.menuGlyph} />
-        </button>
-        <Link aria-label="곳곳간 홈" className={styles.wordmark} href="/">곳곳간</Link>
-        <div className={styles.searchSlot}>{topbarSearch ?? <DefaultSearch />}</div>
-        <div className={styles.topActions}>
-          <Link aria-label={`현재 작업 상태: ${operationStatus}. 작업 내역 보기`} className={styles.modeButton} href="/settings?tab=history">
-            <span aria-hidden="true" className={styles.modeDot} data-attention={attentionCount > 0} />
-            <span>{operationStatus}</span>
-          </Link>
-          <Link aria-label={attentionCount > 0 ? `작업 알림 ${attentionCount}개. 작업 내역 보기` : '작업 알림 없음. 작업 내역 보기'} className={styles.iconButton} href="/settings?tab=history">
-            <svg aria-hidden="true" fill="none" viewBox="0 0 20 20">
-              <path d="M4.5 14.5h11l-1.5-2V8a4 4 0 0 0-8 0v4.5z" /><path d="M8.5 17h3" />
-            </svg>
-            {attentionCount > 0 && <span className={styles.notificationBadge}>{attentionCount > 99 ? '99+' : attentionCount}</span>}
-          </Link>
-          {resolvedAccount?.href !== undefined ? (
-            <Link aria-label={`${resolvedAccount.label} 프로필과 계정`} className={styles.profileLink} href={resolvedAccount.href}>
-              <span aria-hidden="true">{resolvedAccount.label.slice(0, 1)}</span><small>{resolvedAccount.label}</small>
-            </Link>
-          ) : (
-            <a className={styles.loginLink} href="/api/auth/oidc/start">로그인</a>
-          )}
-        </div>
-      </header>
+      <WorkspaceHeader
+        title={placeNavigation.find((item) => item.id === currentPage)?.label ?? '장소 탐색'}
+        account={resolvedAccount}
+        operationStatus={operationStatus}
+        attentionCount={attentionCount}
+      />
 
-      <aside
-        className={navigationOpen ? `${styles.sidebar} ${styles.sidebarOpen}` : styles.sidebar}
-        id="place-navigation"
-        ref={sidebar}
-        role={navigationOpen ? 'dialog' : undefined}
-        aria-modal={navigationOpen ? true : undefined}
-      >
+      <aside className={styles.sidebar}>
         <nav aria-label="곳곳간 메뉴" className={styles.primaryNavigation}>
           <ul className={styles.placeList}>
             {placeNavigation.map((item) => (
@@ -194,7 +136,6 @@ export function PlaceWorkspaceShell({
                   aria-current={currentPage === item.id ? 'page' : undefined}
                   className={currentPage === item.id ? styles.activeItem : styles.navItem}
                   href={item.href}
-                  onClick={() => closeNavigation()}
                 >
                   <NavigationIcon id={item.id} />
                   <span>{item.label}</span>
@@ -204,21 +145,23 @@ export function PlaceWorkspaceShell({
           </ul>
         </nav>
 
-        <nav aria-label="패밀리 서비스" className={styles.family}>
+        <nav aria-label="패밀리 서비스" className={styles.family} ref={familyRef}>
           <button
             aria-controls="family-service-list"
             aria-expanded={familyOpen}
             aria-label={familyOpen ? '패밀리 서비스 접기' : '패밀리 서비스 펼치기'}
             className={styles.familyToggle}
+            ref={familyButton}
             onClick={() => setFamilyOpen((current) => !current)}
             type="button"
           >
-            <span>패밀리 서비스</span>
-            <svg aria-hidden="true" className={familyOpen ? styles.chevronOpen : undefined} fill="none" viewBox="0 0 20 20">
-              <path d="m6.5 8 3.5 3.5L13.5 8" />
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              {[4, 10, 16].flatMap((x) => [4, 10, 16].map((y) => <rect key={`${x}-${y}`} x={x} y={y} width="4" height="4" rx="1" />))}
             </svg>
+            <span>패밀리</span>
           </button>
-          <div hidden={!familyOpen} id="family-service-list">
+          <div className={styles.familyPopover} hidden={!familyOpen} id="family-service-list">
+            <strong>패밀리 서비스</strong>
             {familyNavigation.deliveryState === 'active' && familyNavigation.items.length > 0 ? (
               <ul className={styles.familyList}>
                 {familyNavigation.items.map((item) => (
@@ -238,14 +181,6 @@ export function PlaceWorkspaceShell({
         </nav>
       </aside>
 
-      {navigationOpen && (
-        <button
-          aria-label="메뉴 닫기"
-          className={styles.scrim}
-          onClick={() => closeNavigation(true)}
-          type="button"
-        />
-      )}
 
       <main className={styles.main}>{children}</main>
     </div>

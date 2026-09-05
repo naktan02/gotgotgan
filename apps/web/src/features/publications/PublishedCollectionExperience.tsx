@@ -39,6 +39,11 @@ export function PublishedCollectionExperience({
   const [mapError, setMapError] = useState<string>()
   const [mapRevision, setMapRevision] = useState(0)
   const [selectedPlaceId, setSelectedPlaceId] = useState<string>()
+  const [collapsed, setCollapsed] = useState(false)
+  const panel = useRef<HTMLDivElement>(null)
+  const listPanel = useRef<HTMLDivElement>(null)
+  const selectedButton = useRef<HTMLButtonElement | null>(null)
+  const listScroll = useRef(0)
   const sentinel = useRef<HTMLDivElement>(null)
   const listLoading = useRef(false)
   const listRequest = useRef(0)
@@ -137,13 +142,53 @@ export function PublishedCollectionExperience({
       unprojected > 0 ? ` 위치 준비 중인 장소는 ${unprojected}개입니다.` : ''
     }`)
 
+  const selectPlace = (placeId: string) => {
+    if (selectedPlaceId === undefined) {
+      listScroll.current = listPanel.current?.scrollTop ?? 0
+      selectedButton.current = document.activeElement instanceof HTMLButtonElement ? document.activeElement : null
+    }
+    setSelectedPlaceId(placeId)
+    setCollapsed(false)
+    window.requestAnimationFrame(() => panel.current?.focus())
+  }
+  const returnToList = () => {
+    setSelectedPlaceId(undefined)
+    window.requestAnimationFrame(() => {
+      if (listPanel.current !== null) listPanel.current.scrollTop = listScroll.current
+      selectedButton.current?.focus({ preventScroll: true })
+    })
+  }
+
   return (
-    <>
+    <section aria-label="공유 목록 작업 공간" className={styles.collectionWorkspace} data-collapsed={collapsed}>
+      <div className={styles.collectionPanel} hidden={collapsed} id="published-collection-panel" ref={panel} tabIndex={-1}>
+      <div className={styles.collectionDirectory} hidden={selectedPlaceId !== undefined} ref={listPanel}>
+      <header className={styles.collectionHeader}>
+        <p>공유 목록 · 장소 {initialCollection.placeCount}곳</p>
+        <h1>{initialCollection.name}</h1>
+        {initialCollection.description && <details><summary>목록 소개</summary><p>{initialCollection.description}</p></details>}
+      </header>
       <PublishedCollectionActions
         name={initialCollection.name}
         publicationId={initialCollection.publicationId}
       />
-      <section aria-label="공유 컬렉션 지도" className={styles.mapSection}>
+      <p className={styles.count}>
+        전체 {initialCollection.placeCount}개 · {places.length}개 불러옴
+      </p>
+      <PublishedCollectionPlaces onSelect={selectPlace} places={places} selectedPlaceId={selectedPlaceId} />
+      {nextCursor !== undefined && (
+        <div className={styles.loadMore} ref={sentinel}>
+          <button disabled={loadingMore} onClick={() => void loadMore()} type="button">
+            {loadingMore ? '불러오는 중…' : '장소 더 보기'}
+          </button>
+        </div>
+      )}
+      {listError !== undefined && <p className={styles.listError} role="alert">{listError}</p>}
+      </div>
+      {selectedPlaceId !== undefined && <PublishedPlaceDetail onClose={returnToList} placeId={selectedPlaceId} />}
+      </div>
+      <button aria-controls="published-collection-panel" aria-expanded={!collapsed} aria-label={collapsed ? '공유 목록 패널 펼치기' : '공유 목록 패널 접기'} className={styles.panelToggle} onClick={() => setCollapsed(!collapsed)} type="button">{collapsed ? '목록 ›' : '‹ 접기'}</button>
+      <div className={styles.mapSection}>
         <MapRenderer
           ariaLabel="공유 컬렉션 지도"
           bounds={viewport.bounds}
@@ -155,35 +200,13 @@ export function PublishedCollectionExperience({
             zoom: Math.min(22, viewport.zoom + 2),
           })}
           onMove={mapError === undefined ? undefined : () => setMapRevision((value) => value + 1)}
-          onSelect={setSelectedPlaceId}
+          onSelect={selectPlace}
           onViewportChange={setViewport}
           selectedMarkerId={selectedPlaceId}
           title={`공유 장소 ${represented}개`}
           zoom={viewport.zoom}
         />
-      </section>
-      {selectedPlaceId !== undefined && (
-        <PublishedPlaceDetail
-          onClose={() => setSelectedPlaceId(undefined)}
-          placeId={selectedPlaceId}
-        />
-      )}
-      <p className={styles.count}>
-        전체 {initialCollection.placeCount}개 · {places.length}개 불러옴
-      </p>
-      <PublishedCollectionPlaces
-        onSelect={setSelectedPlaceId}
-        places={places}
-        selectedPlaceId={selectedPlaceId}
-      />
-      {nextCursor !== undefined && (
-        <div className={styles.loadMore} ref={sentinel}>
-          <button disabled={loadingMore} onClick={() => void loadMore()} type="button">
-            {loadingMore ? '불러오는 중…' : '장소 더 보기'}
-          </button>
-        </div>
-      )}
-      {listError !== undefined && <p className={styles.listError} role="alert">{listError}</p>}
-    </>
+      </div>
+    </section>
   )
 }

@@ -50,6 +50,7 @@ export function MapLibrePlaceMap({
   const initialCameraModeRef = useRef(initialCameraMode)
   const synchronizingRef = useRef<Readonly<{ center: readonly [number, number]; zoom: number }> | undefined>(undefined)
   const [state, setState] = useState<'loading' | 'ready' | 'unavailable'>('loading')
+  const [attempt, setAttempt] = useState(0)
 
   callbacksRef.current = { onClusterSelect, onSelect, onViewportChange }
   featuresRef.current = { clusters, markers, selectedMarkerId }
@@ -60,24 +61,33 @@ export function MapLibrePlaceMap({
     if (container === null) return
     let cancelled = false
     let loaded = false
+    setState('loading')
+    const deadline = window.setTimeout(() => { if (!cancelled && !loaded) setState('unavailable') }, 20_000)
     void import('maplibre-gl').then((maplibre) => {
       if (cancelled) return
       moduleRef.current = maplibre
+      maplibre.setWorkerUrl('/map-assets/maplibre-6.7.0/maplibre-gl-worker.mjs')
       const map = new maplibre.Map({
         container,
         style: readBrowserPlaceMapStyleUrl(),
         center: centerForBounds(bounds),
         zoom,
+        attributionControl: { compact: true },
+        trackResize: false,
       })
       mapRef.current = map
-      map.addControl(new maplibre.NavigationControl({ showCompass: true }), 'top-right')
+      map.addControl(new maplibre.NavigationControl({ showCompass: false }), 'bottom-right')
       map.addControl(new maplibre.GeolocateControl({
         positionOptions: { enableHighAccuracy: false },
         trackUserLocation: false,
-      }), 'top-right')
+      }), 'bottom-right')
+      const resizeObserver = new ResizeObserver(() => map.resize({ placeLayoutResize: true }))
+      resizeObserver.observe(container)
+      map.once('remove', () => resizeObserver.disconnect())
       map.on('load', () => {
         if (cancelled) return
         loaded = true
+        window.clearTimeout(deadline)
         configurePlaceMapProjection(map)
         const current = featuresRef.current
         installPlaceSource(map, createPlaceFeatureCollection(
@@ -107,7 +117,9 @@ export function MapLibrePlaceMap({
       map.on('error', () => {
         if (!loaded && !cancelled) setState('unavailable')
       })
-      map.on('moveend', () => {
+      map.on('moveend', (event) => {
+        // A sheet, keyboard, or panel resize is layout, not a new geographic search intent.
+        if ('placeLayoutResize' in event && event.placeLayoutResize === true) return
         const synchronization = synchronizingRef.current
         synchronizingRef.current = undefined
         if (synchronization !== undefined) {
@@ -139,15 +151,16 @@ export function MapLibrePlaceMap({
     })
     return () => {
       cancelled = true
+      window.clearTimeout(deadline)
       accessibleMarkersRef.current.forEach((marker) => marker.remove())
       accessibleMarkersRef.current = []
       mapRef.current?.remove()
       mapRef.current = undefined
       moduleRef.current = undefined
     }
-  // The MapLibre instance is intentionally created once; prop synchronization happens below.
+  // Recreate only for an explicit retry; ordinary prop synchronization happens below.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [attempt])
 
   useEffect(() => {
     const map = mapRef.current
@@ -192,11 +205,13 @@ export function MapLibrePlaceMap({
         <button className={styles.action} onClick={onMove} type="button">{moveLabel}</button>
       )}
       {state !== 'ready' && (
-        <p className={styles.status} role="status">
-          {state === 'loading' ? '지도를 불러오는 중입니다.' : '지도를 불러오지 못했습니다. 목록은 계속 사용할 수 있습니다.'}
-        </p>
+        <div className={styles.status} role="status">
+          {state === 'loading' ? '지도를 불러오는 중입니다.' : <>지도를 불러오지 못했습니다. 목록은 계속 사용할 수 있습니다.
+            <button type="button" onClick={() => setAttempt((current) => current + 1)}>지도 다시 연결</button>
+          </>}
+        </div>
       )}
-      <p className={styles.description}>{description}</p>
+      <p className={styles.summary}>{description}</p>
     </section>
   )
 }

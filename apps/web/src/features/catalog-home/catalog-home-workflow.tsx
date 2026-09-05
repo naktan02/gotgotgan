@@ -16,7 +16,7 @@ export type CatalogHomePlace = Readonly<{
   areaLabel: string | null
   location: Readonly<{ latitude: number; longitude: number }> | null
   taxonomyLabel: string | null
-  evidenceStatus: 'verified' | 'unverified' | 'conflicted' | 'stale'
+  evidenceStatus: 'verified' | 'unverified' | 'conflicted' | 'stale' | 'unknown'
 }>
 
 export type FavoriteCollection = Readonly<{
@@ -49,13 +49,11 @@ export type CatalogHomeWorkflow = Readonly<{
   collections: readonly FavoriteCollection[]
   collectionState: CollectionState
   collectionPickerOpen: boolean
-  recentlyFiled: readonly CatalogHomePlace[]
   viewport: PlaceMapViewport
   mapMarkers: readonly PlaceMapMarker[]
   mapClusters: readonly PlaceMapCluster[]
   mapState: 'idle' | 'loading' | 'ready' | 'unavailable'
   mapDescription: string
-  mobileSurface: 'list' | 'map'
   changeDraftQuery: (query: string) => void
   submitSearch: () => void
   toggleQuickType: (value: string) => void
@@ -66,10 +64,7 @@ export type CatalogHomeWorkflow = Readonly<{
   onFilingAccessFailure: (status: number) => void
   setViewport: (viewport: PlaceMapViewport) => void
   selectMapCluster: (cluster: PlaceMapCluster) => void
-  searchViewport: () => void
   loadMore: () => void
-  showList: () => void
-  showMap: () => void
 }>
 
 const initialViewport: PlaceMapViewport = {
@@ -95,6 +90,7 @@ export function CatalogHomeProvider({
   const [interpretation, setInterpretation] = useState<readonly CatalogSearchInterpretationToken[]>([])
   const [items, setItems] = useState<readonly CatalogHomePlace[]>([])
   const [selectedPlaceId, setSelectedPlaceId] = useState<string>()
+  const [selectedSummary, setSelectedSummary] = useState<CatalogHomePlace>()
   const [searchState, setSearchState] = useState<SearchState>('idle')
   const [searchError, setSearchError] = useState<string>()
   const [nextCursor, setNextCursor] = useState<string>()
@@ -103,17 +99,16 @@ export function CatalogHomeProvider({
   const [collections, setCollections] = useState<readonly FavoriteCollection[]>([])
   const [collectionState, setCollectionState] = useState<CollectionState>('loading')
   const [collectionPickerOpen, setCollectionPickerOpen] = useState(false)
-  const [recentlyFiled, setRecentlyFiled] = useState<readonly CatalogHomePlace[]>([])
   const [viewport, setViewport] = useState<PlaceMapViewport>(initialViewport)
   const [mapMarkers, setMapMarkers] = useState<readonly PlaceMapMarker[]>([])
   const [mapClusters, setMapClusters] = useState<readonly PlaceMapCluster[]>([])
   const [mapState, setMapState] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
   const [mapDescription, setMapDescription] = useState('검색하면 현재 지도 영역의 장소를 표시합니다.')
-  const [mobileSurface, setMobileSurface] = useState<'list' | 'map'>('list')
   const searchSequence = useRef(0)
   const searchController = useRef<AbortController | undefined>(undefined)
   const mapRequests = useRef(createCatalogMapRequestGuard())
   const viewportRef = useRef(initialViewport)
+  const viewportTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const updateViewport = useCallback((next: PlaceMapViewport) => {
     viewportRef.current = next
@@ -188,8 +183,10 @@ export function CatalogHomeProvider({
     exclusions: readonly string[],
     bounds?: SearchBounds,
     cursor?: string,
+    preserveSelection = false,
   ) => {
     const effectiveQuery = normalize([query, quickType].filter(Boolean).join(' '))
+    clearTimeout(viewportTimer.current)
     if (effectiveQuery.length === 0) {
       searchController.current?.abort()
       mapRequests.current.invalidate()
@@ -197,6 +194,7 @@ export function CatalogHomeProvider({
       setItems([])
       setInterpretation([])
       setSelectedPlaceId(undefined)
+      setSelectedSummary(undefined)
       setSearchState('idle')
       setNextCursor(undefined)
       setPaginationState('idle')
@@ -213,6 +211,7 @@ export function CatalogHomeProvider({
     if (appending) {
       setPaginationState('loading')
     } else {
+      if (!preserveSelection) setSelectedSummary(undefined)
       mapRequests.current.invalidate()
       setSubmittedQuery(query)
       setActiveSearchBounds(bounds)
@@ -246,9 +245,11 @@ export function CatalogHomeProvider({
         : places)
       setInterpretation(page.interpretation.tokens)
       if (!appending) {
-        setSelectedPlaceId((current) => places.some((item) => item.placeId === current)
-          ? current
-          : places[0]?.placeId)
+        if (!preserveSelection) {
+          setSelectedPlaceId((current) => places.some((item) => item.placeId === current)
+            ? current
+            : places[0]?.placeId)
+        }
         const mapViewport = bounds === undefined && page.mapBounds !== null
           ? { ...viewportRef.current, bounds: page.mapBounds }
           : bounds === undefined
@@ -268,7 +269,7 @@ export function CatalogHomeProvider({
       } else {
         setItems([])
         setInterpretation([])
-        setSelectedPlaceId(undefined)
+        if (!preserveSelection) { setSelectedPlaceId(undefined); setSelectedSummary(undefined) }
         setSearchState('unavailable')
         setSearchError('카탈로그 검색 결과를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
         setMapState('unavailable')
@@ -281,12 +282,19 @@ export function CatalogHomeProvider({
     const query = normalize(initialQuery)
     if (query.length > 0) void executeSearch(query, null, [])
     return () => {
+      clearTimeout(viewportTimer.current)
       searchController.current?.abort()
       mapRequests.current.invalidate()
     }
   }, [executeSearch, initialQuery])
 
-  const selected = items.find((item) => item.placeId === selectedPlaceId)
+  const selectedMapPlace = mapMarkers.find((item) => item.id === selectedPlaceId)
+  const selected = (selectedSummary?.placeId === selectedPlaceId ? selectedSummary : undefined) ?? items.find((item) => item.placeId === selectedPlaceId) ?? (
+    selectedMapPlace === undefined ? undefined : {
+      placeId: selectedMapPlace.id, name: selectedMapPlace.label, location: selectedMapPlace.location,
+      areaLabel: null, taxonomyLabel: null, evidenceStatus: 'unknown' as const,
+    }
+  )
   const submitSearch = () => {
     const query = normalize(draftQuery)
     setDraftQuery(query)
@@ -305,14 +313,8 @@ export function CatalogHomeProvider({
     void executeSearch(submittedQuery, selectedQuickType, next)
   }
   const onFilingApplied = useCallback(async () => {
-    if (selected !== undefined) {
-      setRecentlyFiled((current) => [
-        selected,
-        ...current.filter((place) => place.placeId !== selected.placeId),
-      ].slice(0, 3))
-    }
     await loadCollections(new AbortController().signal)
-  }, [loadCollections, selected])
+  }, [loadCollections])
 
   const onFilingAccessFailure = useCallback((status: number) => {
     setCollectionState(status === 401 ? 'signed-out' : 'unavailable')
@@ -322,27 +324,37 @@ export function CatalogHomeProvider({
     draftQuery, submittedQuery, selectedQuickType, interpretation, items, selected,
     searchState, searchError, nextCursor, paginationState,
     collections, collectionState, collectionPickerOpen,
-    recentlyFiled, viewport, mapMarkers, mapClusters, mapState, mapDescription, mobileSurface,
+    viewport, mapMarkers, mapClusters, mapState, mapDescription,
     changeDraftQuery: setDraftQuery,
     submitSearch,
     toggleQuickType,
     excludeToken,
     selectPlace: (placeId) => {
+      const marker = mapMarkers.find((item) => item.id === placeId)
+      setSelectedSummary(items.find((item) => item.placeId === placeId) ?? (marker === undefined ? undefined : {
+        placeId: marker.id, name: marker.label, location: marker.location,
+        areaLabel: null, taxonomyLabel: null, evidenceStatus: 'unknown',
+      }))
       setSelectedPlaceId(placeId)
       setCollectionPickerOpen(false)
-      setMobileSurface('map')
     },
     setCollectionPickerOpen,
     onFilingApplied,
     onFilingAccessFailure,
-    setViewport: updateViewport,
+    setViewport: (next) => {
+      updateViewport(next)
+      clearTimeout(viewportTimer.current)
+      if (normalize([submittedQuery, selectedQuickType].filter(Boolean).join(' ')).length > 0) {
+        viewportTimer.current = setTimeout(() => {
+          void executeSearch(submittedQuery, selectedQuickType, excludedTokenIds, next.bounds, undefined, true)
+        }, 300)
+      }
+    },
     selectMapCluster: (cluster) => {
       const next = { bounds: cluster.bounds, zoom: Math.min(22, viewport.zoom + 2) }
       updateViewport(next)
-      const effectiveQuery = normalize([submittedQuery, selectedQuickType].filter(Boolean).join(' '))
-      if (effectiveQuery.length > 0) void executeMapSearch(effectiveQuery, excludedTokenIds, next)
+      void executeSearch(submittedQuery, selectedQuickType, excludedTokenIds, next.bounds, undefined, true)
     },
-    searchViewport: () => void executeSearch(submittedQuery, selectedQuickType, excludedTokenIds, viewport.bounds),
     loadMore: () => {
       if (nextCursor !== undefined && paginationState !== 'loading') {
         void executeSearch(
@@ -354,12 +366,10 @@ export function CatalogHomeProvider({
         )
       }
     },
-    showList: () => setMobileSurface('list'),
-    showMap: () => setMobileSurface('map'),
   }), [
     collectionPickerOpen, collectionState, collections,
-    activeSearchBounds, draftQuery, excludedTokenIds, executeMapSearch, executeSearch, interpretation, items,
-    mapClusters, mapDescription, mapMarkers, mapState, mobileSurface, nextCursor, onFilingAccessFailure, onFilingApplied, paginationState, recentlyFiled, searchError, searchState, selected,
+    activeSearchBounds, draftQuery, excludedTokenIds, executeSearch, interpretation, items,
+    mapClusters, mapDescription, mapMarkers, mapState, nextCursor, onFilingAccessFailure, onFilingApplied, paginationState, searchError, searchState, selected,
     selectedQuickType, submittedQuery, updateViewport, viewport,
   ])
 

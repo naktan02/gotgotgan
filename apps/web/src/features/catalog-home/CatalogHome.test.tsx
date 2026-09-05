@@ -42,13 +42,11 @@ const workflow: CatalogHomeWorkflow = {
   collections: [{ collectionId: 'collection-1', name: '전시 후보', placeCount: 2 }],
   collectionState: 'ready',
   collectionPickerOpen: true,
-  recentlyFiled: [],
   viewport: { zoom: 11, bounds: { west: 126, south: 37, east: 128, north: 38 } },
   mapMarkers: [],
   mapClusters: [],
   mapState: 'unavailable',
   mapDescription: '현재 결과에는 표시할 좌표가 없습니다.',
-  mobileSurface: 'list',
   changeDraftQuery: noOperation,
   submitSearch: noOperation,
   toggleQuickType: noOperation,
@@ -59,13 +57,24 @@ const workflow: CatalogHomeWorkflow = {
   onFilingAccessFailure: noOperation,
   setViewport: noOperation,
   selectMapCluster: noOperation,
-  searchViewport: noOperation,
   loadMore: noOperation,
-  showList: noOperation,
-  showMap: noOperation,
 }
 
 describe('Catalog Home view', () => {
+  it('does not invent an evidence label for a map-only place summary', () => {
+    const markup = renderToStaticMarkup(
+      <CatalogHomeView
+        MapRenderer={FakeMap}
+        PlaceFilingRenderer={FakePlaceFiling}
+        workflow={{ ...workflow, items: [], selected: { ...place, evidenceStatus: 'unknown' } }}
+      />,
+    )
+
+    expect(markup).toContain('좌표 없는 전시 공간')
+    expect(markup).toContain('컬렉션 선택')
+    expect(markup).not.toMatch(/검증됨|검토 전|정보 충돌|갱신 필요/)
+  })
+
   it('keeps the result and Collection chooser available when coordinates are absent', () => {
     const markup = renderToStaticMarkup(
       <CatalogHomeView

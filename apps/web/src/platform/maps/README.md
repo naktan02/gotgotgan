@@ -24,3 +24,14 @@ opt-in한 경우에도 이미 geolocation 권한이 `granted`일 때만 첫 카�
 `external-links`는 유효한 좌표를 Google·Kakao 길찾기에 전달하고, 한국 좌표는 NAVER app route를,
 해외 좌표는 NAVER Web 검색을 사용한다. `testing/DeterministicPlaceMap`은 CI와 feature
 테스트 전용 Adapter다. 운영 app은 이를 import하지 않고 `MapLibrePlaceMap`만 조립한다.
+
+`build/prepare-map-assets`는 Next dev/build 단계에서 설치된 6.7.0 worker·상대 shared module·license를
+동일 출처의 versioned public 경로에 복사한다. renderer는 그 worker URL을 명시한다. Docker Web target도
+public 산출물을 함께 배포하며 production startup은 파일을 생성하지 않는다. 업그레이드 시 정확한
+worker와 renderer 버전 결속을 재검토해야 한다. 패널/키보드 ResizeObserver는 map 크기만 갱신하고
+사용자 지도 이동 callback을 호출하지 않는다. 지도 연결 실패는 목록과 분리해 다시 연결할 수 있다.
+
+`testing/live-map-smoke.mjs <base-url> <output-directory>`는 명시적 opt-in 공개 타일 검사다. 로그인,
+위치 권한, 개인 데이터나 fixture substitution 없이 4개 폭의 HTTP worker/타일과 실제 지도·지구본
+캡처를 확인한다. 결정적 E2E와 분리해서 실행한다. 원인/재현은
+[`지도 incident`](../../../../../docs/incidents/2026-09-05-map-worker-and-viewport.md)에 기록한다.

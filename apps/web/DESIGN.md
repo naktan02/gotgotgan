@@ -4,6 +4,34 @@ Read the workspace design brief at `../../../plans/place-platform-ui-design-brie
 user-visible behavior. The direction is **Calm Utility Map**: restrained surfaces, clear hierarchy,
 map/workspace balance, one icon system, and density that serves repeated use.
 
+## Approved frontend revision — 2026-09-05
+
+The latest product decision supersedes the historical pane and header descriptions below.
+The Finance user-workspace header is the visual reference, not a source dependency: keep a stable
+page-title region and right-aligned theme/account region. Service search belongs in the active
+working panel, never in a separately redesigned global header. Do not invent account tiers,
+security facts, notifications, or active integrations when the current public contracts lack them.
+
+Member navigation uses one icon above a small visible label. Family navigation is a labelled
+launcher at the foot of that rail, consumes the existing manifest, and does not invent services.
+The administrator app remains independently deployed and has no Family Services launcher.
+
+My Library starts at the member's Collection directory, not at all saved places and not at an
+automatically selected first Collection. Choosing a Collection replaces that same working panel
+with its places; choosing a place replaces it with detail. Back restores search, filters, scroll,
+and focus. Collapsing the panel preserves its current state and expands the map. Map workspaces
+never add another parallel detail column or hide the map merely because detail is selected.
+
+Collection search and place search have explicit, separate scopes. Large filter vocabularies use
+search and bounded drill-down, with only selected values always visible. Facet counts must disclose
+incomplete projection coverage; loaded list pages must never masquerade as the entire filter scope.
+Place type/food classification, member-created Collections, personal tags, notes, ratings, and visits
+remain distinct. Missing classification is not evidence that a place does not serve that food.
+
+Map workspaces fill the available content height. Locate and zoom controls sit at bottom right,
+globe projection remains enabled, and required data attribution stays accessible. Mobile uses one
+bottom working surface with explicit map/list/detail transitions and no compressed desktop columns.
+
 ## Ownership
 
 ```text

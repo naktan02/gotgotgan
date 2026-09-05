@@ -1,4 +1,4 @@
-import type { LibraryMapResponse } from '@place/contracts/library'
+import type { LibraryMapResponse, PersonalLibraryMapResponseV2 } from '@place/contracts/library'
 
 import type {
   PlaceMapCluster,
@@ -19,7 +19,7 @@ export function PersonalLibraryMap({
 }: Readonly<{
   error?: string
   loading: boolean
-  projection?: LibraryMapResponse
+  projection?: LibraryMapResponse | PersonalLibraryMapResponseV2
   selectedPlaceId?: string
   viewport: PlaceMapViewport
   onRetry: () => void
@@ -44,7 +44,9 @@ export function PersonalLibraryMap({
   const unprojected = projection?.coverage.unprojectedPlaceCount ?? 0
   const description = error ?? (loading
     ? '현재 지도 영역의 저장 장소를 불러오는 중입니다.'
-    : unprojected > 0
+    : projection === undefined
+      ? '목록을 선택하면 해당 장소의 지도 정보를 불러옵니다.'
+      : unprojected > 0
       ? `현재 영역 ${represented}개를 표시했습니다. 위치 투영 대기 ${unprojected}개가 있습니다.`
       : `현재 지도 영역의 저장 장소 ${represented}개를 모두 표현했습니다.`)
 

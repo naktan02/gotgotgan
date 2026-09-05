@@ -72,12 +72,15 @@ test('discovers a public list and copies only explicitly selected Places through
   })
 
   await page.goto('/browse')
-  await expect(page.getByRole('heading', { name: '둘러보기' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '공개 목록 찾기' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '도쿄 국립과학박물관 지도에서 선택' })).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('browse-directory.png') })
+  await page.getByText('목록 필터·정렬', { exact: true }).click()
   await expect(page.getByLabel('공개 범위 필터')).toHaveValue('public')
   await expect(page.getByRole('heading', { name: '도쿄 현지인이 추천하는 실내 가족 코스' }).first()).toBeVisible()
-  if (testInfo.project.name === 'mobile-chromium') {
-    await page.getByRole('button', { name: /도쿄 현지인이 추천하는 실내 가족 코스/ }).click()
-  }
+  await page.getByRole('button', { name: /도쿄 현지인이 추천하는 실내 가족 코스/ }).click()
+  await expect(page.getByRole('complementary', { name: '선택한 공개 목록' })).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('browse-selected-list.png') })
   await expect(page.getByText('개인 메모, 방문 기록, 개인 사진과 평점은 공개되거나 복사되지 않습니다')).toBeVisible()
 
   await page.getByLabel('도쿄 국립과학박물관 일부 복사 선택').check()
@@ -104,16 +107,29 @@ test('keeps discovery and selected detail usable on a mobile viewport', async ({
   await expect(collection).toBeVisible()
   await expect(detail).toBeHidden()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-  expect(await page.getByRole('region', { name: '둘러보기' }).evaluate(
+  expect(await page.getByRole('region', { name: '공개 목록 둘러보기' }).evaluate(
     (workspace) => workspace.scrollWidth <= workspace.clientWidth,
   )).toBe(true)
 
   await collection.click()
   await expect(detail).toBeVisible()
-  await expect(page.getByRole('region', { name: '도쿄 현지인이 추천하는 실내 가족 코스 지도 미리보기' })).toBeVisible()
+  await expect(page.getByRole('region', { name: '공개 목록 지도' })).toBeVisible()
+  const panelBox = await page.locator('#discovery-working-panel').boundingBox()
+  const mapBox = await page.getByRole('region', { name: '공개 목록 지도' }).boundingBox()
+  expect(panelBox).not.toBeNull()
+  expect(mapBox).not.toBeNull()
+  expect((mapBox?.y ?? 0) + (mapBox?.height ?? 0)).toBeLessThanOrEqual((panelBox?.y ?? 0) + 1)
+  const marker = page.getByRole('region', { name: '공개 목록 지도' }).getByRole('button', { name: '도쿄 국립과학박물관 지도에서 선택' })
+  await marker.click()
+  await expect(marker).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByRole('button', { name: '전체 복사' })).toBeVisible()
 
   await page.getByRole('button', { name: '← 공개 목록으로' }).click()
   await expect(detail).toBeHidden()
   await expect(collection).toBeFocused()
+  await page.getByRole('button', { name: '공개 목록 패널 접기' }).click()
+  await expect(collection).toBeHidden()
+  await expect(page.getByRole('region', { name: '공개 목록 지도' })).toBeVisible()
+  await page.getByRole('button', { name: '공개 목록 패널 펼치기' }).click()
+  await expect(collection).toBeVisible()
 })

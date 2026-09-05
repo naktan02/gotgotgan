@@ -165,19 +165,31 @@ async function routeImportAcquisition(page: Page) {
   })
 }
 
-test('shows provider connections independently and preserves the settings shell', async ({ page }, testInfo) => {
+test('shows provider connections with persistent navigation and a collapsible Family group', async ({ page }, testInfo) => {
   await routeSettings(page)
   await page.goto('/settings')
   await expect(page.getByRole('heading', { name: '설정' })).toBeVisible()
   await expect(page.getByText('연결된 계정 없음').first()).toBeVisible()
   await expect(page.getByText('계정 연결은 운영 연동이 활성화된 뒤 사용할 수 있습니다').first()).toBeVisible()
-  if (testInfo.project.name === 'mobile-chromium') {
-    await page.getByRole('button', { name: '메뉴 열기' }).click()
-  }
-  await expect(page.getByRole('navigation', { name: '패밀리 서비스' })).toBeVisible()
+  const navigation = page.getByRole('navigation', { name: '곳곳간 메뉴' })
+  await expect(navigation).toBeVisible()
+  await expect(navigation.getByRole('link', { name: '설정' })).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('button', { name: '메뉴 열기' })).toHaveCount(0)
+  const family = page.getByRole('navigation', { name: '패밀리 서비스' })
+  await expect(family).toBeVisible()
+  await family.getByRole('button', { name: '패밀리 서비스 펼치기' }).click()
+  await expect(family.getByRole('button', { name: '패밀리 서비스 접기' })).toHaveAttribute('aria-expanded', 'true')
+  await expect(family.getByRole('link')).toHaveCount(2)
+  await expect(family.getByRole('link').first()).toBeVisible()
+  await expect(navigation).toBeVisible()
+  await family.getByRole('button', { name: '패밀리 서비스 접기' }).click()
+  await expect(family.getByRole('button', { name: '패밀리 서비스 펼치기' })).toHaveAttribute('aria-expanded', 'false')
+  await expect(family.getByRole('link').first()).toBeHidden()
   await expect(page.getByRole('tab', { name: '작업 내역' })).toBeVisible()
   if (testInfo.project.name === 'mobile-chromium') {
-    await page.getByRole('banner').getByRole('button', { name: '메뉴 닫기' }).click()
+    const navigationBox = await navigation.boundingBox()
+    expect(navigationBox?.y).toBeGreaterThan((page.viewportSize()?.height ?? 0) / 2)
+    expect((navigationBox?.y ?? 0) + (navigationBox?.height ?? 0)).toBeLessThanOrEqual(page.viewportSize()?.height ?? 0)
   }
 
   const connectionsTab = page.getByRole('tab', { name: '외부 서비스 연결' })
@@ -220,7 +232,13 @@ test('reviews a partial batch of NAVER shared links on desktop and mobile', asyn
   await expect(page.getByRole('heading', { name: '외부 목록과 목적지' })).toBeVisible()
   await expect(page.getByRole('button', { name: '매칭 미리보기' })).toBeEnabled()
   if (testInfo.project.name === 'desktop-chromium') {
-    await page.getByRole('heading', { name: '외부 목록과 목적지' }).evaluate((heading) => heading.scrollIntoView({ block: 'start' }))
+    await page.getByRole('heading', { name: '외부 목록과 목적지' }).evaluate((heading) => {
+      const workspace = heading.closest('[aria-labelledby="settings-title"]')
+      if (workspace instanceof HTMLElement) {
+        workspace.scrollTop += heading.getBoundingClientRect().top - workspace.getBoundingClientRect().top - 64
+      }
+    })
+    await expect(page.getByRole('banner')).toBeInViewport()
     await expect(page).toHaveScreenshot('place-import-acquisition-mapping-compact.png', { animations: 'disabled' })
   }
 })

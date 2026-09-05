@@ -1,6 +1,6 @@
 'use client'
 
-import { Component, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
+import { Component, useRef, useState, type ComponentType, type ErrorInfo, type ReactNode } from 'react'
 
 import { ExternalDirectionActions, type PlaceMapRenderer } from '../../platform/maps/public'
 
@@ -14,6 +14,7 @@ import styles from './catalog-home.module.css'
 
 const evidenceLabels = {
   verified: '검증됨', unverified: '검토 전', conflicted: '정보 충돌', stale: '갱신 필요',
+  unknown: '',
 } as const
 
 export type CatalogHomePlaceFilingRenderer = ComponentType<Readonly<{
@@ -23,11 +24,14 @@ export type CatalogHomePlaceFilingRenderer = ComponentType<Readonly<{
 }>>
 
 export function CatalogHomeSearch() {
-  const workflow = useCatalogHome()
+  return <CatalogSearchInput workflow={useCatalogHome()} />
+}
+
+function CatalogSearchInput({ workflow, onSearch }: Readonly<{ workflow: CatalogHomeWorkflow; onSearch?: () => void }>) {
   return (
     <form
       className={styles.search}
-      onSubmit={(event) => { event.preventDefault(); workflow.submitSearch() }}
+      onSubmit={(event) => { event.preventDefault(); onSearch?.(); workflow.submitSearch() }}
       role="search"
     >
       <svg aria-hidden="true" fill="none" viewBox="0 0 20 20">
@@ -36,10 +40,10 @@ export function CatalogHomeSearch() {
       <input
         aria-label="곳곳간 카탈로그 검색"
         onChange={(event) => workflow.changeDraftQuery(event.target.value)}
-        placeholder="장소, 지역, 분류로 곳곳간 카탈로그 검색"
+        placeholder="성수동 라멘, 지역이나 장소 검색"
         value={workflow.draftQuery}
       />
-      <kbd aria-hidden="true">Enter</kbd>
+      <button aria-label="카탈로그 검색 실행" type="submit">검색</button>
     </form>
   )
 }
@@ -87,53 +91,6 @@ function CollectionChooser({ PlaceFilingRenderer, workflow }: Readonly<{
   )
 }
 
-function CollectionSummary({ workflow }: Readonly<{ workflow: CatalogHomeWorkflow }>) {
-  return (
-    <section className={styles.summarySection}>
-      <div className={styles.sectionHeading}>
-        <h2>내 즐겨찾기 컬렉션</h2><a href="/library">전체 보기</a>
-      </div>
-      {workflow.collectionState === 'loading' && <p className={styles.empty}>컬렉션을 불러오는 중입니다.</p>}
-      {workflow.collectionState === 'signed-out' && <p className={styles.empty}>로그인하면 나만의 컬렉션을 바로 열 수 있어요.</p>}
-      {workflow.collectionState === 'unavailable' && <p className={styles.empty}>컬렉션을 지금 불러올 수 없습니다.</p>}
-      {workflow.collectionState === 'ready' && workflow.collections.length === 0 && (
-        <p className={styles.empty}>아직 컬렉션이 없습니다. 내 곳곳간에서 첫 컬렉션을 만들어 보세요.</p>
-      )}
-      {workflow.collections.length > 0 && (
-        <ul className={styles.collectionList}>
-          {workflow.collections.slice(0, 4).map((collection) => (
-            <li key={collection.collectionId}>
-              <a href={`/library?collection=${collection.collectionId}`}>
-                <span aria-hidden="true" className={styles.collectionMark}>◇</span>
-                <span>{collection.name}</span><small>{collection.placeCount}곳</small>
-              </a>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  )
-}
-
-function RecentActivity({ workflow }: Readonly<{ workflow: CatalogHomeWorkflow }>) {
-  return (
-    <section className={styles.summarySection}>
-      <div className={styles.sectionHeading}><h2>최근 정리</h2></div>
-      {workflow.recentlyFiled.length === 0 ? (
-        <p className={styles.empty}>이번 접속에서 컬렉션에 정리한 장소가 여기에 표시됩니다.</p>
-      ) : (
-        <ul className={styles.recentList}>
-          {workflow.recentlyFiled.map((item) => (
-            <li key={item.placeId}>
-              <strong>{item.name}</strong><span>내 카테고리 구성을 업데이트함</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  )
-}
-
 function ResultRow({ place, index, selected, onSelect }: Readonly<{
   place: CatalogHomePlace
   index: number
@@ -142,12 +99,12 @@ function ResultRow({ place, index, selected, onSelect }: Readonly<{
 }>) {
   return (
     <li>
-      <button aria-pressed={selected} className={selected ? styles.selectedResult : styles.result} onClick={onSelect} type="button">
+      <button aria-pressed={selected} data-catalog-place={place.placeId} className={selected ? styles.selectedResult : styles.result} onClick={onSelect} type="button">
         <span aria-hidden="true" className={styles.resultIndex}>{index + 1}</span>
         <span className={styles.resultBody}>
           <strong>{place.name}</strong>
           <span>{[place.areaLabel, place.taxonomyLabel].filter(Boolean).join(' · ') || '분류 정보 없음'}</span>
-          <small>{evidenceLabels[place.evidenceStatus]}{place.location === null ? ' · 지도 좌표 없음' : ''}</small>
+          <small>{[evidenceLabels[place.evidenceStatus], place.location === null ? '지도 좌표 없음' : ''].filter(Boolean).join(' · ')}</small>
         </span>
       </button>
     </li>
@@ -205,7 +162,7 @@ function SelectedPlaceCard({ PlaceFilingRenderer, workflow }: Readonly<{
       <div>
         <span>{workflow.selected.taxonomyLabel ?? '장소'}</span>
         <h2>{workflow.selected.name}</h2>
-        <p>{workflow.selected.areaLabel ?? '지역 정보 없음'} · {evidenceLabels[workflow.selected.evidenceStatus]}</p>
+        <p>{[workflow.selected.areaLabel ?? '지역 정보 없음', evidenceLabels[workflow.selected.evidenceStatus]].filter(Boolean).join(' · ')}</p>
       </div>
       <button
         aria-expanded={workflow.collectionPickerOpen}
@@ -224,72 +181,91 @@ export function CatalogHomeView({ MapRenderer, PlaceFilingRenderer, workflow }: 
   PlaceFilingRenderer: CatalogHomePlaceFilingRenderer
   workflow: CatalogHomeWorkflow
 }>) {
+  const [collapsed, setCollapsed] = useState(false)
+  const [detailOpen, setDetailOpen] = useState(workflow.selected !== undefined)
+  const [typesOpen, setTypesOpen] = useState(false)
+  const [typeQuery, setTypeQuery] = useState('')
+  const listRef = useRef<HTMLDivElement>(null)
+  const detailTitle = useRef<HTMLButtonElement>(null)
+  const scrollPosition = useRef(0)
+  const returnFocusPlaceId = useRef<string | undefined>(workflow.selected?.placeId)
+  const selectPlace = (placeId: string) => {
+    if (!detailOpen) {
+      scrollPosition.current = listRef.current?.scrollTop ?? scrollPosition.current
+      returnFocusPlaceId.current = placeId
+    }
+    workflow.selectPlace(placeId)
+    setDetailOpen(true)
+    setCollapsed(false)
+    window.requestAnimationFrame(() => detailTitle.current?.focus())
+  }
+  const backToResults = () => {
+    setDetailOpen(false)
+    window.requestAnimationFrame(() => {
+      if (listRef.current) {
+        listRef.current.scrollTop = scrollPosition.current
+        const rows = listRef.current.querySelectorAll<HTMLElement>('[data-catalog-place]')
+        Array.from(rows).find((row) => row.dataset.catalogPlace === returnFocusPlaceId.current)?.focus({ preventScroll: true })
+      }
+    })
+  }
   const initialCameraMode = workflow.searchState === 'idle' &&
-    workflow.draftQuery.length === 0 &&
-    workflow.submittedQuery.length === 0 &&
-    workflow.selectedQuickType === null
-    ? 'granted-current-location'
-    : 'supplied-bounds'
-  return (
-    <div className={styles.home}>
-      <section aria-label="검색 조건" className={styles.filterBar}>
+    workflow.draftQuery.length === 0 && workflow.submittedQuery.length === 0 &&
+    workflow.selectedQuickType === null ? 'granted-current-location' : 'supplied-bounds'
+  return <div className={styles.home} data-collapsed={collapsed}>
+    <aside aria-label="카탈로그 탐색 패널" className={styles.listPane} hidden={collapsed}>
+      <div className={styles.panelHeader}>
+        <span className={styles.eyebrow}>CATALOG</span>
+        <h2>어떤 곳을 찾으세요?</h2>
+        <CatalogSearchInput workflow={workflow} onSearch={() => setDetailOpen(false)} />
+        <div className={styles.toolbar}>
+          <button aria-expanded={typesOpen} aria-controls="catalog-types" onClick={() => setTypesOpen(!typesOpen)} type="button">장소 유형{workflow.selectedQuickType ? ' · 1' : ''}</button>
+          <span>곳곳간 내부 장소 검색</span>
+        </div>
+        {typesOpen && <section aria-label="장소 유형 선택" id="catalog-types" className={styles.typePicker}>
+          <input aria-label="장소 유형 찾기" placeholder="유형 찾기" value={typeQuery} onChange={(event) => setTypeQuery(event.target.value)} />
+          <div>{catalogQuickTypes.filter((type) => type.includes(typeQuery.trim())).map((type) =>
+            <button aria-pressed={workflow.selectedQuickType === type} key={type} onClick={() => {
+              workflow.toggleQuickType(type); setDetailOpen(false); setTypesOpen(false)
+            }} type="button">{type}</button>)}</div>
+          <small>세부 음식명은 검색어에 함께 입력해 주세요.</small>
+        </section>}
         <div className={styles.interpretation}>
-          {workflow.interpretation.map((token) => (
-            <button key={token.tokenId} onClick={() => workflow.excludeToken(token.tokenId)} type="button">
-              {token.label}<span aria-hidden="true">×</span><span className={styles.srOnly}> 조건 제거</span>
-            </button>
-          ))}
+          {workflow.selectedQuickType && <button onClick={() => { workflow.toggleQuickType(workflow.selectedQuickType!); setDetailOpen(false) }} type="button">{workflow.selectedQuickType} ×</button>}
+          {workflow.interpretation.map((token) => <button key={token.tokenId} onClick={() => { workflow.excludeToken(token.tokenId); setDetailOpen(false) }} type="button">
+            {token.label}<span aria-hidden="true"> ×</span><span className={styles.srOnly}> 조건 제거</span>
+          </button>)}
         </div>
-        <div aria-label="빠른 장소 유형" className={styles.quickTypes}>
-          {catalogQuickTypes.map((type) => (
-            <button aria-pressed={workflow.selectedQuickType === type} key={type} onClick={() => workflow.toggleQuickType(type)} type="button">{type}</button>
-          ))}
-        </div>
-      </section>
-      <div className={styles.mobileSwitch}>
-        <button aria-pressed={workflow.mobileSurface === 'list'} onClick={workflow.showList} type="button">목록</button>
-        <button aria-pressed={workflow.mobileSurface === 'map'} onClick={workflow.showMap} type="button">지도</button>
       </div>
-      <div className={styles.content}>
-        <aside className={workflow.mobileSurface === 'list' ? styles.listPane : `${styles.listPane} ${styles.mobileHidden}`}>
-          <CollectionSummary workflow={workflow} />
-          <RecentActivity workflow={workflow} />
-          <SearchResults workflow={workflow} />
-        </aside>
-        <section aria-label="카탈로그 지도와 선택한 장소" className={workflow.mobileSurface === 'map' ? styles.mapPane : `${styles.mapPane} ${styles.mobileHidden}`}>
-          <button className={styles.viewportButton} disabled={workflow.searchState === 'loading'} onClick={workflow.searchViewport} type="button">이 지역에서 보기</button>
-          <MapBoundary>
-            <MapRenderer
-              ariaLabel="곳곳간 카탈로그 검색 지도"
-              bounds={workflow.viewport.bounds}
-              clusters={workflow.mapClusters}
-              description={workflow.mapDescription}
-              initialCameraMode={initialCameraMode}
-              markers={workflow.mapMarkers}
-              onClusterSelect={workflow.selectMapCluster}
-              onSelect={workflow.selectPlace}
-              onViewportChange={workflow.setViewport}
-              selectedMarkerId={workflow.selected?.placeId}
-              title="카탈로그 장소"
-              zoom={workflow.viewport.zoom}
-            />
-          </MapBoundary>
+      <div className={styles.panelBody} ref={listRef}>
+        {detailOpen && workflow.selected ? <>
+          <button className={styles.backButton} onClick={backToResults} ref={detailTitle} type="button">← 검색 결과로</button>
           <SelectedPlaceCard PlaceFilingRenderer={PlaceFilingRenderer} workflow={workflow} />
-        </section>
+        </> : <SearchResults workflow={{ ...workflow, selectPlace }} />}
       </div>
-    </div>
-  )
+    </aside>
+    <section aria-label="카탈로그 지도와 선택한 장소" className={styles.mapPane}>
+      <MapBoundary><MapRenderer
+        ariaLabel="곳곳간 카탈로그 검색 지도"
+        bounds={workflow.viewport.bounds} clusters={workflow.mapClusters}
+        description={workflow.mapDescription} initialCameraMode={initialCameraMode}
+        markers={workflow.mapMarkers} onClusterSelect={workflow.selectMapCluster}
+        onSelect={selectPlace} onViewportChange={workflow.setViewport}
+        selectedMarkerId={workflow.selected?.placeId} title="카탈로그 장소" zoom={workflow.viewport.zoom}
+      /></MapBoundary>
+      {workflow.mapState === 'unavailable' && <p className={styles.mapNotice} role="status">장소 표시를 불러오지 못했습니다. 목록에서 다시 검색해 주세요.</p>}
+    </section>
+    <button aria-label={collapsed ? '탐색 패널 펼치기' : '탐색 패널 접기'}
+      aria-expanded={!collapsed} className={styles.collapseButton}
+      onClick={() => setCollapsed(!collapsed)} type="button">
+      <span aria-hidden="true">{collapsed ? '›' : '‹'}</span><span>{collapsed ? '목록 보기' : '지도 넓게'}</span>
+    </button>
+  </div>
 }
 
 export function CatalogHomeWorkspace({ MapRenderer, PlaceFilingRenderer }: Readonly<{
   MapRenderer: PlaceMapRenderer
   PlaceFilingRenderer: CatalogHomePlaceFilingRenderer
 }>) {
-  return (
-    <CatalogHomeView
-      MapRenderer={MapRenderer}
-      PlaceFilingRenderer={PlaceFilingRenderer}
-      workflow={useCatalogHome()}
-    />
-  )
+  return <CatalogHomeView MapRenderer={MapRenderer} PlaceFilingRenderer={PlaceFilingRenderer} workflow={useCatalogHome()} />
 }

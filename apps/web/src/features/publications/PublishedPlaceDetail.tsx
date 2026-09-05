@@ -60,7 +60,7 @@ export function PublishedPlaceDetail({
     <section aria-label="공개 장소 상세" className={styles.placeDetail}>
       <div className={styles.placeDetailBar}>
         <strong>장소 상세</strong>
-        <button onClick={onClose} type="button">닫기</button>
+        <button aria-label="공유 장소 목록으로 돌아가기" onClick={onClose} type="button">← 목록</button>
       </div>
       {state.kind === 'loading' && <p role="status">장소 상세를 불러오는 중…</p>}
       {state.kind === 'not-found' && <p role="alert">이 장소를 찾을 수 없습니다.</p>}

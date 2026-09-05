@@ -2,7 +2,6 @@
 
 import {
   CatalogHomeProvider,
-  CatalogHomeSearch,
   CatalogHomeWorkspace,
   type CatalogHomeLibrary,
 } from '@/features/catalog-home/public'
@@ -22,7 +21,7 @@ export function CatalogHomeApplication({
 }: Readonly<{ familyNavigation: FamilyNavigation; initialQuery?: string }>) {
   return (
     <CatalogHomeProvider initialQuery={initialQuery} library={homeLibrary}>
-      <PlaceWorkspaceShell familyNavigation={familyNavigation} topbarSearch={<CatalogHomeSearch />}>
+      <PlaceWorkspaceShell familyNavigation={familyNavigation}>
         <CatalogHomeWorkspace
           MapRenderer={MapLibrePlaceMap}
           PlaceFilingRenderer={PlaceFilingControl}

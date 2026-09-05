@@ -1,204 +1,58 @@
-.workspace {
-  height: 100dvh;
-  min-height: 100vh;
-  display: grid;
-  grid-template: 72px minmax(0, 1fr) / 224px minmax(0, 1fr);
-  background: var(--surface);
-}
-
-.topbar {
-  position: relative;
-  z-index: 20;
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: 180px minmax(260px, 680px) minmax(250px, 1fr);
-  align-items: center;
-  gap: 22px;
-  padding: 0 22px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
-}
-
-.wordmark {
-  color: #1768e5;
-  font-size: 22px;
-  font-weight: 850;
-  letter-spacing: -.045em;
-  text-decoration: none;
-}
-
-.searchSlot { min-width: 0; }
-
-.defaultSearch {
-  display: flex;
-  min-height: 42px;
-  align-items: center;
-  gap: 10px;
-  padding: 0 14px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fbfcfe;
-}
-
-.defaultSearch:focus-within {
-  border-color: #6a9eea;
-  box-shadow: 0 0 0 3px rgb(23 104 229 / 12%);
-}
-
-.defaultSearch svg, .iconButton svg {
-  width: 20px;
-  height: 20px;
-  flex: 0 0 auto;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.defaultSearch svg { color: #8a93a3; }
-.defaultSearch input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; }
-.defaultSearch input::placeholder { color: #8a93a3; }
-
-.topActions {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-.modeButton, .iconButton, .profileLink, .loginLink {
-  min-height: 44px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: #424a57;
-}
-
-.modeButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 13px;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 650;
-  text-decoration: none;
-}
-
-.modeDot { width: 8px; height: 8px; border-radius: 50%; background: #2aaa68; }
-.modeDot[data-attention="true"] { background: #e38a12; }
-.iconButton { position: relative; display: grid; width: 44px; place-items: center; padding: 0; border-color: transparent; border-radius: 50%; text-decoration: none; }
-.notificationBadge { position: absolute; top: 2px; right: 0; display: grid; min-width: 18px; height: 18px; place-items: center; padding: 0 4px; border: 2px solid #fff; border-radius: 999px; background: #df4037; color: #fff; font-size: 9px; font-weight: 800; line-height: 1; }
-.profileLink { display: inline-flex; align-items: center; gap: 8px; border-color: transparent; text-decoration: none; }
-.profileLink > span { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: #edf3fe; color: #1768e5; font-size: 12px; font-weight: 800; }
-.profileLink small { color: #555d69; font-size: 12px; font-weight: 700; }
-.loginLink { display: inline-flex; align-items: center; padding: 0 12px; border-radius: 9px; color: #1768e5; font-size: 13px; font-weight: 750; text-decoration: none; }
-
-.menuButton {
-  display: none;
-  width: 44px;
-  height: 44px;
-  border: 0;
-  background: transparent;
-  border-radius: 9px;
-  align-items: center;
-  justify-content: center;
-}
-
-.menuGlyph, .menuGlyph::before, .menuGlyph::after { width: 18px; height: 1.5px; background: currentColor; display: block; content: ""; }
-.menuGlyph::before { transform: translateY(-5.5px); }
-.menuGlyph::after { transform: translateY(4px); }
-
-.sidebar {
-  position: relative;
-  z-index: 12;
-  display: flex;
-  min-height: 0;
-  flex-direction: column;
-  padding: 22px 12px 18px;
-  background: #fbfcfe;
-  border-right: 1px solid var(--line);
-}
-
-.primaryNavigation { min-height: 0; overflow-y: auto; }
-.placeList, .familyList { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
-.activeItem, .navItem, .disabledItem, .familyLink {
-  display: flex;
-  min-height: 46px;
-  align-items: center;
-  gap: 12px;
-  padding: 0 13px;
-  border-radius: 10px;
-  color: #414957;
-  font-size: 14px;
-  text-decoration: none;
-}
-
-.activeItem { color: #1768e5; background: #eaf2ff; font-weight: 750; }
-.navItem:hover, .navItem:focus-visible, .familyLink:hover, .familyLink:focus-visible, .iconButton:hover, .profileLink:hover { background: #f0f4fa; outline: none; }
-.disabledItem { color: #8b929d; cursor: not-allowed; }
-.disabledItem small { margin-left: auto; font-size: 10px; font-weight: 650; }
-.navIcon { width: 20px; height: 20px; flex: 0 0 auto; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-
-.family { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--line); }
-.familyToggle {
-  display: flex;
-  width: 100%;
-  min-height: 44px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 11px;
-  border: 0;
-  background: transparent;
-  color: #6c7480;
-  font-size: 12px;
-  font-weight: 750;
-  text-align: left;
-}
-.familyToggle svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.7; transition: transform 160ms ease; }
-.chevronOpen { transform: rotate(180deg); }
-.familyLink { min-height: 44px; font-size: 13px; }
-.familyMark { width: 16px; height: 16px; border: 1px solid #9fb3d2; border-radius: 5px; background: #edf3fe; }
-.externalMark { margin-left: auto; color: #9299a5; }
-.placeholder { margin: 5px 12px 0; color: var(--muted); font-size: 12px; }
-.main { min-width: 0; min-height: 0; overflow: hidden; background: var(--surface); }
-.scrim { display: none; }
-
-.modeButton:focus-visible, .iconButton:focus-visible, .profileLink:focus-visible,
-.menuButton:focus-visible, .activeItem:focus-visible, .familyToggle:focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 2px;
-}
-
-@media (max-width: 960px) and (min-width: 721px) {
-  .topbar { grid-template-columns: 180px minmax(240px, 1fr) auto; gap: 14px; }
-  .profileLink small, .modeButton span:last-child { display: none; }
-}
-
+.workspace { height: 100dvh; display: grid; grid-template: 68px minmax(0, 1fr) / 76px minmax(0, 1fr); background: var(--canvas); overflow: hidden; }
+.topbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 20px; padding: 0 20px 0 0; border-bottom: 1px solid var(--line); background: var(--surface); z-index: 30; }
+.wordmark { width: 76px; flex: 0 0 76px; text-align: center; color: var(--accent); font-size: 18px; font-weight: 850; letter-spacing: -1.2px; text-decoration: none; }
+.heading { flex: 1; min-width: 0; }
+.heading h1 { font-size: 18px; font-weight: 600; margin: 0; line-height: 1.3; }
+.heading h1 span { color: var(--muted); font-size: 13px; font-weight: 400; }
+.heading p { color: var(--muted); font-size: 11px; line-height: 1.4; margin: 3px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topActions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.topActions form { margin: 0; }
+.modeButton, .loginLink, .logout { display: inline-flex; align-items: center; justify-content: center; min-height: 34px; border: 1px solid var(--line); border-radius: 20px; padding: 0 13px; color: var(--ink); background: var(--surface); text-decoration: none; font-size: 12px; cursor: pointer; }
+.loginLink { color: var(--accent); font-weight: 700; }
+.logoutIcon { display: none; }
+.iconButton { position: relative; display: grid; place-items: center; width: 36px; height: 36px; padding: 7px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
+.iconButton svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.iconButton:hover, .iconButton[aria-pressed="true"], .modeButton:hover { background: var(--accent-soft); color: var(--accent); }
+.notificationBadge { position: absolute; top: 0; right: 0; padding: 1px 4px; border-radius: 9px; background: var(--danger); color: white; font-size: 10px; }
+.profileLink { display: flex; align-items: center; gap: 8px; padding-left: 12px; border-left: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+.avatar { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 700; }
+.userCopy { display: grid; gap: 2px; }
+.userCopy strong { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 550; }
+.userCopy small { color: var(--muted); font-size: 10px; }
+.sidebar { position: relative; z-index: 25; min-height: 0; display: flex; flex-direction: column; justify-content: space-between; background: var(--surface); border-right: 1px solid var(--line); }
+.placeList, .familyList { padding: 0; margin: 0; list-style: none; }
+.placeList { display: grid; gap: 8px; padding: 12px 6px; }
+.navItem, .activeItem, .familyToggle { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 64px; border: 0; border-radius: 9px; text-decoration: none; color: var(--muted); background: transparent; font-size: 11px; white-space: nowrap; cursor: pointer; }
+.activeItem { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.navItem:hover, .familyToggle:hover { background: var(--canvas); color: var(--ink); }
+.navIcon { width: 24px; height: 24px; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.family { position: relative; margin: 8px 6px 14px; }
+.familyToggle svg { width: 24px; height: 24px; fill: currentColor; }
+.familyPopover { position: absolute; bottom: 0; left: calc(100% + 12px); width: 248px; padding: 18px; border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-overlay); background: var(--surface); }
+.familyPopover strong { font-size: 14px; }
+.familyList { display: grid; gap: 5px; margin-top: 14px; }
+.familyLink { display: flex; justify-content: space-between; padding: 12px; border-radius: 8px; color: var(--ink); background: var(--canvas); text-decoration: none; font-size: 13px; }
+.placeholder { margin: 15px 0 0; font-size: 13px; color: var(--muted); }
+.main { min-width: 0; min-height: 0; overflow: hidden; }
+.workspace :is(a, button):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+@media (max-width: 900px) { .modeButton, .userCopy { display: none; } .topbar { gap: 12px; padding-right: 12px; } }
 @media (max-width: 720px) {
-  .workspace { grid-template: 112px minmax(0, 1fr) / minmax(0, 1fr); }
-  .topbar { grid-template: 56px 56px / auto 1fr auto; gap: 8px 12px; padding: 0 14px; }
-  .menuButton { display: inline-flex; }
-  .wordmark { font-size: 20px; }
-  .searchSlot { grid-column: 1 / -1; grid-row: 2; align-self: start; }
-  .defaultSearch { min-height: 42px; }
-  .topActions { grid-column: 3; grid-row: 1; gap: 2px; }
-  .modeButton { display: none; }
-  .profileLink small { display: none; }
-  .sidebar {
-    position: fixed;
-    inset: 112px auto 0 0;
-    width: min(84vw, 300px);
-    transform: translateX(-104%);
-    visibility: hidden;
-    pointer-events: none;
-    transition: transform 160ms ease;
-    box-shadow: 12px 0 30px rgb(29 42 62 / 14%);
-  }
-  .sidebarOpen { transform: translateX(0); visibility: visible; pointer-events: auto; }
-  .scrim { display: block; position: fixed; z-index: 11; inset: 112px 0 0; width: 100%; border: 0; background: rgb(31 41 55 / 24%); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .sidebar, .familyToggle svg { transition: none; }
+  .workspace { grid-template: 64px minmax(0, 1fr) calc(56px + env(safe-area-inset-bottom)) / minmax(0, 1fr); }
+  .topbar { gap: 8px; padding: 0 10px; }
+  .wordmark { width: auto; flex-basis: auto; font-size: 17px; }
+  .heading h1 { font-size: 14px; }
+  .heading h1 span, .heading p, .logoutText { display: none; }
+  .logout { width: 34px; padding: 0; border: 0; border-radius: 8px; }
+  .logoutIcon { display: inline; font-size: 23px; }
+  .topActions { gap: 3px; }
+  .loginLink { padding: 0 10px; }
+  .profileLink { padding-left: 5px; }
+  .sidebar { grid-row: 3; flex-direction: row; align-items: flex-start; border: 0; border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
+  .primaryNavigation { flex: 1; }
+  .placeList { grid-template-columns: repeat(4, 1fr); gap: 0; padding: 0; }
+  .navItem, .activeItem, .familyToggle { min-height: 55px; border-radius: 0; gap: 3px; font-size: 10px; }
+  .navIcon, .familyToggle svg { width: 21px; height: 21px; }
+  .family { flex: 0 0 20%; margin: 0; }
+  .familyPopover { left: auto; right: 8px; bottom: calc(100% + 12px); width: min(280px, calc(100vw - 24px)); }
+  .main { grid-row: 2; }
 }

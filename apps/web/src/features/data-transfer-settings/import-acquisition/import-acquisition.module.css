@@ -75,7 +75,7 @@
 .resultsHeader { padding: 13px 14px; border-bottom: 1px solid var(--line); }
 .resultsHeader h4 { font-size: 14px; }
 .resultsHeader p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
-.batchState { background: #f0f2ef; color: #53605a; }
+.batchState { background: var(--canvas); color: var(--muted); }
 .batchState[data-state='ready'] { background: var(--accent-soft); color: var(--accent); }
 .batchState[data-state='partial'] { background: #fff4dc; color: #805a1e; }
 .batchState[data-state='failed'], .batchState[data-state='expired'] { background: #fff0f0; color: var(--danger); }
@@ -89,10 +89,10 @@
   padding: 10px 14px;
   border-bottom: 1px solid var(--line);
 }
-.resultRow[data-state='ready'] { background: #fcfefd; }
+.resultRow[data-state='ready'] { background: var(--surface); }
 .resultSelection { display: grid; place-items: center; }
 .resultSelection input { width: 18px; height: 18px; accent-color: var(--accent); }
-.resultStatus { justify-self: start; background: #f0f2ef; color: #59645f; }
+.resultStatus { justify-self: start; background: var(--canvas); color: var(--muted); }
 .resultRow[data-state='ready'] .resultStatus { background: var(--accent-soft); color: var(--accent); }
 .resultRow[data-state='duplicate'] .resultStatus,
 .resultRow[data-state='invalid'] .resultStatus,
@@ -108,7 +108,7 @@
 .resultActions { justify-content: flex-end; padding: 12px 14px; }
 .emptyResult { margin: 0; padding: 22px 14px; color: var(--muted); font-size: 13px; text-align: center; }
 
-.remotePanel { display: grid; gap: 12px; margin-top: 5px; padding: 17px; border: 1px solid var(--line); border-radius: var(--radius-surface); background: #fafbf9; }
+.remotePanel { display: grid; gap: 12px; margin-top: 5px; padding: 17px; border: 1px solid var(--line); border-radius: var(--radius-surface); background: var(--canvas); }
 .boundaries { display: grid; gap: 6px; margin: 0; padding-left: 20px; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .remoteStatus { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 13px; }
 .remoteStatusHeading span, .remoteStatus > p { color: var(--muted); font-size: 12px; }

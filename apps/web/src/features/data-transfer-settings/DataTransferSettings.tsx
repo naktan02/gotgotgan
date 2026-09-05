@@ -259,12 +259,12 @@ function ExportTab({ workflow }: Readonly<{ workflow: DataTransferSettingsWorkfl
 
 function SimpleTab({ tab }: Readonly<{ tab: Extract<SettingsTab, 'account' | 'profile'> }>) {
   const content = {
-    account: { title: '계정', description: '로그인과 기본 계정 정보는 기존 계정 화면에서 관리합니다.', link: '/profile', action: '계정 정보 보기' },
-    profile: { title: '공개 프로필', description: '공개 목록의 작성자 이름, 소개와 공개 범위는 프로필 화면에서 관리합니다.', link: '/profile', action: '공개 프로필 관리' },
+    account: { title: '계정', description: '곳곳간 로그인과 공개 프로필, 외부 서비스 연결은 서로 별도로 관리합니다.', link: '/profile', action: '공개 표시 정보 관리' },
+    profile: { title: '공개 프로필', description: '공개 목록의 작성자 이름과 공개 범위는 프로필 화면에서 관리합니다.', link: '/profile', action: '공개 프로필 관리' },
   }[tab]
   return <><SectionHeading title={content.title} description={content.description} /><div className={styles.accountGrid}>
     <section className={styles.panel}><h3>{content.title}</h3><p>{content.description}</p><Link href={content.link}>{content.action}</Link></section>
-    {tab === 'account' && <section className={styles.panel}><h3>로그인 보안</h3><p>외부 서비스 연결과 곳곳간 로그인은 별도입니다. 계정 연결을 해제해도 곳곳간 계정은 삭제되지 않습니다.</p><Link href="/api/auth/logout">로그아웃</Link></section>}
+    {tab === 'account' && <section className={styles.panel}><h3>로그인 보안</h3><p>외부 서비스 연결과 곳곳간 로그인은 별도입니다. 계정 연결을 해제해도 곳곳간 계정은 삭제되지 않습니다. 로그인과 로그아웃은 상단 계정 영역에서 진행합니다.</p></section>}
   </div></>
 }
 
@@ -296,7 +296,7 @@ export function DataTransferSettingsView({ historyPanel, importAcquisitionPanel,
     tabButtons.current[nextIndex]?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }
   return <section className={styles.workspace} aria-labelledby="settings-title">
-    <header className={styles.header}><p className={styles.eyebrow}>SETTINGS</p><h1 id="settings-title">설정</h1><p>계정과 데이터, 외부 서비스 연동을 관리합니다.</p></header>
+    <header className={styles.header}><h1 id="settings-title">계정과 데이터 관리</h1><p>원하는 항목을 선택해 설정하고 작업 상태를 확인하세요.</p></header>
     <nav className={styles.tabs} aria-label="설정 항목" role="tablist">
       {tabs.map((item, index) => <button
         aria-controls={`settings-panel-${item.key}`}
@@ -313,10 +313,10 @@ export function DataTransferSettingsView({ historyPanel, importAcquisitionPanel,
       >{item.label}</button>)}
     </nav>
     <div aria-labelledby={`settings-tab-${workflow.tab}`} className={styles.content} id={`settings-panel-${workflow.tab}`} role="tabpanel">
-      {workflow.tab === 'history' ? historyPanel : workflow.loadState !== 'ready' ? <LoadState workflow={workflow} /> : workflow.tab === 'connections'
+      {workflow.tab === 'history' ? historyPanel : workflow.tab === 'account' || workflow.tab === 'profile' ? <SimpleTab tab={workflow.tab} /> : workflow.loadState !== 'ready' ? <LoadState workflow={workflow} /> : workflow.tab === 'connections'
         ? <ConnectionsTab workflow={workflow} /> : workflow.tab === 'import'
           ? <ImportTab acquisitionPanel={importAcquisitionPanel} workflow={workflow} /> : workflow.tab === 'export'
-            ? <ExportTab workflow={workflow} /> : <SimpleTab tab={workflow.tab} />}
+            ? <ExportTab workflow={workflow} /> : null}
     </div>
   </section>
 }

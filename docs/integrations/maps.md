@@ -36,3 +36,11 @@ React 개발 진단에 필요한 `unsafe-eval`은 `next dev`에서만 허용하�
 포함하지 않는다.
 CI와 feature 단위 테스트는 `platform/maps/testing`의 결정적 Adapter와 same-origin 빈
 MapLibre style을 사용하므로 OpenFreeMap 네트워크에 의존하지 않는다.
+
+2026-09-05: Next의 worker sibling URL 실패를 정확한 versioned same-origin 자산 배포로 수정했다.
+프로덕션 빌드에서 4개 화면 폭의 실제 공개 타일·worker와 지구본을 별도로 확인했다. 인증·회원 API
+활성화와는 독립적인 증거다. 원인과 회귀 probe는
+[`Map incident`](../incidents/2026-09-05-map-worker-and-viewport.md)에 둔다.
+라이브러리 소개 문구와 MapLibre 브랜드 custom attribution은 제거하되, tile source의 데이터 출처는
+지도 구석의 접이식 정보 control에 유지한다. [OSMF interactive-map 안내](https://osmfoundation.org/wiki/Licence/Attribution_Guidelines#Interactive_maps)와
+[OpenFreeMap 안내](https://openfreemap.org/quick_start/)를 기준으로 최초 표시·사용자 접기 이후 재열기를 보존한다.

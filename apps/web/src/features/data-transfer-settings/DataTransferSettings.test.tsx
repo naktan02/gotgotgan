@@ -54,6 +54,13 @@ function workflow(overrides: Partial<DataTransferSettingsWorkflow> = {}) {
 }
 
 describe('Data transfer settings view', () => {
+  it.each(['account', 'profile'] as const)('keeps %s navigation available when transfer capabilities are unavailable', (tab) => {
+    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} importAcquisitionPanel={importAcquisitionPanel} workflow={workflow({ tab, loadState: 'unavailable' })} />)
+    expect(markup).toContain('href="/profile"')
+    expect(markup).not.toContain('설정 서비스를 사용할 수 없습니다')
+    expect(markup).not.toContain('href="/api/auth/logout"')
+    expect(markup).not.toContain('계정 연결</button>')
+  })
   it('keeps production acquisition controls disabled until its runtime is enabled', () => {
     const markup = renderToStaticMarkup(<ImportAcquisition
       gateway={{} as ImportAcquisitionGateway}

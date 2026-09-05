@@ -38,7 +38,7 @@ export function AdminAccessGate({ state, retry }: Readonly<{
   return (
     <section className={styles.gate} aria-live="polite">
       <div className={`${styles.signal} ${styles[state.kind]}`} aria-hidden="true">
-        {state.kind === 'checking' ? <span className={styles.spinner} /> : <span>✓</span>}
+        {state.kind === 'checking' ? <span className={styles.spinner} /> : <span>{state.kind === 'ready' ? '✓' : '!'}</span>}
       </div>
       <div className={styles.copy}>
         <p className={styles.eyebrow}>{copy.eyebrow}</p>

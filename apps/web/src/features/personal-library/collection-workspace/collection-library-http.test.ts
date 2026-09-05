@@ -31,13 +31,44 @@ describe('Collection-first Library browser client', () => {
       favoriteScope: { kind: 'collection', collectionId },
       ratingFilter: { kind: 'any' },
       tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: [], limit: 20,
+      collectionQuery: '라멘 목록', placeQuery: '성수동 쇼유라멘',
+      includeSelectedCollection: true,
     })
 
     const url = new URL(requested, 'https://gotgotgan.test')
     expect(url.pathname).toBe('/api/library/workspace')
     expect(url.searchParams.get('collectionId')).toBe(collectionId)
     expect(url.searchParams.get('rating')).toBe('any')
+    expect(url.searchParams.get('collectionQuery')).toBe('라멘 목록')
+    expect(url.searchParams.get('placeQuery')).toBe('성수동 쇼유라멘')
+    expect(url.searchParams.get('includeSelectedCollection')).toBe('true')
     expect(url.searchParams.has('state')).toBe(false)
+  })
+
+  it('uses identical place filters in the Collection-first v2 map boundary', async () => {
+    let requested = ''
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      requested = String(input)
+      return Response.json({
+        schemaVersion: 'personal-library-map.v2',
+        filter: { favoriteScope: { kind: 'collection', collectionId }, ratingFilter: { kind: 'rated' },
+          tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: ['ramen.shoyu'], placeQuery: '성수동 라멘' },
+        viewport: { bounds: { west: 126, south: 37, east: 128, north: 38 }, zoom: 12 },
+        features: [], coverage: { representedPlaceCount: 0, unprojectedPlaceCount: 0, complete: true },
+      })
+    })
+    await createCollectionLibraryHttp(fetcher as typeof fetch).map({
+      favoriteScope: { kind: 'collection', collectionId }, ratingFilter: { kind: 'rated' },
+      tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: ['ramen.shoyu'], placeQuery: '성수동 라멘',
+      west: 126, south: 37, east: 128, north: 38, zoom: 12,
+    })
+    const url = new URL(requested, 'https://gotgotgan.test')
+    expect(url.pathname).toBe('/api/library/workspace/map')
+    expect(url.searchParams.get('scope')).toBeNull()
+    expect(url.searchParams.get('collectionId')).toBe(collectionId)
+    expect(url.searchParams.get('rating')).toBe('rated')
+    expect(url.searchParams.getAll('taxonomyKeys')).toEqual(['ramen.shoyu'])
+    expect(url.searchParams.get('placeQuery')).toBe('성수동 라멘')
   })
 
   it('uses revision-checked v2 commands for Collection lifecycle changes', async () => {

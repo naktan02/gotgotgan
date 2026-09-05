@@ -26,9 +26,14 @@ Stage 6의 `/`는 곳곳간 내부 Canonical Place 카탈로그만 탐색하는 
 redirect한다.
 
 즐겨찾기 동작은 `saved`/`wanted` 상태가 아니라 사용자 소유 Collection membership을 만든다. 홈은
-Collection 요약과 이번 접속의 최근 정리만 빠르게 보여 주고, 생성·순서·다중 선택 등 본격 관리는
-`/library`가 소유한다. 지도 renderer가 실패하거나 결과에 좌표가 없어도 목록 검색과 Collection
+검색·결과·상세가 같은 접이식 패널에서 바뀌며, Collection 요약과 최근 정리는 상시 표시하지 않는다.
+`/library`는 목록 디렉터리부터 시작하고 선택한 목록의 장소·상세를 같은 패널로 연다. 지도 renderer가 실패하거나 결과에 좌표가 없어도 목록 검색과 Collection
 정리는 계속 사용할 수 있다.
+
+2026-09-05 상단은 금융 User Web의 제목/인사·오른쪽 계정/테마 배치를 기준으로 고정했다. 기능별
+검색은 패널에 두며 주 메뉴는 아이콘 위·작은 글씨 아래, 모바일은 하단 메뉴다. 지도는 남은 화면
+전체를 쓰고 현재 위치·확대축소는 오른쪽 아래에 둔다. 실제 공개 타일 검증과 인증/Backend 활성화는
+별도이며 단위·fixture 성공을 실회원 연결 성공으로 해석하지 않는다.
 
 Stage 7.7은 `/library`의 authenticated Library-first 작업 공간과 `/api/library/*`,
 `/api/places/{placeId}` BFF를 제공한다. 상태별 Place, Tag all/any, Collection, Place detail을

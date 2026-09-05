@@ -1,6 +1,6 @@
 .panel {
   min-width: 0;
-  border-right: 1px solid #e3e8ef;
+  border-right: 1px solid var(--line);
 }
 
 .panel:last-child { border-right: 0; }
@@ -8,47 +8,47 @@
 .panel > summary {
   min-height: 42px;
   cursor: pointer;
-  color: #4c5d73;
+  color: var(--muted);
   padding: 13px 14px 10px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
   list-style-position: inside;
 }
 
 .panel[open] > summary {
-  color: #1768e5;
-  background: #f5f8fd;
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .content {
   display: grid;
-  max-height: 310px;
+
   gap: 12px;
-  overflow-y: auto;
-  border-top: 1px solid #e7ebf1;
-  background: #fbfcfe;
+
+  border-top: 1px solid var(--line);
+  background: var(--surface);
   padding: 13px;
 }
 
 .section { display: grid; gap: 8px; }
-.section + .section { border-top: 1px solid #e2e7ee; padding-top: 12px; }
-.heading { display: flex; align-items: start; justify-content: space-between; gap: 10px; }
-.heading h3 { margin: 0; color: #293448; font-size: 12px; }
-.heading p, .section > p { margin: 3px 0 0; color: #728096; font-size: 9px; line-height: 1.5; }
+.section + .section { border-top: 1px solid var(--line); padding-top: 12px; }
+.heading { display: grid; align-items: start; justify-content: space-between; gap: 10px; }
+.heading h3 { margin: 0; color: var(--ink); font-size: 12px; }
+.heading p, .section > p { margin: 3px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .heading label { display: grid; flex: none; gap: 3px; }
-.heading label span { color: #69778c; font-size: 9px; }
-.heading select { min-height: 34px; border: 1px solid #cfd8e5; border-radius: 7px; background: #fff; color: #3e4b60; padding: 0 7px; font-size: 10px; }
-.section > small { color: #78869a; font-size: 9px; line-height: 1.5; }
+.heading label span { color: var(--muted); font-size: 12px; }
+.heading select { min-height: 40px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--ink); padding: 0 7px; font-size: 12px; }
+.section > small { color: var(--muted); font-size: 12px; line-height: 1.5; }
 
 .shareRow { display: flex; align-items: center; gap: 6px; }
 .shareRow a, .shareRow button, .more, .error button {
-  min-height: 32px;
-  border: 1px solid #cbd6e5;
+  min-height: 40px;
+  border: 1px solid var(--line);
   border-radius: 7px;
-  background: #fff;
-  color: #1768e5;
+  background: var(--surface);
+  color: var(--accent);
   padding: 0 9px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
   text-decoration: none;
 }
@@ -57,43 +57,43 @@
 .placeList { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
 .placeList li {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
-  min-height: 38px;
+  grid-template-columns: 22px minmax(0, 1fr);
+  min-height: 40px;
   align-items: center;
   gap: 6px;
-  border: 1px solid #e0e6ef;
+  border: 1px solid var(--line);
   border-radius: 7px;
-  background: #fff;
+  background: var(--surface);
   padding: 5px 6px;
 }
-.placeList li > span { color: #8491a5; font-size: 9px; text-align: center; }
-.placeList strong { overflow: hidden; color: #374256; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.placeList li > small { grid-column: 2 / -1; color: #1768e5; font-size: 9px; }
-.actions { display: flex; gap: 3px; }
+.placeList li > span { color: var(--muted); font-size: 12px; text-align: center; }
+.placeList strong { overflow: hidden; color: var(--ink); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.placeList li > small { grid-column: 2 / -1; color: var(--accent); font-size: 12px; }
+.actions { display: flex; grid-column: 2; flex-wrap: wrap; gap: 5px; }
 .actions button {
   min-width: 30px;
-  min-height: 30px;
-  border: 1px solid #d5dce7;
+  min-height: 40px;
+  border: 1px solid var(--line);
   border-radius: 6px;
-  background: #fff;
-  color: #526076;
+  background: var(--surface);
+  color: var(--muted);
   padding: 0 6px;
-  font-size: 9px;
+  font-size: 12px;
 }
 .actions .danger { color: #ad4747; }
 .actions button:disabled, .shareRow button:disabled, .more:disabled { cursor: default; opacity: .45; }
 .more { justify-self: start; }
 
-.error { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid #efcccc; border-radius: 7px; background: #fff5f5; padding: 7px; color: #9c4141; font-size: 9px; }
+.error { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid #efcccc; border-radius: 7px; background: #fff5f5; padding: 7px; color: #9c4141; font-size: 12px; }
 
 .panel :is(button, select, a):focus-visible, .panel > summary:focus-visible {
-  outline: 3px solid #86b8ff;
+  outline: 3px solid var(--focus);
   outline-offset: 1px;
 }
 
 @media (max-width: 720px) {
   .panel > summary { min-height: 44px; }
-  .content { max-height: 360px; }
+  .content {  }
   .heading { display: grid; }
   .heading label { width: 100%; }
   .heading select, .shareRow a, .shareRow button, .more, .actions button { min-height: 44px; }

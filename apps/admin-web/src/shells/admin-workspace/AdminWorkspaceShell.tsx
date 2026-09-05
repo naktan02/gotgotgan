@@ -65,9 +65,10 @@ function CapabilityCards({ ready }: Readonly<{ ready: boolean }>) {
 export function AdminWorkspaceShell({ page = 'dashboard' }: Readonly<{ page?: 'dashboard' | 'catalog' }>) {
   const access = useAdminAccess()
   const [navigationOpen, setNavigationOpen] = useState(false)
+  const [navigationCollapsed, setNavigationCollapsed] = useState(false)
   const ready = access.state.kind === 'ready'
   return (
-    <div className={styles.shell}>
+    <div className={styles.shell} data-navigation-collapsed={navigationCollapsed}>
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
           <span className={styles.mark}>곳</span>
@@ -106,13 +107,14 @@ export function AdminWorkspaceShell({ page = 'dashboard' }: Readonly<{ page?: 'd
       <div className={styles.application}>
         <header className={styles.topbar}>
           <div className={styles.topbarTitle}>
-            <button type="button" aria-label="메뉴 접기" disabled>☰</button>
-            <span>운영 상태</span>
+            <button type="button" aria-label={navigationCollapsed ? '관리자 메뉴 펼치기' : '관리자 메뉴 접기'} aria-controls="admin-navigation" aria-expanded={!navigationCollapsed} onClick={() => setNavigationCollapsed(!navigationCollapsed)}>
+              <svg aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
+            <div><small>곳곳간 관리자</small><strong>{page === 'catalog' ? '장소 데이터' : '운영 대시보드'}</strong></div>
           </div>
           <div className={styles.statuses}>
             <div><small>접근 상태</small><strong><i className={ready ? styles.ok : styles.wait} />{accessLabels[access.state.kind]}</strong></div>
             <div><small>Authority Role</small><strong>{ready ? access.state.session.authorityRole : '확인 전'}</strong></div>
-            <div><small>알림</small><strong className={styles.muted}>Backend Interface 미구현</strong></div>
             {ready ? (
               <form action="/api/auth/logout" method="post">
                 <button className={styles.logout} type="submit">로그아웃</button>
@@ -124,7 +126,6 @@ export function AdminWorkspaceShell({ page = 'dashboard' }: Readonly<{ page?: 'd
         <main className={styles.workspace}>
           <div className={styles.pageHeading}>
             <div>
-              <p>Operations control plane</p>
               <h1>{page === 'catalog' ? '장소 데이터' : '운영 대시보드'}</h1>
               <span>실제 Backend Interface와 현재 운영자 권한으로 확인된 정보만 표시합니다.</span>
             </div>
