@@ -3,14 +3,8 @@ import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
 import { BrowserWindow, ipcMain, session, type Session } from 'electron'
 
+import type { DesktopAcquisitionProviderFactory } from '../../../application/ports/desktop-acquisition-provider.js'
 import { previewSavedLibrary } from '../../../application/preview-saved-library.js'
-import {
-  createNaverSavedPlaceCollector, NaverApiSavedPlaceSource, NaverProviderSession,
-} from '../../providers/naver/api/saved-place-source.js'
-import {
-  allowsNaverLoginNavigation, allowsNaverSavedPlaceRequest, naverMemberPageUrl,
-} from '../../providers/naver/api/request-policy.js'
-import { NaverSavedPlaceSnapshotNormalizer } from '../../providers/naver/snapshot/saved-place-snapshot-normalizer.js'
 import { ElectronAuthenticatedJsonClient } from './authenticated-json-client.js'
 import {
   desktopControlChannel, desktopControlUrl, DesktopControlSession, isTrustedControlSender,
@@ -39,12 +33,18 @@ function secureWindow(window: BrowserWindow, allowed: (url: string) => boolean):
   })
 }
 
-export async function openDesktopNaverHost(options: Readonly<{ visible?: boolean }> = {}): Promise<BrowserWindow> {
+export async function openDesktopAcquisitionHost(createProvider: DesktopAcquisitionProviderFactory,
+  options: Readonly<{ visible?: boolean }> = {}): Promise<BrowserWindow> {
   // No persist: prefix: provider cookies exist only for this app run, not in the user's browser.
-  const providerSession = session.fromPartition(`gotgotgan-naver-${randomUUID()}`, { cache: false })
+  const providerSession = session.fromPartition(`gotgotgan-provider-${randomUUID()}`, { cache: false })
   const controlSession = session.fromPartition(`gotgotgan-control-${randomUUID()}`, { cache: false })
   denySessionPrivileges(providerSession)
   denySessionPrivileges(controlSession)
+  const buildProvider = () => createProvider((allowsRequest) => new ElectronAuthenticatedJsonClient(
+    (url, init) => providerSession.fetch(url, init), allowsRequest,
+  ))
+  const provider = buildProvider()
+  if (!provider.allowsLoginNavigation(provider.loginUrl)) throw new Error('Provider login configuration rejected.')
   const assets = new Map([
     ['/', { name: 'index.html', type: 'text/html; charset=utf-8' }],
     ['/main.js', { name: 'main.js', type: 'text/javascript; charset=utf-8' }],
@@ -63,37 +63,31 @@ export async function openDesktopNaverHost(options: Readonly<{ visible?: boolean
     } })
   })
   const controlWindow = new BrowserWindow({
-    title: '곳곳간 · NAVER 가져오기 연결 확인', width: 660, height: 520, autoHideMenuBar: true,
+    title: `곳곳간 · ${provider.label} 가져오기 연결 확인`, width: 660, height: 520, autoHideMenuBar: true,
     show: options.visible ?? true,
     webPreferences: { ...safePreferences, session: controlSession,
       preload: fileURLToPath(new URL('./control/preload.cjs', import.meta.url)) },
   })
   secureWindow(controlWindow, (url) => url === desktopControlUrl)
-  let loginWindow: BrowserWindow | undefined
-  const workflow = new DesktopControlSession({
-    login: () => new Promise<void>((resolve, reject) => {
+  const workflow = new DesktopControlSession(buildProvider, (provider) => {
+      if (!provider.allowsLoginNavigation(provider.loginUrl)) throw new Error('Provider login configuration rejected.')
       const window = new BrowserWindow({
-        title: 'NAVER 직접 로그인 · 완료 후 이 창을 닫으세요', width: 1000, height: 820,
+        title: `${provider.label} 직접 로그인 · 인증 확인 후 자동으로 닫힙니다`, width: 1000, height: 820,
         autoHideMenuBar: true, webPreferences: { ...safePreferences, session: providerSession },
       })
-      loginWindow = window
-      secureWindow(window, allowsNaverLoginNavigation)
-      window.once('closed', () => { if (loginWindow === window) loginWindow = undefined; resolve() })
-      // Login never attaches response/body/trace/screenshot/collection listeners or a preload.
-      void window.loadURL(naverMemberPageUrl).catch(() => { reject(new Error('Login unavailable.')); window.destroy() })
-    }),
-    closeLogin: () => { if (loginWindow !== undefined && !loginWindow.isDestroyed()) loginWindow.close() },
-    collect: (signal) => {
-      // Each explicit collection owns its cumulative transport byte/request budget.
-      const client = new ElectronAuthenticatedJsonClient(
-        (url, init) => providerSession.fetch(url, init), allowsNaverSavedPlaceRequest,
-      )
-      return previewSavedLibrary({
-        source: new NaverApiSavedPlaceSource(createNaverSavedPlaceCollector(), client),
-        session: new NaverProviderSession(client), normalizer: new NaverSavedPlaceSnapshotNormalizer(), signal,
+      secureWindow(window, (url) => provider.allowsLoginNavigation(url))
+      const closed = new Promise<void>((resolve, reject) => {
+        window.once('closed', resolve)
+        // No login response/body/trace/screenshot listeners or preload. Probe is provider-owned.
+        void window.loadURL(provider.loginUrl).catch(() => {
+          reject(new Error('Login unavailable.'))
+          if (!window.isDestroyed()) window.destroy()
+        })
       })
-    },
-  })
+      return { closed, currentUrl: () => window.isDestroyed() ? '' : window.webContents.getURL(),
+        // This app-owned temporary login cannot veto acquisition/cancellation via beforeunload.
+        close: () => { if (!window.isDestroyed()) window.destroy() } }
+  }, (acquisition, signal) => previewSavedLibrary({ ...acquisition, signal }))
   ipcMain.handle(desktopControlChannel, (event, command: unknown, ...extra: unknown[]) => {
     if (extra.length > 0 || !isTrustedControlSender({
       expectedContentsId: controlWindow.webContents.id, contentsId: event.sender.id,

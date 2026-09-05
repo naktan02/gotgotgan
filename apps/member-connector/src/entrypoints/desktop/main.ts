@@ -1,5 +1,6 @@
 import { app, protocol } from 'electron'
-import { openDesktopNaverHost } from '../../adapters/browser/electron/desktop-naver-host.js'
+import { openDesktopAcquisitionHost } from '../../adapters/browser/electron/desktop-acquisition-host.js'
+import { createNaverDesktopAcquisitionProvider } from '../../adapters/providers/naver/desktop/acquisition-provider.js'
 import { checkLocalControl } from './check-local-control.js'
 
 app.enableSandbox()
@@ -19,7 +20,7 @@ if (!process.argv.includes('--desktop-naver') && !localCheck) {
 } else {
   app.on('window-all-closed', () => app.quit())
   void app.whenReady().then(async () => {
-    const window = await openDesktopNaverHost({ visible: !localCheck })
+    const window = await openDesktopAcquisitionHost(createNaverDesktopAcquisitionProvider, { visible: !localCheck })
     if (localCheck) {
       await checkLocalControl(window)
       process.stdout.write('Desktop local control and isolated IPC smoke passed.\n')

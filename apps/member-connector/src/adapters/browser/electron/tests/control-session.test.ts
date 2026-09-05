@@ -1,86 +1,163 @@
-import { describe, expect, it, vi } from 'vitest'
-
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DesktopControlSession, desktopControlUrl, isTrustedControlSender } from '../control-session.js'
+import type { DesktopAcquisitionProvider } from '../../../../application/ports/desktop-acquisition-provider.js'
 import { previewSavedLibrary } from '../../../../application/preview-saved-library.js'
-import { NaverApiSavedPlaceSource, NaverProviderSession } from '../../../providers/naver/api/saved-place-source.js'
-import { NaverSavedPlaceCollector } from '../../../providers/naver/api/saved-place-collector.js'
-import { naverSavedPlaceApiBaseUrl } from '../../../providers/naver/api/request-policy.js'
-import { NaverSavedPlaceSnapshotNormalizer } from '../../../providers/naver/snapshot/saved-place-snapshot-normalizer.js'
+import type { SavedLibraryPreview } from '../../../../application/preview-saved-library.js'
+import type { ProviderSessionState } from '../../../../application/ports/provider-session.js'
 
 const summary = { listCount: 1, itemCount: 1, missingIdentityCount: 0, serverSaved: false as const }
+type Probe = (signal: AbortSignal) => Promise<ProviderSessionState>
+function setup(overrides: Partial<{
+  probe: Probe
+  collect: (signal: AbortSignal) => Promise<SavedLibraryPreview>
+}> = {}) {
+  let close!: () => void
+  let url = 'https://provider.invalid/login'
+  const window = { closed: new Promise<void>((resolve) => { close = resolve }),
+    currentUrl: () => url, close: vi.fn(() => close()) }
+  const provider = {
+    probe: vi.fn<Probe>().mockResolvedValue('active'),
+    collect: vi.fn(async () => summary), ...overrides,
+  }
+  const descriptor: DesktopAcquisitionProvider = {
+    label: 'Synthetic provider', loginUrl: url, allowsLoginNavigation: () => true,
+    canProbeLogin: (value: string) => value === 'https://provider.invalid/returned',
+    acquisition: {
+      source: { providerKey: 'naver', collect: async function* () {} },
+      session: { providerKey: 'naver', probe: ({ signal }) => provider.probe(signal) },
+      normalizer: { providerKey: 'naver', parserVersion: 'test.v1', normalize: () => ({ lists: [] }) },
+    },
+  }
+  const openLogin = vi.fn(() => window)
+  return { provider, window, openLogin, workflow: new DesktopControlSession(() => descriptor, openLogin,
+    (_acquisition, signal) => provider.collect(signal)),
+    returned: () => { url = 'https://provider.invalid/returned' },
+    authenticating: () => { url = 'https://provider.invalid/login' } }
+}
+afterEach(() => vi.useRealTimers())
 
-describe('Desktop login and capture lifecycle', () => {
-  it('accepts only the exact local main-frame sender', () => {
+describe('Provider-neutral Desktop authentication and acquisition', () => {
+  it('accepts only exact local main-frame IPC sender', () => {
     const sender = { expectedContentsId: 2, contentsId: 2, frameUrl: desktopControlUrl, mainFrame: true }
     expect(isTrustedControlSender(sender)).toBe(true)
-    for (const change of [{ contentsId: 3 }, { frameUrl: 'https://map.naver.com/' },
+    for (const change of [{ contentsId: 3 }, { frameUrl: 'https://provider.invalid/' },
       { mainFrame: false }, { frameUrl: `${desktopControlUrl}?spoof=1` }]) {
       expect(isTrustedControlSender({ ...sender, ...change })).toBe(false)
     }
   })
 
-  it('never collects during visible login and does not claim login success from closing', async () => {
-    let close!: () => void
-    const collect = vi.fn(async () => summary)
-    const workflow = new DesktopControlSession({
-      login: () => new Promise<void>((resolve) => { close = resolve }), closeLogin: () => close(), collect,
-    })
-    expect((await workflow.execute('collect')).state).toBe('error')
-    const login = workflow.execute('login')
-    expect((await workflow.execute('collect')).state).toBe('busy')
-    expect(collect).not.toHaveBeenCalled()
-    close()
-    expect(await login).toMatchObject({ state: 'login-closed' })
-    expect(await workflow.execute('collect')).toEqual({ state: 'collected', summary })
-    expect(await workflow.execute({ url: 'https://evil.invalid/' })).toMatchObject({ state: 'error' })
+  it('collects directly after an active probe and rechecks on the next click', async () => {
+    const test = setup()
+    expect(await test.workflow.execute('collect')).toEqual({ state: 'collected', summary })
+    expect(await test.workflow.execute('collect')).toEqual({ state: 'collected', summary })
+    expect(test.provider.probe).toHaveBeenCalledTimes(2)
+    expect(test.openLogin).not.toHaveBeenCalled()
+    expect((await test.workflow.execute('login')).state).toBe('error')
   })
 
-  it('cancels login without letting its delayed completion enable collection', async () => {
-    let close!: () => void
-    const collect = vi.fn(async () => summary)
-    const workflow = new DesktopControlSession({
-      login: () => new Promise<void>((resolve) => { close = resolve }), closeLogin: () => close(), collect,
-    })
-    const login = workflow.execute('login')
-    await workflow.execute('cancel')
-    expect((await login).state).toBe('cancelled')
-    expect((await workflow.execute('collect')).state).toBe('error')
-    expect(collect).not.toHaveBeenCalled()
+  it('waits for an eligible return page and verified authentication before auto-close and collection', async () => {
+    vi.useFakeTimers()
+    const probe = vi.fn<Probe>().mockResolvedValueOnce('reauth-required').mockResolvedValue('active')
+    const test = setup({ probe })
+    const result = test.workflow.execute('collect')
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(probe).toHaveBeenCalledOnce()
+    expect(test.provider.collect).not.toHaveBeenCalled()
+    expect(test.window.close).not.toHaveBeenCalled()
+    test.returned()
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(await result).toEqual({ state: 'collected', summary })
+    expect(test.window.close).toHaveBeenCalledOnce()
+    expect(test.provider.collect).toHaveBeenCalledOnce()
   })
 
-  it('aborts acquisition on close and rejects commands after shutdown', async () => {
-    const workflow = new DesktopControlSession({ login: async () => {}, closeLogin: () => {},
-      collect: (signal) => new Promise((resolve) => signal.addEventListener('abort', () => resolve(summary), { once: true })),
-    })
-    await workflow.execute('login')
-    const collecting = workflow.execute('collect')
-    workflow.close()
-    expect((await collecting).state).toBe('cancelled')
-    expect((await workflow.execute('login')).state).toBe('error')
+  it('does not accept a manually closed login as authentication', async () => {
+    vi.useFakeTimers()
+    const test = setup({ probe: vi.fn().mockResolvedValue('reauth-required') })
+    const result = test.workflow.execute('collect')
+    await vi.advanceTimersByTimeAsync(0)
+    test.window.close()
+    expect((await result).state).toBe('error')
+    expect(test.provider.collect).not.toHaveBeenCalled()
   })
 
-  it('reuses the real NAVER parser and normalizer for folders then minimum bookmarks only', async () => {
-    const paths: string[] = []
-    const client = { get: async ({ url }: { url: URL }) => {
-      paths.push(url.pathname)
-      const data = url.pathname.endsWith('/folders')
-        ? { folderList: [{ shareID: 'list-fixture', name: '검증 목록' }], totalCount: 1 }
-        : { bookmarkList: [{ bookmarkId: 'bookmark-fixture', sid: 'place-fixture', name: '검증 장소', memo: 'private ignored' }], totalCount: 1 }
-      return { status: 200, contentType: 'application/json', body: new TextEncoder().encode(JSON.stringify(data)) }
-    } }
-    const collector = new NaverSavedPlaceCollector({
-      apiBaseUrl: naverSavedPlaceApiBaseUrl, folderPageSize: 20, bookmarkPageSize: 100,
-      maximumLists: 500, maximumBookmarks: 100_000, maximumResponseBytes: 4_194_304, delayMilliseconds: 0,
-    })
-    const result = await previewSavedLibrary({
-      source: new NaverApiSavedPlaceSource(collector, client), session: new NaverProviderSession(client),
-      normalizer: new NaverSavedPlaceSnapshotNormalizer(), signal: new AbortController().signal,
-    })
-    expect(result).toEqual(summary)
-    expect(paths).toEqual([
-      '/save-pages/api/maps-bookmark/v3/folders', '/save-pages/api/maps-bookmark/v3/folders',
-      '/save-pages/api/maps-bookmark/v3/shares/list-fixture/bookmarks',
-    ])
-    expect(JSON.stringify(result)).not.toMatch(/fixture|private|cookie|token/u)
+  it('rejects duplicate acquisition and aborts login on cancellation', async () => {
+    vi.useFakeTimers()
+    const test = setup({ probe: vi.fn().mockResolvedValue('reauth-required') })
+    const result = test.workflow.execute('collect')
+    await vi.advanceTimersByTimeAsync(0)
+    expect((await test.workflow.execute('collect')).state).toBe('busy')
+    expect((await test.workflow.execute('cancel')).state).toBe('cancelled')
+    expect((await result).state).toBe('cancelled')
+    expect(test.window.close).toHaveBeenCalledOnce()
+    expect(test.provider.collect).not.toHaveBeenCalled()
+  })
+
+  it('bounds login to five minutes without probing the authentication page', async () => {
+    vi.useFakeTimers()
+    const test = setup({ probe: vi.fn().mockResolvedValue('reauth-required') })
+    const result = test.workflow.execute('collect')
+    await vi.advanceTimersByTimeAsync(5 * 60_000)
+    expect((await result).state).toBe('error')
+    expect(test.provider.probe).toHaveBeenCalledOnce()
+    expect(test.window.close).toHaveBeenCalledOnce()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('stops repeated checks on unavailable or contract drift instead of reopening login', async () => {
+    vi.useFakeTimers()
+    for (const failure of ['unavailable', new Error('schema changed')] as const) {
+      const probe = vi.fn<Probe>().mockResolvedValueOnce('reauth-required')
+      if (failure instanceof Error) probe.mockRejectedValue(failure)
+      else probe.mockResolvedValue(failure)
+      const test = setup({ probe }); test.returned()
+      const result = test.workflow.execute('collect')
+      await vi.advanceTimersByTimeAsync(3000)
+      expect((await result).state).toBe('error')
+      await vi.advanceTimersByTimeAsync(10_000)
+      expect(probe).toHaveBeenCalledTimes(2)
+      expect(test.provider.collect).not.toHaveBeenCalled()
+      expect(test.window.close).toHaveBeenCalledOnce()
+    }
+  })
+
+  it('closes in-flight acquisition on shutdown and rejects further commands', async () => {
+    let signal!: AbortSignal
+    const test = setup({ collect: (current) => new Promise((resolve) => {
+      signal = current; current.addEventListener('abort', () => resolve(summary), { once: true })
+    }) })
+    const result = test.workflow.execute('collect'); await Promise.resolve()
+    test.workflow.close()
+    expect(signal.aborted).toBe(true)
+    expect((await result).state).toBe('cancelled')
+    expect((await test.workflow.execute('collect')).state).toBe('error')
+  })
+
+  it('stops on unavailable even if the login page changes during the probe', async () => {
+    vi.useFakeTimers()
+    let respond!: (state: ProviderSessionState) => void
+    const probe = vi.fn<Probe>().mockResolvedValueOnce('reauth-required')
+      .mockImplementation(() => new Promise((resolve) => { respond = resolve }))
+    const test = setup({ probe }); test.returned()
+    const result = test.workflow.execute('collect')
+    await vi.advanceTimersByTimeAsync(3000)
+    test.authenticating()
+    respond('unavailable')
+    expect((await result).state).toBe('error')
+    test.returned()
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(probe).toHaveBeenCalledTimes(2)
+    expect(test.provider.collect).not.toHaveBeenCalled()
+    expect(test.window.close).toHaveBeenCalledOnce()
+  })
+
+  it('preserves unavailable distinct from reauthentication in normalized preview', async () => {
+    const source = { providerKey: 'naver' as const, collect: vi.fn(async function* () {}) }
+    await expect(previewSavedLibrary({ source,
+      session: { providerKey: 'naver', probe: async () => 'unavailable' },
+      normalizer: { providerKey: 'naver', parserVersion: 'test.v1', normalize: () => ({ lists: [] }) },
+      signal: new AbortController().signal,
+    })).rejects.toMatchObject({ code: 'provider-unavailable' })
+    expect(source.collect).not.toHaveBeenCalled()
   })
 })

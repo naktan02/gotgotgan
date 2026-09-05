@@ -9,7 +9,7 @@ import type {
 } from '../../../../application/ports/saved-place-source.js'
 import { SavedPlaceSourceError } from '../../../../application/ports/saved-place-source.js'
 import {
-  NaverSavedPlaceCollector,
+  NaverSavedPlaceCollector, isNaverSavedFolderResponse,
 } from './saved-place-collector.js'
 
 import { naverSavedPlaceApiBaseUrl as apiBaseUrl } from './request-policy.js'
@@ -24,6 +24,7 @@ function optionalCompactText(value: string | undefined, maximum: number): string
 }
 
 function mappedError(error: unknown): SavedPlaceSourceError {
+  if (error instanceof SavedPlaceSourceError) return error
   if (error instanceof AuthenticatedJsonClientError) {
     if (error.code === 'permission-denied') {
       return new SavedPlaceSourceError('permission-denied', false, error.message)
@@ -69,13 +70,13 @@ export class NaverProviderSession implements ProviderSession {
         response.status >= 200 && response.status < 300 &&
         response.contentType.toLowerCase().includes('text/html')
       ) return 'reauth-required' as const
+      if (response.status === 429 || response.status >= 500) return 'unavailable' as const
       if (
         response.status >= 200 && response.status < 300 &&
         response.contentType.toLowerCase().includes('json')
+        && isNaverSavedFolderResponse(response.body)
       ) return 'active' as const
-      // The session port reports authentication only. Endpoint availability and schema drift belong
-      // to the source Adapter so a future DOM/manual strategy is not blocked by this API preflight.
-      return 'active' as const
+      throw new SavedPlaceSourceError('provider-drift', false, 'NAVER session response schema changed.')
     } catch (error) {
       throw mappedError(error)
     }

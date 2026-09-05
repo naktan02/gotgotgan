@@ -122,6 +122,11 @@ export async function inspectMemberConnectorArchitecture(sourceRoot) {
       const targetLayer = layerOf(target)
       targets.push(target)
 
+      if (importerLayer === 'adapters' && importer.startsWith('adapters/browser/electron/') &&
+        target.startsWith('adapters/providers/')) {
+        violations.push(`${importer}: desktop host must receive provider adapters through its application interface`)
+      }
+
       if (
         !importer.startsWith('application/outbound-export/') &&
         target.startsWith('application/outbound-export/') &&

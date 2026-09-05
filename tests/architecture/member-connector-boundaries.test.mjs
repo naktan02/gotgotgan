@@ -60,6 +60,20 @@ test('rejects source imports that escape the connector root', async () => {
   assert.ok(violations.some((value) => value.includes('escapes the connector source root')))
 })
 
+test('keeps provider acquisition out of the common desktop host', async () => {
+  const root = await fixture({
+    'application/ports/desktop-acquisition-provider.ts': 'export type Provider = { collect(): void }',
+    'adapters/providers/naver/desktop/acquisition-provider.ts': 'export const provider = { collect() {} }',
+    'adapters/browser/electron/host.ts': "import type { Provider } from '../../../application/ports/desktop-acquisition-provider.js'; export const open = (provider: Provider) => provider.collect()",
+    'entrypoints/desktop/main.ts': "import { provider } from '../../adapters/providers/naver/desktop/acquisition-provider.js'; import { open } from '../../adapters/browser/electron/host.js'; open(provider)",
+  })
+  assert.deepEqual(await inspectMemberConnectorArchitecture(root), [])
+  await writeFile(path.join(root, 'adapters/browser/electron/host.ts'),
+    "import { provider } from '../../providers/naver/desktop/acquisition-provider.js'; export const open = () => provider.collect()")
+  assert.ok((await inspectMemberConnectorArchitecture(root))
+    .some((value) => value.includes('desktop host must receive provider adapters')))
+})
+
 test('requires outbound export callers to cross its public index seam', async () => {
   const root = await fixture({
     'application/outbound-export/index.ts': "export { run } from './runtime.js'",

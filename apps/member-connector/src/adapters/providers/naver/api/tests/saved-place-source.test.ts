@@ -78,10 +78,22 @@ describe('NAVER API saved-library adapter', () => {
     await expect(session.probe({ signal: AbortSignal.timeout(1_000) })).resolves.toBe('reauth-required')
   })
 
-  it('leaves API availability to the source instead of blocking future acquisition strategies', async () => {
+  it('does not claim authentication from a changed endpoint or arbitrary JSON', async () => {
     const session = new NaverProviderSession({
       get: async () => ({ status: 404, contentType: 'application/json', body: new Uint8Array() }),
     })
+    await expect(session.probe({ signal: AbortSignal.timeout(1_000) })).rejects.toMatchObject({ code: 'provider-drift' })
+    const malformed = new NaverProviderSession({ get: async () => json({ success: true }) })
+    await expect(malformed.probe({ signal: AbortSignal.timeout(1_000) })).rejects.toMatchObject({ code: 'provider-drift' })
+  })
+
+  it.each([429, 500, 503])('stops on %s without treating provider availability as reauthentication', async (status) => {
+    const session = new NaverProviderSession({ get: async () => ({ ...json({}), status }) })
+    await expect(session.probe({ signal: AbortSignal.timeout(1_000) })).resolves.toBe('unavailable')
+  })
+
+  it.each([{ folderList: [], totalCount: 0 }, { folders: [], count: 0 }])('confirms a validated folder schema', async (body) => {
+    const session = new NaverProviderSession({ get: async () => json(body) })
     await expect(session.probe({ signal: AbortSignal.timeout(1_000) })).resolves.toBe('active')
   })
 

@@ -27,19 +27,24 @@ permission은 선택 시점에 exact origin 단위로 요청하고 build allowli
 한 회원의 여러 browser 설치는 별도 회전 가능한 설치 참조로 관리한다. Place 연결 해제는 Place grant와
 논리 연결만 철회하고 Provider cookie를 변경하지 않는다.
 
-현재 versioned Connector schema와 source-only Adapter가 이 경계를 강제한다. grant origin과 page
-sender origin이 정확히 일치해야 하고 capture upload는 같은 공개 origin의 고정
-`/api/connector/captures` 경로만 사용한다. redirect와 cookie 전송을 거부하며 receipt의 operation,
-sequence, checksum이 요청과 일치해야 한다. Chromium·Firefox manifest의 기본 권한은 `storage`이고,
-NAVER는 `https://pages.map.naver.com/*`만 optional host permission으로 선언한다. 사용자가 NAVER
-가져오기를 선택한 즉시 클릭에서만 이를 요청하며 Kakao·Google 권한은 아직 선언하지 않는다.
+현행 account-bound 가져오기는 `transfers` v2 계약을 사용한다. 최소 정보 수집을 불변 snapshot으로
+고정한 다음, 회원·operation·connection·관측한 계정 fingerprint·installation·manifest·origin·상한에
+묶인 grant를 발급한다. Origin이나 installation ID만으로 회원 또는 Provider 계정을 인증하지 않는다.
+로그인 창 종료와 정상 JSON 응답도 안정적인 계정 identity의 증거가 아니다. 실제 identity를 관측하지
+못하면 cookie·session token·임의 UUID로 fingerprint를 대신 만들지 않는다.
 
-Backend는 OIDC로 확인한 회원에게만 grant를 발급하고 token 원문 대신 digest만 저장한다. 동일한
-멱등 요청을 재개하면 operation과 ImportBatch는 유지하되 token을 회전해 이전 값을 폐기한다. capture는
-공개 origin, provider, operation, 증가 sequence, checksum과 누적 상한을 모두 확인한다. 원본은
-배포 keyring의 AES-256-GCM으로 private volume에 저장하고 DB에는 불투명 `capture:` 참조와 보존 기한만
-남긴다. 캡처 파일과 DB 확정 사이의 장애는 `pending` receipt로 재개하며, 보존 만료 sweep이 DB와
-파일 삭제를 조정한다.
+회원 session 전용 grant BFF와 cookie 없는 capability 전송은 별도 채널이다. 폐기된 v1
+`/api/connector/captures` 경로를 재사용하거나 Desktop이 Web Origin을 가장해 연결을 우회하지 않는다.
+실제 Desktop의 회원 승인·pairing, 계정 identity 관측과 안전한 spool key 수명주기가 조립되기 전에는
+서버 가져오기 capability를 활성화하지 않는다. 상세 상태는
+[`회원 로컬 커넥터`](../../apps/member-connector/README.md)를 따른다.
+
+Backend는 OIDC로 확인한 회원에게만 grant를 발급하고 token 원문 대신 digest만 저장한다. 같은 grant
+command를 재전송했다고 새 plaintext token을 복원하지 않는다. 재개할 때는 새 command로 동일하게
+고정된 manifest의 권한을 재발급받는다. capture는 origin, provider, operation, manifest, 증가 sequence,
+checksum과 누적 상한을 확인하며 명시적인 complete 이후에만 SourceSnapshot 완료를 보고한다.
+최소 정보 저장과 상세 보강은 독립이고, capture 완료만으로 개인 Collection 변경까지 완료했다고
+표시하지 않는다. Collection 반영은 회원의 ImportPlan 승인 후 수행한다.
 
 현재 Playwright 진단 도구는 저장소 밖 절대 경로의 전용 Chrome profile만 열고
 로그인과 관찰을 별도 명령으로 분리한다. 로그인 명령에는 response listener가 없다. 관찰 명령은
@@ -55,9 +60,16 @@ profile 경로는 보고서에 남지 않으며 서버 전송도 구현하지 �
 회원이 승인한 일회성·짧은 수명의 upload grant로만 캡처를 제출하며, Web session cookie나 장기 bearer
 token을 설정으로 복사하지 않는다.
 
-현재 source에는 사용자별 서버, localhost daemon, native-messaging host가 없다. desktop shell이나
-browser-control Adapter는 별도 보안·live 검증 후에만 추가하며 수동 캡처/OCR은 출처와 검토 필요 여부를
-versioned 계약에 명시한 뒤 같은 Ingestion 경계로 제출한다.
+현재 Electron Desktop Adapter는 곳곳간 제어 화면과 Provider 로그인에 별도 임시 session을 사용한다.
+Provider 창에는 preload·Node 권한·임의 script 실행을 허용하지 않고 sandbox·context isolation·web
+security를 유지한다. 기존 사용자의 브라우저 profile은 읽거나 복사하지 않는다. 앱 종료 시 임시
+Provider session을 정리한다. localhost daemon·native-messaging host·browser-control 연결은 없다.
+
+공통 실행 호스트는 주입된 수집 Interface만 사용하고 Provider가 로그인 URL·인증 확인 정책·수집 방식과
+parser를 소유한다. 인증 만료·권한 거부·rate limit을 다른 방식으로 조용히 우회하지 않는다. 같은
+snapshot 안에서 수집 방식을 바꾸거나 API 결과와 OCR 결과를 암묵적으로 섞지 않는다. 향후 DOM·수동
+캡처/OCR은 출처와 검토 정책을 명시해야 하며, 계정 불명 일회 가져오기를 검증된 외부 계정 연결로
+가장하지 않는다. 현재는 그 별도 일회 가져오기 계약을 활성화하지 않는다.
 
 개인 Collection Materialization Worker는 Provider profile이나 Provider Adapter를 전혀 사용하지 않는다.
 후속 상세 보강에 서버 Provider profile이 필요하다면 사용자 profile과 별개인 배포 소유 read-only

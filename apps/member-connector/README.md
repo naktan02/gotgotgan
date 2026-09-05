@@ -10,14 +10,18 @@
 Electron `44.2.0` 실행 Adapter를 추가했다. 확장 프로그램·Playwright·별도 browser-control을 사용하지
 않는다. NAVER 로그인 창과 곳곳간 로컬 제어 화면은 서로 다른 임시 session을 사용하며, 앱을 종료하면
 다시 로그인해야 한다. NAVER 창에는 preload나 Node 권한을 주지 않고 sandbox·context isolation·web
-security를 유지한다. 로그인과 2차 인증·보안 확인은 사용자가 직접 수행하며 수집 중에는 로그인 창을
-열지 않는다. 로그인 창을 닫았다는 사실만으로 인증 성공이라고 표시하지 않는다.
+security를 유지한다. 기본 정보 수집을 누르면 먼저 session을 확인하고, 인증이 만료된 경우에만
+Provider 로그인 창을 연다. 로그인과 2차 인증·보안 확인은 사용자가 직접 수행한다. Provider가 허용한
+first-party 복귀 화면에서만 최소 3초 간격으로 인증을 확인하며 로그인·MFA 화면에서는 요청하지 않는다.
+로그인 확인은 최대 5분이고 rate limit·서비스 장애·응답 변경이면 반복하지 않는다. NAVER는 기존
+folders parser가 유효한 응답을 확인한 경우에만 active다. 실제 확인 후 앱 소유 임시 창을 강제 종료하고
+closed를 기다린 뒤 수집을 계속한다. 창을 먼저 닫거나 취소한 사실은 인증 성공이 아니다.
 
 ```powershell
 npm run desktop:naver --workspace @place/member-connector
 ```
 
-로컬 화면의 `NAVER 로그인`을 눌러 로그인하고 NAVER 창을 닫은 뒤 `기본 정보 수집`을 누른다.
+로컬 화면의 `기본 정보 수집` 버튼 하나로 인증 확인과 수집을 시작하며, 진행 중 중복 클릭은 막는다.
 session-bound GET Adapter는 기존에 관측한 folders와 목록별 bookmarks 두 경로만 허용한다. 요청은
 15초·4 MiB, 전체 실행은 10분·2,500회 요청·500개 목록·100,000개 항목·응답 합계 64 MiB로 제한하고 redirect를
 따라가지 않는다. 인증 만료·응답 변경·요청 제한은 재시도 안내로 멈추며 우회하지 않는다.
@@ -30,13 +34,23 @@ cookie·token·provider 응답·profile 경로는 화면·로그에 내보내지
 `integration-gated`다.
 
 제어 화면은 exact custom-protocol 정적 자산만 읽고 CSP로 네트워크·frame을 금지한다. IPC는 해당
-webContents의 정확한 main-frame URL만 받으며 로그인·수집·취소 세 명령만 허용한다. 임의 URL,
+webContents의 정확한 main-frame URL만 받으며 수집·취소 두 명령만 허용한다. 임의 URL,
 스크립트, 파일, 원본 응답을 전달하는 IPC나 외부 앱 실행 기능은 없다. 창 이동·새 창·download·권한은
-거부하거나 NAVER의 정확한 로그인 origin 목록으로 제한한다.
+거부하거나 Provider Adapter가 정한 정확한 로그인 origin 목록으로 제한한다. redirect는 수동 응답으로
+받아 인증 만료를 분류하고 이동을 따라가지 않으며 응답 body를 UI나 로그에 전달하지 않는다.
 
 `application/preview-saved-library.ts`는 source·session·normalizer만 조합한다. 실행 호스트별 window,
 session HTTP, IPC 및 취소 수명주기는 `adapters/browser/electron/`에 격리하고 로컬 화면 자산은
 그 아래 `control/`이 소유한다. `entrypoints/desktop/`은 process 조립과 로컬 smoke만 수행한다.
+공통 `desktop-acquisition-host.ts`는 Provider 이름·URL·parser를 import하지 않고
+`DesktopAcquisitionProvider` Interface를 주입받는다. NAVER 조립은
+`adapters/providers/naver/desktop/acquisition-provider.ts`만 소유하며, 각 실행의 인증 probe와 수집은
+동일한 transport 용량·요청 budget을 공유한다. 현재 host capability는 session-bound HTTP뿐이다.
+Provider는 기존 source/session/normalizer bundle만 제공하며 count-only preview 실행은 공통 Desktop
+조립부가 선택한다. 후속 v2 snapshot 제출도 같은 bundle을 소비하므로 Provider leaf가 서버 handoff를
+구현하거나 복제하지 않는다. 현재 그 제출·계정 trust 조립이 완료됐다는 뜻은 아니다.
+DOM/OCR·화면 캡처는 아직 지원하지 않으며 도입 시 승인된 좁은 host capability가 필요할 수 있다.
+Provider 전략을 자동 fallback하거나 임의 스크립트 실행 IPC를 미리 만들지 않는다.
 
 ```powershell
 npm run check:desktop --workspace @place/member-connector

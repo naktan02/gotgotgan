@@ -1,11 +1,17 @@
 # Connector v1 계약
 
+> **폐기된 실행 경로의 참고 문서다.** 아래 v1 capture BFF·receiver는 현재 production 조립에서
+> 사용하지 않으며 새 Desktop 가져오기에 연결하지 않는다. 현행 저장은 `transfers`의 v2 sealed
+> snapshot·grant와 V3 ImportPlan 승인을 사용한다. 실행 호스트와 검증 상태는
+> [`회원 로컬 커넥터`](../../apps/member-connector/README.md), 서버 저장 규칙은
+> [`Provider transfers`](../../backend/src/modules/transfers/README.md)를 따른다.
+
 Connector v1은 Place 페이지, 회원 브라우저의 Place Connector 확장, 공개 Place BFF 사이의 메시지와
 캡처 제출 경계를 정의한다. 작성 원본은 `packages/contracts/src/connector/index.ts`이고 배포용 JSON
 Schema는 `packages/contracts/connector/place-connector.v1.schema.json`으로 생성한다. JSON을 별도
 원본으로 수정하지 않는다.
 
-현재 확장 계약·NAVER Provider Adapter·WebExtensions Adapter·고정 Place origin 업로드 Adapter,
+당시 확장 계약·NAVER Provider Adapter·WebExtensions Adapter·고정 Place origin 업로드 Adapter,
 Web BFF, Backend의 `/v1/connector-grants`와 `/v1/connector-captures` 수신 경계는 `source-only`다.
 Backend는 실제 PostGIS에서 grant 재발급, 이전 token 폐기, 순서·상한·checksum 검증, 암호화 원본,
 정규화 ImportItem과 Collection materialization intent를 하나의 ImportBatch에 연결한다. Chromium/Firefox 산출물과 가짜

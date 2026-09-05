@@ -5,6 +5,11 @@
 
 저장소 `AGENTS.md`와 `README.md`를 읽은 뒤 작업에 필요한 경로만 읽는다.
 
+회원 가져오기 실행 호스트의 최신 기준은 [`회원 로컬 커넥터`](../apps/member-connector/README.md),
+최소 snapshot 승인·저장은 [`Provider transfers`](../backend/src/modules/transfers/README.md)다.
+아래의 과거 단계별 확장·v1 설명을 새 Desktop의 서버 연결 완료로 해석하지 않는다. NAVER URL 수집은
+Provider Adapter 중 하나이며 다른 공급자·수집 방식은 같은 snapshot 처리 경계를 사용한다.
+
 - Product scope, terminology, journeys, UI, or reference work: `product/README.md`.
 - Module placement, dependencies, processes, or failure behavior: `architecture/README.md`.
 - Place concepts, ownership, normalization, visits, writing, sharing, or ingestion: `domain/README.md`.

@@ -20,6 +20,9 @@ Provider, workflow, 화면을 추가할 때 수정 범위가 해당 모듈 안�
 
 - Provider Adapter는 `adapters/providers/<provider>` 아래의 형제다. 브라우저 수명주기 코드는 동급이
   아니므로 browser Adapter 아래에 둔다.
+- Desktop 브라우저 호스트는 Provider 구현을 직접 import하지 않는다. 로그인 정책과 수집을
+  application Interface로 주입하고 `entrypoints/desktop`에서 Provider 구현을 조립한다. 이 방향은
+  Connector architecture 검사로 고정하며, 같은 Provider의 새 수집 방식도 공통 호스트 안에 분기하지 않는다.
 - Import capture, outbound execution, reconciliation은 전송 영역의 동급 하위 모듈이다. SQL row 변환과
   transaction helper는 해당 Adapter의 비공개 구현이다.
 - 작은 feature는 호출자가 하나의 공개 Interface만 사용하고 한 workflow로 함께 바뀐다면 `model`,

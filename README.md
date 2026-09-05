@@ -7,6 +7,11 @@
 향후 Tool 접근을 소유하는 독립적인 개인 장소 플랫폼이다. 제품 표시명은 `곳곳간`, 저장소 slug는
 `gotgotgan`이며 호환성이 필요한 내부 도메인·계약 식별자는 `place`를 유지한다.
 
+현재 가져오기 기준은 [`회원 로컬 커넥터`](apps/member-connector/README.md)와
+[`Provider transfers`](backend/src/modules/transfers/README.md)다. 아래 단계별 기록에는 이전
+확장 중심 구현이 포함돼 있지만, 새 가져오기는 확장을 필수로 두지 않는다. Desktop의 로컬 수집 확인과
+회원 인증을 거친 서버 저장 연결은 서로 다른 완료 조건이다. 메뉴 등 상세 보강 작업은 계속 비활성이다.
+
 Current delivery state: **source-only; Stages 6.5, 7.5–7.17, and 11A–11E2B3 complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
 roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
 a source-only physical PostGIS declaration, a tested database preparation/migration command, and

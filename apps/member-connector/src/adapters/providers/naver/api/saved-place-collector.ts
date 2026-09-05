@@ -32,6 +32,12 @@ const folderPageSchema = z.union([
   }).passthrough(),
 ])
 
+export function isNaverSavedFolderResponse(body: Uint8Array): boolean {
+  try {
+    return folderPageSchema.safeParse(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(body))).success
+  } catch { return false }
+}
+
 const bookmarkSchema = z.object({
   bookmarkId: identifierSchema,
   sid: identifierSchema.nullable().optional(),

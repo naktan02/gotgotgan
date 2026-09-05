@@ -42,7 +42,7 @@ export class ElectronAuthenticatedJsonClient implements AuthenticatedJsonClient 
     try {
       input.signal.throwIfAborted()
       const response = await this.fetchInSession(input.url.href, {
-        method: 'GET', credentials: 'include', redirect: 'error', cache: 'no-store',
+        method: 'GET', credentials: 'include', redirect: 'manual', cache: 'no-store',
         headers: { accept: 'application/json' }, signal: controller.signal,
       })
       const contentType = response.headers.get('content-type') ?? ''

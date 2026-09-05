@@ -29,7 +29,7 @@ describe('Electron session-bound read transport', () => {
     const response = await client.get(input())
     expect(response.status).toBe(200)
     expect(fetcher).toHaveBeenCalledWith(url.href, expect.objectContaining({
-      method: 'GET', credentials: 'include', redirect: 'error', cache: 'no-store',
+      method: 'GET', credentials: 'include', redirect: 'manual', cache: 'no-store',
       headers: { accept: 'application/json' },
     }))
     expect(Object.keys(response).sort()).toEqual(['body', 'contentType', 'status'])

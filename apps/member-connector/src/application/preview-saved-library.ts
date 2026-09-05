@@ -20,7 +20,11 @@ export async function previewSavedLibrary(input: Readonly<{
   if (input.source.providerKey !== input.session.providerKey ||
     input.source.providerKey !== input.normalizer.providerKey) throw new Error('Provider binding mismatch.')
   input.signal.throwIfAborted()
-  if (await input.session.probe({ signal: input.signal }) !== 'active') {
+  const sessionState = await input.session.probe({ signal: input.signal })
+  if (sessionState === 'unavailable') {
+    throw new SavedPlaceSourceError('provider-unavailable', true, 'Provider session check unavailable.')
+  }
+  if (sessionState === 'reauth-required') {
     throw new SavedPlaceSourceError('reauth-required', false, 'Provider login requires user action.')
   }
   const listIds = new Set<string>()

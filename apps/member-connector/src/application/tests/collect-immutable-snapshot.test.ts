@@ -4,6 +4,8 @@ import type {
   ConnectorImportGrantRequestV2,
   ConnectorImportGrantV2,
 } from '@place/contracts/transfers'
+import { sourceAcquisitionKindSchema } from '@place/contracts/transfers'
+import type { ConnectorProviderKey } from '@place/contracts/connector'
 import { describe, expect, it, vi } from 'vitest'
 
 import { collectAndHandoffImmutableSnapshot } from '../import-snapshot/index.js'
@@ -85,7 +87,9 @@ function dependencies(input: Readonly<{
   collect?: SavedPlaceSource['collect']
   fingerprint?: string
   readFingerprint?: () => Promise<string>
+  providerKey?: ConnectorProviderKey
 }>) {
+  const providerKey = input.providerKey ?? 'naver'
   const collect = input.collect ?? (async function* () {
     yield { acquisitionKind: 'browser-network' as const, itemCount: 1, payload: JSON.stringify({
       lists: [{ sourceListId: 'list-a', observedName: '여행', sourcePosition: 0,
@@ -101,14 +105,14 @@ function dependencies(input: Readonly<{
     }) }
   })
   return {
-    session: { providerKey: 'naver' as const, probe: async () => 'active' as const },
+    session: { providerKey, probe: async () => 'active' as const },
     accountFingerprint: {
-      providerKey: 'naver' as const,
+      providerKey,
       read: input.readFingerprint ?? (async () => input.fingerprint ?? accountFingerprint),
     },
-    source: { providerKey: 'naver' as const, collect },
+    source: { providerKey, collect },
     normalizer: {
-      providerKey: 'naver' as const,
+      providerKey,
       parserVersion: 'test-normalizer.v1',
       normalize: (capture: { payload: string }) => JSON.parse(capture.payload) as never,
     },
@@ -134,6 +138,56 @@ function attempt(commandId: string) {
 }
 
 describe('immutable Connector snapshot handoff', () => {
+  // These are synthetic adapters, not live Google/Kakao or DOM/capture implementations.
+  it.each((['naver', 'google', 'kakao'] as const).flatMap((providerKey) =>
+    sourceAcquisitionKindSchema.options.map((acquisitionKind) => ({ providerKey, acquisitionKind })),
+  ))('keeps $providerKey / $acquisitionKind behind the same seal and handoff interface', async ({
+    providerKey, acquisitionKind,
+  }) => {
+    const local = memorySpool()
+    const issueGrant = vi.fn(async ({ request }: Parameters<ConnectorSnapshotHandoff['issueGrant']>[0]) => ({
+      schemaVersion: 'connector-import-grant-result.v2' as const, outcome: 'accepted' as const,
+      commandId: request.commandId, status: 'applied' as const, grant: grant(request),
+    }))
+    const upload = vi.fn(async ({ chunk }: Parameters<ConnectorSnapshotHandoff['upload']>[0]) => ({
+      schemaVersion: 'connector-capture-chunk-receipt.v2' as const, outcome: 'recorded' as const,
+      operationId, manifestId, acceptedSequence: 0, nextSequence: 1,
+      receivedChunks: 1, receivedItems: 1, receivedBytes: chunk.byteCount,
+    }))
+    const handoff: ConnectorSnapshotHandoff = {
+      issueGrant,
+      status: async () => ({
+        schemaVersion: 'connector-capture-manifest-status.v2', operationId, manifestId,
+        state: 'receiving', recordedSequences: [], nextSequence: 0,
+        snapshotId: null, snapshotVersion: null,
+      }),
+      upload,
+      complete: async () => ({
+        schemaVersion: 'connector-capture-complete-result.v2', outcome: 'completed',
+        operationId, manifestId, missingSequences: [], snapshotId, snapshotVersion: 'snapshot-r1',
+      }),
+    }
+    const collect: SavedPlaceSource['collect'] = async function* () {
+      yield { acquisitionKind, itemCount: 1, payload: JSON.stringify({ lists: [{
+        sourceListId: 'list-a', observedName: '내 분류', sourcePosition: 0,
+        items: [{ sourceItemId: 'item-a', providerPlaceId: null, observedName: '검토할 장소',
+          observedAddress: null, observedCategory: null, observedLocation: null, sourcePosition: 0 }],
+      }] }) }
+    }
+    const result = await collectAndHandoffImmutableSnapshot(
+      dependencies({ spool: local.spool, handoff, collect, providerKey }),
+      { ...attempt('12121212-1212-4212-8212-121212121212'), identity: { ...identity, providerKey } },
+    )
+    expect(result).toMatchObject({ status: 'completed', snapshotId,
+      manifest: { provenance: { acquisitionKind, parserVersion: 'test-normalizer.v1' } } })
+    expect(issueGrant.mock.calls[0]![0].request.providerKey).toBe(providerKey)
+    expect(issueGrant.mock.calls[0]![0].request.manifest).toEqual(local.manifest())
+    expect(upload).toHaveBeenCalledTimes(1)
+    const payload = JSON.parse(upload.mock.calls[0]![0].chunk.payload)
+    // A new acquisition method must not invent a stable Provider identity for uncertain evidence.
+    expect(payload.lists[0].items[0].providerPlaceId).toBeNull()
+  })
+
   it('seals once, reissues a grant with a new command, and resumes an uploaded prefix', async () => {
     const local = memorySpool()
     const recorded = new Map<number, ConnectorCaptureChunkV2>()
