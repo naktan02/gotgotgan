@@ -202,6 +202,8 @@ describe('Collection-first Library interfaces', () => {
       context,
       source: {
         providerKey: 'naver',
+        importSourceId: 'connection-1',
+        importSourceKind: 'verified-connection',
         connectionId: 'connection-1',
         sourceListId: 'list-1',
         sourcePosition: 2,
@@ -244,6 +246,8 @@ describe('Collection-first Library interfaces', () => {
       context,
       source: {
         providerKey: 'google',
+        importSourceId: 'connection-2',
+        importSourceKind: 'verified-connection' as const,
         connectionId: 'connection-2',
         sourceListId: 'list-2',
         sourcePosition: 0,
@@ -282,6 +286,21 @@ describe('Collection-first Library interfaces', () => {
       ...base,
       source: { ...base.source, sourcePosition: -1 },
     })).toThrowError(expect.objectContaining({ field: 'source.sourcePosition' }))
+    expect(() => normalizeImportedCollectionMaterialization({
+      ...base,
+      source: { ...base.source, importSourceKind: 'one-shot' },
+    })).toThrowError(expect.objectContaining({ field: 'source' }))
+    expect(normalizeImportedCollectionMaterialization({
+      ...base,
+      source: {
+        ...base.source,
+        importSourceId: 'shared-link-source',
+        importSourceKind: 'one-shot',
+        connectionId: null,
+      },
+    }).source).toMatchObject({
+      importSourceId: 'shared-link-source', importSourceKind: 'one-shot', connectionId: null,
+    })
 
     const firstBinding = normalizeImportedCollectionMaterialization({
       ...base,
@@ -296,6 +315,7 @@ describe('Collection-first Library interfaces', () => {
       source: {
         ...base.source,
         providerKey: 'kakao',
+        importSourceId: 'connection-3',
         connectionId: 'connection-3',
         sourceListId: 'list-3',
       },

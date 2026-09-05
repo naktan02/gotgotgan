@@ -2,10 +2,29 @@
 
 The worker is compiled from `@place/backend` but starts independently from HTTP.
 
-Stage 7에는 durable Import store, claim/renew/fencing, bounded retry, NAVER 캡처 parser와 암호화
-replay adapter가 source로 존재한다. `--check`는 `source-only` capability와 live acquisition의
-`integration-gated` 상태를 출력한다. test account의 profile lifecycle과 Playwright acquisition이
-검증되기 전에는 일반 acquisition startup을 허용하지 않는다.
+Durable Import store, claim/fencing, bounded retry, NAVER parser와 암호화 replay adapter가 있다.
+공유 링크 acquisition은 HTTP 요청과 분리된 전용 worker에서만 외부 NAVER 응답을 읽는다.
+remote-browser와 계정 전체 수집은 별도 보안·운영 검증 전까지 `integration-gated`다. HTTP의
+`PLACE_IMPORT_ACQUISITION_REMOTE_BROWSER_ENABLED`는 기본 `false`이며, 이때 요청은 DB에
+acquisition/source를 만들지 않고 capability-disabled 503으로 끝난다.
+
+```powershell
+node backend/dist/entrypoints/worker/main.js --run-web-import-acquisitions
+node backend/dist/entrypoints/worker/main.js --process-web-import-acquisitions
+```
+
+HTTP는 최대 20개 링크 원문 batch를 DB·로그·응답에 넣지 않고 공유 private volume의 AES-GCM
+artifact로 최대 15분만 보관한 뒤 durable job을 enqueue한다. worker는 최대 500개/목록,
+10,000개/batch와 compact normalized 결과 7.5 MiB(DB JSONB 16 MiB)를 지키고 lease 만료 작업을
+재획득한다. NAVER batch deadline 120초보다 긴 최소 150초 lease를 사용한다. 회원당 실행 batch는
+하나이고 대기 batch는 두 개까지이며, batch 안에 최대 20개 링크를 넣을 수 있다. 시간당 요청량 제한은 Gateway 운영
+rate-limit 후속 범위다. 한 batch에서 첫 Provider 429 이후 남은 링크는 외부 호출 없이 동일한
+retryable 실패로 종료한다. 다중 replica 전역 Provider limiter는 Redis/DB 운영 정책을 정한 뒤
+별도로 도입한다. 완료·취소·만료 시 artifact를 즉시 삭제하며
+삭제 중단은 DB에 남은 reference로 다음 pass에서 복구한다. 이 volume은 database backup과 image
+backup 모두에서 제외하며 keyring은 volume 및 DB backup과 분리한다.
+lease-fenced normalized checkpoint와 snapshot이 확정된 작업은 원문 artifact를 삭제한 뒤에도 그
+checkpoint로 완료하며, Provider를 다시 읽어 snapshot 내용을 바꾸지 않는다.
 
 Legacy Provider Identity별 Materialization loop는 목록 item과 같은 transaction에서 만든 intent를 claim한다.
 Canonical link가 있으면 재사용하고, 없으면 가져온 Source Snapshot evidence로 create/link한 뒤 여러

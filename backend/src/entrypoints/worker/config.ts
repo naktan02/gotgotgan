@@ -15,12 +15,25 @@ const databaseEnvironmentSchema = z.object({
     .number().int().min(1).max(60_000),
 })
 
-const environmentSchema = databaseEnvironmentSchema.extend({
+const artifactEnvironmentSchema = databaseEnvironmentSchema.extend({
   PLACE_CAPTURE_ROOT: z.string().min(1),
   PLACE_CAPTURE_KEYRING_FILE: z.string().min(1),
   PLACE_CAPTURE_MAXIMUM_BYTES: z.coerce
     .number().int().min(1).max(104_857_600),
+})
+
+const environmentSchema = artifactEnvironmentSchema.extend({
   PLACE_CAPTURE_SWEEP_BATCH_SIZE: z.coerce.number().int().min(1).max(1_000),
+})
+
+const webImportAcquisitionEnvironmentSchema = artifactEnvironmentSchema.extend({
+  PLACE_WEB_IMPORT_ACQUISITION_WORKER_ID: z.string().min(1).max(200).optional(),
+  PLACE_WEB_IMPORT_ACQUISITION_LEASE_MILLISECONDS: z.coerce
+    .number().int().min(150_000).max(840_000).default(600_000),
+  PLACE_WEB_IMPORT_ACQUISITION_IDLE_MILLISECONDS: z.coerce
+    .number().int().min(100).max(60_000).default(1_000),
+  PLACE_WEB_IMPORT_ACQUISITION_MAXIMUM_JOBS: z.coerce
+    .number().int().min(1).max(10_000).default(100),
 })
 
 const materializationEnvironmentSchema = databaseEnvironmentSchema.extend({
@@ -87,6 +100,20 @@ export type CaptureSweepConfig = Readonly<{
 
 export type ImportMaterializationConfig = Readonly<{
   database: WorkerDatabaseConfig
+  leaseMilliseconds: number
+  idleMilliseconds: number
+  maximumJobs: number
+}>
+
+export type WebImportAcquisitionConfig = Readonly<{
+  database: WorkerDatabaseConfig
+  artifacts: Readonly<{
+    root: string
+    activeKeyId: string
+    keys: Readonly<Record<string, Uint8Array>>
+    maximumBytes: number
+  }>
+  workerId: string
   leaseMilliseconds: number
   idleMilliseconds: number
   maximumJobs: number
@@ -190,6 +217,33 @@ export async function loadImportMaterializationConfig(
       leaseMilliseconds: values.PLACE_IMPORT_MATERIALIZATION_LEASE_MILLISECONDS,
       idleMilliseconds: values.PLACE_IMPORT_MATERIALIZATION_IDLE_MILLISECONDS,
       maximumJobs: values.PLACE_IMPORT_MATERIALIZATION_MAXIMUM_JOBS,
+    }
+  } catch {
+    throw configurationError()
+  }
+}
+
+export async function loadWebImportAcquisitionConfig(
+  environment: NodeJS.ProcessEnv,
+): Promise<WebImportAcquisitionConfig> {
+  try {
+    const values = webImportAcquisitionEnvironmentSchema.parse(environment)
+    const [database, artifacts] = await Promise.all([
+      workerDatabaseConfig(values),
+      loadCaptureArtifactConfig({
+        root: values.PLACE_CAPTURE_ROOT,
+        keyringFile: values.PLACE_CAPTURE_KEYRING_FILE,
+        maximumBytes: values.PLACE_CAPTURE_MAXIMUM_BYTES,
+      }),
+    ])
+    return {
+      database,
+      artifacts,
+      workerId: values.PLACE_WEB_IMPORT_ACQUISITION_WORKER_ID ??
+        `web-import-acquisition:${randomUUID()}`,
+      leaseMilliseconds: values.PLACE_WEB_IMPORT_ACQUISITION_LEASE_MILLISECONDS,
+      idleMilliseconds: values.PLACE_WEB_IMPORT_ACQUISITION_IDLE_MILLISECONDS,
+      maximumJobs: values.PLACE_WEB_IMPORT_ACQUISITION_MAXIMUM_JOBS,
     }
   } catch {
     throw configurationError()

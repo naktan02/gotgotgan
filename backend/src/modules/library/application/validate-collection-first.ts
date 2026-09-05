@@ -196,6 +196,14 @@ export function normalizeCollectionLifecycleCommand(
 export function normalizeImportedCollectionMaterialization(
   input: ImportedCollectionMaterialization,
 ): ImportedCollectionMaterialization {
+  if (!['verified-connection', 'one-shot'].includes(input.source.importSourceKind) ||
+    (input.source.importSourceKind === 'verified-connection') !==
+    (input.source.connectionId !== null) || (
+    input.source.connectionId !== null &&
+    input.source.connectionId !== input.source.importSourceId
+  )) {
+    invalid('source', 'import source identity is inconsistent')
+  }
   if (input.items.length > 10_000) invalid('items', 'items must contain at most 10000 entries')
   const itemIds = new Set<string>()
   const itemPositions = new Set<number>()
@@ -231,7 +239,11 @@ export function normalizeImportedCollectionMaterialization(
     context: normalizeWriteContext(input.context),
     source: {
       providerKey: requireIdentifier(input.source.providerKey, 'source.providerKey'),
-      connectionId: requireIdentifier(input.source.connectionId, 'source.connectionId'),
+      importSourceId: requireIdentifier(input.source.importSourceId, 'source.importSourceId'),
+      importSourceKind: input.source.importSourceKind,
+      connectionId: input.source.connectionId === null
+        ? null
+        : requireIdentifier(input.source.connectionId, 'source.connectionId'),
       sourceListId: requireIdentifier(input.source.sourceListId, 'source.sourceListId'),
       sourcePosition: requirePosition(input.source.sourcePosition, 'source.sourcePosition'),
       observedName: requireText(input.source.observedName, 'source.observedName', 200),

@@ -257,6 +257,36 @@ describe('HTTP runtime configuration', () => {
     expect(config.connector?.artifacts.keys['connector-test']).toHaveLength(32)
   })
 
+  it('keeps remote-browser acquisition separately disabled unless explicitly enabled', async () => {
+    const environment = await configurationEnvironment({
+      PLACE_IMPORT_ACQUISITION_RUNTIME_ENABLED: 'true',
+    })
+    const directory = dirname(environment.PLACE_DATABASE_URL_FILE!)
+    const keyring = join(directory, 'import-capture-keyring')
+    const captureRoot = join(directory, 'import-captures')
+    await writeFile(keyring, `${JSON.stringify({
+      schemaVersion: 'place-capture-keyring.v1',
+      activeKeyId: 'import-test',
+      keys: [{ id: 'import-test', material: Buffer.alloc(32, 8).toString('base64url') }],
+    })}\n`, { mode: 0o600 })
+    const acquisitionEnvironment = {
+      ...environment,
+      PLACE_CAPTURE_ROOT: captureRoot,
+      PLACE_CAPTURE_KEYRING_FILE: keyring,
+      PLACE_CAPTURE_MAXIMUM_BYTES: '65536',
+      PLACE_IMPORT_ACQUISITION_ARTIFACT_RETENTION_SECONDS: '900',
+    }
+
+    const disabled = await loadProductionHttpConfig(acquisitionEnvironment)
+    const enabled = await loadProductionHttpConfig({
+      ...acquisitionEnvironment,
+      PLACE_IMPORT_ACQUISITION_REMOTE_BROWSER_ENABLED: 'true',
+    })
+
+    expect(disabled.importAcquisitions?.remoteBrowserEnabled).toBe(false)
+    expect(enabled.importAcquisitions?.remoteBrowserEnabled).toBe(true)
+  })
+
   it('rejects an enabled connector with a partial or inconsistent configuration', async () => {
     await expect(loadProductionHttpConfig(await configurationEnvironment({
       PLACE_CONNECTOR_RUNTIME_ENABLED: 'true',

@@ -1,7 +1,6 @@
 import { snapshotVersion } from '../../../application/identity.js'
 import { InvalidTransferCursorError } from '../../../domain/model.js'
 import type {
-  SnapshotItem,
   SourceSnapshotCapture,
   SourceSnapshotDetailV2,
   SourceSnapshotListV2,
@@ -11,6 +10,7 @@ import {
   type ProviderKey,
 } from './provider-transfer-context.js'
 import { scheduleInitialProviderPlaceDetails } from '../source-snapshot-details/schedule-initial-details.js'
+import { readSnapshotLists } from './source-snapshot-projection.js'
 
 function encodeCursor(input: Readonly<{ capturedAt: string; snapshotId: string }>): string {
   return Buffer.from(JSON.stringify(input), 'utf8').toString('base64url')
@@ -112,9 +112,11 @@ export class ProviderSourceSnapshots {
       }
       await client.query(
         `INSERT INTO transfers.source_snapshots (
-           id, owner_membership_id, connection_id, provider_key, source_revision,
+           id, owner_membership_id, connection_id, provider_key,
+           import_source_id, import_source_kind, source_revision,
            acquisition_kind, parser_version, content_digest, observed_at, captured_at
-         ) VALUES ($1::uuid,$2::uuid,$3::uuid,$4,$5,$6,$7,$8,$9::timestamptz,$10::timestamptz)`,
+         ) VALUES ($1::uuid,$2::uuid,$3::uuid,$4,$3::uuid,'verified-connection',
+           $5,$6,$7,$8,$9::timestamptz,$10::timestamptz)`,
         [input.snapshotId, input.ownerMemberId, input.connectionId, input.providerKey,
           input.sourceRevision, input.provenance.acquisitionKind, input.provenance.parserVersion,
           digest, input.observedAt, input.capturedAt],
@@ -193,6 +195,7 @@ export class ProviderSourceSnapshots {
        LEFT JOIN transfers.source_snapshot_items AS item
          ON item.snapshot_id = list.snapshot_id AND item.source_list_id = list.source_list_id
        WHERE snapshot.owner_membership_id = $1::uuid
+         AND snapshot.import_source_kind = 'verified-connection'
          AND ($2::uuid IS NULL OR snapshot.connection_id = $2::uuid)
          AND ($3::timestamptz IS NULL OR snapshot.captured_at < $3::timestamptz
            OR (snapshot.captured_at = $3::timestamptz AND snapshot.id < $4::uuid))
@@ -240,79 +243,12 @@ export class ProviderSourceSnapshots {
       `SELECT id, content_digest, connection_id, provider_key, source_revision,
               observed_at, captured_at
        FROM transfers.source_snapshots
-       WHERE id = $1::uuid AND owner_membership_id = $2::uuid`,
+       WHERE id = $1::uuid AND owner_membership_id = $2::uuid
+         AND import_source_kind = 'verified-connection'`,
       [snapshotId, memberId],
     )).rows[0]
     if (header === undefined) return undefined
-    const rows = await this.context.pool.query<{
-      source_list_id: string
-      observed_list_name: string
-      list_position: number
-      source_item_id: string | null
-      provider_place_id: string | null
-      observed_name: string | null
-      observed_address: string | null
-      observed_category: string | null
-      latitude: number | null
-      longitude: number | null
-      canonical_place_id: string | null
-      match_reason: 'missing-identity' | 'ambiguous' | 'retired' | null
-      item_position: number | null
-    }>(
-      `SELECT list.source_list_id, list.observed_name AS observed_list_name,
-              list.source_position AS list_position,
-              item.source_item_id, item.provider_place_id, item.observed_name,
-              item.observed_address, item.observed_category,
-              ST_Y(item.observed_location) AS latitude,
-              ST_X(item.observed_location) AS longitude,
-              item.canonical_place_id, item.match_reason, item.source_position AS item_position
-       FROM transfers.source_snapshot_lists AS list
-       LEFT JOIN transfers.source_snapshot_items AS item
-         ON item.snapshot_id = list.snapshot_id AND item.source_list_id = list.source_list_id
-       WHERE list.snapshot_id = $1::uuid
-       ORDER BY list.source_position, list.source_list_id,
-                item.source_position, item.source_item_id`,
-      [snapshotId],
-    )
-    const lists = new Map<string, {
-      sourceListId: string
-      observedName: string
-      sourcePosition: number
-      items: SnapshotItem[]
-    }>()
-    for (const row of rows.rows) {
-      let list = lists.get(row.source_list_id)
-      if (list === undefined) {
-        list = {
-          sourceListId: row.source_list_id,
-          observedName: row.observed_list_name,
-          sourcePosition: row.list_position,
-          items: [],
-        }
-        lists.set(row.source_list_id, list)
-      }
-      if (row.source_item_id !== null) {
-        list.items.push({
-          sourceItemId: row.source_item_id,
-          providerPlaceId: row.provider_place_id,
-          observedName: row.observed_name!,
-          observedAddress: row.observed_address,
-          observedCategory: row.observed_category,
-          observedLocation: row.latitude === null || row.longitude === null
-            ? null
-            : { latitude: row.latitude, longitude: row.longitude },
-          match: row.canonical_place_id === null
-            ? { status: 'unresolved', reason: row.match_reason! }
-            : { status: 'matched', placeId: row.canonical_place_id },
-          sourcePosition: row.item_position!,
-        })
-      }
-    }
-    const projectedLists = [...lists.values()].map((list) => ({
-      ...list,
-      itemCount: list.items.length,
-      unresolvedItemCount: list.items.filter((item) => item.match.status === 'unresolved').length,
-    }))
+    const projectedLists = await readSnapshotLists(this.context.pool, snapshotId)
     return {
       schemaVersion: 'source-snapshot-detail.v2',
       snapshotId: header.id,

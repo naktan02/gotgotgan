@@ -368,8 +368,10 @@ export class ProviderOutboundPlans {
       await client.query(
         `INSERT INTO transfers.operations (
            id, owner_membership_id, kind, provider_key, connection_id, account_label,
+           import_source_id, import_source_kind,
            resource_kind, resource_id, stage, state, total_count, created_at, updated_at
          ) VALUES ($1::uuid,$2::uuid,'outbound-transfer',$3,$4::uuid,$5,
+           $4::uuid,'verified-connection',
            'outbound-transfer',$6::uuid,'preview-approved','queued',
            (SELECT item_count FROM transfers.outbound_transfers WHERE id = $6::uuid),
            $7::timestamptz,$7::timestamptz)`,

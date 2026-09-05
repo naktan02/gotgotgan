@@ -5,10 +5,54 @@ import {
   connectorCapabilityOriginHeader,
   pathParameters,
   transferConnectionQueryParameter,
+  transferImportSourceQueryParameter,
   transferOperationKindParameter,
   transferOperationStateParameter,
 } from '../parameters.js'
 const transferPaths: Readonly<Record<string, Record<string, unknown>>> = {
+  '/v1/transfers/import-acquisitions': {
+    post: operation('startImportAcquisitionV1', {
+      '200': described('Replay a one-shot Web import acquisition',
+        'ImportAcquisitionCommandResultV1'),
+      '201': described('Start a bounded shared-link batch or an explicitly enabled remote-browser request',
+        'ImportAcquisitionCommandResultV1'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '409': described('Reject a reused command or acquisition identity',
+        'ImportAcquisitionCommandResultV1'),
+      '429': described('Reject a shared-link batch while the member already has three in flight',
+        'ImportAcquisitionCommandResultV1'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer, requestSchema: 'StartImportAcquisitionV1' }),
+  },
+  '/v1/transfers/import-acquisitions/{acquisitionId}': {
+    parameters: [pathParameters.acquisitionId],
+    get: operation('getImportAcquisitionV1', {
+      '200': described('Return an owner-scoped one-shot acquisition without input URLs',
+        'ImportAcquisitionV1'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer }),
+  },
+  '/v1/transfers/import-acquisition-commands': {
+    post: operation('applyImportAcquisitionCommandV1', {
+      '200': described('Apply or replay a one-shot acquisition cancellation',
+        'ImportAcquisitionCommandResultV1'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': described('Hide an unavailable acquisition', 'ImportAcquisitionCommandResultV1'),
+      '409': described('Reject a stale or reused acquisition command',
+        'ImportAcquisitionCommandResultV1'),
+      '422': described('Reject cancellation of a terminal acquisition',
+        'ImportAcquisitionCommandResultV1'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer, requestSchema: 'ImportAcquisitionCommandRequestV1' }),
+  },
   '/v2/transfers/provider-capabilities': {
     get: operation('listProviderTransferCapabilitiesV2', {
       '200': described('Return truthful provider-specific transfer capabilities', 'ProviderCapabilityListV2'),
@@ -72,6 +116,31 @@ const transferPaths: Readonly<Record<string, Record<string, unknown>>> = {
       '503': ref('responses', 'ProductUnavailable'),
     }, { security: bearer }),
   },
+  '/v3/transfers/source-snapshots': {
+    get: operation('listSourceSnapshotsV3', {
+      '200': described('Return immutable snapshots across verified and one-shot import sources',
+        'SourceSnapshotListV3'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, {
+      security: bearer,
+      parameters: [transferImportSourceQueryParameter, boundedCursorParameter, boundedLimitParameter],
+    }),
+  },
+  '/v3/transfers/source-snapshots/{snapshotId}': {
+    parameters: [pathParameters.snapshotId],
+    get: operation('getSourceSnapshotV3', {
+      '200': described('Return immutable observed facts with explicit import-source provenance',
+        'SourceSnapshotDetailV3'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer }),
+  },
   '/v2/transfers/import-plan-commands': {
     post: operation('applyImportPlanCommandV2', {
       '200': described('Replay an import plan command', 'ImportPlanCommandResultV2'),
@@ -116,6 +185,34 @@ const transferPaths: Readonly<Record<string, Record<string, unknown>>> = {
     parameters: [pathParameters.planId],
     get: operation('getImportPlanV3', {
       '200': described('Return an import preview and materialization outcome', 'ImportPlanV3'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer }),
+  },
+  '/v4/transfers/import-plan-commands': {
+    post: operation('applyImportPlanCommandV4', {
+      '200': described('Replay an import-source plan command', 'ImportPlanCommandResultV4'),
+      '201': described('Create, decide, refresh, or approve an import-source plan',
+        'ImportPlanCommandResultV4'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': described('Hide an unavailable transfer resource', 'ImportPlanCommandResultV4'),
+      '409': described('Reject a stale plan, snapshot, Collection, or command',
+        'ImportPlanCommandResultV4'),
+      '422': described('Reject an unresolved or invalid plan selection',
+        'ImportPlanCommandResultV4'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer, requestSchema: 'ImportPlanCommandRequestV4' }),
+  },
+  '/v4/transfers/import-plans/{planId}': {
+    parameters: [pathParameters.planId],
+    get: operation('getImportPlanV4', {
+      '200': described('Return an import preview with explicit import-source provenance',
+        'ImportPlanV4'),
       '400': ref('responses', 'ProductRequestInvalid'),
       '401': ref('responses', 'AuthenticationRequired'),
       '403': ref('responses', 'AccessDenied'),

@@ -29,6 +29,10 @@ export const pathParameters = {
     name: 'snapshotId', in: 'path', required: true,
     schema: { type: 'string', format: 'uuid' },
   },
+  acquisitionId: {
+    name: 'acquisitionId', in: 'path', required: true,
+    schema: { type: 'string', format: 'uuid' },
+  },
   planId: {
     name: 'planId', in: 'path', required: true,
     schema: { type: 'string', format: 'uuid' },
@@ -109,6 +113,11 @@ export const transferOperationStateParameter = {
 
 export const transferConnectionQueryParameter = {
   name: 'connectionId', in: 'query', required: false,
+  schema: { type: 'string', format: 'uuid' },
+}
+
+export const transferImportSourceQueryParameter = {
+  name: 'importSourceId', in: 'query', required: false,
   schema: { type: 'string', format: 'uuid' },
 }
 

@@ -1,11 +1,12 @@
 import type { PoolClient } from 'pg'
 
 import { planVersion, snapshotVersion } from '../../../application/identity.js'
-import type { ImportPlanV2, ImportPlanV3 } from '../../../domain/model.js'
+import type { ImportPlanV2, ImportPlanV3, ImportPlanV4 } from '../../../domain/model.js'
 import {
   ProviderTransferContext,
   type ProviderKey,
 } from './provider-transfer-context.js'
+import { projectImportSource } from './source-snapshot-projection.js'
 
 type ImportPlanV2Decision = ImportPlanV2[
   'mappings'
@@ -40,6 +41,19 @@ export class ImportPlanProjection {
     } finally { client.release() }
   }
 
+  async getV4(memberId: string, planId: string): Promise<ImportPlanV4 | undefined> {
+    const client = await this.context.pool.connect()
+    try {
+      await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
+      const value = await this.getWithClient(client, memberId, planId, 4, false)
+      await client.query('COMMIT')
+      return value
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => undefined)
+      throw error
+    } finally { client.release() }
+  }
+
   getWithClientV2(
     client: Pick<PoolClient, 'query'>,
     memberId: string,
@@ -56,6 +70,14 @@ export class ImportPlanProjection {
     return this.getWithClient(client, memberId, planId, 3, true)
   }
 
+  getWithClientV4(
+    client: Pick<PoolClient, 'query'>,
+    memberId: string,
+    planId: string,
+  ): Promise<ImportPlanV4 | undefined> {
+    return this.getWithClient(client, memberId, planId, 4, true)
+  }
+
   private getWithClient(
     client: Pick<PoolClient, 'query'>,
     memberId: string,
@@ -70,13 +92,20 @@ export class ImportPlanProjection {
     contractMajor: 3,
     lockPlan: boolean,
   ): Promise<ImportPlanV3 | undefined>
+  private getWithClient(
+    client: Pick<PoolClient, 'query'>,
+    memberId: string,
+    planId: string,
+    contractMajor: 4,
+    lockPlan: boolean,
+  ): Promise<ImportPlanV4 | undefined>
   private async getWithClient(
     client: Pick<PoolClient, 'query'>,
     memberId: string,
     planId: string,
-    contractMajor: 2 | 3,
+    contractMajor: 2 | 3 | 4,
     lockPlan: boolean,
-  ): Promise<ImportPlanV2 | ImportPlanV3 | undefined> {
+  ): Promise<ImportPlanV2 | ImportPlanV3 | ImportPlanV4 | undefined> {
     const planLock = lockPlan ? 'FOR SHARE OF plan' : ''
     const plan = (await client.query<{
       id: string
@@ -86,15 +115,26 @@ export class ImportPlanProjection {
       snapshot_id: string
       snapshot_digest: string
       provider_key: ProviderKey
-      connection_id: string
+      import_source_id: string
+      source_kind: 'verified-connection' | 'one-shot'
+      connection_id: string | null
+      acquisition_method: 'shared-link' | 'remote-browser' | null
+      authorization_basis: 'link-possession' | 'interactive-provider-session' | null
       created_at: Date
       updated_at: Date
     }>(
       `SELECT plan.id, plan.revision::text, plan.state, plan.blocked_reason,
               plan.snapshot_id, plan.snapshot_digest, snapshot.provider_key,
-              snapshot.connection_id, plan.created_at, plan.updated_at
+              snapshot.import_source_id, source.source_kind, source.connection_id,
+              source.acquisition_method, source.authorization_basis,
+              plan.created_at, plan.updated_at
        FROM transfers.import_plans AS plan
        JOIN transfers.source_snapshots AS snapshot ON snapshot.id = plan.snapshot_id
+       JOIN transfers.import_sources AS source
+         ON source.id = snapshot.import_source_id
+        AND source.owner_membership_id = snapshot.owner_membership_id
+        AND source.provider_key = snapshot.provider_key
+        AND source.source_kind = snapshot.import_source_kind
        WHERE plan.id = $1::uuid AND plan.owner_membership_id = $2::uuid
          AND plan.contract_major = $3
        ${planLock}`,
@@ -218,19 +258,27 @@ export class ImportPlanProjection {
       snapshotId: plan.snapshot_id,
       snapshotVersion: snapshotVersion(plan.snapshot_id, plan.snapshot_digest),
       providerKey: plan.provider_key,
-      connectionId: plan.connection_id,
       state: plan.state,
       approval,
       mappings: projectedMappings,
       createdAt: plan.created_at.toISOString(),
       updatedAt: plan.updated_at.toISOString(),
     }
+    if (contractMajor === 4) {
+      return {
+        schemaVersion: 'import-plan.v4',
+        ...value,
+        source: projectImportSource(plan),
+      }
+    }
+    if (plan.connection_id === null) throw new Error('connected import plan lost its connection')
     if (contractMajor === 3) {
-      return { schemaVersion: 'import-plan.v3', ...value }
+      return { schemaVersion: 'import-plan.v3', ...value, connectionId: plan.connection_id }
     }
     return {
       schemaVersion: 'import-plan.v2',
       ...value,
+      connectionId: plan.connection_id,
       mappings: value.mappings.map((mapping) => ({
         ...mapping,
         preview: {

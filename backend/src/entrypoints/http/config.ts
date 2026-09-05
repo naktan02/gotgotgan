@@ -54,6 +54,11 @@ export type ProductionHttpConfig = Readonly<{
     }>
     artifacts: CaptureArtifactConfig
   }>
+  importAcquisitions?: Readonly<{
+    artifactRetentionMilliseconds: number
+    remoteBrowserEnabled: boolean
+    artifacts: CaptureArtifactConfig
+  }>
   platformAccess?: Readonly<{
     endpoint: URL
     jwksUri: URL
@@ -107,6 +112,8 @@ const productionEnvironmentSchema = z.object({
     .max(60_000),
   PLACE_MEMBERSHIP_POLICY_FILE: z.string().min(1),
   PLACE_CONNECTOR_RUNTIME_ENABLED: z.enum(['true', 'false']),
+  PLACE_IMPORT_ACQUISITION_RUNTIME_ENABLED: z.enum(['true', 'false']).default('false'),
+  PLACE_IMPORT_ACQUISITION_REMOTE_BROWSER_ENABLED: z.enum(['true', 'false']).default('false'),
   PLACE_PLATFORM_ACCESS_ENABLED: z.enum(['true', 'false']).default('false'),
 })
 
@@ -235,6 +242,15 @@ const connectorEnvironmentSchema = z.object({
   PLACE_CAPTURE_MAXIMUM_BYTES: z.coerce.number().int().min(1).max(104_857_600),
 })
 
+const importAcquisitionEnvironmentSchema = z.object({
+  PLACE_IMPORT_ACQUISITION_ARTIFACT_RETENTION_SECONDS: z.coerce
+    .number().int().min(60).max(900).default(900),
+  PLACE_IMPORT_ACQUISITION_REMOTE_BROWSER_ENABLED: z.enum(['true', 'false']).default('false'),
+  PLACE_CAPTURE_ROOT: z.string().min(1),
+  PLACE_CAPTURE_KEYRING_FILE: z.string().min(1),
+  PLACE_CAPTURE_MAXIMUM_BYTES: z.coerce.number().int().min(1).max(104_857_600),
+})
+
 async function loadConnectorConfig(environment: NodeJS.ProcessEnv) {
   const values = connectorEnvironmentSchema.parse(environment)
   if (
@@ -251,6 +267,21 @@ async function loadConnectorConfig(environment: NodeJS.ProcessEnv) {
       maximumBatches: values.PLACE_CONNECTOR_MAXIMUM_BATCHES,
       maximumBatchBytes: values.PLACE_CONNECTOR_MAXIMUM_BATCH_BYTES,
     },
+    artifacts: await loadCaptureArtifactConfig({
+      root: values.PLACE_CAPTURE_ROOT,
+      keyringFile: values.PLACE_CAPTURE_KEYRING_FILE,
+      maximumBytes: values.PLACE_CAPTURE_MAXIMUM_BYTES,
+    }),
+  }
+}
+
+async function loadImportAcquisitionConfig(environment: NodeJS.ProcessEnv) {
+  const values = importAcquisitionEnvironmentSchema.parse(environment)
+  return {
+    artifactRetentionMilliseconds:
+      values.PLACE_IMPORT_ACQUISITION_ARTIFACT_RETENTION_SECONDS * 1_000,
+    remoteBrowserEnabled:
+      values.PLACE_IMPORT_ACQUISITION_REMOTE_BROWSER_ENABLED === 'true',
     artifacts: await loadCaptureArtifactConfig({
       root: values.PLACE_CAPTURE_ROOT,
       keyringFile: values.PLACE_CAPTURE_KEYRING_FILE,
@@ -333,11 +364,14 @@ export async function loadProductionHttpConfig(
     const values = productionEnvironmentSchema.parse(environment)
     const authentication = readAuthRuntimeConfig(environment)
     if (authentication.mode !== 'oidc') throw configurationError()
-    const [databaseUrl, membershipPolicyJson, connector] = await Promise.all([
+    const [databaseUrl, membershipPolicyJson, connector, importAcquisitions] = await Promise.all([
       readOneLineFile(values.PLACE_DATABASE_URL_FILE),
       readOneLineFile(values.PLACE_MEMBERSHIP_POLICY_FILE),
       values.PLACE_CONNECTOR_RUNTIME_ENABLED === 'true'
         ? loadConnectorConfig(environment)
+        : undefined,
+      values.PLACE_IMPORT_ACQUISITION_RUNTIME_ENABLED === 'true'
+        ? loadImportAcquisitionConfig(environment)
         : undefined,
     ])
     const policyDocument: unknown = JSON.parse(membershipPolicyJson)
@@ -361,6 +395,7 @@ export async function loadProductionHttpConfig(
         initialProductTier: policy.initialProductTier,
       },
       ...(connector === undefined ? {} : { connector }),
+      ...(importAcquisitions === undefined ? {} : { importAcquisitions }),
       ...(platformAccess === undefined ? {} : { platformAccess }),
     }
   } catch {

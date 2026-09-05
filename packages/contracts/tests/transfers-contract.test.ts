@@ -6,21 +6,100 @@ import {
   connectorImportGrantResultV2Schema,
   importPlanCommandRequestV2Schema,
   importPlanCommandRequestV3Schema,
+  importPlanCommandRequestV4Schema,
   importPlanCommandResultV3Schema,
   importPlanV2Schema,
   importPlanV3Schema,
+  importPlanV4Schema,
+  importSourceV1Schema,
   outboundExecutionReconciliationV2Schema,
   outboundExecutionGrantResultV2Schema,
   outboundPlaceSelectionV2Schema,
   providerCapabilityListV2Schema,
   providerConnectionV2Schema,
   sourceSnapshotDetailV2Schema,
+  sourceSnapshotDetailV3Schema,
 } from '../src/transfers/index.js'
 import { buildOpenApiDocument } from '../src/http/openapi.js'
 
 const id = '01992d42-0000-7000-8000-000000000001'
 
 describe('provider transfer contracts', () => {
+  it('separates verified connection sources from account-unverified one-shot sources', () => {
+    const sharedLink = {
+      kind: 'one-shot',
+      importSourceId: id,
+      acquisitionMethod: 'shared-link',
+      authorizationBasis: 'link-possession',
+      accountAssurance: 'unverified',
+    }
+    expect(importSourceV1Schema.safeParse(sharedLink).success).toBe(true)
+    expect(importSourceV1Schema.safeParse({
+      ...sharedLink,
+      authorizationBasis: 'interactive-provider-session',
+    }).success).toBe(false)
+    expect(importSourceV1Schema.safeParse({
+      ...sharedLink,
+      connectionId: id,
+    }).success).toBe(false)
+    expect(importSourceV1Schema.safeParse({
+      kind: 'verified-connection', importSourceId: id, connectionId: id,
+      accountAssurance: 'verified',
+    }).success).toBe(true)
+  })
+
+  it('versions source-aware snapshots and plans without weakening connected v3', () => {
+    const source = {
+      kind: 'one-shot' as const,
+      importSourceId: id,
+      acquisitionMethod: 'shared-link' as const,
+      authorizationBasis: 'link-possession' as const,
+      accountAssurance: 'unverified' as const,
+    }
+    const snapshot = {
+      schemaVersion: 'source-snapshot-detail.v3', snapshotId: id,
+      snapshotVersion: 'revision', source, providerKey: 'naver', sourceRevision: 'source',
+      listCount: 0, itemCount: 0, unresolvedItemCount: 0,
+      observedAt: '2026-09-03T00:00:00.000Z',
+      capturedAt: '2026-09-03T00:00:00.000Z', lists: [],
+    }
+    expect(sourceSnapshotDetailV3Schema.safeParse(snapshot).success).toBe(true)
+    expect(sourceSnapshotDetailV2Schema.safeParse(snapshot).success).toBe(false)
+
+    const plan = {
+      schemaVersion: 'import-plan.v4', planId: id, planRevision: 'revision', snapshotId: id,
+      snapshotVersion: 'snapshot-revision', providerKey: 'naver', source,
+      state: 'draft', approval: { eligible: false, reason: 'unresolved-places' },
+      mappings: [{
+        sourceListId: 'list-1', observedName: '목록', sourcePosition: 0,
+        target: { kind: 'new', collectionId: id, name: '목록' },
+        itemCount: 1, unresolvedItemCount: 1,
+        preview: {
+          addCount: 0, alreadyPresentCount: 0, unresolvedCount: 1, skippedCount: 0,
+          items: [{
+            sourceItemId: 'item-1', providerPlaceId: null, observedName: '장소',
+            observedAddress: null, placeId: null, status: 'unresolved', decision: 'none',
+            providerDetailStatus: null,
+          }],
+        },
+        materialization: { state: 'pending', collectionRevision: null, rejectionCode: null },
+      }],
+      createdAt: '2026-09-03T00:00:00.000Z', updatedAt: '2026-09-03T00:00:00.000Z',
+    }
+    expect(importPlanV4Schema.safeParse(plan).success).toBe(true)
+    expect(importPlanV3Schema.safeParse({
+      ...plan,
+      schemaVersion: 'import-plan.v3',
+    }).success).toBe(false)
+    expect(importPlanCommandRequestV4Schema.safeParse({
+      schemaVersion: 'import-plan-command.v4', kind: 'create', commandId: id,
+      planId: id, snapshotId: id, expectedSnapshotVersion: 'revision',
+      mappings: [{ sourceListId: 'list-1', target: {
+        kind: 'new', collectionId: id, name: '목록',
+      } }],
+    }).success).toBe(true)
+  })
+
   it('binds optional acquisition provenance into new Connector snapshot commitments', () => {
     const legacyManifest = {
       manifestId: id,

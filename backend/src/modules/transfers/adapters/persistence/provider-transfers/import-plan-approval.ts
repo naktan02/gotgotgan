@@ -5,8 +5,10 @@ import {
 import type {
   ImportPlanCommandRequestV2,
   ImportPlanCommandRequestV3,
+  ImportPlanCommandRequestV4,
   ImportPlanV2,
   ImportPlanV3,
+  ImportPlanV4,
   TransferCommandResult,
 } from '../../../domain/model.js'
 import { ImportPlanProjection } from './import-plan-projection.js'
@@ -15,9 +17,10 @@ import {
   type ProviderKey,
 } from './provider-transfer-context.js'
 
-type ImportPlan = ImportPlanV2 | ImportPlanV3
-type ImportPlanCommand = ImportPlanCommandRequestV2 | ImportPlanCommandRequestV3
-type ImportPlanContractMajor = 2 | 3
+type ImportPlan = ImportPlanV2 | ImportPlanV3 | ImportPlanV4
+type ImportPlanCommand = ImportPlanCommandRequestV2 | ImportPlanCommandRequestV3 |
+  ImportPlanCommandRequestV4
+type ImportPlanContractMajor = 2 | 3 | 4
 
 export class ImportPlanApproval {
   constructor(
@@ -39,12 +42,20 @@ export class ImportPlanApproval {
     return this.approve(memberId, command, 3) as Promise<TransferCommandResult<ImportPlanV3>>
   }
 
+  approveV4(
+    memberId: string,
+    command: Extract<ImportPlanCommandRequestV4, { kind: 'approve' }>,
+  ): Promise<TransferCommandResult<ImportPlanV4>> {
+    return this.approve(memberId, command, 4) as Promise<TransferCommandResult<ImportPlanV4>>
+  }
+
   private async approve(
     memberId: string,
     command: Extract<ImportPlanCommand, { kind: 'approve' }>,
     contractMajor: ImportPlanContractMajor,
   ): Promise<TransferCommandResult<ImportPlan>> {
-    const kind = contractMajor === 2 ? 'import-plan-approve' : 'import-plan-v3-approve'
+    const kind = contractMajor === 2 ? 'import-plan-approve'
+      : `import-plan-v${contractMajor}-approve`
     const fingerprint = this.context.fingerprint({ memberId, command })
     const at = this.context.now().toISOString()
     const operationId = deterministicOperationId('import-materialization', command.planId)
@@ -68,11 +79,14 @@ export class ImportPlanApproval {
         state: string
         unresolved: number
         provider_key: ProviderKey
-        connection_id: string
-        label: string
+        import_source_id: string
+        import_source_kind: 'verified-connection' | 'one-shot'
+        connection_id: string | null
+        label: string | null
         item_count: number
       }>(
-        `SELECT plan.revision::text, plan.state, snapshot.provider_key, snapshot.connection_id,
+        `SELECT plan.revision::text, plan.state, snapshot.provider_key,
+                snapshot.import_source_id, snapshot.import_source_kind, snapshot.connection_id,
                 connection.label,
                 (SELECT count(*)::int FROM transfers.import_plan_items AS item
                  WHERE item.plan_id = plan.id AND item.preview_status = 'unresolved') AS unresolved,
@@ -80,7 +94,7 @@ export class ImportPlanApproval {
                  WHERE item.plan_id = plan.id AND item.preview_status <> 'skipped') AS item_count
          FROM transfers.import_plans AS plan
          JOIN transfers.source_snapshots AS snapshot ON snapshot.id = plan.snapshot_id
-         JOIN transfers.provider_connections AS connection ON connection.id = snapshot.connection_id
+         LEFT JOIN transfers.provider_connections AS connection ON connection.id = snapshot.connection_id
          WHERE plan.id = $1::uuid AND plan.owner_membership_id = $2::uuid
            AND plan.contract_major = $3
          FOR UPDATE OF plan`,
@@ -102,12 +116,15 @@ export class ImportPlanApproval {
       await client.query(
         `INSERT INTO transfers.operations (
            id, owner_membership_id, kind, provider_key, connection_id, account_label,
+           import_source_id, import_source_kind,
            resource_kind, resource_id, stage, state, total_count, created_at, updated_at
          ) VALUES ($1::uuid,$2::uuid,'import-materialization',$3,$4::uuid,$5,
-           'import-plan',$6::uuid,'queued-for-materialization','queued',$7,
-           $8::timestamptz,$8::timestamptz)`,
+           $6::uuid,$7,
+           'import-plan',$8::uuid,'queued-for-materialization','queued',$9,
+           $10::timestamptz,$10::timestamptz)`,
         [operationId, memberId, plan.provider_key, plan.connection_id,
-          plan.label, command.planId, plan.item_count, at],
+          plan.label, plan.import_source_id, plan.import_source_kind,
+          command.planId, plan.item_count, at],
       )
       await client.query(
         `UPDATE transfers.import_plans SET state = 'applying', approval_command_id = $3::uuid,
@@ -174,8 +191,8 @@ export class ImportPlanApproval {
     planId: string,
     contractMajor: ImportPlanContractMajor,
   ): Promise<ImportPlan | undefined> {
-    return contractMajor === 2
-      ? this.projection.getWithClientV2(client, memberId, planId)
-      : this.projection.getWithClientV3(client, memberId, planId)
+    if (contractMajor === 2) return this.projection.getWithClientV2(client, memberId, planId)
+    if (contractMajor === 3) return this.projection.getWithClientV3(client, memberId, planId)
+    return this.projection.getWithClientV4(client, memberId, planId)
   }
 }

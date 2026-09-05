@@ -5,23 +5,28 @@ import {
 import type {
   ImportPlanCommandRequestV2,
   ImportPlanCommandRequestV3,
+  ImportPlanCommandRequestV4,
   ImportPlanV2,
   ImportPlanV3,
-  SourceSnapshotDetailV2,
+  ImportPlanV4,
+  SnapshotList,
   TransferCommandResult,
 } from '../../../domain/model.js'
 import { ImportPlanProjection } from './import-plan-projection.js'
 import { ProviderTransferContext } from './provider-transfer-context.js'
 import { ProviderSourceSnapshots } from './source-snapshots.js'
+import { SourceSnapshotProjection } from './source-snapshot-projection.js'
 
-type ImportPlan = ImportPlanV2 | ImportPlanV3
-type ImportPlanCommand = ImportPlanCommandRequestV2 | ImportPlanCommandRequestV3
-type ImportPlanContractMajor = 2 | 3
+type ImportPlan = ImportPlanV2 | ImportPlanV3 | ImportPlanV4
+type ImportPlanCommand = ImportPlanCommandRequestV2 | ImportPlanCommandRequestV3 |
+  ImportPlanCommandRequestV4
+type ImportPlanContractMajor = 2 | 3 | 4
 
 export class ImportPlanDrafts {
   constructor(
     private readonly context: ProviderTransferContext,
     private readonly snapshots: ProviderSourceSnapshots,
+    private readonly sourceSnapshots: SourceSnapshotProjection,
     private readonly projection: ImportPlanProjection,
   ) {}
 
@@ -39,15 +44,25 @@ export class ImportPlanDrafts {
     return this.create(memberId, command, 3) as Promise<TransferCommandResult<ImportPlanV3>>
   }
 
+  createV4(
+    memberId: string,
+    command: Extract<ImportPlanCommandRequestV4, { kind: 'create' }>,
+  ): Promise<TransferCommandResult<ImportPlanV4>> {
+    return this.create(memberId, command, 4) as Promise<TransferCommandResult<ImportPlanV4>>
+  }
+
   private async create(
     memberId: string,
     command: Extract<ImportPlanCommand, { kind: 'create' }>,
     contractMajor: ImportPlanContractMajor,
   ): Promise<TransferCommandResult<ImportPlan>> {
-    const kind = contractMajor === 2 ? 'import-plan-create' : 'import-plan-v3-create'
+    const kind = contractMajor === 2 ? 'import-plan-create'
+      : `import-plan-v${contractMajor}-create`
     const fingerprint = this.context.fingerprint({ memberId, command })
     const at = this.context.now().toISOString()
-    const snapshot = await this.snapshots.get(memberId, command.snapshotId)
+    const snapshot = contractMajor === 4
+      ? await this.sourceSnapshots.getV3(memberId, command.snapshotId)
+      : await this.snapshots.get(memberId, command.snapshotId)
     const targetIds = command.mappings.map((mapping) => mapping.target.collectionId)
     if (snapshot === undefined) {
       return this.reject(
@@ -59,7 +74,7 @@ export class ImportPlanDrafts {
         command.commandId, memberId, kind, fingerprint, 'snapshot-changed', at, contractMajor,
       )
     }
-    const evidenceItems = contractMajor === 3
+    const evidenceItems = contractMajor >= 3
       ? await this.snapshots.materializationEvidenceItems(memberId, command.snapshotId)
       : new Map<string, never>()
     if (new Set(command.mappings.map((mapping) => mapping.sourceListId)).size !==
@@ -79,7 +94,7 @@ export class ImportPlanDrafts {
       }
     }
     const prepared: Array<{
-      sourceList: SourceSnapshotDetailV2['lists'][number]
+      sourceList: SnapshotList
       target: typeof command.mappings[number]['target']
       existingPlaceIds: ReadonlySet<string>
       expectedBindingVersion: string | null
@@ -97,7 +112,9 @@ export class ImportPlanDrafts {
       const binding = await this.context.collections.readImportBinding({
         memberId,
         providerKey: snapshot.providerKey,
-        connectionId: snapshot.connectionId,
+        importSourceId: 'source' in snapshot
+          ? snapshot.source.importSourceId
+          : snapshot.connectionId,
         sourceListId: mapping.sourceListId,
       })
       if (binding !== undefined && binding.collectionId !== mapping.target.collectionId) {
@@ -187,7 +204,7 @@ export class ImportPlanDrafts {
           const resolved = item.match.status === 'matched' && item.providerPlaceId !== null
             ? item.match.placeId
             : null
-          const policyCreate = contractMajor === 3 && resolved === null &&
+          const policyCreate = contractMajor >= 3 && resolved === null &&
             item.providerPlaceId !== null &&
             item.match.status === 'unresolved' && item.match.reason === 'missing-identity' &&
             evidence !== undefined
@@ -239,6 +256,13 @@ export class ImportPlanDrafts {
     return this.decide(memberId, command, 3) as Promise<TransferCommandResult<ImportPlanV3>>
   }
 
+  decideV4(
+    memberId: string,
+    command: Extract<ImportPlanCommandRequestV4, { kind: 'decide-item' }>,
+  ): Promise<TransferCommandResult<ImportPlanV4>> {
+    return this.decide(memberId, command, 4) as Promise<TransferCommandResult<ImportPlanV4>>
+  }
+
   private async decide(
     memberId: string,
     command: Extract<ImportPlanCommand, { kind: 'decide-item' }>,
@@ -246,7 +270,7 @@ export class ImportPlanDrafts {
   ): Promise<TransferCommandResult<ImportPlan>> {
     const kind = contractMajor === 2
       ? 'import-plan-decide-item'
-      : 'import-plan-v3-decide-item'
+      : `import-plan-v${contractMajor}-decide-item`
     const fingerprint = this.context.fingerprint({ memberId, command })
     const at = this.context.now().toISOString()
     const client = await this.context.pool.connect()
@@ -406,8 +430,8 @@ export class ImportPlanDrafts {
     planId: string,
     contractMajor: ImportPlanContractMajor,
   ): Promise<ImportPlan | undefined> {
-    return contractMajor === 2
-      ? this.projection.getWithClientV2(client, memberId, planId)
-      : this.projection.getWithClientV3(client, memberId, planId)
+    if (contractMajor === 2) return this.projection.getWithClientV2(client, memberId, planId)
+    if (contractMajor === 3) return this.projection.getWithClientV3(client, memberId, planId)
+    return this.projection.getWithClientV4(client, memberId, planId)
   }
 }

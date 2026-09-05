@@ -14,7 +14,9 @@ type MappingRow = Readonly<{
   observed_name: string
   source_position: number
   provider_key: string
-  connection_id: string
+  import_source_id: string
+  import_source_kind: 'verified-connection' | 'one-shot'
+  connection_id: string | null
   target_kind: 'new' | 'existing'
   target_collection_id: string
   target_name: string | null
@@ -40,7 +42,8 @@ export class PostgresImportMaterializer {
   async run(operation: ClaimedImportOperation) {
     const mappings = await this.pool.query<MappingRow>(
       `SELECT mapping.source_list_id, list.observed_name, list.source_position,
-              snapshot.provider_key, snapshot.connection_id, mapping.target_kind,
+              snapshot.provider_key, snapshot.import_source_id, snapshot.import_source_kind,
+              snapshot.connection_id, mapping.target_kind,
               mapping.target_collection_id, mapping.target_name,
               mapping.expected_collection_version, mapping.expected_binding_version,
               mapping.materialization_operation_id, mapping.materialization_state,
@@ -109,6 +112,8 @@ export class PostgresImportMaterializer {
         },
         source: {
           providerKey: mapping.provider_key,
+          importSourceId: mapping.import_source_id,
+          importSourceKind: mapping.import_source_kind,
           connectionId: mapping.connection_id,
           sourceListId: mapping.source_list_id,
           sourcePosition: mapping.source_position,

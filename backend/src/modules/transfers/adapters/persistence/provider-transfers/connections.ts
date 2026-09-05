@@ -121,6 +121,12 @@ export class ProviderConnections {
           await client.query('COMMIT')
           return result
         }
+        await client.query(
+          `INSERT INTO transfers.import_sources (
+             id, owner_membership_id, provider_key, source_kind, connection_id, created_at
+           ) VALUES ($1::uuid,$2::uuid,$3,'verified-connection',$1::uuid,$4::timestamptz)`,
+          [command.connectionId, memberId, command.providerKey, at],
+        )
       } else {
         const current = (await client.query<
           ConnectionRow & { account_fingerprint: string | null }

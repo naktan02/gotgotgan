@@ -3,7 +3,14 @@ export { PostgresMemberImportedPlaces } from './adapters/persistence/postgres-me
 export { PostgresTransferOperations } from './adapters/persistence/postgres-transfer-operations.js'
 export { PostgresConnectorCaptures } from './adapters/persistence/postgres-connector-captures.js'
 export { PostgresOutboundExecutions } from './adapters/persistence/postgres-outbound-executions.js'
+export { PostgresWebImportAcquisitions } from './adapters/persistence/postgres-web-import-acquisitions.js'
 export { PostgresImportMaterializationWorker } from './application/import-materialization-worker.js'
+export { WebImportAcquisitions } from './application/web-import-acquisitions.js'
+export { createWebImportAcquisitionWorker } from './application/web-import-acquisition-worker.js'
+export type {
+  WebImportAcquisitionStore,
+  WebImportArtifactStore,
+} from './application/ports/web-import-acquisition.js'
 export type {
   VerifiedSourcePlaceMaterialization,
   VerifiedSourcePlaceMaterializerPort,
@@ -28,6 +35,16 @@ export {
   type OutboundExecutionHttpDependencies,
 } from './transport/http/register-outbound-execution-http.js'
 export {
+  registerImportAcquisitionHttpRoutes,
+  type ImportAcquisitionHttpDependencies,
+} from './transport/http/register-import-acquisition-http.js'
+export type {
+  ImportAcquisitions,
+  SharedLinkImportSource,
+  SharedLinkInspectionItem,
+  SharedLinkInspectionResult,
+} from './domain/acquisitions.js'
+export {
   ConnectorTransferAuthorizationError,
   type ConnectorTransferReceiver,
   type OutboundExecutionControl,
@@ -36,13 +53,21 @@ export {
 export {
   InvalidTransferCursorError,
   type CollectionTransferReader,
+  type ImportPlanCommandRequestV4,
+  type ImportPlanV4,
+  type ImportSourceTransfers,
+  type ImportSourceV1,
   type ImportedCollectionMaterializerPort,
   type ProviderConnectionObservation,
   type ProviderTransfers,
   type SavedPlaceSource,
   type SavedPlaceTarget,
   type SourceSnapshotCapture,
+  type SourceSnapshotCaptureV3,
+  type SourceSnapshotDetailV3,
+  type SourceSnapshotListV3,
   type SourceSnapshotProvenance,
   type TransferCommandResult,
+  type TrustedImportSourceObservations,
   type TrustedProviderTransferObservations,
 } from './domain/model.js'

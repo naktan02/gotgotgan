@@ -16,32 +16,45 @@ import {
   recordRejectedLibraryOperation,
 } from './postgres-library-operation-receipts.js'
 
-const bindingVersionPrefix = 'import-binding-revision.v1.'
+const bindingVersionPrefixV1 = 'import-binding-revision.v1.'
+const bindingVersionPrefixV2 = 'import-binding-revision.v2.'
 
 function bindingVersion(input: Readonly<{
   providerKey: string
-  connectionId: string
+  importSourceId: string
   sourceListId: string
   revision: string
 }>): OpaqueVersion {
-  const payload = Buffer.from(JSON.stringify({ v: 1, ...input }), 'utf8').toString('base64url')
-  return `${bindingVersionPrefix}${payload}` as OpaqueVersion
+  const payload = Buffer.from(JSON.stringify({ v: 2, ...input }), 'utf8').toString('base64url')
+  return `${bindingVersionPrefixV2}${payload}` as OpaqueVersion
 }
 
 function readBindingRevision(
   value: OpaqueVersion,
-  identity: Readonly<{ providerKey: string; connectionId: string; sourceListId: string }>,
+  identity: Readonly<{
+    providerKey: string
+    importSourceId: string
+    connectionId: string | null
+    sourceListId: string
+  }>,
 ): string | undefined {
-  if (!value.startsWith(bindingVersionPrefix)) return undefined
+  const version = value.startsWith(bindingVersionPrefixV2) ? 2
+    : value.startsWith(bindingVersionPrefixV1) ? 1 : undefined
+  if (version === undefined) return undefined
   try {
     const parsed: unknown = JSON.parse(
-      Buffer.from(value.slice(bindingVersionPrefix.length), 'base64url').toString('utf8'),
+      Buffer.from(value.slice(
+        version === 2 ? bindingVersionPrefixV2.length : bindingVersionPrefixV1.length,
+      ), 'base64url').toString('utf8'),
     )
     if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined
     const record = parsed as Record<string, unknown>
     if (
-      record.v !== 1 || record.providerKey !== identity.providerKey ||
-      record.connectionId !== identity.connectionId || record.sourceListId !== identity.sourceListId ||
+      record.v !== version || record.providerKey !== identity.providerKey ||
+      record.sourceListId !== identity.sourceListId ||
+      (version === 2
+        ? record.importSourceId !== identity.importSourceId
+        : identity.connectionId === null || record.connectionId !== identity.connectionId) ||
       !/^\d+$/.test(String(record.revision))
     ) return undefined
     return String(record.revision)
@@ -87,10 +100,12 @@ export class PostgresImportedCollectionMaterializer implements ImportedCollectio
         `SELECT collection_id, binding_revision::text
          FROM library.import_source_list_bindings
          WHERE provider_key = $1
-           AND source_connection_reference = $2::uuid
+           AND import_source_id = $2::uuid
            AND source_list_id = $3
+           AND owner_membership_id = $4::uuid
          FOR UPDATE`,
-        [input.source.providerKey, input.source.connectionId, input.source.sourceListId],
+        [input.source.providerKey, input.source.importSourceId, input.source.sourceListId,
+          context.memberId],
       )).rows[0]
       if (binding !== undefined && binding.collection_id !== input.target.collectionId) {
         const rejected = await recordRejectedLibraryOperation<ImportedCollectionReceipt>(client, {
@@ -103,6 +118,7 @@ export class PostgresImportedCollectionMaterializer implements ImportedCollectio
       if (input.expectedBindingVersion !== undefined && (
         binding === undefined || readBindingRevision(input.expectedBindingVersion, {
           providerKey: input.source.providerKey,
+          importSourceId: input.source.importSourceId,
           connectionId: input.source.connectionId,
           sourceListId: input.source.sourceListId,
         }) !== binding.binding_revision
@@ -207,33 +223,39 @@ export class PostgresImportedCollectionMaterializer implements ImportedCollectio
         }
         await client.query(
           `INSERT INTO library.collection_place_import_provenance (
-             collection_id, canonical_place_id, provider_key, source_connection_reference,
-             source_list_id, source_item_id, provider_place_id, first_imported_at, last_imported_at
-           ) VALUES ($1::uuid,$2::uuid,$3,$4::uuid,$5,$6,$7,$8::timestamptz,$8::timestamptz)
-           ON CONFLICT (provider_key, source_connection_reference, source_list_id, source_item_id)
+             collection_id, canonical_place_id, provider_key,
+             import_source_id, import_source_kind, source_connection_reference,
+             owner_membership_id, source_list_id, source_item_id, provider_place_id,
+             first_imported_at, last_imported_at
+           ) VALUES ($1::uuid,$2::uuid,$3,$4::uuid,$5,$6::uuid,
+             $11::uuid,$7,$8,$9,$10::timestamptz,$10::timestamptz)
+           ON CONFLICT (provider_key, import_source_id, source_list_id, source_item_id)
            DO UPDATE SET collection_id = EXCLUDED.collection_id,
                          canonical_place_id = EXCLUDED.canonical_place_id,
                          provider_place_id = EXCLUDED.provider_place_id,
                          last_imported_at = EXCLUDED.last_imported_at`,
           [input.target.collectionId, item.placeId, input.source.providerKey,
+            input.source.importSourceId, input.source.importSourceKind,
             input.source.connectionId, input.source.sourceListId, item.sourceItemId,
-            item.providerPlaceId, context.occurredAt],
+            item.providerPlaceId, context.occurredAt, context.memberId],
         )
       }
 
       const persistedBinding = await client.query<{ binding_revision: string }>(
         `INSERT INTO library.import_source_list_bindings (
-           provider_key, source_connection_reference, source_list_id, owner_membership_id,
-           collection_id, source_name_snapshot, source_position, binding_revision,
-           first_bound_at, last_materialized_at
-         ) VALUES ($1,$2::uuid,$3,$4::uuid,$5::uuid,$6,$7,1,$8::timestamptz,$8::timestamptz)
-         ON CONFLICT (provider_key, source_connection_reference, source_list_id)
+           provider_key, import_source_id, import_source_kind, source_connection_reference,
+           source_list_id, owner_membership_id, collection_id, source_name_snapshot,
+           source_position, binding_revision, first_bound_at, last_materialized_at
+         ) VALUES ($1,$2::uuid,$3,$4::uuid,$5,$6::uuid,$7::uuid,$8,$9,
+           1,$10::timestamptz,$10::timestamptz)
+         ON CONFLICT (provider_key, import_source_id, source_list_id)
          DO UPDATE SET source_name_snapshot = EXCLUDED.source_name_snapshot,
                        source_position = EXCLUDED.source_position,
                        binding_revision = library.import_source_list_bindings.binding_revision + 1,
                        last_materialized_at = EXCLUDED.last_materialized_at
          RETURNING binding_revision::text`,
-        [input.source.providerKey, input.source.connectionId, input.source.sourceListId,
+        [input.source.providerKey, input.source.importSourceId, input.source.importSourceKind,
+          input.source.connectionId, input.source.sourceListId,
           context.memberId, input.target.collectionId, input.source.observedName,
           input.source.sourcePosition, context.occurredAt],
       )
@@ -257,7 +279,7 @@ export class PostgresImportedCollectionMaterializer implements ImportedCollectio
         version: collectionVersion(input.target.collectionId, collectionRevision),
         bindingVersion: bindingVersion({
           providerKey: input.source.providerKey,
-          connectionId: input.source.connectionId,
+          importSourceId: input.source.importSourceId,
           sourceListId: input.source.sourceListId,
           revision: persistedBinding.rows[0]!.binding_revision,
         }),

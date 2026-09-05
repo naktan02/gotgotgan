@@ -43,6 +43,21 @@ export type ProviderConnectionV2 = Readonly<{
   updatedAt: string
 }>
 
+export type ImportSourceV1 =
+  | Readonly<{
+      kind: 'verified-connection'
+      importSourceId: string
+      connectionId: string
+      accountAssurance: 'verified'
+    }>
+  | Readonly<{
+      kind: 'one-shot'
+      importSourceId: string
+      acquisitionMethod: 'shared-link' | 'remote-browser'
+      authorizationBasis: 'link-possession' | 'interactive-provider-session'
+      accountAssurance: 'unverified'
+    }>
+
 type CommandBase = Readonly<{ schemaVersion: string; commandId: string }>
 export type ProviderConnectionCommandRequestV2 =
   | (CommandBase & Readonly<{
@@ -81,6 +96,17 @@ export type SourceSnapshotDetailV2 = Readonly<{
 export type SourceSnapshotListV2 = Readonly<{
   schemaVersion: 'source-snapshot-list.v2'
   items: readonly Omit<SourceSnapshotDetailV2, 'schemaVersion' | 'lists'>[]
+  nextCursor?: string
+}>
+export type SourceSnapshotDetailV3 = Readonly<{
+  schemaVersion: 'source-snapshot-detail.v3'; snapshotId: string; snapshotVersion: string
+  source: ImportSourceV1; providerKey: ProviderKey; sourceRevision: string
+  listCount: number; itemCount: number; unresolvedItemCount: number
+  observedAt: string; capturedAt: string; lists: readonly SnapshotList[]
+}>
+export type SourceSnapshotListV3 = Readonly<{
+  schemaVersion: 'source-snapshot-list.v3'
+  items: readonly Omit<SourceSnapshotDetailV3, 'schemaVersion' | 'lists'>[]
   nextCursor?: string
 }>
 
@@ -151,6 +177,16 @@ export type ImportPlanV3 = ImportPlan<
     providerDetailStatus: 'pending' | 'available' | 'unavailable' | null
   }>
 >
+export type ImportPlanCommandRequestV4 =
+  | ImportPlanCommandRequest<'import-plan-command.v4'>
+  | Readonly<{
+      schemaVersion: 'import-plan-command.v4'; commandId: string
+      kind: 'refresh-evidence'; planId: string; expectedPlanRevision: string
+    }>
+export type ImportPlanV4 = Omit<ImportPlanV3, 'schemaVersion' | 'connectionId'> & Readonly<{
+  schemaVersion: 'import-plan.v4'
+  source: ImportSourceV1
+}>
 
 export type OutboundTarget =
   | Readonly<{ kind: 'new-list'; name: string }>
@@ -228,6 +264,10 @@ export type SourceSnapshotCapture = Readonly<{
   }>[]
 }>
 
+export type SourceSnapshotCaptureV3 = Omit<SourceSnapshotCapture, 'connectionId'> & Readonly<{
+  source: Extract<ImportSourceV1, { kind: 'one-shot' }>
+}>
+
 export type SourceSnapshotProvenance = Readonly<{
   acquisitionKind: 'documented-api' | 'account-export' | 'structured-web' |
     'browser-network' | 'browser-dom' | 'manual-capture'
@@ -257,7 +297,7 @@ export interface CollectionTransferReader {
   readImportBinding(input: Readonly<{
     memberId: string
     providerKey: ProviderKey
-    connectionId: string
+    importSourceId: string
     sourceListId: string
   }>): Promise<Readonly<{ collectionId: string; bindingVersion: string }> | undefined>
 }
@@ -266,7 +306,9 @@ export type ImportedCollectionMaterialization = Readonly<{
   context: Readonly<{ operationId: string; memberId: string; occurredAt: string }>
   source: Readonly<{
     providerKey: string
-    connectionId: string
+    importSourceId: string
+    importSourceKind: 'verified-connection' | 'one-shot'
+    connectionId: string | null
     sourceListId: string
     sourcePosition: number
     observedName: string
@@ -382,5 +424,31 @@ export interface TrustedProviderTransferObservations {
   recordSourceSnapshot(input: SourceSnapshotCapture): Promise<Readonly<{
     status: 'applied' | 'replayed'
     snapshot: SourceSnapshotDetailV2
+  }>>
+}
+
+/**
+ * Import-source seam for account-unverified acquisition. Implementations must not route one-shot
+ * observations through Connector grants or claim that the provider account was verified.
+ */
+export interface ImportSourceTransfers {
+  listSnapshotsV3(input: Readonly<{
+    memberId: string
+    importSourceId?: string
+    cursor?: string
+    limit: number
+  }>): Promise<SourceSnapshotListV3>
+  getSnapshotV3(memberId: string, snapshotId: string): Promise<SourceSnapshotDetailV3 | undefined>
+  applyImportPlanCommandV4(
+    memberId: string,
+    command: ImportPlanCommandRequestV4,
+  ): Promise<TransferCommandResult<ImportPlanV4>>
+  getImportPlanV4(memberId: string, planId: string): Promise<ImportPlanV4 | undefined>
+}
+
+export interface TrustedImportSourceObservations {
+  recordSourceSnapshotV3(input: SourceSnapshotCaptureV3): Promise<Readonly<{
+    status: 'applied' | 'replayed'
+    snapshot: SourceSnapshotDetailV3
   }>>
 }

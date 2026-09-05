@@ -184,7 +184,9 @@ export type ImportedCollectionMaterialization = Readonly<{
   context: WriteContext
   source: Readonly<{
     providerKey: string
-    connectionId: string
+    importSourceId: string
+    importSourceKind: 'verified-connection' | 'one-shot'
+    connectionId: string | null
     sourceListId: string
     sourcePosition: number
     observedName: string

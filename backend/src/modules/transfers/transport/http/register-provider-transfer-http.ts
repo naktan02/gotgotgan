@@ -3,10 +3,14 @@ import {
   importPlanCommandResultV2Schema,
   importPlanCommandRequestV3Schema,
   importPlanCommandResultV3Schema,
+  importPlanCommandRequestV4Schema,
+  importPlanCommandResultV4Schema,
   importPlanIdentifierParamsV2Schema,
   importPlanIdentifierParamsV3Schema,
+  importPlanIdentifierParamsV4Schema,
   importPlanV2Schema,
   importPlanV3Schema,
+  importPlanV4Schema,
   outboundTransferCommandRequestV2Schema,
   outboundTransferCommandResultV2Schema,
   outboundTransferIdentifierParamsV2Schema,
@@ -21,12 +25,17 @@ import {
   sourceSnapshotIdentifierParamsV2Schema,
   sourceSnapshotListQueryV2Schema,
   sourceSnapshotListV2Schema,
+  sourceSnapshotDetailV3Schema,
+  sourceSnapshotIdentifierParamsV3Schema,
+  sourceSnapshotListQueryV3Schema,
+  sourceSnapshotListV3Schema,
   type TransferCommandRejectionCodeV2,
 } from '@place/contracts/transfers'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 
 import {
   InvalidTransferCursorError,
+  type ImportSourceTransfers,
   type ProviderTransfers,
   type TransferCommandResult,
 } from '../../domain/model.js'
@@ -38,14 +47,14 @@ import {
 
 export type ProviderTransferHttpDependencies = Readonly<{
   authorizer: ProductAuthorizer
-  transfers: ProviderTransfers
+  transfers: ProviderTransfers & Partial<ImportSourceTransfers>
 }>
 
 function invalid(
   request: FastifyRequest,
   reply: FastifyReply,
   message: string,
-  contractMajor: 2 | 3 = 2,
+  contractMajor: 2 | 3 | 4 = 2,
 ) {
   return sendProductProblem(
     request, reply, 400, `PLACE_TRANSFER_V${contractMajor}_REQUEST_INVALID`, message,
@@ -56,7 +65,7 @@ function unavailable(
   request: FastifyRequest,
   reply: FastifyReply,
   error: unknown,
-  contractMajor: 2 | 3 = 2,
+  contractMajor: 2 | 3 | 4 = 2,
 ) {
   if (error instanceof InvalidTransferCursorError) {
     return invalid(request, reply, 'Provider transfer cursor is invalid', contractMajor)
@@ -171,6 +180,58 @@ export function registerProviderTransferHttpRoutes(
     }
   })
 
+  application.get('/v3/transfers/source-snapshots', async (request, reply) => {
+    const parsed = sourceSnapshotListQueryV3Schema.safeParse(request.query)
+    if (!parsed.success) return invalid(request, reply, 'Source snapshot query is invalid', 3)
+    const memberId = await requireProductMember(
+      request, reply, dependencies.authorizer, 'imports.read',
+    )
+    if (memberId === undefined) return
+    try {
+      if (dependencies.transfers.listSnapshotsV3 === undefined) {
+        throw new Error('Import-source snapshots are unavailable')
+      }
+      const response = sourceSnapshotListV3Schema.parse(
+        await dependencies.transfers.listSnapshotsV3({
+          memberId,
+          ...(parsed.data.importSourceId === undefined
+            ? {}
+            : { importSourceId: parsed.data.importSourceId }),
+          ...(parsed.data.cursor === undefined ? {} : { cursor: parsed.data.cursor }),
+          limit: parsed.data.limit,
+        }),
+      )
+      return reply.header('cache-control', 'no-store').status(200).send(response)
+    } catch (error) {
+      return unavailable(request, reply, error, 3)
+    }
+  })
+
+  application.get('/v3/transfers/source-snapshots/:snapshotId', async (request, reply) => {
+    const params = sourceSnapshotIdentifierParamsV3Schema.safeParse(request.params)
+    if (!params.success) return invalid(request, reply, 'Source snapshot identifier is invalid', 3)
+    const memberId = await requireProductMember(
+      request, reply, dependencies.authorizer, 'imports.read',
+    )
+    if (memberId === undefined) return
+    try {
+      if (dependencies.transfers.getSnapshotV3 === undefined) {
+        throw new Error('Import-source snapshots are unavailable')
+      }
+      const snapshot = await dependencies.transfers.getSnapshotV3(memberId, params.data.snapshotId)
+      if (snapshot === undefined) {
+        return sendProductProblem(
+          request, reply, 404, 'PLACE_TRANSFER_RESOURCE_NOT_FOUND',
+          'Transfer resource not found',
+        )
+      }
+      return reply.header('cache-control', 'no-store').status(200)
+        .send(sourceSnapshotDetailV3Schema.parse(snapshot))
+    } catch (error) {
+      return unavailable(request, reply, error, 3)
+    }
+  })
+
   application.post('/v2/transfers/import-plan-commands', async (request, reply) => {
     const parsed = importPlanCommandRequestV2Schema.safeParse(request.body)
     if (!parsed.success) return invalid(request, reply, 'Import plan command is invalid')
@@ -251,6 +312,57 @@ export function registerProviderTransferHttpRoutes(
       return reply.header('cache-control', 'no-store').status(200).send(importPlanV3Schema.parse(plan))
     } catch (error) {
       return unavailable(request, reply, error, 3)
+    }
+  })
+
+  application.post('/v4/transfers/import-plan-commands', async (request, reply) => {
+    const parsed = importPlanCommandRequestV4Schema.safeParse(request.body)
+    if (!parsed.success) return invalid(request, reply, 'Import plan command is invalid', 4)
+    const memberId = await requireProductMember(
+      request, reply, dependencies.authorizer, 'imports.write',
+    )
+    if (memberId === undefined) return
+    try {
+      if (dependencies.transfers.applyImportPlanCommandV4 === undefined) {
+        throw new Error('Import-source plans are unavailable')
+      }
+      const result = await dependencies.transfers.applyImportPlanCommandV4(memberId, parsed.data)
+      const response = result.status === 'rejected'
+        ? importPlanCommandResultV4Schema.parse({
+            schemaVersion: 'import-plan-command-result.v4', outcome: 'rejected',
+            commandId: result.commandId, rejection: result.rejection,
+          })
+        : importPlanCommandResultV4Schema.parse({
+            schemaVersion: 'import-plan-command-result.v4', outcome: 'accepted',
+            commandId: result.commandId, status: result.status, plan: result.value,
+          })
+      return reply.header('cache-control', 'no-store').status(commandStatus(result)).send(response)
+    } catch (error) {
+      return unavailable(request, reply, error, 4)
+    }
+  })
+
+  application.get('/v4/transfers/import-plans/:planId', async (request, reply) => {
+    const params = importPlanIdentifierParamsV4Schema.safeParse(request.params)
+    if (!params.success) return invalid(request, reply, 'Import plan identifier is invalid', 4)
+    const memberId = await requireProductMember(
+      request, reply, dependencies.authorizer, 'imports.read',
+    )
+    if (memberId === undefined) return
+    try {
+      if (dependencies.transfers.getImportPlanV4 === undefined) {
+        throw new Error('Import-source plans are unavailable')
+      }
+      const plan = await dependencies.transfers.getImportPlanV4(memberId, params.data.planId)
+      if (plan === undefined) {
+        return sendProductProblem(
+          request, reply, 404, 'PLACE_TRANSFER_RESOURCE_NOT_FOUND',
+          'Transfer resource not found',
+        )
+      }
+      return reply.header('cache-control', 'no-store').status(200).send(importPlanV4Schema.parse(plan))
+    } catch (error) {
+      return unavailable(request, reply, error, 4)
     }
   })
 

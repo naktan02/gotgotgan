@@ -1,4 +1,4 @@
-import { access, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -37,7 +37,8 @@ describe('encrypted capture artifact store', () => {
       contentType: 'application/json',
       retentionUntil: '2026-08-27T11:00:00.000Z',
     })
-    const raw = await readFile(join(root, `${artifactId}.capture`), 'utf8')
+    const capture = (await readdir(root)).find((name) => name.endsWith('.capture'))!
+    const raw = await readFile(join(root, capture), 'utf8')
     expect(raw).not.toContain('private fixture')
     expect(await store.get({
       reference: stored.reference,
@@ -102,6 +103,7 @@ describe('encrypted capture artifact store', () => {
       checksum: createHash('sha256').update(body).digest('hex'),
       contentType: 'application/json', retentionUntil: '2026-08-27T11:00:00.000Z',
     })
+    const capture = (await readdir(root)).find((name) => name.endsWith('.capture'))!
 
     await expect(store.delete({
       reference: stored.reference, batchId, providerKey: 'naver',
@@ -110,13 +112,50 @@ describe('encrypted capture artifact store', () => {
     await expect(store.delete({
       reference: stored.reference, batchId: '01992d20-b000-7000-8000-000000000099',
       providerKey: 'naver',
-    })).rejects.toThrow('invalid')
+    })).resolves.toBe('missing')
     await expect(store.delete({
       reference: stored.reference, batchId, providerKey: 'naver',
     })).resolves.toBe('deleted')
-    await expect(access(join(root, `${artifactId}.capture`))).rejects.toThrow()
+    await expect(access(join(root, capture))).rejects.toThrow()
     await expect(store.delete({
       reference: stored.reference, batchId, providerKey: 'naver',
     })).resolves.toBe('missing')
+  })
+
+  it('recovers a partial published file and deletes malformed data only through its binding', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'place-captures-'))
+    directories.push(root)
+    const body = new TextEncoder().encode('{"kind":"page"}')
+    const artifactId = '01992d20-b000-7000-8000-000000000030'
+    const batchId = '01992d20-b000-7000-8000-000000000031'
+    const store = new EncryptedFileCaptureArtifactStore({
+      root, activeKeyId: 'active', keys: { active: new Uint8Array(32).fill(6) },
+      maximumBytes: 100, now: () => new Date('2026-08-26T11:00:00.000Z'),
+    })
+    const input = {
+      artifactId, batchId, providerKey: 'naver' as const, body,
+      checksum: createHash('sha256').update(body).digest('hex'),
+      contentType: 'application/json' as const,
+      retentionUntil: '2026-08-27T11:00:00.000Z',
+    }
+    const stored = await store.put(input)
+    const capture = (await readdir(root)).find((name) => name.endsWith('.capture'))!
+    await writeFile(join(root, capture), '{"partial"', 'utf8')
+
+    await expect(store.put(input)).resolves.toEqual(stored)
+    expect(await store.get({ reference: stored.reference, batchId, providerKey: 'naver' }))
+      .toEqual(body)
+
+    await writeFile(join(root, capture), '{"partial"', 'utf8')
+    await expect(store.discard({
+      reference: stored.reference,
+      batchId: '01992d20-b000-7000-8000-000000000099',
+      providerKey: 'naver',
+    })).resolves.toBe('missing')
+    await expect(access(join(root, capture))).resolves.toBeUndefined()
+    await expect(store.discard({
+      reference: stored.reference, batchId, providerKey: 'naver',
+    })).resolves.toBe('deleted')
+    await expect(access(join(root, capture))).rejects.toThrow()
   })
 })

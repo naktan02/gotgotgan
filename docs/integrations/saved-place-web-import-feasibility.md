@@ -23,7 +23,7 @@ NAVER 공식 도움말은 목록에 비공개·일부 공개·전체 공개가 �
 있다고 설명한다. [목록 공개 범위](https://help.naver.com/service/5637/contents/21478),
 [리스트 공유·저장](https://help.naver.com/service/5637/contents/21479?lang=ko&osType=COMMONOS)
 
-2026-09-05 허용된 비로그인 서버 probe에서 사용자가 제공한 `https://naver.me/F1a9Q07D`는 공유 폴더로
+2026-09-05 허용된 비로그인 서버 probe에서 사용자가 허용한 예시 단축 링크는 공유 폴더로
 redirect됐고, 해당 공유 식별자의 bookmark endpoint는 HTTP 200 JSON과 마지막 page까지의 pagination을
 반환했다. 같은 환경에서 비공개 account folder endpoint는 로그인 필요 응답이었다. 이는 **이 링크로
 공개된 특정 목록**의 현재 실관찰 근거이지, 문서화된 외부 API·계정 전체 접근·지속 호환성의 증거가

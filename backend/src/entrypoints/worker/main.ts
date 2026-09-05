@@ -12,6 +12,7 @@ type WorkerCheck = Readonly<{
     'naver-capture-parser',
     'encrypted-capture-replay',
     'capture-expiry-sweep',
+    'naver-shared-link-acquisition',
   ]
   liveAcquisition: 'configuration-gated'
 }>
@@ -31,6 +32,7 @@ function describeWorkerScaffold(): WorkerCheck {
       'naver-capture-parser',
       'encrypted-capture-replay',
       'capture-expiry-sweep',
+      'naver-shared-link-acquisition',
     ],
     liveAcquisition: 'configuration-gated',
   }
@@ -49,6 +51,31 @@ async function main(): Promise<void> {
     const result = await runCaptureExpirySweep(await loadCaptureSweepConfig(process.env))
     process.stdout.write(`${JSON.stringify({ operation: 'capture-expiry-sweep', ...result })}\n`)
     if (result.failed > 0) throw new Error('Capture expiry sweep did not complete')
+    return
+  }
+  if (
+    process.argv.includes('--process-web-import-acquisitions') ||
+    process.argv.includes('--run-web-import-acquisitions')
+  ) {
+    const continuous = process.argv.includes('--run-web-import-acquisitions')
+    const [{ loadWebImportAcquisitionConfig }, { runWebImportAcquisitions }] = await Promise.all([
+      import('./config.js'),
+      import('./web-import-acquisition-runtime.js'),
+    ])
+    const controller = new AbortController()
+    const stop = () => controller.abort()
+    process.once('SIGINT', stop)
+    process.once('SIGTERM', stop)
+    try {
+      const result = await runWebImportAcquisitions(
+        await loadWebImportAcquisitionConfig(process.env),
+        { continuous, signal: controller.signal },
+      )
+      process.stdout.write(`${JSON.stringify({ operation: 'web-import-acquisition', ...result })}\n`)
+    } finally {
+      process.removeListener('SIGINT', stop)
+      process.removeListener('SIGTERM', stop)
+    }
     return
   }
   if (

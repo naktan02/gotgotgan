@@ -28,6 +28,7 @@ import {
 } from '../../modules/library/index.js'
 import {
   materializeSuggestedPlace,
+  EncryptedFileCaptureArtifactStore,
   PostgresConnectorImports,
   PostgresImportManagement,
   PostgresImportQueries,
@@ -68,6 +69,8 @@ import {
   PostgresOutboundExecutions,
   PostgresProviderTransfers,
   PostgresTransferOperations,
+  PostgresWebImportAcquisitions,
+  WebImportAcquisitions,
 } from '../../modules/transfers/index.js'
 import { PostgresVisitQueries, PostgresVisitStore } from '../../modules/visits/index.js'
 import { PostgresWritingQueries, PostgresWritingStore } from '../../modules/writing/index.js'
@@ -311,6 +314,19 @@ export async function createProductionHttpRuntime(
       targets: [],
       now,
     })
+    const importAcquisitions = config.importAcquisitions === undefined
+      ? undefined
+      : new WebImportAcquisitions({
+          store: new PostgresWebImportAcquisitions(pool, now),
+          artifacts: new EncryptedFileCaptureArtifactStore({
+            ...config.importAcquisitions.artifacts,
+            now,
+          }),
+          artifactRetentionMilliseconds:
+            config.importAcquisitions.artifactRetentionMilliseconds,
+          remoteBrowserEnabled: config.importAcquisitions.remoteBrowserEnabled,
+          now,
+        })
     const transferOperations = new PostgresTransferOperations(pool, now)
     const connectorTransfers = new PostgresConnectorCaptures(pool, {
       grantTtlMilliseconds: 5 * 60 * 1_000,
@@ -418,6 +434,13 @@ export async function createProductionHttpRuntime(
         authorizer: productAuthorizer,
         transfers: providerTransfers,
       },
+      ...(importAcquisitions === undefined ? {} : {
+        importAcquisitions: {
+          authorizer: productAuthorizer,
+          acquisitions: importAcquisitions,
+          remoteBrowserEnabled: config.importAcquisitions!.remoteBrowserEnabled,
+        },
+      }),
       transferOperations: {
         authorizer: productAuthorizer,
         operations: transferOperations,

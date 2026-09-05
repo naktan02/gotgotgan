@@ -1,5 +1,7 @@
 import type {
+  ImportSourceTransfers,
   ProviderTransfers,
+  TrustedImportSourceObservations,
   TrustedProviderTransferObservations,
 } from '../../domain/model.js'
 import { ProviderConnections } from './provider-transfers/connections.js'
@@ -10,15 +12,20 @@ import {
   type ProviderTransferOptions,
 } from './provider-transfers/provider-transfer-context.js'
 import { ProviderSourceSnapshots } from './provider-transfers/source-snapshots.js'
+import { OneShotSourceSnapshots } from './provider-transfers/one-shot-source-snapshots.js'
+import { SourceSnapshotProjection } from './provider-transfers/source-snapshot-projection.js'
 
 /**
  * Stable provider-transfer adapter seam. Connection truth, immutable snapshots,
  * import planning, and outbound planning are private peer modules.
  */
 export class PostgresProviderTransfers
-implements ProviderTransfers, TrustedProviderTransferObservations {
+implements ProviderTransfers, ImportSourceTransfers,
+  TrustedProviderTransferObservations, TrustedImportSourceObservations {
   private readonly connections: ProviderConnections
   private readonly snapshots: ProviderSourceSnapshots
+  private readonly oneShotSnapshots: OneShotSourceSnapshots
+  private readonly sourceSnapshotProjection: SourceSnapshotProjection
   private readonly imports: ProviderImportPlans
   private readonly outbound: ProviderOutboundPlans
 
@@ -26,7 +33,9 @@ implements ProviderTransfers, TrustedProviderTransferObservations {
     const context = new ProviderTransferContext(options)
     this.connections = new ProviderConnections(context)
     this.snapshots = new ProviderSourceSnapshots(context)
-    this.imports = new ProviderImportPlans(context, this.snapshots)
+    this.oneShotSnapshots = new OneShotSourceSnapshots(context)
+    this.sourceSnapshotProjection = new SourceSnapshotProjection(context)
+    this.imports = new ProviderImportPlans(context, this.snapshots, this.sourceSnapshotProjection)
     this.outbound = new ProviderOutboundPlans(context)
   }
 
@@ -60,6 +69,12 @@ implements ProviderTransfers, TrustedProviderTransferObservations {
     return this.snapshots.record(...input)
   }
 
+  recordSourceSnapshotV3(
+    ...input: Parameters<TrustedImportSourceObservations['recordSourceSnapshotV3']>
+  ): ReturnType<TrustedImportSourceObservations['recordSourceSnapshotV3']> {
+    return this.oneShotSnapshots.record(...input)
+  }
+
   listSnapshots(
     ...input: Parameters<ProviderTransfers['listSnapshots']>
   ): ReturnType<ProviderTransfers['listSnapshots']> {
@@ -70,6 +85,18 @@ implements ProviderTransfers, TrustedProviderTransferObservations {
     ...input: Parameters<ProviderTransfers['getSnapshot']>
   ): ReturnType<ProviderTransfers['getSnapshot']> {
     return this.snapshots.get(...input)
+  }
+
+  listSnapshotsV3(
+    ...input: Parameters<ImportSourceTransfers['listSnapshotsV3']>
+  ): ReturnType<ImportSourceTransfers['listSnapshotsV3']> {
+    return this.sourceSnapshotProjection.listV3(...input)
+  }
+
+  getSnapshotV3(
+    ...input: Parameters<ImportSourceTransfers['getSnapshotV3']>
+  ): ReturnType<ImportSourceTransfers['getSnapshotV3']> {
+    return this.sourceSnapshotProjection.getV3(...input)
   }
 
   applyImportPlanCommandV2(
@@ -94,6 +121,18 @@ implements ProviderTransfers, TrustedProviderTransferObservations {
     ...input: Parameters<ProviderTransfers['getImportPlanV3']>
   ): ReturnType<ProviderTransfers['getImportPlanV3']> {
     return this.imports.getV3(...input)
+  }
+
+  applyImportPlanCommandV4(
+    ...input: Parameters<ImportSourceTransfers['applyImportPlanCommandV4']>
+  ): ReturnType<ImportSourceTransfers['applyImportPlanCommandV4']> {
+    return this.imports.applyV4(...input)
+  }
+
+  getImportPlanV4(
+    ...input: Parameters<ImportSourceTransfers['getImportPlanV4']>
+  ): ReturnType<ImportSourceTransfers['getImportPlanV4']> {
+    return this.imports.getV4(...input)
   }
 
   listTargetLists(

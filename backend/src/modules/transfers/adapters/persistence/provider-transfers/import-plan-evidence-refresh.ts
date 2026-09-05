@@ -1,19 +1,23 @@
 import { readOpaqueRevision } from '../../../application/identity.js'
 import type {
   ImportPlanCommandRequestV3,
+  ImportPlanCommandRequestV4,
   ImportPlanV3,
+  ImportPlanV4,
   TransferCommandResult,
 } from '../../../domain/model.js'
 import { ImportPlanProjection } from './import-plan-projection.js'
 import { ProviderTransferContext } from './provider-transfer-context.js'
 
 type RefreshEvidenceCommand = Extract<
-  ImportPlanCommandRequestV3,
+  ImportPlanCommandRequestV3 | ImportPlanCommandRequestV4,
   { kind: 'refresh-evidence' }
 >
+type EvidencePlan = ImportPlanV3 | ImportPlanV4
+type EvidenceContractMajor = 3 | 4
 
 /**
- * Pins available detail or minimum snapshot evidence for undecided V3 draft items.
+ * Pins available detail or minimum snapshot evidence for undecided V3/V4 draft items.
  * User decisions and already-pinned policy evidence are outside this module's write set.
  */
 export class ImportPlanEvidenceRefresh {
@@ -24,20 +28,35 @@ export class ImportPlanEvidenceRefresh {
 
   async refreshV3(
     memberId: string,
-    command: RefreshEvidenceCommand,
+    command: Extract<ImportPlanCommandRequestV3, { kind: 'refresh-evidence' }>,
   ): Promise<TransferCommandResult<ImportPlanV3>> {
-    const kind = 'import-plan-v3-refresh-evidence'
+    return this.refresh(memberId, command, 3) as Promise<TransferCommandResult<ImportPlanV3>>
+  }
+
+  async refreshV4(
+    memberId: string,
+    command: Extract<ImportPlanCommandRequestV4, { kind: 'refresh-evidence' }>,
+  ): Promise<TransferCommandResult<ImportPlanV4>> {
+    return this.refresh(memberId, command, 4) as Promise<TransferCommandResult<ImportPlanV4>>
+  }
+
+  private async refresh(
+    memberId: string,
+    command: RefreshEvidenceCommand,
+    contractMajor: EvidenceContractMajor,
+  ): Promise<TransferCommandResult<EvidencePlan>> {
+    const kind = `import-plan-v${contractMajor}-refresh-evidence`
     const fingerprint = this.context.fingerprint({ memberId, command })
     const at = this.context.now().toISOString()
     const client = await this.context.pool.connect()
     try {
       await client.query('BEGIN')
       await this.context.lockCommand(client, command.commandId)
-      const prior = await this.context.prior<ImportPlanV3>(
+      const prior = await this.context.prior<EvidencePlan>(
         client,
         { commandId: command.commandId, memberId, kind, fingerprint },
         async (reference, receiptClient) => reference.kind === 'import-plan'
-          ? this.projection.getWithClientV3(receiptClient, memberId, reference.id)
+          ? this.project(receiptClient, memberId, reference.id, contractMajor)
           : undefined,
       )
       if (prior !== undefined && prior !== 'pending') {
@@ -48,9 +67,9 @@ export class ImportPlanEvidenceRefresh {
         `SELECT revision::text, state
          FROM transfers.import_plans
          WHERE id = $1::uuid AND owner_membership_id = $2::uuid
-           AND contract_major = 3
+           AND contract_major = $3
          FOR UPDATE`,
-        [command.planId, memberId],
+        [command.planId, memberId, contractMajor],
       )).rows[0]
       if (plan === undefined) {
         return this.reject(client, command, memberId, kind, fingerprint, 'not-found', at)
@@ -86,7 +105,7 @@ export class ImportPlanEvidenceRefresh {
             AND detail.source_observation_id = detail_status.last_detail_observation_id
            WHERE item.plan_id = $1::uuid
              AND owned_plan.owner_membership_id = $2::uuid
-             AND owned_plan.contract_major = 3
+             AND owned_plan.contract_major = $3
              AND owned_plan.state = 'draft'
              AND item.preview_status = 'unresolved'
              AND item.decision_kind = 'none'
@@ -108,7 +127,7 @@ export class ImportPlanEvidenceRefresh {
          WHERE item.plan_id = $1::uuid
            AND item.source_list_id = ready.source_list_id
            AND item.source_item_id = ready.source_item_id`,
-        [command.planId, memberId],
+        [command.planId, memberId, contractMajor],
       )
       if ((refreshed.rowCount ?? 0) > 0) {
         await client.query(
@@ -116,11 +135,11 @@ export class ImportPlanEvidenceRefresh {
            SET revision = revision + 1,
                updated_at = greatest(updated_at + interval '1 millisecond', $3::timestamptz)
            WHERE id = $1::uuid AND owner_membership_id = $2::uuid
-             AND contract_major = 3 AND state = 'draft'`,
-          [command.planId, memberId, at],
+             AND contract_major = $4 AND state = 'draft'`,
+          [command.planId, memberId, at, contractMajor],
         )
       }
-      const value = await this.projection.getWithClientV3(client, memberId, command.planId)
+      const value = await this.project(client, memberId, command.planId, contractMajor)
       if (value === undefined) throw new Error('refreshed import plan projection unavailable')
       const result = await this.context.recordAccepted(client, {
         commandId: command.commandId,
@@ -150,8 +169,19 @@ export class ImportPlanEvidenceRefresh {
     code: Parameters<ProviderTransferContext['rejectInTransaction']>[1]['code'],
     at: string,
   ) {
-    return this.context.rejectInTransaction<ImportPlanV3>(client, {
+    return this.context.rejectInTransaction<EvidencePlan>(client, {
       commandId: command.commandId, memberId, kind, fingerprint, code, at,
     })
+  }
+
+  private project(
+    client: Pick<import('pg').PoolClient, 'query'>,
+    memberId: string,
+    planId: string,
+    contractMajor: EvidenceContractMajor,
+  ): Promise<EvidencePlan | undefined> {
+    return contractMajor === 3
+      ? this.projection.getWithClientV3(client, memberId, planId)
+      : this.projection.getWithClientV4(client, memberId, planId)
   }
 }

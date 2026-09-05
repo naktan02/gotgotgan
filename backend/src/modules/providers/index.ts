@@ -49,6 +49,16 @@ export {
   type NaverSavedPlaceParseResult,
 } from './adapters/naver/saved-place-source.js'
 export {
+  NaverSharedListSource,
+  PinnedNaverHttpsClient,
+  type BoundedHttpResponse,
+  type NaverSharedLinkFailureCode,
+  type NaverSharedLinkHttpClient,
+  type NaverSharedLinkResult,
+  type NaverSharedList,
+  type NaverSharedListSourceOptions,
+} from './adapters/naver/shared-list-source.js'
+export {
   OfficialProviderHttpClient,
   ProviderRequestFailure,
 } from './adapters/official-http/provider-http.js'

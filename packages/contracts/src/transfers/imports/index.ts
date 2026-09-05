@@ -9,6 +9,33 @@ import {
   transferCommandRejectionSchema,
 } from '../contract-primitives.js'
 
+export const importSourceV1Schema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('verified-connection'),
+    importSourceId: uuidSchema,
+    connectionId: uuidSchema,
+    accountAssurance: z.literal('verified'),
+  }).strict(),
+  z.object({
+    kind: z.literal('one-shot'),
+    importSourceId: uuidSchema,
+    acquisitionMethod: z.enum(['shared-link', 'remote-browser']),
+    authorizationBasis: z.enum(['link-possession', 'interactive-provider-session']),
+    accountAssurance: z.literal('unverified'),
+  }).strict().superRefine((source, context) => {
+    const validBasis = source.acquisitionMethod === 'shared-link'
+      ? source.authorizationBasis === 'link-possession'
+      : source.authorizationBasis === 'interactive-provider-session'
+    if (!validBasis) {
+      context.addIssue({
+        code: 'custom',
+        path: ['authorizationBasis'],
+        message: 'authorization basis does not match acquisition method',
+      })
+    }
+  }),
+])
+
 export const sourceSnapshotListQueryV2Schema = z.object({
   connectionId: uuidSchema.optional(),
   cursor: cursorSchema.optional(),
@@ -67,6 +94,44 @@ export const sourceSnapshotDetailV2Schema = sourceSnapshotSummaryV2Schema.extend
     context.addIssue({ code: 'custom', path: ['lists'], message: 'snapshot item limit exceeded' })
   }
 })
+
+export const sourceSnapshotListQueryV3Schema = z.object({
+  importSourceId: uuidSchema.optional(),
+  cursor: cursorSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+}).strict()
+
+export const sourceSnapshotSummaryV3Schema = z.object({
+  snapshotId: uuidSchema,
+  snapshotVersion: revisionSchema,
+  source: importSourceV1Schema,
+  providerKey: providerKeySchema,
+  sourceRevision: z.string().min(1).max(512),
+  listCount: z.number().int().nonnegative(),
+  itemCount: z.number().int().nonnegative(),
+  unresolvedItemCount: z.number().int().nonnegative(),
+  observedAt: z.iso.datetime({ offset: true }),
+  capturedAt: z.iso.datetime({ offset: true }),
+}).strict()
+
+export const sourceSnapshotListV3Schema = z.object({
+  schemaVersion: z.literal('source-snapshot-list.v3'),
+  items: z.array(sourceSnapshotSummaryV3Schema).max(50),
+  nextCursor: cursorSchema.optional(),
+}).strict()
+
+export const sourceSnapshotDetailV3Schema = sourceSnapshotSummaryV3Schema.extend({
+  schemaVersion: z.literal('source-snapshot-detail.v3'),
+  lists: sourceSnapshotDetailV2Schema.shape.lists,
+}).strict().superRefine((snapshot, context) => {
+  if (snapshot.lists.reduce((count, list) => count + list.items.length, 0) > 10_000) {
+    context.addIssue({ code: 'custom', path: ['lists'], message: 'snapshot item limit exceeded' })
+  }
+})
+
+export const sourceSnapshotIdentifierParamsV3Schema = z.object({
+  snapshotId: uuidSchema,
+}).strict()
 
 export const sourceSnapshotIdentifierParamsV2Schema = z.object({
   snapshotId: uuidSchema,
@@ -314,12 +379,83 @@ export const importPlanCommandResultV3Schema = z.discriminatedUnion('outcome', [
   }).strict(),
 ])
 
+const importPlanCommandBaseV4 = z.object({
+  schemaVersion: z.literal('import-plan-command.v4'),
+  commandId: uuidSchema,
+})
+
+export const importPlanCommandRequestV4Schema = z.discriminatedUnion('kind', [
+  importPlanCommandBaseV4.extend({
+    kind: z.literal('create'),
+    planId: uuidSchema,
+    snapshotId: uuidSchema,
+    expectedSnapshotVersion: revisionSchema,
+    mappings: z.array(z.object({
+      sourceListId: z.string().min(1).max(512),
+      target: importPlanTargetV2Schema,
+    }).strict()).min(1).max(50),
+  }).strict(),
+  importPlanCommandBaseV4.extend({
+    kind: z.literal('refresh-evidence'),
+    planId: uuidSchema,
+    expectedPlanRevision: revisionSchema,
+  }).strict(),
+  importPlanCommandBaseV4.extend({
+    kind: z.literal('decide-item'),
+    planId: uuidSchema,
+    expectedPlanRevision: revisionSchema,
+    sourceListId: z.string().min(1).max(512),
+    sourceItemId: z.string().min(1).max(512),
+    decision: z.discriminatedUnion('kind', [
+      z.object({ kind: z.literal('link'), placeId: uuidSchema }).strict(),
+      z.object({ kind: z.literal('skip') }).strict(),
+    ]),
+  }).strict(),
+  importPlanCommandBaseV4.extend({
+    kind: z.literal('approve'),
+    planId: uuidSchema,
+    expectedPlanRevision: revisionSchema,
+  }).strict(),
+])
+
+export const importPlanV4Schema = importPlanV3Schema.omit({
+  schemaVersion: true,
+  connectionId: true,
+}).extend({
+  schemaVersion: z.literal('import-plan.v4'),
+  source: importSourceV1Schema,
+}).strict()
+
+export const importPlanIdentifierParamsV4Schema = z.object({ planId: uuidSchema }).strict()
+
+export const importPlanCommandResultV4Schema = z.discriminatedUnion('outcome', [
+  z.object({
+    schemaVersion: z.literal('import-plan-command-result.v4'),
+    outcome: z.literal('accepted'),
+    commandId: uuidSchema,
+    status: z.enum(['applied', 'replayed']),
+    plan: importPlanV4Schema,
+  }).strict(),
+  z.object({
+    schemaVersion: z.literal('import-plan-command-result.v4'),
+    outcome: z.literal('rejected'),
+    commandId: uuidSchema,
+    rejection: transferCommandRejectionSchema,
+  }).strict(),
+])
+
 
 export type SourceSnapshotDetailV2 = z.infer<typeof sourceSnapshotDetailV2Schema>
 export type SourceSnapshotListV2 = z.infer<typeof sourceSnapshotListV2Schema>
+export type ImportSourceV1 = z.infer<typeof importSourceV1Schema>
+export type SourceSnapshotDetailV3 = z.infer<typeof sourceSnapshotDetailV3Schema>
+export type SourceSnapshotListV3 = z.infer<typeof sourceSnapshotListV3Schema>
 export type ImportPlanCommandRequestV2 = z.infer<typeof importPlanCommandRequestV2Schema>
 export type ImportPlanCommandResultV2 = z.infer<typeof importPlanCommandResultV2Schema>
 export type ImportPlanV2 = z.infer<typeof importPlanV2Schema>
 export type ImportPlanCommandRequestV3 = z.infer<typeof importPlanCommandRequestV3Schema>
 export type ImportPlanCommandResultV3 = z.infer<typeof importPlanCommandResultV3Schema>
 export type ImportPlanV3 = z.infer<typeof importPlanV3Schema>
+export type ImportPlanCommandRequestV4 = z.infer<typeof importPlanCommandRequestV4Schema>
+export type ImportPlanCommandResultV4 = z.infer<typeof importPlanCommandResultV4Schema>
+export type ImportPlanV4 = z.infer<typeof importPlanV4Schema>

@@ -19,11 +19,13 @@ import { registerSearchHttpRoutes, type SearchHttpDependencies } from '../../mod
 import { registerTaxonomyHttpRoutes, type TaxonomyHttpDependencies } from '../../modules/taxonomy/index.js'
 import {
   registerProviderTransferHttpRoutes,
+  registerImportAcquisitionHttpRoutes,
   registerTransferOperationHttpRoutes,
   registerConnectorTransferHttpRoutes,
   registerOutboundExecutionHttpRoutes,
   type ConnectorTransferHttpDependencies,
   type ProviderTransferHttpDependencies,
+  type ImportAcquisitionHttpDependencies,
   type TransferOperationHttpDependencies,
   type OutboundExecutionHttpDependencies,
 } from '../../modules/transfers/index.js'
@@ -41,6 +43,7 @@ export type HttpApplicationOptions = Readonly<{
   search?: SearchHttpDependencies
   taxonomy?: TaxonomyHttpDependencies
   transfers?: ProviderTransferHttpDependencies
+  importAcquisitions?: ImportAcquisitionHttpDependencies
   transferOperations?: TransferOperationHttpDependencies
   connectorTransfers?: ConnectorTransferHttpDependencies
   outboundExecution?: OutboundExecutionHttpDependencies
@@ -83,6 +86,9 @@ export function buildHttpApplication(options: HttpApplicationOptions = {}): Fast
   if (options.search !== undefined) registerSearchHttpRoutes(application, options.search)
   if (options.taxonomy !== undefined) registerTaxonomyHttpRoutes(application, options.taxonomy)
   if (options.transfers !== undefined) registerProviderTransferHttpRoutes(application, options.transfers)
+  if (options.importAcquisitions !== undefined) {
+    registerImportAcquisitionHttpRoutes(application, options.importAcquisitions)
+  }
   if (options.transferOperations !== undefined) {
     registerTransferOperationHttpRoutes(application, options.transferOperations)
   }
