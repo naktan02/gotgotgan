@@ -25,6 +25,8 @@ type LibraryFixtureOptions = Readonly<{
   conflictOnce?: boolean
   responseLossOnce?: boolean
   manyTaxonomies?: boolean
+  personalRating?: number
+  pendingDetail?: boolean
 }>
 
 function json(route: Route, body: unknown, status = 200) {
@@ -140,7 +142,7 @@ async function installCollectionLibraryFixture(page: Page, options: LibraryFixtu
           collectionCount: [...collections.values()].filter((collection) => collection.placeIds.includes(placeId)).length,
           personalRating: placeId === ramenPlaceId ? 4.5 : null,
         },
-        place: places[placeId as keyof typeof places],
+        place: options.pendingDetail && placeId === ramenPlaceId ? null : places[placeId as keyof typeof places],
       })),
       availableFilters: {
         coverage: {
@@ -221,7 +223,7 @@ async function installCollectionLibraryFixture(page: Page, options: LibraryFixtu
       overlay: {
         isFavorited: [...collections.values()].some((collection) => collection.placeIds.includes(placeId)),
         collectionCount: [...collections.values()].filter((collection) => collection.placeIds.includes(placeId)).length,
-        personalRating: placeId === ramenPlaceId ? 4.5 : null,
+        personalRating: placeId === ramenPlaceId ? options.personalRating ?? 4.5 : null,
       },
       collections: [...collections.values()].map((collection) => ({
         collectionId: collection.collectionId,
@@ -314,20 +316,24 @@ async function installCollectionLibraryFixture(page: Page, options: LibraryFixtu
       },
     }, 201)
   })
-  await page.route(/\/api\/places\/[^/]+$/, (route) => {
+  await page.route(/\/api\/v2\/places\/[^/]+$/, (route) => {
     const placeId = new URL(route.request().url()).pathname.split('/').at(-1)!
     const place = places[placeId as keyof typeof places]
     return json(route, {
-      schemaVersion: 'place-detail.v1',
+      schemaVersion: 'place-detail.v2',
       requestedPlaceId: placeId,
       placeId,
       redirectedFrom: [],
-      status: 'available',
-      ...place,
+      status: options.pendingDetail && placeId === ramenPlaceId ? 'pending' : 'available',
+      ...(options.pendingDetail && placeId === ramenPlaceId ? {} : place),
       personalState: {
         saved: false,
         wanted: false,
-        personalRating: placeId === ramenPlaceId ? 4.5 : null,
+        personalRating: placeId === ramenPlaceId ? options.personalRating ?? 4.5 : null,
+        ...(options.pendingDetail && placeId === ramenPlaceId ? { sourceObservedPlace: {
+          name: '가져온 작은 식당', address: '서울 성동구 테스트 주소', categoryLabel: '공급자 원본 분류',
+          location: { latitude: 37.54, longitude: 127.05 }, capturedAt: timestamp,
+        } } : {}),
         preferencesUpdatedAt: timestamp,
         visits: { visited: false, count: 0 },
       },
@@ -365,14 +371,19 @@ async function openRamenDetail(page: Page) {
   await expect(page.getByRole('complementary', { name: '선택한 장소 상세' })).toBeVisible()
 }
 
+async function openFiling(page: Page) {
+  await page.getByRole('button', { name: /개 목록에 저장됨/ }).click()
+  return page.getByRole('dialog', { name: '내 카테고리', exact: true })
+}
+
 test('uses Collection membership as the favorite truth and keeps unlocated Places in the list', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chromium', 'desktop Collection workspace coverage')
   await installCollectionLibraryFixture(page)
   await page.goto('/library')
 
   await expect(page.getByRole('heading', { name: '내 목록', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: /서울 라멘/ })).toBeVisible()
-  await expect(page.getByRole('button', { name: /도쿄 여행/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /서울 라멘/ }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: /도쿄 여행/ }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: /멘야 하루 쇼유라멘/ })).not.toBeVisible()
   await expect(page.getByRole('button', { name: '쇼유라멘', exact: true })).not.toBeVisible()
   await expect(page.locator('body')).not.toContainText('저장됨')
@@ -388,8 +399,8 @@ test('files one Place into multiple Collections atomically without changing its 
   await page.goto('/library')
   await openRamenDetail(page)
 
-  const filing = page.getByRole('region', { name: '내 카테고리' })
-  await expect(page.getByRole('region', { name: '내 평점' }).getByLabel('0.1–5.0')).toHaveValue('4.5')
+  await expect(page.getByRole('region', { name: '내 평점' })).toContainText('4.5')
+  const filing = await openFiling(page)
   await filing.getByLabel(/서울 라멘/).uncheck()
   await filing.getByLabel(/도쿄 여행/).check()
   await filing.getByRole('button', { name: '변경 저장' }).click()
@@ -408,7 +419,7 @@ test('preserves a filing draft on revision conflict', async ({ page }, testInfo)
   await page.goto('/library')
   await openRamenDetail(page)
 
-  const filing = page.getByRole('region', { name: '내 카테고리' })
+  const filing = await openFiling(page)
   const tokyo = filing.getByLabel(/도쿄 여행/)
   await tokyo.check()
   await filing.getByRole('button', { name: '변경 저장' }).click()
@@ -427,7 +438,7 @@ test('retries a response-lost filing with the exact same command', async ({ page
   await page.goto('/library')
   await openRamenDetail(page)
 
-  const filing = page.getByRole('region', { name: '내 카테고리' })
+  const filing = await openFiling(page)
   await filing.getByLabel(/도쿄 여행/).check()
   await filing.getByRole('button', { name: '변경 저장' }).click()
   await expect(filing.getByRole('alert')).toContainText('같은 요청으로 다시 확인')
@@ -447,14 +458,15 @@ test('creates, renames, and deletes a Collection through revision-based commands
   await page.getByLabel('카테고리 이름', { exact: true }).fill('비 오는 날')
   await page.getByRole('button', { name: '카테고리 만들기', exact: true }).click()
   await expect(page.getByRole('heading', { name: '비 오는 날', exact: true })).toBeVisible()
-  await page.getByText('카테고리 관리', { exact: true }).click()
-
-  await page.getByLabel('카테고리 이름 수정').fill('우산 들고 갈 곳')
-  await page.getByRole('button', { name: '수정' }).click()
+  await page.getByText('⋯', { exact: true }).filter({ visible: true }).click()
+  await page.getByRole('menuitem', { name: '이름 변경', exact: true }).click()
+  await page.getByLabel('목록 이름', { exact: true }).fill('우산 들고 갈 곳')
+  await page.getByRole('button', { name: '이름 저장' }).click()
   await expect(page.getByRole('heading', { name: '우산 들고 갈 곳', exact: true })).toBeVisible()
 
-  await page.getByRole('button', { name: '카테고리 삭제' }).click()
-  await page.getByRole('button', { name: '삭제 확인' }).click()
+  await page.getByText('⋯', { exact: true }).filter({ visible: true }).click()
+  await page.getByRole('menuitem', { name: '목록 삭제', exact: true }).click()
+  await page.getByRole('button', { name: '목록 삭제 확인' }).click()
   await expect(page.getByRole('button', { name: /우산 들고 갈 곳/ })).toHaveCount(0)
   expect(fixture.lifecycleCommands.map((command) => command.kind)).toEqual(['create', 'update', 'delete'])
 })
@@ -495,7 +507,7 @@ test('keeps directory, scoped search, bounded filters, detail, and map in one re
   await directorySearch.getByRole('searchbox').fill('라멘')
   await directorySearch.getByRole('button', { name: '검색', exact: true }).click()
   await expect(page.getByRole('button', { name: /도쿄 여행/ })).not.toBeVisible()
-  await page.getByRole('button', { name: /서울 라멘/ }).click()
+  await page.getByRole('button', { name: /서울 라멘/ }).first().click()
   const placeSearch = page.getByRole('search', { name: '선택한 목록 안에서 장소 검색' })
   await placeSearch.getByRole('searchbox').fill('성수동 라멘')
   const mapRequest = page.waitForRequest((request) => {
@@ -529,9 +541,9 @@ test('keeps directory, scoped search, bounded filters, detail, and map in one re
   await expect(place).toBeFocused()
   await expect(placeSearch.getByRole('searchbox')).toHaveValue('성수동 라멘')
   await expect(page.getByRole('button', { name: '쇼유라멘 필터 해제' })).toBeVisible()
-  await page.getByRole('button', { name: '← 내 목록', exact: true }).click()
+  await page.getByRole('button', { name: '내 목록으로 돌아가기', exact: true }).click()
   await expect(directorySearch.getByRole('searchbox')).toHaveValue('라멘')
-  await expect(page.getByRole('button', { name: /서울 라멘/ })).toBeFocused()
+  await expect(page.getByRole('button', { name: /서울 라멘/ }).first()).toBeFocused()
 })
 
 test('captures directory and selected single-panel layouts at the four design widths', async ({ page }, testInfo) => {
@@ -540,10 +552,10 @@ test('captures directory and selected single-panel layouts at the four design wi
   for (const [width, height] of [[1440, 900], [1280, 800], [390, 844], [360, 800]]) {
     await page.setViewportSize({ width, height })
     await page.goto('/library')
-    await expect(page.getByRole('button', { name: /서울 라멘/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /서울 라멘/ }).first()).toBeVisible()
     await expect(page.getByText('지도를 불러오는 중입니다.', { exact: true })).not.toBeVisible()
     await page.screenshot({ path: testInfo.outputPath(`library-directory-${width}.png`) })
-    await page.getByRole('button', { name: /서울 라멘/ }).click()
+    await page.getByRole('button', { name: /서울 라멘/ }).first().click()
     await expect(page.getByRole('button', { name: /멘야 하루 쇼유라멘/ })).toBeVisible()
     const map = page.getByRole('region', { name: '내 장소 지도' })
     const panelBox = await page.locator('#library-work-panel').boundingBox()
@@ -551,6 +563,10 @@ test('captures directory and selected single-panel layouts at the four design wi
     expect(panelBox).not.toBeNull()
     expect(mapBox).not.toBeNull()
     expect(mapBox!.height).toBeGreaterThan(160)
+    if (width <= 720) {
+      const firstPlace = (await page.getByRole('button', { name: /멘야 하루 쇼유라멘/ }).boundingBox())!
+      expect(firstPlace.y + firstPlace.height).toBeLessThanOrEqual(height - 56)
+    }
     if (width > 720) expect(mapBox!.width).toBeGreaterThan(width / 2)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.screenshot({ path: testInfo.outputPath(`library-places-${width}.png`) })
@@ -565,7 +581,7 @@ test('opens all saved-place search only through an explicit directory action', a
   await installCollectionLibraryFixture(page)
   await page.goto('/library')
   await expect(page.getByRole('heading', { name: '전체 저장 장소', exact: true })).not.toBeVisible()
-  await page.getByRole('button', { name: '모든 목록의 장소 검색', exact: true }).click()
+  await page.getByRole('button', { name: /전체 저장 장소 내 모든 목록 안에서 검색/ }).click()
   await expect(page.getByRole('heading', { name: '전체 저장 장소', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: /멘야 하루 쇼유라멘/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /도쿄 새 박물관/ })).toBeVisible()
@@ -577,6 +593,141 @@ test('opens all saved-place search only through an explicit directory action', a
   await page.getByRole('searchbox', { name: '내 모든 목록 안에서 장소 검색' }).press('Enter')
   expect(new URL((await request).url()).searchParams.has('collectionId')).toBe(false)
   await expect(page.getByRole('button', { name: /도쿄 새 박물관/ })).not.toBeVisible()
-  await page.getByRole('button', { name: '← 내 목록', exact: true }).click()
+  await page.getByRole('button', { name: '내 목록으로 돌아가기', exact: true }).click()
   await expect(page.getByRole('heading', { name: '내 목록', exact: true })).toBeVisible()
+})
+
+test('carries an edited but unsubmitted favorite query to the global catalog scope', async ({ page }) => {
+  await installCollectionLibraryFixture(page)
+  await page.goto('/library?scope=favorites&q=멘야')
+  const input = page.getByRole('searchbox', { name: '내 모든 목록 안에서 장소 검색' })
+  await expect(input).toHaveValue('멘야')
+  await input.fill('도쿄')
+  const global = page.getByRole('navigation', { name: '검색 대상' }).getByRole('link', { name: '전체 장소', exact: true })
+  await expect(global).toHaveAttribute('href', `/?q=${encodeURIComponent('도쿄')}`)
+  await global.click()
+  await expect(page.getByRole('combobox', { name: '곳곳간 카탈로그 검색', exact: true })).toHaveValue('도쿄')
+})
+
+test('uses real detail tabs, keeps precise existing stars, and guards unsaved notes and ratings', async ({ page }, testInfo) => {
+  await installCollectionLibraryFixture(page, { personalRating: 4.7 })
+  await page.goto('/library')
+  await openRamenDetail(page)
+  const detail = page.getByRole('complementary', { name: '선택한 장소 상세' })
+  await expect(detail.getByRole('tabpanel', { name: '개요' })).toBeVisible()
+  await expect(detail.getByRole('tabpanel', { name: '내 기록' })).not.toBeVisible()
+  const rating = detail.getByRole('region', { name: '내 평점' })
+  await expect(rating).toContainText('4.7')
+  await expect(rating.locator('input[type="number"]')).toHaveCount(0)
+  await rating.getByRole('button', { name: /평가하기/ }).click()
+  await rating.getByRole('radio', { name: '별점 3.5점', exact: true }).check()
+  await detail.getByRole('button', { name: '← 장소 목록으로' }).click()
+  const guard = page.getByRole('dialog', { name: '저장하지 않은 변경이 있어요' })
+  await expect(guard).toContainText('내 별점')
+  await guard.getByRole('button', { name: '계속 편집' }).click()
+  await expect(rating.getByRole('radio', { name: '별점 3.5점', exact: true })).toBeChecked()
+  await detail.getByRole('tab', { name: '내 기록', exact: true }).click()
+  await expect(detail.getByRole('tabpanel', { name: '개요' })).not.toBeVisible()
+  await detail.getByText('메모', { exact: true }).click()
+  await detail.getByLabel('새 비공개 메모', { exact: true }).fill('테스트 전용 미저장 초안')
+  await page.getByRole('button', { name: '작업 패널 접고 지도 보기' }).click()
+  await page.getByRole('button', { name: '작업 패널 펼치기' }).click()
+  await expect(detail.getByLabel('새 비공개 메모', { exact: true })).toHaveValue('테스트 전용 미저장 초안')
+  await detail.getByRole('button', { name: '← 장소 목록으로' }).click()
+  await expect(guard).toContainText('메모')
+  await guard.getByRole('button', { name: '변경 버리고 이동' }).click()
+  await expect(detail).not.toBeVisible()
+  await page.getByRole('button', { name: /멘야 하루 쇼유라멘/ }).click()
+  await expect(page.getByRole('region', { name: '내 평점' })).toContainText('4.7')
+  await page.screenshot({ path: testInfo.outputPath('library-detail-tabs-stars.png') })
+})
+
+test('searches filing choices and saves before leaving a changed membership', async ({ page }) => {
+  const fixture = await installCollectionLibraryFixture(page)
+  await page.goto('/library')
+  await openRamenDetail(page)
+  const filing = await openFiling(page)
+  await filing.getByRole('searchbox').fill('도쿄')
+  await expect(filing.getByRole('checkbox')).toHaveCount(1)
+  await filing.getByLabel(/도쿄 여행/).check()
+  await filing.getByRole('button', { name: '카테고리 선택 닫기' }).click()
+  await page.getByRole('button', { name: '← 장소 목록으로' }).click()
+  const guard = page.getByRole('dialog', { name: '저장하지 않은 변경이 있어요' })
+  await expect(guard).toContainText('목록 선택')
+  await guard.getByRole('button', { name: '저장하고 이동' }).click()
+  await expect(page.getByRole('complementary', { name: '선택한 장소 상세' })).not.toBeVisible()
+  expect(fixture.collections.get(tokyoCollectionId)?.placeIds).toContain(ramenPlaceId)
+  expect(fixture.filingCommands).toHaveLength(1)
+})
+
+test('offers keyboard and drag alternatives for the mobile sheet without covering the whole map', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chromium', 'mobile sheet interaction')
+  await installCollectionLibraryFixture(page)
+  await page.goto('/library')
+  const sheet = page.locator('#library-work-panel')
+  const handle = page.getByRole('button', { name: /작업 패널 높이/ })
+  const mid = (await sheet.boundingBox())!.height
+  await handle.focus()
+  await handle.press('ArrowUp')
+  await expect.poll(async () => (await sheet.boundingBox())!.height).toBeGreaterThan(mid)
+  await expect(page.getByRole('region', { name: '내 장소 지도' })).toBeVisible()
+  await handle.press('ArrowDown')
+  const bounds = (await handle.boundingBox())!
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y - 180, { steps: 10 })
+  await page.mouse.up()
+  await expect.poll(async () => (await sheet.boundingBox())!.height).toBeGreaterThan(mid)
+  const map = page.getByRole('region', { name: '내 장소 지도' })
+  await expect.poll(async () => (await map.boundingBox())!.height).toBeGreaterThanOrEqual(184)
+  await page.screenshot({ path: testInfo.outputPath('library-mobile-sheet-expanded.png') })
+  await page.getByRole('button', { name: '지도만', exact: true }).click()
+  await expect(sheet).not.toBeVisible()
+  await page.getByRole('button', { name: '작업 패널 펼치기' }).click()
+  await expect(page.getByRole('heading', { name: '내 목록', exact: true })).toBeVisible()
+})
+
+test('separates verified favorite conditions from literal names and sends equal list/map predicates', async ({ page }) => {
+  await installCollectionLibraryFixture(page)
+  await page.goto('/library')
+  await page.getByRole('button', { name: /서울 라멘/ }).first().click()
+  const search = page.getByRole('search', { name: '선택한 목록 안에서 장소 검색' })
+  await search.getByRole('searchbox').fill('쇼유라멘 멘야')
+  const conditionMap = page.waitForRequest((request) => {
+    const url = new URL(request.url())
+    return url.pathname === '/api/library/workspace/map' && url.searchParams.get('placeQuery') === '멘야' && url.searchParams.getAll('taxonomyKeys').includes('ramen.shoyu')
+  })
+  const conditionList = page.waitForRequest((request) => {
+    const url = new URL(request.url())
+    return url.pathname === '/api/library/workspace' && url.searchParams.get('placeQuery') === '멘야' && url.searchParams.getAll('taxonomyKeys').includes('ramen.shoyu')
+  })
+  await search.getByRole('button', { name: '검색', exact: true }).click()
+  const requests = await Promise.all([conditionList, conditionMap])
+  requests.forEach((request) => expect(new URL(request.url()).searchParams.get('collectionId')).toBe(ramenCollectionId))
+  await expect(search.getByRole('searchbox')).toHaveValue('쇼유라멘 멘야')
+  await expect(page.getByRole('button', { name: '쇼유라멘 필터 해제' })).toHaveCount(1)
+  await expect(page.getByRole('link', { name: '전체 장소', exact: true })).toHaveAttribute('href', '/?q=%EC%87%BC%EC%9C%A0%EB%9D%BC%EB%A9%98%20%EB%A9%98%EC%95%BC')
+  const literal = page.waitForRequest((request) => {
+    const url = new URL(request.url())
+    return url.pathname === '/api/library/workspace' && url.searchParams.get('placeQuery') === '쇼유라멘 멘야' && url.searchParams.getAll('taxonomyKeys').length === 0
+  })
+  await page.getByRole('button', { name: '문자 그대로 검색', exact: true }).click()
+  await literal
+  await expect(page.getByRole('button', { name: '쇼유라멘 필터 해제' })).toHaveCount(0)
+  await page.getByRole('button', { name: '조건 인식 다시 사용', exact: true }).click()
+  await page.getByRole('button', { name: '쇼유라멘 필터 해제' }).click()
+  await expect(search.getByRole('searchbox')).toHaveValue('멘야')
+})
+
+test('shows private imported minimum information without asserting canonical classification or an active worker', async ({ page }) => {
+  await installCollectionLibraryFixture(page, { pendingDetail: true })
+  await page.goto('/library')
+  await page.getByRole('button', { name: /서울 라멘/ }).first().click()
+  await page.getByRole('button', { name: /장소 정보 준비 중/ }).click()
+  const detail = page.getByRole('complementary', { name: '선택한 장소 상세' })
+  await expect(detail.getByRole('heading', { name: '가져온 작은 식당' })).toBeVisible()
+  await expect(detail).toContainText('가져온 분류 · 공급자 원본 분류')
+  await expect(detail).toContainText('37.54000, 127.05000')
+  await expect(detail).toContainText('상세 보강은 현재 실행 중이 아닙니다.')
+  await expect(detail.getByRole('heading', { name: '장소 정보 동기화 중' })).toHaveCount(0)
 })

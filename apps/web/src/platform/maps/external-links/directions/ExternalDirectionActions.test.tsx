@@ -4,13 +4,17 @@ import { describe, expect, it } from 'vitest'
 import { ExternalDirectionActions } from './ExternalDirectionActions'
 
 describe('ExternalDirectionActions', () => {
-  it('renders fixed provider links with safe external navigation attributes', () => {
+  it('keeps fixed provider links inside a closed dialog behind one compact trigger', () => {
     const markup = renderToStaticMarkup(<ExternalDirectionActions destination={{
       name: '서울숲',
       location: { latitude: 37.5444, longitude: 127.0374 },
     }} />)
 
     expect(markup.match(/<a /g)).toHaveLength(3)
+    expect(markup).toContain('aria-haspopup="dialog"')
+    expect(markup).toMatch(/<button[^>]*>.*길찾기<\/button>/)
+    expect(markup).toContain('<dialog')
+    expect(markup).not.toMatch(/<dialog[^>]* open/)
     expect(markup).toContain('NAVER로 길찾기')
     expect(markup).toContain('Google Maps로 길찾기')
     expect(markup).toContain('카카오맵으로 길찾기')
@@ -24,6 +28,8 @@ describe('ExternalDirectionActions', () => {
       location: null,
     }} />)
 
-    expect(markup).toBe('')
+    expect(markup).toMatch(/<button[^>]*disabled=""/)
+    expect(markup).toContain('좌표가 없어 길찾기를 사용할 수 없습니다')
+    expect(markup).not.toContain('<a ')
   })
 })

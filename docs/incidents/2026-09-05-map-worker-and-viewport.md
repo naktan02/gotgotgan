@@ -38,3 +38,31 @@ feature callback에서 제외하고 이미 컨테이너를 관측하므로 nativ
 style/TileJSON, worker, tile/font, renderer 경계를 각각 확인한다. 로그인/Library 503은 별도의
 비활성 runtime 경계다. 지도 검사로 Identity 로그인, 개인 Library, 공급자 저장목록 가져오기나
 운영 배포 성공을 주장하지 않는다.
+
+## 2026-09-06: 드래그 뒤 카메라가 bounds 중심으로 되돌아감
+
+같은 MapLibre 6.7.0에서 지구본을 드래그하면 실제 중심이 경도 0도로 돌아가고, 2D에서도
+고위도에서 위도가 어긋났다. 첫 실패 경계는 SDK 입력이 아니라 `moveend → readMapViewport →
+caller state → bounds prop → centerForBounds → jumpTo`였다. 지구본의 전 세계 bounds와
+Mercator bounds의 위도 중간값은 현재 카메라 중심을 복원하지 못한다. 로컬 source와 실제 React
+adapter/MapLibre를 사용한 회귀에서 드래그 중심 `[58.2768, 50.3145]`가 prop 반영 후
+`[0, 27.2659]`로 바뀌는 red를 확인했다.
+
+Adapter가 발행한 bounds 객체의 다음 echo만 소비하고 카메라는 그대로 둔다. 소비 후 새로운
+bounds 객체로 요청하는 같은 값의 이동은 차단하지 않는다. 우클릭·키보드·두 손가락 회전과
+pitch 입력은 차단하되 왼쪽 지구본 drag와 pinch zoom은 유지한다. 결정적 재발 검사는
+`apps/web/src/platform/maps/testing/camera-roundtrip/run.mjs`이며 외부 타일, 계정 또는 운영
+서버를 사용하지 않는다. 이 검사와 maps 단위 검사, Web typecheck가 통과했다.
+
+같은 날 공개 Bright style의 국가/도시/POI/도로명 text-field가 Latin-first 병기식임을 확인했다.
+언어 정책은 공급된 `name:ko`를 우선하며, 없으면 현지 이름과 영문으로 내려간다. 원본에 없는
+한국어 번역을 만들었다고 주장하지 않는다. 도로번호와 공항 코드 등 이름이 아닌 필드는 유지한다.
+출처는 [OpenFreeMap 안내](https://openfreemap.org/#attribution)와
+[OSMF interactive-map 지침](https://osmfoundation.org/wiki/Licence/Attribution_Guidelines#Interactive_maps)에
+따라 최초 표시 후 조작으로 접히고 다시 펼칠 수 있게 유지한다. 이 기록의 로컬 source 검사는
+변경된 Compose Web의 실제 공개 Bright 타일/글꼴 렌더링 검증을 대신하지 않는다.
+
+같은 날 수정된 Compose Web에서 별도 live-map-smoke를 실행해 공개 Bright 타일·worker의 HTTP 성공,
+네 폭의 넘침/브라우저 오류 없음, 서울·축소 지구본의 한국어 지명 표시를 실제 캡처로 확인했다.
+선택적인 OpenFreeMap 브랜드만 빠지고 필수 OSM/OpenMapTiles 고지는 남았다. 이는 공개 지도
+렌더링 증거이며 회원 로그인, 비공개 가져오기 또는 상세 보강 활성화의 증거가 아니다.

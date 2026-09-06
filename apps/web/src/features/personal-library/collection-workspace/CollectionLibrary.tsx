@@ -1,16 +1,19 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 
 import type { PlaceMapRenderer } from '@/platform/maps/public'
 
 import { PersonalLibraryMap } from '../library-map/PersonalLibraryMap'
 import { PersonalPlaceDetail } from '../personal-place-detail/PersonalPlaceDetail'
+import type { PersonalPlaceNavigation } from '../draft-navigation/DraftNavigation'
 import { PlaceFilingEditor } from '../place-filing/PlaceFilingEditor'
 import { CollectionDirectory, CollectionPlaces } from './CollectionPanels'
 import { CollectionFilters } from './CollectionFilters'
 import styles from './collection-workspace.module.css'
-import { useCollectionLibraryWorkflow, type CollectionLibraryWorkflow } from './collection-library-workflow'
+import { useCollectionLibraryWorkflow, type CollectionLibraryWorkflow, type LibraryInitialScope } from './collection-library-workflow'
+
+type ScopeNavigation = ReactNode | ((query: string) => ReactNode)
 
 function statusMessage(status: CollectionLibraryWorkflow['pageStatus']) {
   if (status === 'forbidden') return '현재 계정에는 내 곳곳간을 볼 권한이 없습니다.'
@@ -19,11 +22,17 @@ function statusMessage(status: CollectionLibraryWorkflow['pageStatus']) {
   return '내 곳곳간을 불러오지 못했습니다.'
 }
 
-export function CollectionLibraryView({ mapRenderer: MapRenderer, workflow }: Readonly<{
-  mapRenderer: PlaceMapRenderer; workflow: CollectionLibraryWorkflow
+export function CollectionLibraryView({ mapRenderer: MapRenderer, workflow, scopeNavigation }: Readonly<{
+  mapRenderer: PlaceMapRenderer; workflow: CollectionLibraryWorkflow; scopeNavigation?: ScopeNavigation
 }>) {
   const [collapsed, setCollapsed] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const [dragHeight, setDragHeight] = useState<number>()
+  const drag = useRef<{ y: number; height: number; available: number; moved: boolean } | undefined>(undefined)
+  const suppressSheetClick = useRef(false)
+  const detailNavigation = useRef<PersonalPlaceNavigation>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [draftQuery, setDraftQuery] = useState(workflow.placeQuery)
   const directoryFocus = useRef<HTMLButtonElement | null>(null)
   const placeFocus = useRef<HTMLButtonElement | null>(null)
   const lastPanelFocus = useRef<HTMLElement | null>(null)
@@ -32,6 +41,8 @@ export function CollectionLibraryView({ mapRenderer: MapRenderer, workflow }: Re
   const isDetail = workflow.selectedPlaceId !== undefined && !isDirectory
   const selected = workflow.selectedPlace?.place
   const scope = isDirectory ? '내 목록' : workflow.selectedCollection?.name ?? '전체 저장 장소'
+
+  useEffect(() => { setDraftQuery(workflow.placeQuery) }, [workflow.placeQuery])
 
   useEffect(() => {
     if (workflow.mobileSurface === 'detail') {
@@ -43,7 +54,8 @@ export function CollectionLibraryView({ mapRenderer: MapRenderer, workflow }: Re
   const restoreFocus = (target: HTMLElement | null) => {
     requestAnimationFrame(() => target?.focus({ preventScroll: true }))
   }
-  const backToPlaces = () => { workflow.closeDetail(); restoreFocus(placeFocus.current) }
+  const navigate = (action: () => void) => detailNavigation.current ? detailNavigation.current.requestNavigation(action) : action()
+  const backToPlaces = () => navigate(() => { workflow.closeDetail(); restoreFocus(placeFocus.current) })
   const backToDirectory = () => {
     workflow.showCollections(); setFiltersOpen(false); restoreFocus(directoryFocus.current)
   }
@@ -72,11 +84,44 @@ export function CollectionLibraryView({ mapRenderer: MapRenderer, workflow }: Re
     </section>
   }
 
-  return <section aria-label="내 곳곳간 작업 공간" className={`${styles.library} ${collapsed ? styles.collapsed : ''}`}>
+  return <section aria-label="내 곳곳간 작업 공간" className={`${styles.library} ${collapsed ? styles.collapsed : ''}`}
+    style={{ '--sheet-height': `${dragHeight ?? (expanded ? 82 : 54)}%` } as CSSProperties}>
     <div className={styles.workspace}>
       <div className={styles.workPanel} hidden={collapsed} id="library-work-panel" ref={panel}
         onFocusCapture={(event) => { lastPanelFocus.current = event.target as HTMLElement }}>
-        <div className={styles.mobileHandle} aria-hidden="true" />
+        {scopeNavigation && <div className={styles.scopeNavigation}>{typeof scopeNavigation === 'function' ? scopeNavigation(draftQuery) : scopeNavigation}</div>}
+        <div className={styles.mobileSheetControls}>
+          <button className={styles.mobileHandle} type="button" aria-label={`작업 패널 높이: ${expanded ? '크게' : '중간'}. 누르거나 방향키로 조절`}
+            onClick={() => { if (!suppressSheetClick.current) setExpanded(!expanded); suppressSheetClick.current = false }}
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowUp' || event.key === 'Home') { event.preventDefault(); setExpanded(true) }
+              if (event.key === 'ArrowDown' || event.key === 'End') { event.preventDefault(); if (expanded) setExpanded(false); else setCollapsed(true) }
+            }}
+            onPointerDown={(event) => {
+              event.currentTarget.setPointerCapture(event.pointerId)
+              drag.current = { y: event.clientY, height: expanded ? 82 : 54, available: panel.current?.parentElement?.clientHeight ?? innerHeight, moved: false }
+            }}
+            onPointerMove={(event) => {
+              if (!drag.current) return
+              const delta = drag.current.y - event.clientY
+              if (Math.abs(delta) > 5) drag.current.moved = true
+              if (drag.current.moved) setDragHeight(Math.max(8, Math.min(88, drag.current.height + delta / drag.current.available * 100)))
+            }}
+            onPointerUp={(event) => {
+              const gesture = drag.current
+              if (!gesture) return
+              const height = gesture.height + (gesture.y - event.clientY) / gesture.available * 100
+              if (gesture.moved) { setCollapsed(height < 28); setExpanded(height >= 68) }
+              suppressSheetClick.current = gesture.moved
+              drag.current = undefined
+              setDragHeight(undefined)
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+            }}
+            onPointerCancel={() => { drag.current = undefined; setDragHeight(undefined) }}>
+            <span aria-hidden="true" /><small>{expanded ? '패널 줄이기' : '패널 키우기'}</small>
+          </button>
+          <button type="button" onClick={() => setCollapsed(true)}>지도만</button>
+        </div>
         <div className={styles.surface} hidden={!isDirectory || filtersOpen}>
           <CollectionDirectory workflow={workflow} onAllPlaces={(button) => {
             directoryFocus.current = button; workflow.selectAllPlaces()
@@ -87,7 +132,7 @@ export function CollectionLibraryView({ mapRenderer: MapRenderer, workflow }: Re
           }} />
         </div>
         <div className={styles.surface} hidden={isDirectory || isDetail || filtersOpen}>
-          <CollectionPlaces workflow={workflow} onBack={backToDirectory} onFilters={() => setFiltersOpen(true)}
+          <CollectionPlaces workflow={workflow} query={draftQuery} onQueryChange={setDraftQuery} onBack={backToDirectory} onFilters={() => setFiltersOpen(true)}
             onSelect={(id, button) => { placeFocus.current = button; workflow.selectPlace(id) }} />
         </div>
         {filtersOpen && <div className={styles.surface}>
@@ -99,6 +144,9 @@ export function CollectionLibraryView({ mapRenderer: MapRenderer, workflow }: Re
         {isDetail && <aside className={styles.detailSurface} aria-label="선택한 장소 상세" tabIndex={-1}>
           <button className={styles.backButton} onClick={backToPlaces} type="button">← 장소 목록으로</button>
           <PersonalPlaceDetail filingEditor={<PlaceFilingEditor workflow={workflow.filing} />}
+            navigationRef={detailNavigation}
+            filingDraft={{ label: '목록 선택', dirty: workflow.filing.dirtyCount > 0, saving: workflow.filing.saving, valid: true,
+              save: workflow.filing.save, discard: workflow.filing.discard }}
             onChanged={workflow.refresh} placeId={workflow.selectedPlaceId!}
             summary={selected == null ? undefined : {
               name: selected.name, areaLabel: selected.areaLabel, location: selected.location,
@@ -116,7 +164,7 @@ export function CollectionLibraryView({ mapRenderer: MapRenderer, workflow }: Re
         <PersonalLibraryMap
           error={workflow.mapStatus === 'error' ? '지도를 불러올 수 없습니다. 목록 기능은 계속 사용할 수 있습니다.' : undefined}
           loading={workflow.mapStatus === 'loading'} mapRenderer={MapRenderer} onRetry={workflow.retryMap}
-          onSelect={(id) => { workflow.selectPlace(id); setCollapsed(false) }}
+          onSelect={(id) => navigate(() => { workflow.selectPlace(id); setCollapsed(false) })}
           onViewportChange={workflow.setMapViewport} projection={workflow.mapProjection}
           selectedPlaceId={workflow.selectedPlaceId} viewport={workflow.mapViewport}
         />
@@ -126,6 +174,6 @@ export function CollectionLibraryView({ mapRenderer: MapRenderer, workflow }: Re
   </section>
 }
 
-export function CollectionLibrary({ mapRenderer }: Readonly<{ mapRenderer: PlaceMapRenderer }>) {
-  return <CollectionLibraryView mapRenderer={mapRenderer} workflow={useCollectionLibraryWorkflow()} />
+export function CollectionLibrary({ mapRenderer, scopeNavigation, ...initial }: Readonly<{ mapRenderer: PlaceMapRenderer; scopeNavigation?: ScopeNavigation }> & LibraryInitialScope) {
+  return <CollectionLibraryView mapRenderer={mapRenderer} workflow={useCollectionLibraryWorkflow(initial)} scopeNavigation={scopeNavigation} />
 }

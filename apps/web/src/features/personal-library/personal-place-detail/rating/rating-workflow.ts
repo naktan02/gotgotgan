@@ -45,7 +45,7 @@ export function usePersonalRatingWorkflow({
   }, [selectedPlaceId])
 
   const mutate = useCallback(async (failed: FailedRatingMutation) => {
-    if (mutationRef.current) return
+    if (mutationRef.current) return false
     mutationRef.current = true
     setRatingSaving(true)
     setRatingError(undefined)
@@ -53,6 +53,7 @@ export function usePersonalRatingWorkflow({
     try {
       await personalPlaceClient.command(failed.request)
       await Promise.all([refreshLibrary(), refreshPlace()])
+      return true
     } catch (reason) {
       if (reason instanceof BrowserLibraryProblem && [401, 403].includes(reason.status)) {
         onAccessFailure(reason)
@@ -63,6 +64,7 @@ export function usePersonalRatingWorkflow({
         setFailedRatingMutation(failed)
         setRatingError('내 평점을 저장하지 못했습니다.')
       }
+      return false
     } finally {
       mutationRef.current = false
       setRatingSaving(false)
@@ -70,7 +72,7 @@ export function usePersonalRatingWorkflow({
   }, [onAccessFailure, refreshLibrary, refreshPlace])
 
   const update = useCallback((personalRating: number | null) => {
-    if (selectedPlaceId === undefined || personalState === undefined) return Promise.resolve()
+    if (selectedPlaceId === undefined || personalState === undefined) return Promise.resolve(false)
     return mutate({
       request: {
         commandId: crypto.randomUUID(),
@@ -96,10 +98,12 @@ export function usePersonalRatingWorkflow({
     ratingError,
     ratingDraft,
     ratingValid,
+    ratingDirty: ratingDraft !== (personalState?.personalRating?.toFixed(1) ?? ''),
+    discardRating: () => setRatingDraft(personalState?.personalRating?.toFixed(1) ?? ''),
     canRetryRating: failedRatingMutation !== undefined,
     setRatingDraft,
     saveRating: () => personalState === undefined || !ratingValid
-      ? Promise.resolve()
+      ? Promise.resolve(false)
       : update(rating),
     clearRating: () => personalState === undefined
       ? Promise.resolve()

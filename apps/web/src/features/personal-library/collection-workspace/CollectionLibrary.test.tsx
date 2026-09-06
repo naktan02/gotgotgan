@@ -53,6 +53,7 @@ describe('Collection-first Personal Library view', () => {
 
     expect(markup).toContain('첫 카테고리를 만들어 보세요.')
     expect(markup).toContain('카테고리에 포함될 때 즐겨찾기가 됩니다.')
+    expect(markup).toContain('aria-label="내 목록으로 돌아가기"')
     expect(markup).not.toContain('저장됨')
     expect(markup).not.toContain('가고 싶음')
   })

@@ -4,6 +4,29 @@ Read the workspace design brief at `../../../plans/place-platform-ui-design-brie
 user-visible behavior. The direction is **Calm Utility Map**: restrained surfaces, clear hierarchy,
 map/workspace balance, one icon system, and density that serves repeated use.
 
+## Approved interaction correction — 2026-09-06
+
+Search has one input and two corpus choices: the canonical catalog and the member's favorites.
+The favorite Collection selector starts with all favorite places, followed by member Collections.
+Corpus is distinct from geographic extent and from query intent. Named places/regions produce
+identity-bearing candidates, not removable query chips. Compound conditions produce removable
+interpreted filters; ambiguous input offers a name-search/condition-search choice without requiring
+another persistent search mode. Never silently broaden private search into public results.
+
+Use Bright cartography with Korean-first labels, preserving local names when Korean is unavailable.
+User camera movement must not be replayed as a bounding-box-derived camera command. Keep north-up
+2D without bearing/pitch gestures while retaining globe panning. Required data attribution remains
+accessible; optional renderer/provider branding is not product navigation.
+
+Collection rows and their selected headings expose the same overflow menu. Place detail progressively
+discloses overview and personal records; category filing, visits and notes are not always-open forms.
+Ratings use stars without rounding existing stored values. Leaving a dirty editor requires an explicit
+decision. A mobile sheet handle must actually resize the sheet and have keyboard/button alternatives.
+
+Import is a provider-neutral product workflow. Present only verified methods for each provider and
+distinguish unavailable collection methods from failed requests. One-shot sources are never verified
+account connections. Preserve the detailed-information worker gate and member-only source observations.
+
 ## Approved frontend revision — 2026-09-05
 
 The latest product decision supersedes the historical pane and header descriptions below.

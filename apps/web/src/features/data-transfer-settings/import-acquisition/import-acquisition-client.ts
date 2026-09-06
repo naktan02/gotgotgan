@@ -2,6 +2,8 @@ import { problemSchema } from '@place/contracts/http'
 import {
   importAcquisitionCommandResultV1Schema,
   importAcquisitionV1Schema,
+  importAcquisitionCapabilitiesV2Schema,
+  startImportAcquisitionResultV2Schema,
   sourceSnapshotDetailV3Schema,
   type ImportAcquisitionV1,
 } from '@place/contracts/transfers'
@@ -50,12 +52,12 @@ async function getAcquisition(fetcher: typeof fetch, path: string, signal?: Abor
 }
 
 async function startAcquisition(fetcher: typeof fetch, body: unknown, signal?: AbortSignal) {
-  const response = await fetcher('/api/v1/transfers/import-acquisitions', {
+  const response = await fetcher('/api/v2/transfers/import-acquisitions', {
     method: 'POST', headers: { 'content-type': 'application/json' },
     cache: 'no-store', credentials: 'same-origin', body: JSON.stringify(body), signal,
   })
   const value = await responseValue(response)
-  const parsed = importAcquisitionCommandResultV1Schema.safeParse(value)
+  const parsed = startImportAcquisitionResultV2Schema.safeParse(value)
   if (!parsed.success) {
     if (!response.ok) throw failure(response, value)
     throw new DataTransferSettingsProblem(503)
@@ -94,16 +96,26 @@ async function readSourceSnapshot(fetcher: typeof fetch, snapshotId: string, sig
 
 export function createImportAcquisitionGateway(fetcher: typeof fetch = fetch): ImportAcquisitionGateway {
   return {
+    async readCapabilities(signal) {
+      const response = await fetcher('/api/v2/transfers/import-acquisition-capabilities', {
+        cache: 'no-store', credentials: 'same-origin', signal,
+      })
+      const value = await responseValue(response)
+      if (!response.ok) throw failure(response, value)
+      const parsed = importAcquisitionCapabilitiesV2Schema.safeParse(value)
+      if (!parsed.success) throw new DataTransferSettingsProblem(503)
+      return parsed.data
+    },
     startSharedLinkImport(input, signal) {
       return startAcquisition(fetcher, {
-        schemaVersion: 'start-import-acquisition.v1',
+        schemaVersion: 'start-import-acquisition.v2',
         kind: 'shared-links',
         ...input,
       }, signal)
     },
     startRemoteImport(input, signal) {
       return startAcquisition(fetcher, {
-        schemaVersion: 'start-import-acquisition.v1',
+        schemaVersion: 'start-import-acquisition.v2',
         kind: 'remote-browser',
         ...input,
       }, signal)

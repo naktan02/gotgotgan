@@ -104,7 +104,7 @@ export function usePlaceFilingWorkflow(
   }) ?? [], [desired, filing])
 
   const execute = useCallback(async (request: PlaceFilingCommandRequestV2) => {
-    if (placeId === undefined || saving) return
+    if (placeId === undefined || saving) return false
     const operationPlaceId = placeId
     setSaving(true)
     setMessage(undefined)
@@ -123,7 +123,7 @@ export function usePlaceFilingWorkflow(
             : '내 카테고리를 저장했습니다.',
         })
         await Promise.all([onApplied(), load(placeId)])
-        return
+        return true
       }
       if (result.rejection.code === 'version-conflict') {
         setRetryRequest(undefined)
@@ -158,6 +158,7 @@ export function usePlaceFilingWorkflow(
     } finally {
       setSaving(false)
     }
+    return false
   }, [load, onAccessFailure, onApplied, placeId, saving])
 
   const save = () => {
@@ -180,6 +181,7 @@ export function usePlaceFilingWorkflow(
     saving,
     message,
     dirtyCount: changes.length,
+    discard: () => setDesired(Object.fromEntries((filing?.collections ?? []).map((collection) => [collection.collectionId, collection.included]))),
     toggle: (collectionId: string) => setDesired((current) => ({
       ...current,
       [collectionId]: !(current[collectionId] ?? false),

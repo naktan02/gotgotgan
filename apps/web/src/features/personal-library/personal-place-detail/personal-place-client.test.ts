@@ -28,7 +28,7 @@ describe('personal place client', () => {
     const client = createPersonalPlaceClient(async (input) => {
       requests.push(String(input))
       return new Response(JSON.stringify({
-        schemaVersion: 'place-detail.v1',
+        schemaVersion: 'place-detail.v2',
         placeId,
         status: 'available',
         requestedPlaceId: placeId,
@@ -39,11 +39,13 @@ describe('personal place client', () => {
         primaryTaxonomy: null,
         taxonomyKeys: [],
         evidence: { status: 'unverified', projectedAt: '2026-09-05T00:00:00.000Z' },
+        personalState: { saved: false, wanted: false, personalRating: null,
+          preferencesUpdatedAt: null, visits: { visited: false, count: 0 } },
       }), { status: 200, headers: { 'content-type': 'application/json' } })
     })
 
     await client.place(placeId)
 
-    expect(requests).toEqual([`/api/places/${placeId}`])
+    expect(requests).toEqual([`/api/v2/places/${placeId}`])
   })
 })

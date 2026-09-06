@@ -6,6 +6,8 @@ import type { ImportAcquisitionGateway } from './import-acquisition-model'
 import { useImportAcquisition } from './import-acquisition-workflow'
 import styles from './import-acquisition.module.css'
 
+const providerLabels = { naver: 'NAVER 지도', google: 'Google Maps', kakao: 'KakaoMap' } as const
+
 const itemStateLabel: Record<ImportAcquisitionItem['state'], string> = {
   pending: '확인 대기',
   fetching: '목록 확인 중',
@@ -91,7 +93,7 @@ function AcquisitionResults({
   return <section aria-labelledby={`acquisition-${acquisition.acquisitionId}`} className={styles.results}>
     <header className={styles.resultsHeader}>
       <div>
-        <h4 id={`acquisition-${acquisition.acquisitionId}`}>확인한 공유 목록</h4>
+        <h4 id={`acquisition-${acquisition.acquisitionId}`}>{providerLabels[acquisition.providerKey]} · 확인한 공유 목록</h4>
         <p aria-live="polite" role="status">{resultSummary(acquisition)}</p>
       </div>
       <span className={styles.batchState} data-state={acquisition.state}>{acquisitionStateLabel[acquisition.state]}</span>
@@ -129,26 +131,26 @@ function RemoteSession({ previewEnabled, workflow }: Readonly<{
   const selectedReady = acquisition?.items.filter((item) => item.state === 'ready' && workflow.selected.has(item.entryId)).length ?? 0
   const interaction = acquisition?.interaction
   const integrationGated = interaction?.state === 'integration-gated'
+  const available = previewEnabled && workflow.remoteAvailability?.status === 'available'
   return <section aria-labelledby="remote-import-title" className={styles.remotePanel}>
     <header className={styles.optionHeading}>
       <div>
-        <p className={styles.optionLabel}>비공개 전체 목록</p>
+        <p className={styles.optionLabel}>별도 로그인 방식</p>
         <h3 id="remote-import-title">일회성 원격 로그인</h3>
       </div>
-      <span className={styles.betaBadge}>베타</span>
+      <span className={styles.betaBadge}>{available ? '별도 동의 필요' : '현재 준비 중'}</span>
     </header>
     <p className={styles.optionDescription}>
-      현재 PC의 NAVER 로그인을 사용하지 않습니다. 격리된 임시 화면에서 다시 로그인하며,
-      완료·취소·만료 시 그 세션을 폐기합니다.
+      사용자 PC의 기존 로그인을 재사용하는 방식이 아닙니다. 별도 서버 로그인 세션의
+      격리·보관·자동 폐기 검증이 필요하며, 현재 로그인 화면은 제공하지 않습니다.
     </p>
     <ul className={styles.boundaries}>
-      <li>비밀번호와 쿠키는 곳곳간 데이터로 저장하지 않음</li>
-      <li>백그라운드 동기화 없이 이번 한 번만 수집</li>
-      <li>보안 확인·CAPTCHA로 중단될 수 있음</li>
+      <li>서비스별 비공개 목록 수집 가능 여부를 별도로 검증해야 합니다.</li>
+      <li>제공 전 별도 동의 절차와 보안 확인·CAPTCHA 대응을 안내합니다.</li>
     </ul>
     {acquisition === undefined ? (
-      <button className={styles.secondaryButton} disabled={!previewEnabled || workflow.busy !== undefined} onClick={() => void workflow.startRemote()} type="button">
-        {previewEnabled ? '원격 로그인 베타 확인' : '원격 로그인 준비 중'}
+      <button className={styles.secondaryButton} disabled={!available || workflow.busy !== undefined} onClick={() => void workflow.startRemote()} type="button">
+        {available ? '원격 로그인 안내 확인' : '원격 로그인 준비 중'}
       </button>
     ) : <div className={styles.remoteStatus}>
       <div className={styles.remoteStatusHeading}>
@@ -158,8 +160,8 @@ function RemoteSession({ previewEnabled, workflow }: Readonly<{
       {integrationGated ? <p aria-live="polite" role="status">격리 세션과 자동 폐기 운영 검증이 끝난 뒤 베타를 열 예정입니다. 현재는 로그인 화면을 만들지 않습니다.</p>
         : <p aria-live="polite" role="status">목록 {acquisition.progress.processed.toLocaleString('ko-KR')} / {acquisition.progress.total.toLocaleString('ko-KR')}개 확인 · {acquisition.progress.ready.toLocaleString('ko-KR')}개 준비</p>}
       <div className={styles.remoteActions}>
-        {interaction?.launchUrl !== undefined && interaction.state !== 'integration-gated' && acquisition.state === 'processing' && (
-          <a href={interaction.launchUrl} rel="noopener" target="_blank">NAVER 로그인 화면 열기</a>
+        {available && interaction?.launchUrl !== undefined && interaction.state !== 'integration-gated' && acquisition.state === 'processing' && (
+          <a href={interaction.launchUrl} rel="noopener" target="_blank">{providerLabels[acquisition.providerKey]} 로그인 화면 열기</a>
         )}
         {acquisition.state === 'processing' && <button disabled={workflow.busy !== undefined} onClick={() => void workflow.refresh(acquisition)} type="button">상태 새로고침</button>}
         {(acquisition.state === 'processing' || acquisition.state === 'ready' || acquisition.state === 'partial') && (
@@ -184,34 +186,58 @@ export function ImportAcquisition({
 }>) {
   const workflow = useImportAcquisition(gateway, onSnapshot)
   const sharedProcessing = workflow.shared?.state === 'processing'
+  const sharedAvailable = sharedRuntimeEnabled && workflow.sharedAvailability?.status === 'available'
+  const providerLabel = providerLabels[workflow.providerKey]
+  const unsupported = workflow.sharedAvailability?.status === 'not-implemented'
   return <section aria-labelledby="import-acquisition-title" className={styles.acquisition}>
     <header className={styles.optionHeading}>
       <div>
-        <p className={styles.optionLabel}>NAVER · 권장 방식</p>
-        <h3 id="import-acquisition-title">공유 링크로 가져오기</h3>
+        <p className={styles.optionLabel}>필요한 목록만 내 곳곳간에</p>
+        <h3 id="import-acquisition-title">다른 지도에서 가져오기</h3>
       </div>
       <span className={styles.recommendedBadge}>설치 없음</span>
     </header>
+    <fieldset className={styles.providerPicker}>
+      <legend>가져올 서비스</legend>
+      {(Object.entries(providerLabels) as [keyof typeof providerLabels, string][]).map(([providerKey, label]) => {
+        const status = workflow.providers?.find((provider) => provider.providerKey === providerKey)
+          ?.methods.find((method) => method.method === 'shared-links')?.availability.status
+        const availabilityLabel = status === 'not-implemented' ? '현재 준비 중'
+          : status === undefined ? '지원 상태 확인 중'
+            : status === 'configuration-required' || !sharedRuntimeEnabled ? '운영 준비 중' : '공유 링크 가능'
+        return <button aria-pressed={workflow.providerKey === providerKey} disabled={workflow.busy !== undefined} key={providerKey}
+          onClick={() => workflow.setProviderKey(providerKey)} type="button">
+          <strong>{label}</strong><small>{availabilityLabel}</small>
+        </button>
+      })}
+    </fieldset>
+    <h4 className={styles.methodTitle}>공유 링크로 가져오기</h4>
     <p className={styles.optionDescription}>
-      NAVER에서 공유한 목록 링크를 한 줄에 하나씩 붙여넣으세요. 해당 링크의 목록만 읽으며
-      NAVER 로그인 정보는 곳곳간으로 보내지 않습니다.
+      {providerLabel}의 지원되는 목록 링크를 한 줄에 하나씩 붙여넣으세요. 링크별 목록만 읽으며,
+      로그인 정보는 보내지 않습니다. 내 계정의 모든 저장 목록을 자동으로 가져오는 기능과는 다릅니다.
     </p>
-    {!sharedRuntimeEnabled && <p className={styles.error} role="status">공유 링크 가져오기는 운영 수집 worker와 요청 제한 정책을 활성화한 뒤 제공됩니다. 현재 화면에서는 입력할 수 없습니다.</p>}
-    <label className={styles.linkField} htmlFor="naver-shared-links">
-      <span>NAVER 공유 링크</span>
+    {workflow.capabilityError ? <div className={styles.capabilityNotice} role="status">
+      지원 상태를 불러오지 못했습니다. <button onClick={workflow.retryCapabilities} type="button">다시 확인</button>
+    </div> : !sharedAvailable && <p className={styles.capabilityNotice} role="status">
+      {unsupported ? `${providerLabel}은 현재 준비 중입니다. 목록 공유 링크를 서버에서 검증해 읽는 수집 경로가 아직 구현되지 않아 입력을 받지 않습니다.`
+        : workflow.sharedAvailability === undefined ? '서비스별 지원 상태를 확인하고 있습니다.'
+          : 'NAVER 공유 링크 수집 경로는 구현되어 있지만 운영 수집 worker와 요청 제한 설정이 아직 활성화되지 않았습니다.'}
+    </p>}
+    <label className={styles.linkField} htmlFor="provider-shared-links">
+      <span>{workflow.providerKey === 'naver' ? 'NAVER' : providerLabel} 공유 링크</span>
       <textarea
-        aria-describedby="naver-shared-links-help"
-        disabled={!sharedRuntimeEnabled}
-        id="naver-shared-links"
+        aria-describedby="provider-shared-links-help"
+        disabled={!sharedAvailable}
+        id="provider-shared-links"
         onChange={(event) => workflow.setDraft(event.target.value)}
-        placeholder={'https://naver.me/…\nhttps://naver.me/…'}
+        placeholder={workflow.providerKey === 'naver' ? 'https://naver.me/…\nhttps://naver.me/…' : '현재 준비 중인 가져오기 방식입니다.'}
         rows={4}
         value={workflow.draft}
       />
     </label>
     <div className={styles.linkFooter}>
-      <p id="naver-shared-links-help">최대 {workflow.maximumLinkCount}개 · 공개 또는 일부공개 링크 · 링크 소유 계정은 인증하지 않음</p>
-      <button className={styles.primaryButton} disabled={!sharedRuntimeEnabled || workflow.busy !== undefined || sharedProcessing || workflow.links.length === 0} onClick={() => void workflow.startShared()} type="button">
+      <p id="provider-shared-links-help">같은 서비스의 목록 링크 최대 {workflow.maximumLinkCount}개 · 계정 소유는 인증하지 않음<br />입력 링크는 서버에서 최대 15분 암호화 임시 보관 후 폐기</p>
+      <button className={styles.primaryButton} disabled={!sharedAvailable || workflow.busy !== undefined || sharedProcessing || workflow.links.length === 0} onClick={() => void workflow.startShared()} type="button">
         {workflow.busy === 'shared' || sharedProcessing ? '목록 확인 중…' : workflow.links.length === 0 ? '링크 확인' : `링크 ${workflow.links.length}개 확인`}
       </button>
     </div>

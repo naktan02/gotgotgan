@@ -1,11 +1,14 @@
 'use client'
 
-import { usePublicProfileSettings } from './public-profile-settings'
+import { usePublicProfileSettings, type PublicProfileSettingsWorkflow } from './public-profile-settings'
 import styles from './public-profiles.module.css'
 
 export function PublicProfileSettings() {
   const workflow = usePublicProfileSettings()
+  return <PublicProfileSettingsView workflow={workflow} />
+}
 
+export function PublicProfileSettingsView({ workflow }: Readonly<{ workflow: PublicProfileSettingsWorkflow }>) {
   if (workflow.loadState === 'loading') {
     return <section aria-label="공개 프로필 설정" className={styles.settings}><p role="status">프로필을 불러오는 중…</p></section>
   }
@@ -19,8 +22,13 @@ export function PublicProfileSettings() {
   if (workflow.loadState === 'unavailable') {
     return <section aria-labelledby="profile-settings-title" className={styles.settings}>
       <h1 id="profile-settings-title">공개 프로필</h1>
-      <p role="alert">프로필을 지금 불러올 수 없습니다.</p>
+      <p role="alert">프로필을 지금 불러올 수 없습니다. 프로필이 없다는 뜻은 아닙니다.</p>
       <button onClick={() => void workflow.reload()} type="button">다시 시도</button>
+    </section>
+  }
+  if (workflow.loadState === 'forbidden') {
+    return <section aria-labelledby="profile-settings-title" className={styles.settings}>
+      <h1 id="profile-settings-title">공개 프로필</h1><p role="alert">현재 계정은 공개 프로필을 관리할 권한이 없습니다.</p>
     </section>
   }
 
@@ -31,16 +39,17 @@ export function PublicProfileSettings() {
 
   return <section aria-labelledby="profile-settings-title" className={styles.settings}>
     <header>
-      <p>Public Profile</p>
       <h1 id="profile-settings-title">공개 프로필</h1>
-      <span>실명이나 로그인 정보 대신 공개용 핸들과 표시 이름만 사용합니다.</span>
+      <span>공개 목록에 사용할 주소와 닉네임입니다. 로그인 정보와는 별개입니다.</span>
     </header>
+    {workflow.profile === undefined && <p className={styles.empty} role="status">아직 공개 프로필이 없습니다. 아래에서 만들 수 있습니다.</p>}
     <form onSubmit={(event) => { event.preventDefault(); workflow.save() }}>
-      <label htmlFor="public-handle">공개 핸들</label>
+      <label htmlFor="public-handle">프로필 주소</label>
       <div className={styles.handleField}>
-        <span>place/people/</span>
+        <span>/people/</span>
         <input
           autoComplete="off"
+          aria-describedby="public-handle-help"
           disabled={workflow.profile !== undefined}
           id="public-handle"
           maxLength={30}
@@ -50,11 +59,11 @@ export function PublicProfileSettings() {
           value={workflow.handle}
         />
       </div>
-      <small>{workflow.profile === undefined
-        ? '소문자 영문·숫자·하이픈 3~30자. 만든 뒤에는 공개 링크 보호를 위해 변경할 수 없습니다.'
-        : '공개 핸들은 링크 안정성을 위해 고정됩니다.'}</small>
+      <small id="public-handle-help">{workflow.profile === undefined
+        ? '영문 소문자·숫자·하이픈 3~30자. 만든 뒤에는 주소를 바꿀 수 없습니다.'
+        : '공유한 링크가 유지되도록 주소는 변경할 수 없습니다.'}</small>
 
-      <label htmlFor="public-display-name">표시 이름</label>
+      <label htmlFor="public-display-name">공개 닉네임</label>
       <input
         id="public-display-name"
         maxLength={50}
@@ -97,8 +106,8 @@ export function PublicProfileSettings() {
       <button onClick={() => void workflow.retry()} type="button">다시 시도</button>
     </div>}
     <aside>
-      <strong>외부 검색엔진에는 노출하지 않습니다.</strong>
-      <span>공개 상태여도 직접 링크로 접근하며, `unlisted` 컬렉션은 이 프로필에 나타나지 않습니다.</span>
+      <strong>공개 범위를 확인해 주세요.</strong>
+      <span>링크로만 공유한 목록과 비공개 목록은 프로필에 표시하지 않습니다. 검색엔진에는 색인하지 않도록 요청합니다.</span>
     </aside>
   </section>
 }

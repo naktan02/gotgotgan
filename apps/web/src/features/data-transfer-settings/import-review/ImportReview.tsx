@@ -44,7 +44,7 @@ export function ImportTab({ acquisitionPanel, workflow }: Readonly<{
   const currentStep = workflow.importPreview === undefined ? workflow.snapshot === undefined ? 1 : 3 : workflow.importApproval.kind === 'done' ? 5 : 4
   const operation = workflow.providerOperations[workflow.importProvider]
   return <>
-    <SectionHeading title="데이터 가져오기" description="공유 링크를 붙여넣거나 일회성 원격 브라우저를 열어 목록을 내 컬렉션으로 가져옵니다." />
+    <SectionHeading title="데이터 가져오기" description="지원되는 방식으로 목록을 확인한 뒤 내 컬렉션에 저장합니다." />
     <div className={styles.flow}>
       <FlowRail current={currentStep} labels={['가져오기 방식', '목록 확인', '컬렉션 연결', '매칭 검토', '승인']} />
       <section className={styles.flowMain} aria-labelledby="import-flow-title">

@@ -86,6 +86,19 @@ function largeReviewPlan(planId: string, snapshotId: string, revision: string, s
 }
 
 async function routeSettings(page: Page, verifiedFakeAdapter = false) {
+  await page.route('**/api/v2/transfers/import-acquisition-capabilities', (route) => route.fulfill({
+    contentType: 'application/json', body: JSON.stringify({
+      schemaVersion: 'import-acquisition-capabilities.v2',
+      providers: ['naver', 'google', 'kakao'].map((providerKey) => ({
+        providerKey,
+        methods: [
+          { method: 'shared-links', availability: providerKey === 'naver' ? { status: 'available' }
+            : { status: 'not-implemented', reason: 'provider-adapter-unavailable' } },
+          { method: 'remote-browser', availability: { status: 'not-implemented', reason: 'remote-browser-integration-gated' } },
+        ],
+      })),
+    }),
+  }))
   await page.route('**/api/v2/transfers/provider-capabilities', (route) => route.fulfill({
     contentType: 'application/json', body: JSON.stringify({
       schemaVersion: 'provider-capability-list.v2',
@@ -134,13 +147,13 @@ async function routeSettings(page: Page, verifiedFakeAdapter = false) {
 
 async function routeImportAcquisition(page: Page) {
   let latestShared: StartAcquisitionCommand | undefined
-  await page.route('**/api/v1/transfers/import-acquisitions', async (route) => {
+  await page.route('**/api/v2/transfers/import-acquisitions', async (route) => {
     const command = route.request().postDataJSON() as StartAcquisitionCommand
     if (command.kind === 'shared-links') latestShared = command
     await route.fulfill({
       contentType: 'application/json',
       body: JSON.stringify({
-        schemaVersion: 'import-acquisition-command-result.v1', outcome: 'accepted',
+        schemaVersion: 'start-import-acquisition-result.v2', outcome: 'accepted',
         commandId: command.commandId, status: 'applied', acquisition: acquisition(command),
       }),
     })
@@ -185,18 +198,31 @@ test('shows provider connections with persistent navigation and a collapsible Fa
   await family.getByRole('button', { name: '패밀리 서비스 접기' }).click()
   await expect(family.getByRole('button', { name: '패밀리 서비스 펼치기' })).toHaveAttribute('aria-expanded', 'false')
   await expect(family.getByRole('link').first()).toBeHidden()
-  await expect(page.getByRole('tab', { name: '작업 내역' })).toBeVisible()
+  await expect(page.getByRole('tablist', { name: '설정 항목', exact: true }).getByRole('tab')).toHaveCount(4)
+  await expect(page.getByRole('tab', { name: '데이터 이동', exact: true })).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('settings-connections.png') })
   if (testInfo.project.name === 'mobile-chromium') {
     const navigationBox = await navigation.boundingBox()
     expect(navigationBox?.y).toBeGreaterThan((page.viewportSize()?.height ?? 0) / 2)
     expect((navigationBox?.y ?? 0) + (navigationBox?.height ?? 0)).toBeLessThanOrEqual(page.viewportSize()?.height ?? 0)
   }
 
-  const connectionsTab = page.getByRole('tab', { name: '외부 서비스 연결' })
+  const connectionsTab = page.getByRole('tab', { name: '연결된 계정' })
   await connectionsTab.focus()
   await connectionsTab.press('ArrowRight')
-  await expect(page.getByRole('tab', { name: '데이터 가져오기' })).toBeFocused()
+  await expect(page.getByRole('tab', { name: '데이터 이동', exact: true })).toBeFocused()
   await expect(page.getByRole('tab', { name: '데이터 가져오기' })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('tablist', { name: '데이터 이동 작업' }).getByRole('tab')).toHaveCount(3)
+  await page.getByRole('tab', { name: '데이터 가져오기' }).focus()
+  await page.getByRole('tab', { name: '데이터 가져오기' }).press('ArrowRight')
+  await expect(page.getByRole('tab', { name: '데이터 내보내기' })).toBeFocused()
+  await expect(page).toHaveURL(/tab=export/)
+  await expect(page.getByText('현재 사용할 수 있는 내보내기 방식이 없습니다.')).toBeVisible()
+  await connectionsTab.click()
+  await page.getByRole('tab', { name: '데이터 이동', exact: true }).click()
+  await expect(page.getByRole('tab', { name: '데이터 내보내기' })).toHaveAttribute('aria-selected', 'true')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
+  await page.screenshot({ path: testInfo.outputPath('settings-data-export.png') })
 })
 
 test('reviews a partial batch of NAVER shared links on desktop and mobile', async ({ page }, testInfo) => {
@@ -243,24 +269,57 @@ test('reviews a partial batch of NAVER shared links on desktop and mobile', asyn
   }
 })
 
-test('explains the isolated one-time remote login beta without opening it', async ({ page }) => {
+test('explains the unavailable isolated remote login without sending a start request', async ({ page }) => {
   await routeSettings(page)
   await routeImportAcquisition(page)
   await page.goto('/settings?tab=import')
 
-  await page.getByRole('button', { name: '원격 로그인 베타 확인' }).click()
-
-  await expect(page.getByText('현재 PC의 NAVER 로그인을 사용하지 않습니다')).toBeVisible()
-  await expect(page.getByText('운영 연동 준비 중')).toBeVisible()
-  await expect(page.getByText('현재는 로그인 화면을 만들지 않습니다')).toBeVisible()
-  await expect(page.getByRole('link', { name: 'NAVER 로그인 화면 열기' })).toHaveCount(0)
+  const starts: string[] = []
+  page.on('request', (request) => { if (request.method() === 'POST' && request.url().endsWith('/transfers/import-acquisitions')) starts.push(request.url()) })
+  await expect(page.getByRole('button', { name: '원격 로그인 준비 중' })).toBeDisabled()
+  await expect(page.getByText(/사용자 PC의 기존 로그인을 재사용하는 방식이 아닙니다/)).toBeVisible()
+  await expect(page.getByText(/현재 로그인 화면은 제공하지 않습니다/)).toBeVisible()
+  await expect(page.getByRole('link', { name: /로그인 화면 열기/ })).toHaveCount(0)
+  expect(starts).toEqual([])
+  const remoteTitle = page.getByRole('heading', { name: '일회성 원격 로그인', exact: true })
+  await remoteTitle.evaluate((heading) => {
+    const workspace = heading.closest('[aria-labelledby="settings-title"]')
+    if (workspace instanceof HTMLElement) {
+      workspace.scrollTop += heading.getBoundingClientRect().top - workspace.getBoundingClientRect().top - 88
+    }
+  })
+  await expect(page.getByRole('banner')).toBeInViewport()
+  await expect(remoteTitle).toBeInViewport()
+  await expect(page.getByRole('button', { name: '원격 로그인 준비 중' })).toBeInViewport()
   await expect(page).toHaveScreenshot('place-import-acquisition-remote-beta.png', { animations: 'disabled' })
+})
+
+test('keeps unsupported providers visible without submitting links or losing the NAVER draft', async ({ page }, testInfo) => {
+  await routeSettings(page)
+  await routeImportAcquisition(page)
+  const starts: string[] = []
+  page.on('request', (request) => { if (request.method() === 'POST' && request.url().endsWith('/transfers/import-acquisitions')) starts.push(request.url()) })
+  await page.goto('/settings?tab=import')
+  await page.getByLabel('NAVER 공유 링크').fill('https://naver.me/draft-one\nhttps://naver.me/draft-two')
+  for (const provider of ['Google Maps', 'KakaoMap']) {
+    await page.getByRole('button', { name: new RegExp(provider) }).click()
+    await expect(page.getByLabel(`${provider} 공유 링크`)).toBeDisabled()
+    await expect(page.getByText(new RegExp(`${provider}은 현재 준비 중입니다`))).toBeVisible()
+    await expect(page.getByRole('button', { name: '링크 확인', exact: true })).toBeDisabled()
+    await expect(page.getByRole('button', { name: '원격 로그인 준비 중' })).toBeDisabled()
+  }
+  expect(starts).toEqual([])
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
+  await page.screenshot({ path: testInfo.outputPath('import-unsupported-provider.png') })
+  await page.getByRole('button', { name: /NAVER 지도/ }).click()
+  await expect(page.getByLabel('NAVER 공유 링크')).toHaveValue('https://naver.me/draft-one\nhttps://naver.me/draft-two')
+  await expect(page.getByRole('button', { name: '링크 2개 확인' })).toBeEnabled()
 })
 
 test('lets a member cancel a shared-link batch that is still processing', async ({ page }) => {
   await routeSettings(page)
   let current: Record<string, unknown> | undefined
-  await page.route('**/api/v1/transfers/import-acquisitions', async (route) => {
+  await page.route('**/api/v2/transfers/import-acquisitions', async (route) => {
     const command = route.request().postDataJSON() as StartAcquisitionCommand
     current = {
       schemaVersion: 'import-acquisition.v1', acquisitionId: command.acquisitionId,
@@ -271,7 +330,7 @@ test('lets a member cancel a shared-link batch that is still processing', async 
       createdAt: '2026-09-05T08:00:00.000Z', updatedAt: '2026-09-05T08:00:00.000Z',
     }
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify({
-      schemaVersion: 'import-acquisition-command-result.v1', outcome: 'accepted',
+      schemaVersion: 'start-import-acquisition-result.v2', outcome: 'accepted',
       commandId: command.commandId, status: 'applied', acquisition: current,
     }) })
   })
@@ -296,7 +355,7 @@ test('lets a member cancel a shared-link batch that is still processing', async 
 test('does not offer cancellation after processing has started even if a failed row is dismissed', async ({ page }) => {
   await routeSettings(page)
   let current: Record<string, unknown> | undefined
-  await page.route('**/api/v1/transfers/import-acquisitions', async (route) => {
+  await page.route('**/api/v2/transfers/import-acquisitions', async (route) => {
     const command = route.request().postDataJSON() as StartAcquisitionCommand
     current = {
       schemaVersion: 'import-acquisition.v1', acquisitionId: command.acquisitionId,
@@ -310,7 +369,7 @@ test('does not offer cancellation after processing has started even if a failed 
       createdAt: '2026-09-05T08:00:00.000Z', updatedAt: '2026-09-05T08:00:01.000Z',
     }
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify({
-      schemaVersion: 'import-acquisition-command-result.v1', outcome: 'accepted',
+      schemaVersion: 'start-import-acquisition-result.v2', outcome: 'accepted',
       commandId: command.commandId, status: 'applied', acquisition: current,
     }) })
   })
@@ -381,10 +440,10 @@ test('a new shared-link request supersedes a slower stored recovery', async ({ p
     await recoveryHold
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify(singleReadyAcquisition(oldCommand, '이전 복구 목록')) })
   })
-  await page.route('**/api/v1/transfers/import-acquisitions', async (route) => {
+  await page.route('**/api/v2/transfers/import-acquisitions', async (route) => {
     const command = route.request().postDataJSON() as StartAcquisitionCommand
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify({
-      schemaVersion: 'import-acquisition-command-result.v1', outcome: 'accepted',
+      schemaVersion: 'start-import-acquisition-result.v2', outcome: 'accepted',
       commandId: command.commandId, status: 'applied',
       acquisition: singleReadyAcquisition(command, '새 요청 목록'),
     }) })

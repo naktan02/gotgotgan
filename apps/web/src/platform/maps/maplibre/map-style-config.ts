@@ -1,4 +1,4 @@
-const OPEN_FREE_MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
+const OPEN_FREE_MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/bright'
 const LOCAL_E2E_STYLE_URL = '/api/maps/style'
 
 function isSafeRelativeStyleUrl(value: string): boolean {

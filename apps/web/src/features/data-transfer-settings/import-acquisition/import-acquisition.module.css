@@ -4,6 +4,16 @@
   container-type: inline-size;
 }
 
+.providerPicker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; border: 0; }
+.providerPicker legend { margin-bottom: 9px; color: var(--ink); font-size: 12px; font-weight: 750; }
+.providerPicker button { display: grid; gap: 5px; min-height: 76px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--ink); background: var(--surface); text-align: left; cursor: pointer; }
+.providerPicker button[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.providerPicker strong { font-size: 13px; }
+.providerPicker small { font-size: 11px; color: var(--muted); }
+.methodTitle { margin: 6px 0 -5px; color: var(--ink); font-size: 15px; }
+.capabilityNotice { margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--canvas); color: var(--muted); font-size: 12px; line-height: 1.65; }
+.capabilityNotice button { border: 0; color: var(--accent); background: transparent; font: inherit; text-decoration: underline; cursor: pointer; }
+
 .optionHeading,
 .resultsHeader,
 .remoteStatusHeading,
@@ -128,6 +138,8 @@
 }
 
 @media (max-width: 720px) {
+  .providerPicker { gap: 6px; }
+  .providerPicker button { padding: 10px 7px; }
   .linkFooter { display: grid; align-items: stretch; }
   .linkFooter .primaryButton { width: 100%; }
   .resultActions { display: grid; }

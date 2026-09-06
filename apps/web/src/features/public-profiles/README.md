@@ -5,8 +5,13 @@
 공통 계정 표시를 위한 셸과 공개 데이터 projection은 별개이며, 공개 본문에 개인 상태를 합치지 않는다.
 
 `PublicProfileSettings`는 현재 회원의 프로필 load/create/update/retry를 하나의 workflow 뒤에 숨긴다.
-View는 Public Handle을 최초 생성 뒤 잠그고 표시 이름과 공개/숨김만 편집한다. 공개 링크는 Backend가
+View는 프로필 주소(Handle)를 최초 생성 뒤 잠그고 공개 닉네임과 공개/숨김만 편집한다. 주소 접두사는
+실제 `/people/` route이며 로그인용 식별자나 예시 호스트를 표시하지 않는다. 공개 링크는 Backend가
 확인한 public 상태에서만 보여준다.
+
+미생성, 로그인 필요, 권한 거부와 조회 장애는 서로 다른 상태다. 주소·닉네임 용어 및 고정 주소의
+회귀는 `PublicProfileSettings.test.tsx`, 실제 생성과 상태 경계는 `tests/e2e/public-profiles.spec.ts`에서
+확인한다. 검색엔진 색인 방지 요청을 검색 결과에서의 절대적 비노출 보장으로 설명하지 않는다.
 
 `PublishedProfile`은 `public-profile.v1`의 공개 Collection page만 렌더링하고 cursor를 이어 읽는다.
 Collection 상세은 기존 publication URL로 위임하며 unlisted, membership, personal state를 알지 못한다.

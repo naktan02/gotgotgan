@@ -1,6 +1,7 @@
 'use client'
 
-import styles from '../personal-place-detail.module.css'
+import { useState, type CSSProperties } from 'react'
+import styles from './rating.module.css'
 import type { PersonalPlaceDetailWorkflow } from '../personal-place-detail-workflow'
 
 type RatingEditorProps = Readonly<{
@@ -20,15 +21,17 @@ type RatingEditorProps = Readonly<{
 }>
 
 export function PersonalRatingEditor({ workflow }: RatingEditorProps) {
+  const [editing, setEditing] = useState(false)
   if (workflow.personalRating === undefined) return null
   const busy = workflow.ratingSaving
+  const value = Number(workflow.ratingDraft)
 
   return (
     <section aria-labelledby="personal-rating-title" className={styles.preferences}>
       <div className={styles.preferenceHeading}>
         <div>
           <h3 id="personal-rating-title">내 평점</h3>
-          <p>평점은 즐겨찾기 여부와 무관한 나만의 기록입니다.</p>
+          <p>나만 볼 수 있는 별점</p>
         </div>
         {busy && <span role="status">저장 중…</span>}
       </div>
@@ -42,26 +45,29 @@ export function PersonalRatingEditor({ workflow }: RatingEditorProps) {
         </div>
       )}
 
-      <form
+      <button className={styles.summary} aria-expanded={editing} onClick={() => setEditing(!editing)} type="button">
+        <span aria-hidden="true">{Array.from({ length: 5 }, (_, index) => <span key={index} className={styles.summaryStar}
+          style={{ '--fill': `${Math.min(1, Math.max(0, (workflow.personalRating ?? 0) - index)) * 100}%` } as CSSProperties}>★</span>)}</span>
+        <strong>{workflow.personalRating === null ? '별점을 남겨 보세요' : workflow.personalRating.toFixed(1)}</strong><span>평가하기</span>
+      </button>
+      {editing && <form
         className={styles.ratingEditor}
         onSubmit={(event) => {
           event.preventDefault()
           void workflow.saveRating()
         }}
       >
-        <label htmlFor="personal-rating">0.1–5.0</label>
-        <input
-          disabled={busy}
-          id="personal-rating"
-          inputMode="decimal"
-          max="5"
-          min="0.1"
-          onChange={(event) => workflow.setRatingDraft(event.target.value)}
-          placeholder="평점"
-          step="0.1"
-          type="number"
-          value={workflow.ratingDraft}
-        />
+        <fieldset className={styles.stars}><legend>별을 눌러 선택 · 0.5점 단위</legend>
+          <div>{Array.from({ length: 10 }, (_, index) => {
+            const score = (index + 1) / 2
+            return <label key={score} className={styles.halfStar} data-side={index % 2 ? 'right' : 'left'} data-filled={value >= score}>
+              <input type="radio" name="personal-rating" value={score} checked={value === score} disabled={busy}
+                aria-label={`별점 ${score.toFixed(1)}점`} onChange={() => workflow.setRatingDraft(score.toFixed(1))} />
+              <span aria-hidden="true">★</span>
+            </label>
+          })}</div>
+          <output aria-live="polite">{workflow.ratingDraft ? `${value.toFixed(1)}점` : '미선택'}</output>
+        </fieldset>
         <button disabled={busy || !workflow.ratingValid} type="submit">평점 저장</button>
         <button
           disabled={busy || workflow.personalRating === null}
@@ -70,7 +76,7 @@ export function PersonalRatingEditor({ workflow }: RatingEditorProps) {
         >
           평점 지우기
         </button>
-      </form>
+      </form>}
     </section>
   )
 }

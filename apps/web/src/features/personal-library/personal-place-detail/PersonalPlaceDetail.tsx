@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, type Ref } from 'react'
 import { ExternalDirectionActions } from '../../../platform/maps/public'
 
 import { PersonalNotes } from './notes/PersonalNotes'
@@ -9,6 +10,7 @@ import { PersonalVisits } from './visits/PersonalVisits'
 import styles from './personal-place-detail.module.css'
 import { usePersonalPlaceDetailWorkflow } from './personal-place-detail-workflow'
 import { libraryEvidenceLabel } from './place-presentation'
+import { DraftNavigation, type PersonalPlaceNavigation, type PlaceDraft } from '../draft-navigation/DraftNavigation'
 
 export type PersonalPlaceSummary = Readonly<{
   name: string
@@ -26,15 +28,23 @@ export function PersonalPlaceDetail({
   summary,
   onChanged = noChange,
   filingEditor,
+  filingDraft,
+  navigationRef,
 }: Readonly<{
   placeId: string
   summary?: PersonalPlaceSummary
   onChanged?: () => Promise<unknown>
   filingEditor?: React.ReactNode
+  filingDraft?: PlaceDraft
+  navigationRef?: Ref<PersonalPlaceNavigation>
 }>) {
+  const [tab, setTab] = useState<'overview' | 'records'>('overview')
   const workflow = usePersonalPlaceDetailWorkflow({ placeId, onChanged })
   const publicDetail = workflow.detail?.status === 'pending' ? undefined : workflow.detail
-  const selectedPlace = publicDetail ?? summary
+  const source = workflow.detail?.personalState?.sourceObservedPlace
+  const selectedPlace = publicDetail ?? summary ?? (source === undefined ? undefined : {
+    name: source.name, areaLabel: source.address, location: source.location, primaryTaxonomy: null,
+  })
   const evidenceStatus = publicDetail?.evidence.status ?? summary?.evidenceStatus
   const personalState = workflow.detail?.personalState
   const loginRequired = workflow.authenticationRequired || (
@@ -43,12 +53,19 @@ export function PersonalPlaceDetail({
 
   return (
     <div className={styles.detailContent}>
+      <DraftNavigation navigationRef={navigationRef} drafts={[
+        { label: '내 별점', dirty: workflow.ratingDirty, saving: workflow.ratingSaving, valid: workflow.ratingValid,
+          save: workflow.saveRating, discard: workflow.discardRating },
+        { label: '메모', dirty: workflow.notes.dirty, saving: workflow.notes.saving,
+          valid: workflow.notes.bodyValid && !workflow.notes.versionConflict, save: workflow.notes.save, discard: workflow.notes.discardChanges },
+        ...(filingDraft ? [filingDraft] : []),
+      ]} />
       {selectedPlace === undefined ? (
         workflow.detail?.status === 'pending' ? (
           <div className={styles.detailHeading}>
             <p>분류 미확인</p>
-            <h2>장소 정보 동기화 중</h2>
-            <span>지역 정보 없음</span>
+            <h2>저장한 장소</h2>
+            <span>기본 정보가 아직 연결되지 않았어요.</span>
           </div>
         ) : (
           <div className={styles.detailEmpty} role={workflow.loading ? 'status' : undefined}>
@@ -58,18 +75,35 @@ export function PersonalPlaceDetail({
       ) : (
         <>
           <div className={styles.detailHeading}>
-            <p>{selectedPlace.primaryTaxonomy?.label ?? '분류 미확인'}</p>
+            <p>{publicDetail || summary ? selectedPlace.primaryTaxonomy?.label ?? '분류 미확인' : '가져온 정보'}</p>
             <h2>{selectedPlace.name}</h2>
             <span>
               {summary?.sourceLabel === undefined ? '' : `${summary.sourceLabel} · `}
               {selectedPlace.areaLabel ?? '지역 정보 없음'}
             </span>
+            {!publicDetail && !summary && source?.categoryLabel && <small>가져온 분류 · {source.categoryLabel}</small>}
           </div>
-
-          <dl className={styles.placeFacts} id="place-facts">
+          <ExternalDirectionActions destination={selectedPlace} />
+        </>
+      )}
+      {personalState !== undefined && <PersonalRatingEditor workflow={workflow} />}
+      <nav aria-label="장소 상세 항목" className={styles.detailTabs} role="tablist">
+        {(['overview', 'records'] as const).map((value, index) => <button key={value} type="button" role="tab"
+          id={`place-tab-${value}`} aria-controls={`place-panel-${value}`} aria-selected={tab === value}
+          tabIndex={tab === value ? 0 : -1} onClick={() => setTab(value)}
+          onKeyDown={(event) => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+            event.preventDefault()
+            const next = event.key === 'Home' ? 'overview' : event.key === 'End' ? 'records' : index ? 'overview' : 'records'
+            setTab(next); document.getElementById(`place-tab-${next}`)?.focus()
+          }}>{value === 'overview' ? '개요' : '내 기록'}</button>)}
+      </nav>
+      <section id="place-panel-overview" role="tabpanel" aria-labelledby="place-tab-overview" hidden={tab !== 'overview'}>
+        {selectedPlace && <>
+          <dl className={styles.placeFacts}>
             <div>
               <dt>정보 상태</dt>
-              <dd>{evidenceStatus === undefined ? '확인 필요' : libraryEvidenceLabel(evidenceStatus)}</dd>
+              <dd>{evidenceStatus === undefined ? source ? '가져온 기본 정보' : '확인 필요' : libraryEvidenceLabel(evidenceStatus)}</dd>
             </div>
             <div>
               <dt>위치</dt>
@@ -78,29 +112,16 @@ export function PersonalPlaceDetail({
                 : `${selectedPlace.location.latitude.toFixed(5)}, ${selectedPlace.location.longitude.toFixed(5)}`}</dd>
             </div>
           </dl>
-          <ExternalDirectionActions destination={selectedPlace} />
-        </>
-      )}
-
-      {personalState !== undefined && (
-        <PersonalRatingEditor workflow={workflow} />
-      )}
-      {personalState !== undefined && (
-        <nav aria-label="장소 상세 항목" className={styles.detailTabs}>
-          <a href="#place-facts">정보</a>
-          <a href="#place-organization">내 곳곳간</a>
-          <a href="#place-visits">방문</a>
-          <a href="#place-notes">메모</a>
-        </nav>
-      )}
+        </>}
+        {personalState !== undefined && filingEditor}
 
       {workflow.loading && selectedPlace !== undefined && (
         <p className={styles.detailStatus} role="status">내 장소 기능을 불러오는 중…</p>
       )}
       {workflow.detail?.status === 'pending' && (
         <section className={styles.accessNotice} role="status">
-          <strong>기본 정보 대기</strong>
-          <span>장소 기본 정보는 동기화 중입니다. 내 곳곳간, 방문, 메모는 지금 사용할 수 있습니다.</span>
+          <strong>추가 정보가 아직 연결되지 않았어요</strong>
+          <span>가져온 기본 정보와 개인 기록은 사용할 수 있습니다. 상세 보강은 현재 실행 중이 아닙니다.</span>
         </section>
       )}
       {loginRequired && (
@@ -119,17 +140,19 @@ export function PersonalPlaceDetail({
           <button onClick={() => void workflow.retry()} type="button">다시 시도</button>
         </div>
       )}
+      </section>
 
-      {personalState !== undefined && (
+      <section id="place-panel-records" role="tabpanel" aria-labelledby="place-tab-records" hidden={tab !== 'records'}>
+      {personalState !== undefined ? (
         <>
-          <div id="place-organization">
-            {filingEditor}
+          <details className={styles.recordSection}><summary>개인 태그</summary>
             <PersonalOrganizationEditor showCollections={filingEditor === undefined} workflow={workflow} />
-          </div>
-          <div id="place-visits"><PersonalVisits visits={workflow.visits} /></div>
-          <div id="place-notes"><PersonalNotes notes={workflow.notes} /></div>
+          </details>
+          <details className={styles.recordSection}><summary>방문 기록</summary><PersonalVisits visits={workflow.visits} /></details>
+          <details className={styles.recordSection}><summary>메모{workflow.notes.dirty ? ' · 저장 전' : ''}</summary><PersonalNotes notes={workflow.notes} /></details>
         </>
-      )}
+      ) : <p className={styles.detailStatus}>내 기록은 로그인 후 사용할 수 있습니다.</p>}
+      </section>
     </div>
   )
 }

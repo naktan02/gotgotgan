@@ -1,19 +1,39 @@
 'use client'
 
+import { useEffect, useRef, useState, type Ref } from 'react'
+import { DraftNavigation, type PersonalPlaceNavigation } from '../draft-navigation/DraftNavigation'
 import styles from './place-filing.module.css'
 import type { PlaceFilingWorkflow } from './place-filing-workflow'
 import { usePlaceFilingWorkflow } from './place-filing-workflow'
 
 export function PlaceFilingEditor({ workflow }: Readonly<{ workflow: PlaceFilingWorkflow }>) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const dialog = useRef<HTMLDialogElement>(null)
+  const trigger = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (open) dialog.current?.showModal()
+    else if (dialog.current?.open) { dialog.current.close(); trigger.current?.focus() }
+  }, [open])
+  const included = workflow.filing?.collections.filter((collection) => collection.included) ?? []
+  const total = workflow.filing?.overlay.collectionCount ?? 0
   return (
     <section aria-labelledby="place-filing-title" className={styles.filingEditor}>
+      <button className={styles.summary} type="button" ref={trigger} aria-haspopup="dialog" onClick={() => setOpen(true)}>
+        <span><strong id="place-filing-title">{total ? `${total}개 목록에 저장됨` : '내 목록에 저장'}</strong>
+          <small>{included.slice(0, 2).map((item) => item.name).join(' · ') || '즐겨찾기 카테고리를 선택하세요'}{total > included.slice(0, 2).length ? ` 외 ${total - included.slice(0, 2).length}개` : ''}</small>
+          {workflow.dirtyCount > 0 && <small>저장되지 않은 변경 {workflow.dirtyCount}개</small>}</span><span>변경 ›</span>
+      </button>
+      <dialog ref={dialog} className={styles.dialog} aria-labelledby="filing-dialog-title" onCancel={(event) => { event.preventDefault(); setOpen(false) }}>
       <div className={styles.filingHeading}>
         <div>
-          <h3 id="place-filing-title">내 카테고리</h3>
+          <h3 id="filing-dialog-title">내 카테고리</h3>
           <p>한 장소를 여러 카테고리에 함께 담을 수 있습니다.</p>
         </div>
         {workflow.loading && <span role="status">불러오는 중…</span>}
+        <button type="button" aria-label="카테고리 선택 닫기" onClick={() => setOpen(false)}>×</button>
       </div>
+      <label className={styles.search}>불러온 목록에서 찾기<input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="목록 이름 검색" /></label>
 
       {workflow.message !== undefined && (
         <div className={styles[`filing_${workflow.message.tone}`]} role={workflow.message.tone === 'error' ? 'alert' : 'status'}>
@@ -31,7 +51,7 @@ export function PlaceFilingEditor({ workflow }: Readonly<{ workflow: PlaceFiling
       )}
 
       <div aria-busy={workflow.loading || workflow.saving} className={styles.filingChoices}>
-        {workflow.filing?.collections.map((collection) => (
+        {workflow.filing?.collections.filter((collection) => collection.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())).map((collection) => (
           <label key={collection.collectionId}>
             <input
               checked={workflow.desired[collection.collectionId] ?? collection.included}
@@ -44,6 +64,7 @@ export function PlaceFilingEditor({ workflow }: Readonly<{ workflow: PlaceFiling
           </label>
         ))}
       </div>
+      {query && !workflow.filing?.collections.some((collection) => collection.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())) && <p className={styles.filingEmpty}>불러온 목록에서 찾지 못했습니다. 다음 목록도 확인해 보세요.</p>}
 
       {workflow.filing?.nextCursor !== undefined && (
         <button
@@ -64,22 +85,28 @@ export function PlaceFilingEditor({ workflow }: Readonly<{ workflow: PlaceFiling
           >{workflow.saving ? '저장 중…' : '변경 저장'}</button>
         </div>
       )}
+      </dialog>
     </section>
   )
 }
 
 export function PlaceFilingControl({
+  navigationRef,
   onAccessFailure,
   onApplied,
   placeId,
 }: Readonly<{
+  navigationRef?: Ref<PersonalPlaceNavigation>
   onAccessFailure: (status: number) => void
   onApplied: () => Promise<unknown>
   placeId: string | undefined
 }>) {
-  return (
-    <PlaceFilingEditor
-      workflow={usePlaceFilingWorkflow(placeId, onApplied, onAccessFailure)}
-    />
-  )
+  const workflow = usePlaceFilingWorkflow(placeId, onApplied, onAccessFailure)
+  return <>
+    {navigationRef && <DraftNavigation navigationRef={navigationRef} drafts={[
+      { label: '목록 선택', dirty: workflow.dirtyCount > 0, saving: workflow.saving, valid: true,
+        save: workflow.save, discard: workflow.discard },
+    ]} />}
+    <PlaceFilingEditor workflow={workflow} />
+  </>
 }

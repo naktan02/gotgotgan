@@ -68,21 +68,63 @@ describe('Data transfer settings view', () => {
       remotePreviewEnabled={false}
       sharedRuntimeEnabled={false}
     />)
-    expect(markup).toContain('운영 수집 worker와 요청 제한 정책을 활성화한 뒤')
+    expect(markup).toContain('서비스별 지원 상태를 확인하고 있습니다.')
     expect(markup).toMatch(/<textarea[^>]*disabled=""/)
     expect(markup).toContain('원격 로그인 준비 중')
   })
 
-  it('keeps the six settings tabs and truthful independent provider capability cards', () => {
+  it('keeps four primary settings groups and separates account status from one-shot transfers', () => {
     const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} importAcquisitionPanel={importAcquisitionPanel} workflow={workflow()} />)
-    expect(markup).toContain('외부 서비스 연결')
-    expect(markup).toContain('데이터 가져오기')
-    expect(markup).toContain('데이터 내보내기')
-    expect(markup).toContain('작업 내역')
+    expect(markup.match(/role="tab"/g)).toHaveLength(4)
+    expect(markup).toContain('연결된 계정')
+    expect(markup).toContain('데이터 이동')
     expect(markup).toContain('공개 프로필')
     expect(markup).toContain('여행 계정')
     expect(markup).toContain('계정 연결은 운영 연동이 활성화된 뒤 사용할 수 있습니다')
-    expect(markup).toContain('공개 링크 공유 가능')
+    expect(markup).toContain('공유 링크로 가져온 목록은 연결 계정으로 등록되지 않습니다')
+    expect(markup).toContain('연결 기능 꺼짐')
+    expect(markup).not.toContain('즐겨찾기 가져오기')
+    expect(markup).not.toContain('컬렉션 내보내기')
+    expect(markup).not.toContain('>계정 연결</button>')
+  })
+
+  it.each(['import', 'export', 'history'] as const)('preserves the %s deep-link tab inside data movement', (tab) => {
+    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} importAcquisitionPanel={importAcquisitionPanel} workflow={workflow({ tab })} />)
+    expect(markup).toContain('aria-label="데이터 이동 작업"')
+    expect(markup).toContain('aria-labelledby="settings-tab-import"')
+    expect(markup).toContain(`aria-labelledby="settings-data-tab-${tab}"`)
+    expect(markup).toContain('데이터 가져오기')
+    expect(markup).toContain('데이터 내보내기')
+    expect(markup).toContain('작업 내역')
+  })
+
+  it.each([
+    ['authentication-required', '로그인이 필요합니다.'],
+    ['forbidden', '이 설정을 볼 권한이 없습니다.'],
+    ['unavailable', '데이터 설정 정보를 불러오지 못했습니다.'],
+  ] as const)('distinguishes %s from empty connections', (loadState, message) => {
+    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} importAcquisitionPanel={importAcquisitionPanel} workflow={workflow({ loadState })} />)
+    expect(markup).toContain(message)
+    expect(markup).not.toContain('연결된 계정 없음')
+  })
+
+  it('does not show a configuration form for an unsupported export', () => {
+    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} importAcquisitionPanel={importAcquisitionPanel} workflow={workflow({ tab: 'export' })} />)
+    expect(markup).toContain('현재 사용할 수 있는 내보내기 방식이 없습니다.')
+    expect(markup).not.toContain('변경 미리보기')
+    expect(markup).not.toContain('<select')
+  })
+
+  it('shows an empty library separately when an export method exists', () => {
+    const overview = workflow().overview!
+    const markup = renderToStaticMarkup(<DataTransferSettingsView historyPanel={historyPanel} importAcquisitionPanel={importAcquisitionPanel} workflow={workflow({
+      tab: 'export', overview: { collections: [], providers: overview.providers.map((item) => ({
+        ...item, capability: { ...item.capability, export: { state: 'available', label: '사용 가능' } },
+      })) },
+    })} />)
+    expect(markup).toContain('내보낼 컬렉션이 없습니다.')
+    expect(markup).toContain('href="/library"')
+    expect(markup).not.toContain('불러오지 못했습니다')
   })
 
   it('renders observed import evidence and blocks unsafe raw identity links', () => {

@@ -1,6 +1,6 @@
 'use client'
 
-import type { PlaceDetailResponse } from '@place/contracts/places'
+import type { MemberPlaceDetailResponseV2 } from '@place/contracts/places'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
@@ -30,7 +30,7 @@ export function usePersonalPlaceDetailWorkflow({
   placeId,
   onChanged,
 }: PersonalPlaceDetailWorkflowInput) {
-  const [detail, setDetail] = useState<PlaceDetailResponse | undefined>()
+  const [detail, setDetail] = useState<MemberPlaceDetailResponseV2 | undefined>()
   const [loading, setLoading] = useState(true)
   const [authenticationRequired, setAuthenticationRequired] = useState(false)
   const [accessDenied, setAccessDenied] = useState(false)

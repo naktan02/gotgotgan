@@ -3,13 +3,26 @@
 ## Collection 디렉터리 우선 화면 — 2026-09-05
 
 `/library`의 첫 화면은 전체 저장 장소가 아니라 카테고리 디렉터리다. 첫 카테고리를 자동으로
-선택하지 않는다. 모든 카테고리에 걸친 검색은 디렉터리의 `모든 목록의 장소 검색`을 명시적으로
-선택해야 열린다. 디렉터리 → 선택한 카테고리의 장소 → 개인 장소 상세는 같은 작업 패널에서
+선택하지 않는다. 모든 카테고리에 걸친 검색은 디렉터리 첫 행의 `전체 저장 장소`나 앱이 제공하는
+즐겨찾기 검색 범위를 명시적으로 선택해야 열린다. 디렉터리 → 선택한 카테고리의 장소 → 개인 장소 상세는 같은 작업 패널에서
 교체되고 뒤로 가기는 기존 검색·필터·스크롤과 선택 버튼 초점을 복원한다. 패널을 접어도 상세
-편집 상태를 버리지 않으며 지도의 viewport를 유지한다. 모바일은 지도 아래의 단일 작업 표면과
-전체 지도 전환을 사용한다.
+편집 상태를 버리지 않으며 지도의 viewport를 유지한다. 모바일 작업 패널은 지도 공간을 남기는
+중간·확장 높이와 접힘을 제공하며 드래그 외에 버튼·방향키로도 조절할 수 있다.
+모바일 장식 화살표가 뒤로 버튼의 접근성 이름에 중복되던 문제는 명시적 이름으로 구분하며,
+`tests/e2e/library.spec.ts`의 디렉터리 복귀 회귀가 데스크톱·모바일에서 같은 이름을 검사한다.
+
+상세의 개요·내 기록은 실제 탭이다. 개인 기록 편집과 목록 선택은 필요할 때 열며, 숫자 입력 대신
+반점 단위 별을 선택한다. 기존 0.1 단위 평점은 사용자가 변경하기 전까지 그대로 보존한다.
+`draft-navigation`의 이동 확인과 `tests/e2e/library.spec.ts`에서 상세 이동 시
+메모·평점·목록 선택 초안의 저장/버리기/계속 편집 경계를 확인한다. 새로고침·문서 이탈은 브라우저
+기본 경고를 사용한다. 앱의 프로그래밍 방식 이동은 공개 `PersonalPlaceNavigation` 경계를 사용한다.
+가져온 최소 정보는 canonical 분류와 구분해 표시하며 상세 보강이 실행 중인 것처럼 안내하지 않는다.
 
 카테고리 이름 검색(`collectionQuery`)과 범위 내 장소 검색(`placeQuery`)은 별도 서버 조회다.
+`collection-workspace/search`는 현재 범위가 실제 제공한 지역·장소 분류의 완전한 label과 명시적인
+`#개인 태그`만 조건으로 읽는다. 남은 문자열은 장소명·주소 검색에 사용하며, 문자 그대로 검색도
+선택할 수 있다. 짧은 별칭·미확인 음식 속성·가져온 원본 label을 canonical key로 추측하지 않는다.
+회귀 근거는 해당 모듈의 단위 테스트와 `tests/e2e/library.spec.ts`의 목록·지도 동등 조건 검사다.
 디렉터리는 독립 cursor와 요청 취소 수명주기를 가져 장소 검색·상세 전환으로 읽은 카테고리
 페이지를 잃지 않는다. 선택 범위 조회는 `includeSelectedCollection`을 명시해 디렉터리의 현재
 page·검색어와 무관한 최신 카테고리 이름·revision을 받는다. 장소의 추가 검색 page가 비어 있어도
@@ -31,8 +44,9 @@ page·검색어와 무관한 최신 카테고리 이름·revision을 받는다. 
 지역·Taxonomy 선택지는 같은 v2 workspace의 Collection-first `availableFilters`를 사용한다. Tag 보조
 요청이 실패해도 workspace 전체를 지우지 않는다.
 
-선택한 카테고리의 공개 범위·공유 링크·장소 순서·장소 제외는
-`collection-management`가 소유한다. 공개 범위는 opaque revision을 요구하는 lifecycle v2 command를,
+행과 선택 제목의 더보기 메뉴, 이름 변경·삭제, 공개 범위·공유 링크·장소 순서·장소 제외는
+`collection-management`가 소유한다. 목록 삭제의 영향은 Collection과 그 membership·공유 링크이며
+다른 목록과 개인 기록 삭제로 넓히지 않는다. 공개 범위는 opaque revision을 요구하는 lifecycle v2 command를,
 순서와 제외는 기존 Library command 계약을 전용 same-origin client 뒤에서 사용한다. 태그 목록과
 생성·이름 변경·2단계 확인 삭제는 `tag-management`가 독립적으로 읽고 변경한 뒤 workspace 필터를
 갱신한다.
@@ -58,6 +72,7 @@ provider-neutral `PlaceMapRenderer`로 주입되어 목록, 상세, 카테고리
 - `place-filing`: 한 장소의 여러 카테고리 membership을 원자적으로 편집하는 제어
 - `library-map`: Library map projection을 provider-neutral 지도 Interface로 변환하는 Adapter
 - `personal-place-detail`: 평점·태그·방문·메모를 조립하는 개인 장소 상세
+- `draft-navigation`: 상세 기록과 Home 목록 정리가 함께 사용하는 미저장 이동 확인
 - `public/index.ts`: 다른 feature와 app이 사용할 수 있는 유일한 공개 진입점
 
 `personal-place-detail`의 `rating`, `organization`, `visits`, `notes`는 서로 다른 수명주기와
@@ -65,7 +80,8 @@ provider-neutral `PlaceMapRenderer`로 주입되어 목록, 상세, 카테고리
 workflow도 루트에 평면 파일을 추가하지 않고 가장 가까운 소유 하위 모듈에 배치한다.
 `collection-workspace`는 화면 조립을 위해 leaf 모듈을 사용할 수 있지만, `collection-management`,
 `tag-management`, `place-filing`, `library-map`, `personal-place-detail`은 `collection-workspace`나
-서로의 내부 구현을 import하지 않는다.
+서로의 내부 구현을 import하지 않는다. 두 편집 소비자의 이동 경계는 독립 `draft-navigation`이
+소유하며, `tests/e2e/search.spec.ts`의 Home filing 회귀에서도 저장 전 이탈을 확인한다.
 
 검증된 비활성 v1 화면과 호환 계층은 새 구조에 보관하지 않고 제거했다. 필요한 새 기능은 기존 코드를
 되살리는 대신 위의 동급 하위 모듈 중 실제 소유자에 추가한다.

@@ -1,12 +1,20 @@
 import { useEffect, useState } from 'react'
 
-import { CollectionManagementPanel } from '../collection-management/CollectionManagementPanel'
+import { CollectionActions } from '../collection-management/CollectionActions'
 import { TagManagementPanel } from '../tag-management/TagManagementPanel'
 import type { CollectionLibraryWorkflow } from './collection-library-workflow'
 import styles from './collection-workspace.module.css'
 
 type Properties = Readonly<{ workflow: CollectionLibraryWorkflow; onSelect: (id: string, button: HTMLButtonElement) => void }>
 const visibilityLabel = { private: '비공개', unlisted: '링크 공개', public: '전체 공개' } as const
+
+function ManageCollection({ collection, workflow }: Readonly<{
+  collection: NonNullable<CollectionLibraryWorkflow['selectedCollection']>; workflow: CollectionLibraryWorkflow
+}>) {
+  return <CollectionActions collection={collection} busy={workflow.collectionMutation !== 'idle'} error={workflow.collectionMessage}
+    onRename={(name) => workflow.renameCollection(collection, name)} onDelete={() => workflow.deleteCollection(collection)}
+    onAccessFailure={workflow.handleAccessFailure} onChanged={workflow.refresh} />
+}
 
 function CollectionCreation({ workflow }: Readonly<{ workflow: CollectionLibraryWorkflow }>) {
   return <form className={styles.creation} onSubmit={(event) => { event.preventDefault(); void workflow.createCollection() }}>
@@ -34,6 +42,7 @@ export function CollectionDirectory({ workflow, onSelect, onAllPlaces }: Propert
       }}>
         <label className={styles.srOnly} htmlFor="library-collection-query">카테고리 이름 검색</label>
         <input id="library-collection-query" type="search" maxLength={160} placeholder="카테고리 이름 검색"
+          disabled={workflow.pageStatus === 'loading' && !workflow.workspace}
           value={query ?? ''} onChange={(event) => setQuery(event.target.value)} />
         <button type="submit">검색</button>
       </form>
@@ -52,7 +61,10 @@ export function CollectionDirectory({ workflow, onSelect, onAllPlaces }: Propert
         {!creating && !workflow.collectionQuery && <CollectionCreation workflow={workflow} />}
       </div>}
       <nav aria-label="카테고리 목록" className={styles.collectionList}>
-        {workflow.collections.map((collection) => <button key={collection.collectionId} type="button"
+        <button className={styles.allPlaces} type="button" onClick={(event) => onAllPlaces(event.currentTarget)}>
+          <span className={styles.collectionIcon} aria-hidden="true">▦</span><span className={styles.rowCopy}><strong>전체 저장 장소</strong><small>내 모든 목록 안에서 검색</small></span><span aria-hidden="true">›</span>
+        </button>
+        {workflow.collections.map((collection) => <div className={styles.collectionRow} key={collection.collectionId}><button type="button"
           aria-current={workflow.selectedCollectionId === collection.collectionId ? 'page' : undefined}
           onClick={(event) => onSelect(collection.collectionId, event.currentTarget)}>
           <span className={styles.collectionIcon} aria-hidden="true">
@@ -62,25 +74,21 @@ export function CollectionDirectory({ workflow, onSelect, onAllPlaces }: Propert
             <small>장소 {collection.placeCount}개 · {visibilityLabel[collection.visibility]}</small>
             {collection.description && <span>{collection.description}</span>}
           </span><span aria-hidden="true">›</span>
-        </button>)}
+        </button><ManageCollection collection={collection} workflow={workflow} /></div>)}
       </nav>
       {workflow.collectionNextCursor && <button className={styles.loadMore} type="button"
         disabled={workflow.loadingMoreCollections} onClick={() => void workflow.loadMoreCollections()}>
         {workflow.loadingMoreCollections ? '불러오는 중…' : '카테고리 더 보기'}
       </button>}
-      <button className={styles.loadMore} type="button"
-        onClick={(event) => onAllPlaces(event.currentTarget)}>모든 목록의 장소 검색</button>
       <div className={styles.management}><TagManagementPanel onAccessFailure={workflow.handleAccessFailure} onChanged={workflow.handleTagsChanged} /></div>
       <p className={styles.notice}>개인 메모·평점·방문 기록·개인 태그는 공개 목록에 포함되지 않습니다.</p>
     </div>
   </>
 }
 
-export function CollectionPlaces({ workflow, onSelect, onBack, onFilters }: Properties & Readonly<{
-  onBack: () => void; onFilters: () => void
+export function CollectionPlaces({ workflow, query, onQueryChange, onSelect, onBack, onFilters }: Properties & Readonly<{
+  query: string; onQueryChange: (query: string) => void; onBack: () => void; onFilters: () => void
 }>) {
-  const [query, setQuery] = useState(workflow.placeQuery)
-  useEffect(() => { setQuery(workflow.placeQuery) }, [workflow.placeQuery])
   const collection = workflow.selectedCollection
   const allPlaces = workflow.selectedCollectionId === undefined
   const rows = workflow.workspace?.places ?? []
@@ -93,20 +101,30 @@ export function CollectionPlaces({ workflow, onSelect, onBack, onFilters }: Prop
   ]
   return <>
     <header className={styles.panelHeader}>
-      <button className={styles.backButton} onClick={onBack} type="button">← 내 목록</button>
+      <button aria-label="내 목록으로 돌아가기" className={styles.backButton} onClick={onBack} type="button">← 내 목록</button>
       <span className={styles.eyebrow}>{collection ? visibilityLabel[collection.visibility] : '내 모든 카테고리'}</span>
-      <h2 id="library-collection-heading" tabIndex={-1}>{allPlaces ? '전체 저장 장소' : collection?.name ?? '목록을 불러오는 중…'}</h2>
+      <div className={styles.collectionTitle}><h2 id="library-collection-heading" tabIndex={-1}>{allPlaces ? '전체 저장 장소' : collection?.name ?? '목록을 불러오는 중…'}</h2>
+        {collection && <ManageCollection collection={collection} workflow={workflow} />}</div>
       {collection?.description && <p className={styles.description}>{collection.description}</p>}
       <form className={styles.search} role="search" aria-label="선택한 목록 안에서 장소 검색" onSubmit={(event) => {
         event.preventDefault(); workflow.setPlaceQuery(query.trim())
       }}>
         <label className={styles.srOnly} htmlFor="library-place-query">{allPlaces ? '내 모든 목록 안에서 장소 검색' : '이 목록 안에서 장소 검색'}</label>
         <input id="library-place-query" type="search" maxLength={160} placeholder={allPlaces ? '내 모든 목록 안에서 · 성수동 라멘' : '이 목록 안에서 · 성수동 라멘'}
-          value={query ?? ''} onChange={(event) => setQuery(event.target.value)} />
+          disabled={workflow.pageStatus === 'loading' && !workflow.workspace}
+          value={query} onChange={(event) => onQueryChange(event.target.value)} />
         <button type="submit">검색</button>
       </form>
       <div className={styles.actions}><span>장소 {collection?.placeCount ?? workflow.availableFilters?.coverage.favoritePlaceCount ?? 0}개</span>
         <button id="library-filter-toggle" onClick={onFilters} type="button">필터{filterCount ? ` ${filterCount}` : ''}</button></div>
+      {workflow.placeQuery && <div className={styles.searchMeaning}>
+        <span role="status">{workflow.search.mode === 'name' ? '입력한 문자를 장소명·주소에서 그대로 찾습니다.'
+          : workflow.search.conditions.length ? `확인된 조건 ${workflow.search.conditions.length}개${workflow.search.text ? ` · 문자 검색: ${workflow.search.text}` : ''}`
+            : '확인된 조건이 없어 장소명·주소에서 문자로 검색합니다.'}</span>
+        <button type="button" onClick={workflow.search.mode === 'name' ? workflow.search.searchAsConditions : workflow.search.searchAsText}>
+          {workflow.search.mode === 'name' ? '조건 인식 다시 사용' : '문자 그대로 검색'}
+        </button>
+      </div>}
       {chips.length > 0 && <div className={styles.selectedFilters} aria-label="적용한 필터">
         {chips.slice(0, 3).map((chip) => <button aria-label={`${chip.label} 필터 해제`} key={chip.key} type="button" onClick={chip.remove}>{chip.label} ×</button>)}
         {chips.length > 3 && <button onClick={onFilters} type="button">+{chips.length - 3}</button>}
@@ -134,20 +152,6 @@ export function CollectionPlaces({ workflow, onSelect, onBack, onFilters }: Prop
       {workflow.workspace?.placeNextCursor && <button className={styles.loadMore} disabled={workflow.loadingMore} onClick={() => void workflow.loadMore()} type="button">
         {workflow.loadingMore ? '불러오는 중…' : rows.length === 0 ? '이어서 검색' : '장소 더 보기'}
       </button>}
-      {collection && <details className={styles.management}><summary>카테고리 관리</summary>
-        <form className={styles.creation} onSubmit={(event) => { event.preventDefault(); void workflow.renameCollection() }}>
-          <label htmlFor="collection-rename">카테고리 이름 수정</label><div>
-            <input id="collection-rename" maxLength={120} onChange={(event) => workflow.setRenameDraft(event.target.value)} value={workflow.renameDraft} />
-            <button disabled={workflow.collectionMutation !== 'idle' || workflow.renameDraft.trim() === collection.name} type="submit">수정</button>
-          </div>
-        </form>
-        <CollectionManagementPanel collection={collection} onAccessFailure={workflow.handleAccessFailure} onChanged={workflow.refresh} />
-        {workflow.deleteArmed ? <div className={styles.deleteConfirm}>
-          <span>카테고리만 삭제하며 장소의 다른 카테고리와 개인 기록은 유지됩니다.</span>
-          <button disabled={workflow.collectionMutation !== 'idle'} onClick={() => void workflow.deleteCollection()} type="button">삭제 확인</button>
-          <button disabled={workflow.collectionMutation !== 'idle'} onClick={workflow.cancelDelete} type="button">취소</button>
-        </div> : <button className={styles.danger} onClick={workflow.armDelete} type="button">카테고리 삭제</button>}
-      </details>}
     </div>
   </>
 }

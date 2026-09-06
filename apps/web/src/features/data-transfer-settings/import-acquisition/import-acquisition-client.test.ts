@@ -43,12 +43,24 @@ function jsonResponse(value: unknown) {
 
 function accepted(value: unknown) {
   return {
-    schemaVersion: 'import-acquisition-command-result.v1', outcome: 'accepted',
+    schemaVersion: 'start-import-acquisition-result.v2', outcome: 'accepted',
     commandId: '01992d20-0000-7000-8000-000000000096', status: 'applied', acquisition: value,
   }
 }
 
 describe('one-shot import acquisition client', () => {
+  it('preserves an unsupported provider rejection without inventing a NAVER command', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({
+      schemaVersion: 'start-import-acquisition-result.v2', outcome: 'rejected',
+      commandId: '01992d20-0000-7000-8000-000000000096',
+      rejection: { code: 'capability-unavailable', availability: { status: 'not-implemented', reason: 'provider-adapter-unavailable' } },
+    }), { status: 422, headers: { 'content-type': 'application/json' } }))
+    await expect(createImportAcquisitionGateway(fetchMock as unknown as typeof fetch).startSharedLinkImport({
+      commandId: '01992d20-0000-7000-8000-000000000096', acquisitionId, importSourceId, snapshotId,
+      providerKey: 'google', links: [{ entryId: readyEntryId, position: 0, url: 'https://maps.app.goo.gl/example' }],
+    })).rejects.toMatchObject({ status: 422, code: 'capability-unavailable' })
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).providerKey).toBe('google')
+  })
   it('submits the versioned shared-link command without browser credentials', async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => jsonResponse(accepted(acquisition())))
     const gateway = createImportAcquisitionGateway(fetchMock as unknown as typeof fetch)
@@ -67,12 +79,12 @@ describe('one-shot import acquisition client', () => {
 
     expect(result.state).toBe('partial')
     expect(result.items.map((item) => item.state)).toEqual(['ready', 'duplicate'])
-    expect(fetchMock).toHaveBeenCalledWith('/api/v1/transfers/import-acquisitions', expect.objectContaining({
+    expect(fetchMock).toHaveBeenCalledWith('/api/v2/transfers/import-acquisitions', expect.objectContaining({
       cache: 'no-store', credentials: 'same-origin', method: 'POST',
     }))
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))
     expect(body).toMatchObject({
-      schemaVersion: 'start-import-acquisition.v1', kind: 'shared-links',
+      schemaVersion: 'start-import-acquisition.v2', kind: 'shared-links',
       acquisitionId, importSourceId, snapshotId, providerKey: 'naver',
       links: [
         { entryId: readyEntryId, position: 0, url: 'https://naver.me/ready' },
@@ -126,7 +138,7 @@ describe('one-shot import acquisition client', () => {
     expect(importAcquisitionFailureMessage(new DataTransferSettingsProblem(429, 'limit-exceeded')))
       .toContain('가져오기 대기열이 가득')
     expect(importAcquisitionFailureMessage(new DataTransferSettingsProblem(429, 'provider-rate-limited')))
-      .toContain('NAVER 요청이 잠시 제한')
+      .toContain('외부 서비스 요청이 잠시 제한')
     expect(importAcquisitionFailureMessage(new DataTransferSettingsProblem(422, 'not-cancellable')))
       .toContain('이미 목록 확인이 시작')
   })

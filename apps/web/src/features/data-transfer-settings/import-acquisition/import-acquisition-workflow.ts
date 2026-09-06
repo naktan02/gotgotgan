@@ -1,6 +1,6 @@
 'use client'
 
-import type { ImportAcquisitionV1 } from '@place/contracts/transfers'
+import type { ImportAcquisitionV1, ImportAcquisitionCapabilitiesV2 } from '@place/contracts/transfers'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { createPollController } from '../../../shared/async/poll-controller'
@@ -35,6 +35,7 @@ type PendingSharedCommand = Readonly<{
 }>
 
 type PendingRemoteCommand = Readonly<{
+  providerKey: ImportAcquisitionV1['providerKey']
   commandId: string
   acquisitionId: string
   importSourceId: string
@@ -51,9 +52,10 @@ export function importAcquisitionFailureMessage(error: unknown): string {
     ? String((error as { code?: unknown }).code ?? '') : ''
   if (status === 401) return '곳곳간 로그인이 필요합니다.'
   if (status === 413) return '한 번에 확인할 수 있는 링크 수나 응답 크기를 넘었습니다.'
+  if (code === 'capability-unavailable') return '선택한 서비스의 가져오기 방식은 현재 준비 중입니다. 지원 상태를 확인해 주세요.'
   if (status === 422 && code === 'not-cancellable') return '이미 목록 확인이 시작되어 취소할 수 없습니다. 최신 상태를 다시 불러왔습니다.'
   if (status === 429 && code === 'limit-exceeded') return '가져오기 대기열이 가득 찼습니다. 진행 중인 작업이 끝나거나 대기 중인 작업을 취소한 뒤 다시 시도해 주세요.'
-  if (status === 429) return 'NAVER 요청이 잠시 제한되었습니다. 잠시 후 같은 요청을 다시 시도해 주세요.'
+  if (status === 429) return '외부 서비스 요청이 잠시 제한되었습니다. 잠시 후 같은 요청을 다시 시도해 주세요.'
   return '가져오기 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.'
 }
 
@@ -61,7 +63,13 @@ export function useImportAcquisition(
   gateway: ImportAcquisitionGateway,
   onSnapshot: (snapshot: SourceSnapshot, selectedSourceListIds: ReadonlySet<string>) => void,
 ) {
-  const [draft, setDraft] = useState('')
+  const [providerKey, setProviderKey] = useState<ImportAcquisitionV1['providerKey']>('naver')
+  const [drafts, setDrafts] = useState<Partial<Record<ImportAcquisitionV1['providerKey'], string>>>({})
+  const draft = drafts[providerKey] ?? ''
+  const setDraft = (value: string) => setDrafts((current) => ({ ...current, [providerKey]: value }))
+  const [capabilities, setCapabilities] = useState<ImportAcquisitionCapabilitiesV2>()
+  const [capabilityError, setCapabilityError] = useState(false)
+  const [capabilityAttempt, setCapabilityAttempt] = useState(0)
   const [shared, setShared] = useState<ImportAcquisition>()
   const [remote, setRemote] = useState<ImportAcquisition>()
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -74,6 +82,19 @@ export function useImportAcquisition(
   const cancelCommand = useRef<Readonly<{ key: string; commandId: string }> | undefined>(undefined)
   const recoveryController = useRef<AbortController | undefined>(undefined)
   const recoveryGeneration = useRef(0)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setCapabilityError(false)
+    setCapabilities(undefined)
+    void gateway.readCapabilities(controller.signal).then((value) => {
+      if (!controller.signal.aborted) setCapabilities(value)
+    }).catch(() => { if (!controller.signal.aborted) setCapabilityError(true) })
+    return () => controller.abort()
+  }, [gateway, capabilityAttempt])
+  const methods = capabilities?.providers.find((provider) => provider.providerKey === providerKey)?.methods
+  const sharedAvailability = methods?.find((method) => method.method === 'shared-links')?.availability
+  const remoteAvailability = methods?.find((method) => method.method === 'remote-browser')?.availability
 
   const applyAcquisition = useCallback((wire: ImportAcquisitionV1) => {
     const next: ImportAcquisition = {
@@ -169,8 +190,12 @@ export function useImportAcquisition(
   const visibleSharedItems = useMemo(() => shared?.items.filter((item) => !dismissed.has(item.entryId)) ?? [], [dismissed, shared])
 
   const startShared = useCallback(async () => {
+    if (sharedAvailability?.status !== 'available') {
+      setError('선택한 서비스의 공유 링크 가져오기는 현재 사용할 수 없습니다.')
+      return
+    }
     if (links.length === 0) {
-      setError('NAVER 공유 링크를 한 줄에 하나씩 입력해 주세요.')
+      setError('공유 링크를 한 줄에 하나씩 입력해 주세요.')
       return
     }
     if (links.length > maximumLinkCount) {
@@ -178,7 +203,7 @@ export function useImportAcquisition(
       return
     }
     supersedeRecovery()
-    const key = links.join('\n')
+    const key = `${providerKey}:${links.join('\n')}`
     if (sharedCommand.current?.key !== key) {
       const structuredLinks = links.map((url, position) => ({ entryId: crypto.randomUUID(), position, url }))
       sharedCommand.current = {
@@ -201,7 +226,7 @@ export function useImportAcquisition(
         acquisitionId: pending.acquisitionId,
         importSourceId: pending.importSourceId,
         snapshotId: pending.snapshotId,
-        providerKey: 'naver',
+        providerKey,
         links: pending.links,
       })
       applyAcquisition(next)
@@ -211,11 +236,16 @@ export function useImportAcquisition(
     } finally {
       setBusy(undefined)
     }
-  }, [applyAcquisition, gateway, links, supersedeRecovery])
+  }, [applyAcquisition, gateway, links, providerKey, sharedAvailability, supersedeRecovery])
 
   const startRemote = useCallback(async () => {
+    if (remoteAvailability?.status !== 'available') {
+      setError('일회성 원격 로그인은 격리 세션과 자동 폐기 검증이 끝난 뒤 제공됩니다.')
+      return
+    }
     supersedeRecovery()
-    remoteCommand.current ??= {
+    if (remoteCommand.current?.providerKey !== providerKey) remoteCommand.current = {
+      providerKey,
       commandId: crypto.randomUUID(),
       acquisitionId: crypto.randomUUID(),
       importSourceId: crypto.randomUUID(),
@@ -223,7 +253,7 @@ export function useImportAcquisition(
     setBusy('remote')
     setError(undefined)
     try {
-      const next = await gateway.startRemoteImport({ ...remoteCommand.current, providerKey: 'naver' })
+      const next = await gateway.startRemoteImport(remoteCommand.current)
       applyAcquisition(next)
       remoteCommand.current = undefined
     } catch (cause) {
@@ -231,7 +261,7 @@ export function useImportAcquisition(
     } finally {
       setBusy(undefined)
     }
-  }, [applyAcquisition, gateway, supersedeRecovery])
+  }, [applyAcquisition, gateway, providerKey, remoteAvailability, supersedeRecovery])
 
   const refresh = useCallback(async (acquisition: ImportAcquisition) => {
     setError(undefined)
@@ -313,6 +343,9 @@ export function useImportAcquisition(
   }, [])
 
   return {
+    providers: capabilities?.providers,
+    providerKey, setProviderKey, sharedAvailability, remoteAvailability, capabilityError,
+    retryCapabilities: () => setCapabilityAttempt((attempt) => attempt + 1),
     draft, setDraft, links, shared, remote, visibleSharedItems,
     selected, busy, error, maximumLinkCount,
     startShared, startRemote, refresh, reviewSnapshot, cancel, toggle, dismiss,

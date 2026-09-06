@@ -6,15 +6,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   PublicProfileHttpProblem,
   publicProfileHttp,
-} from '@/platform/profiles/public-profile-http'
+} from '../../platform/profiles/public-profile-http'
 
-type LoadState = 'loading' | 'ready' | 'authentication-required' | 'unavailable'
+type LoadState = 'loading' | 'ready' | 'authentication-required' | 'forbidden' | 'unavailable'
 
 function message(error: unknown): string {
   if (!(error instanceof PublicProfileHttpProblem)) return '공개 프로필을 저장하지 못했습니다.'
   if (error.status === 401) return '공개 프로필을 관리하려면 로그인이 필요합니다.'
-  if (error.code === 'PLACE_PUBLIC_HANDLE_UNAVAILABLE') return '이미 사용 중인 핸들입니다.'
-  if (error.code === 'PLACE_PUBLIC_HANDLE_IMMUTABLE') return '한 번 만든 공개 핸들은 변경할 수 없습니다.'
+  if (error.code === 'PLACE_PUBLIC_HANDLE_UNAVAILABLE') return '사용할 수 없는 프로필 주소입니다. 다른 주소를 입력해 주세요.'
+  if (error.code === 'PLACE_PUBLIC_HANDLE_IMMUTABLE') return '한 번 만든 프로필 주소는 변경할 수 없습니다.'
   if (error.code === 'PLACE_PUBLIC_PROFILE_VERSION_CONFLICT') return '다른 화면에서 프로필이 변경되었습니다. 최신 내용을 다시 불러오세요.'
   return '공개 프로필을 저장하지 못했습니다.'
 }
@@ -42,7 +42,7 @@ export function usePublicProfileSettings() {
     } catch (loadError) {
       setLoadState(loadError instanceof PublicProfileHttpProblem && loadError.status === 401
         ? 'authentication-required'
-        : 'unavailable')
+        : loadError instanceof PublicProfileHttpProblem && loadError.status === 403 ? 'forbidden' : 'unavailable')
     }
   }, [])
 

@@ -29,6 +29,7 @@ const place = {
 } as const
 
 const workflow: CatalogHomeWorkflow = {
+  searchIntent: 'conditions', destination: undefined, chooseDestination: noOperation, chooseCandidate: noOperation,
   draftQuery: '서울 전시',
   submittedQuery: '서울 전시',
   selectedQuickType: '문화시설',
@@ -61,6 +62,17 @@ const workflow: CatalogHomeWorkflow = {
 }
 
 describe('Catalog Home view', () => {
+  it('counts a geographic destination independently from canonical place results', () => {
+    const markup = renderToStaticMarkup(<CatalogHomeView MapRenderer={FakeMap} PlaceFilingRenderer={FakePlaceFiling}
+      workflow={{ ...workflow, items: [], selected: undefined, searchState: 'ready', destination: {
+        key: 'country.kr', name: '대한민국', kind: 'country', countryCode: 'KR', exact: true,
+        location: { latitude: 36, longitude: 128 }, bounds: null,
+      } }} />)
+    expect(markup).toContain('지역 검색')
+    expect(markup).toContain('1개 지역')
+    expect(markup).not.toContain('0곳')
+  })
+
   it('does not invent an evidence label for a map-only place summary', () => {
     const markup = renderToStaticMarkup(
       <CatalogHomeView

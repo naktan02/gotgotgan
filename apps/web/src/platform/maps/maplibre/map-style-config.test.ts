@@ -5,7 +5,7 @@ import { resolvePlaceMapStyleUrl } from './map-style-config'
 describe('MapLibre style runtime configuration', () => {
   it('defaults production to OpenFreeMap and E2E to the local style', () => {
     expect(resolvePlaceMapStyleUrl(undefined, undefined)).toBe(
-      'https://tiles.openfreemap.org/styles/liberty',
+      'https://tiles.openfreemap.org/styles/bright',
     )
     expect(resolvePlaceMapStyleUrl(undefined, 'http://127.0.0.1:3410')).toBe('/api/maps/style')
     expect(resolvePlaceMapStyleUrl(

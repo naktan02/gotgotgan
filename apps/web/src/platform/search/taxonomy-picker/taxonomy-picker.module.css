@@ -1,0 +1,27 @@
+.picker { display: flex; flex-direction: column; height: 100%; min-height: 0; color: var(--ink); background: var(--surface); }
+.picker header { flex: none; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.picker h2 { margin: 12px 0 8px; font-size: 20px; }
+.picker p, .picker footer { font-size: 12px; line-height: 1.6; color: var(--muted); }
+.picker button { min-height: 44px; border: 0; color: var(--ink); background: transparent; font: inherit; font-size: 13px; cursor: pointer; }
+.picker header > button:first-child { padding: 0; color: var(--muted); }
+.trail { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.trail span { display: inline-flex; align-items: center; }
+.trail button { padding: 4px 6px; }
+.trail button[aria-current] { color: var(--accent); font-weight: 700; }
+.search { display: grid; gap: 8px; margin-top: 8px; color: var(--muted); font-size: 12px; }
+.search input { box-sizing: border-box; width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--canvas); color: var(--ink); font-size: 16px; }
+.picker .selectCurrent { margin-top: 12px; width: 100%; border-radius: 7px; background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.body > p, .body > div { margin: 0; padding: 20px; }
+.body button:focus-visible, .picker header :is(button, input):focus-visible { outline: 3px solid var(--focus); outline-offset: -2px; }
+.options { list-style: none; margin: 0; padding: 0; }
+.options button { display: flex; gap: 12px; align-items: center; justify-content: space-between; width: 100%; min-height: 64px; padding: 12px 20px; border-bottom: 1px solid var(--line); text-align: left; }
+.options button:hover { background: var(--canvas); }
+.options button > span { display: grid; gap: 5px; min-width: 0; }
+.options strong { font-size: 14px; overflow-wrap: anywhere; }
+.options small { color: var(--muted); font-size: 12px; }
+.options button > small { flex: none; }
+.picker .more { width: 100%; color: var(--accent); }
+.empty button { padding: 0 12px; border: 1px solid var(--line); border-radius: 7px; }
+.picker footer { flex: none; padding: 12px 20px; border-top: 1px solid var(--line); }
+@media (max-width: 720px) { .picker header { padding: 8px 16px; } .picker header > p:not(:has(strong)) { display: none; } .picker footer { padding: 8px 16px; } }

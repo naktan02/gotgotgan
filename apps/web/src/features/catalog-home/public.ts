@@ -6,7 +6,6 @@ export {
 } from './CatalogHome'
 export {
   CatalogHomeProvider,
-  catalogQuickTypes,
   type CatalogHomePlace,
   type CatalogHomeLibrary,
   type CatalogHomeWorkflow,

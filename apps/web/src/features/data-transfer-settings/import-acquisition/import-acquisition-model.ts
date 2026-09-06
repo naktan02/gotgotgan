@@ -1,4 +1,4 @@
-import type { ImportAcquisitionV1 } from '@place/contracts/transfers'
+import type { ImportAcquisitionV1, ImportAcquisitionCapabilitiesV2 } from '@place/contracts/transfers'
 
 import type { SourceSnapshot } from '../data-transfer-settings-model'
 
@@ -13,19 +13,20 @@ export type ImportAcquisition = Omit<ImportAcquisitionV1, 'items'> & Readonly<{
 }>
 
 export type ImportAcquisitionGateway = Readonly<{
+  readCapabilities(signal?: AbortSignal): Promise<ImportAcquisitionCapabilitiesV2>
   startSharedLinkImport(input: Readonly<{
     commandId: string
     acquisitionId: string
     importSourceId: string
     snapshotId: string
-    providerKey: 'naver'
+    providerKey: ImportAcquisitionV1['providerKey']
     links: readonly Readonly<{ entryId: string; position: number; url: string }>[]
   }>, signal?: AbortSignal): Promise<ImportAcquisitionV1>
   startRemoteImport(input: Readonly<{
     commandId: string
     acquisitionId: string
     importSourceId: string
-    providerKey: 'naver'
+    providerKey: ImportAcquisitionV1['providerKey']
   }>, signal?: AbortSignal): Promise<ImportAcquisitionV1>
   readImportAcquisition(acquisitionId: string, signal?: AbortSignal): Promise<ImportAcquisitionV1>
   readSourceSnapshot(snapshotId: string, signal?: AbortSignal): Promise<SourceSnapshot>

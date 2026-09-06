@@ -5,8 +5,13 @@
 .detailHeading h2 { margin: 0; font-size: 24px; letter-spacing: -.035em; overflow-wrap: anywhere; }
 .detailHeading span { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
 .detailTabs { position: sticky; z-index: 2; top: 42px; display: flex; gap: 4px; margin: 18px 0 0; padding: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface); overflow-x: auto; }
-.detailTabs a { flex: none; padding: 11px 8px; color: var(--muted); font-size: 12px; font-weight: 650; text-decoration: none; }
-.detailTabs a:hover, .detailTabs a:focus-visible { color: var(--accent); }
+.detailTabs button { flex: 1; min-height: 44px; padding: 11px 8px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font-size: 14px; font-weight: 650; }
+.detailTabs button[aria-selected='true'] { border-bottom-color: var(--accent); color: var(--accent); }
+.detailContent section[hidden] { display: none; }
+.detailHeading small { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
+.recordSection { margin-top: 12px; border-bottom: 1px solid var(--line); }
+.recordSection > summary { min-height: 48px; padding: 14px 0; font-size: 14px; font-weight: 650; cursor: pointer; }
+.recordSection > section { margin-top: 0; padding-bottom: 16px; border-top: 0; }
 .placeFacts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 18px 0 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); scroll-margin-top: 94px; }
 .placeFacts div { padding: 12px 0; }
 .placeFacts div + div { padding-left: 14px; border-left: 1px solid var(--line); }
@@ -65,22 +70,6 @@
 .noteList li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
 .noteList li small { color: var(--muted); font-size: 12px; }
 .noteList > button { width: 100%; margin-top: 8px; }
-.preferences { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
-.preferenceHeading { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
-.preferenceHeading h3 { margin: 0; font-size: 15px; }
-.preferenceHeading p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
-.preferenceHeading > span { flex: none; color: var(--muted); font-size: 12px; }
-.preferenceToggles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 14px; }
-.preferenceToggles button { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); padding: 0 11px; }
-.preferenceToggles button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
-.preferenceToggles small { color: var(--muted); font-size: 12px; }
-.ratingEditor { display: grid; grid-template-columns: auto minmax(76px, 1fr) auto auto; align-items: center; gap: 7px; margin-top: 9px; }
-.ratingEditor label { color: var(--muted); font-size: 12px; font-weight: 700; }
-.ratingEditor input { min-width: 0; height: 34px; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); padding: 0 9px; }
-.ratingEditor button { min-height: 40px; border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); padding: 0 9px; font-size: 12px; }
-.preferenceToggles button:disabled, .ratingEditor button:disabled, .ratingEditor input:disabled { cursor: wait; opacity: .6; }
-.preferenceError { display: flex; justify-content: space-between; gap: 10px; margin-top: 12px; color: var(--danger); font-size: 12px; }
-.preferenceError button { border: 0; background: transparent; color: inherit; text-decoration: underline; }
 .organization { margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line); }
 .organizationHeading { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
 .organizationHeading h3 { margin: 0; font-size: 15px; }
@@ -101,8 +90,6 @@
 
 @media (max-width: 720px) {
   .detailTabs { top: 46px; margin-right: -16px; margin-left: -16px; padding: 0 10px; }
-  .ratingEditor { grid-template-columns: auto minmax(80px, 1fr); }
-  .ratingEditor button { width: 100%; }
   .visitForm > div { align-items: stretch; flex-direction: column; }
   .visitForm button { width: 100%; }
   .noteHeading { align-items: stretch; flex-direction: column; }

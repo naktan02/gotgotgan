@@ -133,7 +133,7 @@ export function usePersonalNoteWorkflow(input: NoteWorkflowInput) {
   }, [input.active, input.selectedPlaceId, loadList])
 
   const executeCommand = useCallback(async (request: BrowserPrivateNoteCommandRequest) => {
-    if (mutationRef.current) return
+    if (mutationRef.current) return false
     mutationRef.current = true
     setSaving(true)
     setError(undefined)
@@ -147,6 +147,7 @@ export function usePersonalNoteWorkflow(input: NoteWorkflowInput) {
       await loadList(placeId)
       await loadDetail(placeId, request.command.documentId)
       setNotice(request.command.kind === 'create-note' ? '비공개 메모를 만들었습니다.' : '메모를 저장했습니다.')
+      return true
     } catch (reason) {
       if (selectedPlaceRef.current !== request.command.placeId) return
       if (reason instanceof BrowserWritingProblem && [401, 403].includes(reason.status)) {
@@ -169,6 +170,7 @@ export function usePersonalNoteWorkflow(input: NoteWorkflowInput) {
         setFailedCommand(request)
         setError('메모 저장 결과를 확인하지 못했습니다.')
       }
+      return false
     } finally {
       mutationRef.current = false
       setSaving(false)

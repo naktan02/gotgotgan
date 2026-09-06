@@ -50,10 +50,14 @@
 .collapseButton > span:last-child { display: none; }
 .home[data-collapsed="true"] .collapseButton { left: 0; }
 .srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.sheetHandle { display: none; }
 @media (max-width: 1024px) and (min-width: 721px) { .home { --panel-width: 340px; } }
 @media (max-width: 720px) {
   .home { display: flex; flex-direction: column-reverse; }
-  .listPane { flex: 0 0 64%; max-height: 64%; border: 0; border-top: 1px solid var(--line); border-radius: 16px 16px 0 0; }
+  .listPane { flex: 0 0 54%; max-height: 54%; border: 0; border-top: 1px solid var(--line); border-radius: 16px 16px 0 0; }
+  .home[data-expanded="true"] .listPane { flex-basis: calc(100% - 184px); max-height: calc(100% - 184px); }
+  .sheetHandle { display: flex; align-items: center; justify-content: center; gap: 12px; flex-shrink: 0; min-height: 32px; border: 0; background: transparent; color: var(--muted); font-size: 11px; touch-action: none; cursor: ns-resize; }
+  .sheetHandle > span { width: 36px; height: 4px; background: var(--line-strong); border-radius: 6px; }
   .mapPane { flex: 1; }
   .panelHeader { padding: 12px 16px 10px; }
   .eyebrow, .panelHeader h2 { display: none; }

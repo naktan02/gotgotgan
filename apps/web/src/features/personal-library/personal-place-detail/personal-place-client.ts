@@ -7,7 +7,7 @@ import {
   libraryPlaceOrganizationResponseSchema,
   type LibraryPlaceOrganizationResponse,
 } from '@place/contracts/library'
-import { placeDetailResponseSchema } from '@place/contracts/places'
+import { memberPlaceDetailResponseV2Schema } from '@place/contracts/places'
 
 export class BrowserLibraryProblem extends Error {
   constructor(readonly status: number) {
@@ -50,11 +50,11 @@ export function createPersonalPlaceClient(fetcher: typeof fetch = fetch) {
     },
 
     async place(placeId: string, signal?: AbortSignal) {
-      const response = await fetcher(`/api/places/${encodeURIComponent(placeId)}`, {
+      const response = await fetcher(`/api/v2/places/${encodeURIComponent(placeId)}`, {
         cache: 'no-store',
         ...(signal === undefined ? {} : { signal }),
       })
-      return placeDetailResponseSchema.parse(await payload(response))
+      return memberPlaceDetailResponseV2Schema.parse(await payload(response))
     },
   }
 }

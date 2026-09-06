@@ -11,6 +11,7 @@ type PanelProperties = Readonly<{
   collection: ManagedCollection
   onAccessFailure: (status: number) => void
   onChanged: () => Promise<unknown>
+  expanded?: boolean
 }>
 
 const visibilityDescription = {
@@ -22,12 +23,13 @@ const visibilityDescription = {
 export function CollectionManagementView({
   collectionName,
   workflow,
-}: Readonly<{ collectionName: string; workflow: CollectionManagementWorkflow }>) {
+  expanded = false,
+}: Readonly<{ collectionName: string; workflow: CollectionManagementWorkflow; expanded?: boolean }>) {
   const busy = workflow.mutationKey !== undefined
   const shareAvailable = workflow.visibility !== 'private' && workflow.sharePath !== undefined
 
   return (
-    <details className={styles.panel}>
+    <details className={styles.panel} open={expanded}>
       <summary>공개·장소 관리</summary>
       <div aria-busy={busy} className={styles.content}>
         <section aria-labelledby="collection-visibility-title" className={styles.section}>
@@ -147,5 +149,5 @@ export function CollectionManagementView({
 
 export function CollectionManagementPanel(properties: PanelProperties) {
   const workflow = useCollectionManagementWorkflow(properties)
-  return <CollectionManagementView collectionName={properties.collection.name} workflow={workflow} />
+  return <CollectionManagementView collectionName={properties.collection.name} workflow={workflow} expanded={properties.expanded} />
 }

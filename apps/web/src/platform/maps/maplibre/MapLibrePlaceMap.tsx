@@ -8,9 +8,11 @@ import type {
   Marker as MapLibreMarker,
 } from 'maplibre-gl'
 
-import type { PlaceMapRendererProperties } from '../place-map-interface'
+import type { PlaceMapRendererProperties, PlaceMapViewport } from '../place-map-interface'
+import { rewriteOpenFreeMapSourceRequest } from '../openfreemap-source/source-location'
 import { replaceAccessibleMarkers } from './accessible-place-markers'
 import { readInitialCameraLocation } from './initial-camera-location'
+import { localizePlaceMapNames } from './map-label-language'
 import { configurePlaceMapProjection } from './map-projection'
 import { centerForBounds, readMapViewport } from './map-viewport'
 import {
@@ -48,6 +50,7 @@ export function MapLibrePlaceMap({
   const callbacksRef = useRef({ onClusterSelect, onSelect, onViewportChange })
   const featuresRef = useRef({ clusters, markers, selectedMarkerId })
   const initialCameraModeRef = useRef(initialCameraMode)
+  const reportedViewportRef = useRef<PlaceMapViewport | undefined>(undefined)
   const synchronizingRef = useRef<Readonly<{ center: readonly [number, number]; zoom: number }> | undefined>(undefined)
   const [state, setState] = useState<'loading' | 'ready' | 'unavailable'>('loading')
   const [attempt, setAttempt] = useState(0)
@@ -70,12 +73,19 @@ export function MapLibrePlaceMap({
       const map = new maplibre.Map({
         container,
         style: readBrowserPlaceMapStyleUrl(),
+        transformRequest: rewriteOpenFreeMapSourceRequest,
         center: centerForBounds(bounds),
         zoom,
+        dragRotate: false,
+        pitchWithRotate: false,
+        touchPitch: false,
         attributionControl: { compact: true },
         trackResize: false,
       })
       mapRef.current = map
+      map.touchZoomRotate.disableRotation()
+      map.keyboard.disableRotation()
+      map.on('style.load', () => localizePlaceMapNames(map))
       map.addControl(new maplibre.NavigationControl({ showCompass: false }), 'bottom-right')
       map.addControl(new maplibre.GeolocateControl({
         positionOptions: { enableHighAccuracy: false },
@@ -128,7 +138,9 @@ export function MapLibrePlaceMap({
           if (longitudeDifference < 1e-7 && Math.abs(current.lat - synchronization.center[1]) < 1e-7 &&
             Math.abs(map.getZoom() - synchronization.zoom) < 1e-7) return
         }
-        callbacksRef.current.onViewportChange?.(readMapViewport(map))
+        const viewport = readMapViewport(map)
+        reportedViewportRef.current = viewport
+        callbacksRef.current.onViewportChange?.(viewport)
       })
       const selectFeature = (event: MapMouseEvent & { features?: MapGeoJSONFeature[] }) => {
         const feature = event.features?.[0]
@@ -157,6 +169,8 @@ export function MapLibrePlaceMap({
       mapRef.current?.remove()
       mapRef.current = undefined
       moduleRef.current = undefined
+      reportedViewportRef.current = undefined
+      synchronizingRef.current = undefined
     }
   // Recreate only for an explicit retry; ordinary prop synchronization happens below.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -186,6 +200,12 @@ export function MapLibrePlaceMap({
   useEffect(() => {
     const map = mapRef.current
     if (map === undefined || state !== 'ready') return
+    const reported = reportedViewportRef.current
+    reportedViewportRef.current = undefined
+    // The caller stores our observed bounds for querying, not as a camera command.
+    // Consume that exact echo once; a later new bounds object is genuine navigation.
+    // Globe (and Mercator) bounds midpoints do not describe the actual camera center.
+    if (reported?.bounds === bounds && reported.zoom === zoom) return
     const center = centerForBounds(bounds)
     const current = map.getCenter()
     const longitudeDifference = Math.abs((((current.lng - center[0]) + 540) % 360) - 180)

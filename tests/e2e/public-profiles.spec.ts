@@ -10,7 +10,7 @@ function json(route: Route, value: unknown, status = 200) {
   })
 }
 
-test('creates a stable public profile through authenticated settings', async ({ page }) => {
+test('creates a stable public profile through authenticated settings', async ({ page }, testInfo) => {
   const commands: unknown[] = []
   let profile: Record<string, unknown> | undefined
   await page.route('**/api/profile/moderation-notices**', (route) => json(route, {
@@ -42,12 +42,13 @@ test('creates a stable public profile through authenticated settings', async ({ 
   })
 
   await page.goto('/profile')
-  await page.getByLabel('공개 핸들').fill('ramen-log')
-  await page.getByLabel('표시 이름').fill('라멘 기록')
+  await expect(page.getByText('아직 공개 프로필이 없습니다. 아래에서 만들 수 있습니다.')).toBeVisible()
+  await page.getByRole('textbox', { name: '프로필 주소', exact: true }).fill('ramen-log')
+  await page.getByLabel('공개 닉네임').fill('라멘 기록')
   await page.getByLabel(/공개 —/).check()
   await page.getByRole('button', { name: '프로필 저장' }).click()
 
-  await expect(page.getByLabel('공개 핸들')).toBeDisabled()
+  await expect(page.getByRole('textbox', { name: '프로필 주소', exact: true })).toBeDisabled()
   await expect(page.getByRole('link', { name: '내 공개 프로필 보기' }))
     .toHaveAttribute('href', '/people/ramen-log')
   expect(commands).toHaveLength(1)
@@ -58,7 +59,26 @@ test('creates a stable public profile through authenticated settings', async ({ 
     },
   })
   expect(commands[0]).not.toHaveProperty('memberId')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
+  await page.screenshot({ path: testInfo.outputPath('public-profile-settings.png') })
 })
+
+for (const [status, message] of [
+  [401, '프로필을 만들거나 숨기려면 로그인이 필요합니다.'],
+  [403, '현재 계정은 공개 프로필을 관리할 권한이 없습니다.'],
+  [503, '프로필을 지금 불러올 수 없습니다. 프로필이 없다는 뜻은 아닙니다.'],
+] as const) {
+  test(`distinguishes profile ${status} from an uncreated profile`, async ({ page }) => {
+    await page.route('**/api/profile', (route) => json(route, {
+      type: 'urn:place:error:profile', title: 'Profile unavailable', status,
+      code: 'PLACE_PROFILE_UNAVAILABLE', retryable: status === 503, correlationRef: 'e2e-profile-state',
+    }, status))
+    await page.goto('/profile')
+    await expect(page.getByText(message, { exact: true })).toBeVisible()
+    await expect(page.getByRole('textbox', { name: '프로필 주소', exact: true })).toHaveCount(0)
+    await expect(page.getByText('아직 공개 프로필이 없습니다. 아래에서 만들 수 있습니다.')).toHaveCount(0)
+  })
+}
 
 test('acknowledges an owner moderation notice and submits one categorized appeal', async ({ page }) => {
   const noticeId = '01992d20-0000-7000-8000-000000000010'
@@ -151,7 +171,15 @@ test('renders only public Collections on a noindex anonymous profile', async ({ 
   await expect(page.locator('body')).not.toContainText('membership')
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/)
 
+  // The first dev-route compilation can consume the UI assertion's five-second window.
+  const nextPage = page.waitForResponse((response) => {
+    const url = new URL(response.url())
+    return url.pathname === '/api/public/profiles/ramen-log' && url.searchParams.get('cursor') === 'profile-page-2'
+  })
   await page.getByRole('button', { name: '컬렉션 더 보기' }).click()
+  const nextPageResponse = await nextPage
+  expect(nextPageResponse.status()).toBe(200)
+  expect(JSON.stringify(await nextPageResponse.json())).toContain('동네 카페 공개 목록')
   await expect(page.getByRole('link', { name: /동네 카페 공개 목록/ })).toBeVisible()
 
   const bff = await request.get('/api/public/profiles/ramen-log?limit=20')

@@ -17,7 +17,7 @@ try {
     page.on('pageerror', (error) => errors.push(error.message))
     page.on('response', (response) => responses.push({ url: response.url(), status: response.status() }))
     await page.goto(baseUrl)
-    assert.equal(await page.locator('body').getAttribute('data-place-map-style-url'), 'https://tiles.openfreemap.org/styles/liberty')
+    assert.equal(await page.locator('body').getAttribute('data-place-map-style-url'), 'https://tiles.openfreemap.org/styles/bright')
     await page.getByText('지도를 불러오는 중입니다.', { exact: true }).waitFor({ state: 'hidden', timeout: 45_000 })
     assert.equal(await page.getByRole('button', { name: '지도 다시 연결' }).count(), 0)
     await page.screenshot({ path: path.join(outputDirectory, `live-home-${width}.png`) })

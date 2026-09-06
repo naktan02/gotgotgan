@@ -8,7 +8,7 @@ describe('Catalog Home browser client', () => {
     const fetcher: typeof fetch = async (input, init) => {
       calls.push({ input, init })
       return Response.json({
-        schemaVersion: 'catalog-place-search.v1',
+        schemaVersion: 'catalog-place-search.v2',
         interpretation: {
           normalizedQuery: '성수 카페',
           tokens: [{
@@ -33,10 +33,10 @@ describe('Catalog Home browser client', () => {
       query: '성수 카페',
       cursor: 'next-page',
     }))
-      .resolves.toMatchObject({ schemaVersion: 'catalog-place-search.v1' })
-    expect(calls[0]?.input).toBe('/api/search/catalog')
+      .resolves.toMatchObject({ schemaVersion: 'catalog-place-search.v2' })
+    expect(calls[0]?.input).toBe('/api/v2/search/catalog')
     expect(JSON.parse(String(calls[0]?.init?.body))).toMatchObject({
-      schemaVersion: 'catalog-place-search.v1', query: '성수 카페', excludedTokenIds: [], cursor: 'next-page',
+      schemaVersion: 'catalog-place-search.v2', query: '성수 카페', excludedTokenIds: [], cursor: 'next-page', intent: 'auto',
     })
   })
 
@@ -45,7 +45,7 @@ describe('Catalog Home browser client', () => {
     const fetcher: typeof fetch = async (input, init) => {
       calls.push({ input, init })
       return Response.json({
-        schemaVersion: 'catalog-place-map.v1',
+        schemaVersion: 'catalog-place-map.v2',
         interpretation: { normalizedQuery: '서울 카페', tokens: [] },
         viewport: { west: 126, south: 37, east: 128, north: 38 },
         zoom: 11,
@@ -65,9 +65,9 @@ describe('Catalog Home browser client', () => {
       viewport: { west: 126, south: 37, east: 128, north: 38 },
       zoom: 11,
     })).resolves.toMatchObject({ mode: 'places' })
-    expect(calls[0]?.input).toBe('/api/search/catalog/map')
+    expect(calls[0]?.input).toBe('/api/v2/search/catalog/map')
     expect(JSON.parse(String(calls[0]?.init?.body))).toMatchObject({
-      schemaVersion: 'catalog-place-map.v1', maxFeatures: 384,
+      schemaVersion: 'catalog-place-map.v2', maxFeatures: 384,
     })
   })
 
@@ -77,7 +77,7 @@ describe('Catalog Home browser client', () => {
     const fetcher: typeof fetch = async (input, init) => {
       calls.push({ input, init })
       return Response.json({
-        schemaVersion: 'catalog-place-search.v1',
+        schemaVersion: 'catalog-place-search.v2',
         interpretation: { normalizedQuery: '태평양 여행', tokens: [] },
         items: [],
         mapBounds: crossingBounds,
@@ -88,7 +88,7 @@ describe('Catalog Home browser client', () => {
       query: '태평양 여행',
       bounds: crossingBounds,
     })).resolves.toMatchObject({ mapBounds: crossingBounds })
-    expect(calls[0]?.input).toBe('/api/search/catalog')
+    expect(calls[0]?.input).toBe('/api/v2/search/catalog')
     expect(JSON.parse(String(calls[0]?.init?.body))).toMatchObject({ bounds: crossingBounds })
   })
 })

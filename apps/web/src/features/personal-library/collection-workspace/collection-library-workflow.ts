@@ -15,6 +15,7 @@ import {
 import { usePlaceFilingWorkflow } from '../place-filing/place-filing-workflow'
 import { createLibraryMapRequestGuard } from '../library-map/library-map-request-guard'
 import { useCollectionDirectory } from './collection-directory-workflow'
+import { useLibraryQuery } from './search/use-library-query'
 
 type PageStatus = 'loading' | 'ready' | 'authentication-required' | 'forbidden' | 'not-found' | 'unavailable' | 'error'
 type MobileSurface = 'collections' | 'list' | 'map' | 'detail'
@@ -33,14 +34,15 @@ function failureStatus(reason: unknown): PageStatus {
   return 'error'
 }
 
-export function useCollectionLibraryWorkflow() {
+export type LibraryInitialScope = Readonly<{ initialQuery?: string; initialCollectionId?: string; initialScope?: 'directory' | 'favorites' }>
+
+export function useCollectionLibraryWorkflow(initial: LibraryInitialScope = {}) {
   const [pageStatus, setPageStatus] = useState<PageStatus>('loading')
   const [workspace, setWorkspace] = useState<PersonalLibraryWorkspaceResponseV2 | undefined>()
-  const [selectedCollectionId, setSelectedCollectionId] = useState<string | undefined>()
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | undefined>(initial.initialCollectionId)
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | undefined>()
-  const [mobileSurface, setMobileSurface] = useState<MobileSurface>('collections')
+  const [mobileSurface, setMobileSurface] = useState<MobileSurface>(initial.initialCollectionId !== undefined || initial.initialQuery !== undefined || initial.initialScope === 'favorites' ? 'list' : 'collections')
   const [collectionQuery, setCollectionQuery] = useState('')
-  const [placeQuery, setPlaceQuery] = useState('')
   const [ratingFilter, setRatingFilter] = useState<PersonalLibraryRatingFilterV2['kind']>('any')
   const [tagIds, setTagIds] = useState<readonly string[]>([])
   const [areaKeys, setAreaKeys] = useState<readonly string[]>([])
@@ -55,10 +57,8 @@ export function useCollectionLibraryWorkflow() {
   const [mapProjection, setMapProjection] = useState<PersonalLibraryMapResponseV2 | undefined>()
   const [mapStatus, setMapStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const [newCollectionName, setNewCollectionName] = useState('')
-  const [renameDraft, setRenameDraft] = useState('')
   const [collectionMutation, setCollectionMutation] = useState<'idle' | 'creating' | 'renaming' | 'deleting'>('idle')
   const [collectionMessage, setCollectionMessage] = useState<string | undefined>()
-  const [deleteArmed, setDeleteArmed] = useState(false)
   const requestSequence = useRef(0)
   const mapRequests = useRef(createLibraryMapRequestGuard())
   const tagRequestSequence = useRef(0)
@@ -69,6 +69,12 @@ export function useCollectionLibraryWorkflow() {
   }, [])
   const directoryFailure = useCallback((reason: unknown) => setPageStatus(failureStatus(reason)), [])
   const directory = useCollectionDirectory(collectionQuery, revision, directoryFailure)
+  const search = useLibraryQuery(initial.initialQuery ?? '', [
+    ...(workspace?.availableFilters.areas.map((item) => ({ kind: 'area' as const, key: item.key, label: item.label })) ?? []),
+    ...(workspace?.availableFilters.taxonomies.map((item) => ({ kind: 'taxonomy' as const, key: item.key, label: item.label })) ?? []),
+    ...tags.map((item) => ({ kind: 'tag' as const, key: item.tagId, label: item.name })),
+  ], { areaKeys, taxonomyKeys, tagIds })
+  const { query: placeQuery, submit: setPlaceQuery, text: queryText, filters: queryFilters } = search
   const hasPlaceScope = mobileSurface !== 'collections'
 
   const loadWorkspace = useCallback(async (
@@ -86,11 +92,11 @@ export function useCollectionLibraryWorkflow() {
           : { kind: 'collection', collectionId: selectedCollectionId },
         ...(selectedCollectionId === undefined ? {} : { includeSelectedCollection: true }),
         ratingFilter: { kind: ratingFilter },
-        tagIds: [...tagIds],
+        tagIds: [...queryFilters.tagIds],
         tagMatch: 'all',
-        areaKeys: [...areaKeys],
-        taxonomyKeys: [...taxonomyKeys],
-        ...(placeQuery.trim() ? { placeQuery: placeQuery.trim() } : {}),
+        areaKeys: [...queryFilters.areaKeys],
+        taxonomyKeys: [...queryFilters.taxonomyKeys],
+        ...(queryText ? { placeQuery: queryText } : {}),
         ...(cursors.placeCursor === undefined ? {} : { placeCursor: cursors.placeCursor }),
         limit: 20,
       }, signal)
@@ -117,7 +123,7 @@ export function useCollectionLibraryWorkflow() {
     } finally {
       if (sequence === requestSequence.current) setLoadingMore(false)
     }
-  }, [areaKeys, placeQuery, ratingFilter, selectedCollectionId, tagIds, taxonomyKeys])
+  }, [queryFilters, queryText, ratingFilter, selectedCollectionId])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -129,11 +135,6 @@ export function useCollectionLibraryWorkflow() {
     ? workspace?.selectedCollection : undefined) ?? workspace?.collections.find((collection) => (
     collection.collectionId === selectedCollectionId
   )) ?? directory.collections.find((collection) => collection.collectionId === selectedCollectionId)
-
-  useEffect(() => {
-    setRenameDraft(selectedCollection?.name ?? '')
-    setDeleteArmed(false)
-  }, [selectedCollection])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -169,8 +170,8 @@ export function useCollectionLibraryWorkflow() {
       collectionLibraryHttp.map({
         favoriteScope: selectedCollectionId === undefined ? { kind: 'all' } : { kind: 'collection', collectionId: selectedCollectionId },
         ratingFilter: { kind: ratingFilter },
-        tagIds: [...tagIds], tagMatch: 'all', areaKeys: [...areaKeys], taxonomyKeys: [...taxonomyKeys],
-        ...(placeQuery.trim() ? { placeQuery: placeQuery.trim() } : {}),
+        tagIds: [...queryFilters.tagIds], tagMatch: 'all', areaKeys: [...queryFilters.areaKeys], taxonomyKeys: [...queryFilters.taxonomyKeys],
+        ...(queryText ? { placeQuery: queryText } : {}),
         west: mapViewport.bounds.west,
         south: mapViewport.bounds.south,
         east: mapViewport.bounds.east,
@@ -192,7 +193,7 @@ export function useCollectionLibraryWorkflow() {
       window.clearTimeout(timeout)
       mapRequests.current.cancel(request)
     }
-  }, [accessFailure, areaKeys, hasPlaceScope, mapViewport, placeQuery, ratingFilter, revision, selectedCollectionId, tagIds, taxonomyKeys])
+  }, [accessFailure, hasPlaceScope, mapViewport, queryFilters, queryText, ratingFilter, revision, selectedCollectionId])
 
   const refresh = useCallback(async () => {
     setRevision((current) => current + 1)
@@ -219,7 +220,7 @@ export function useCollectionLibraryWorkflow() {
     request: Parameters<typeof collectionLibraryHttp.collectionCommand>[0],
     onApplied: () => void,
   ) => {
-    if (collectionMutation !== 'idle') return
+    if (collectionMutation !== 'idle') return false
     setCollectionMutation(kind)
     setCollectionMessage(undefined)
     try {
@@ -231,10 +232,11 @@ export function useCollectionLibraryWorkflow() {
             ? '다른 곳에서 카테고리가 변경되었습니다. 최신 목록에서 다시 시도해 주세요.'
             : '카테고리 변경을 적용할 수 없습니다. 최신 목록을 확인해 주세요.')
         setRevision((current) => current + 1)
-        return
+        return false
       }
       onApplied()
       setRevision((current) => current + 1)
+      return true
     } catch (reason) {
       const status = reason instanceof CollectionLibraryProblem ? reason.status : 503
       if (status === 401 || status === 403) accessFailure(status)
@@ -245,6 +247,7 @@ export function useCollectionLibraryWorkflow() {
           : status === 503
             ? '카테고리 변경을 저장할 수 없습니다. 잠시 뒤 다시 시도해 주세요.'
             : '카테고리 변경을 적용하지 못했습니다.')
+      return false
     } finally {
       setCollectionMutation('idle')
     }
@@ -269,35 +272,35 @@ export function useCollectionLibraryWorkflow() {
     })
   }
 
-  const renameCollection = () => {
-    const name = renameDraft.trim()
+  const renameCollection = (target: NonNullable<typeof selectedCollection>, draft: string) => {
+    const name = draft.trim()
     if (
-      selectedCollection === undefined || name.length === 0 || name.length > 120 ||
-      name === selectedCollection.name
-    ) return Promise.resolve()
+      name.length === 0 || name.length > 120 ||
+      name === target.name
+    ) return Promise.resolve(false)
     return executeCollectionCommand('renaming', {
       schemaVersion: 'collection-lifecycle-command.v2',
       kind: 'update',
       commandId: crypto.randomUUID(),
-      collectionId: selectedCollection.collectionId,
-      expectedCollectionRevision: selectedCollection.collectionRevision,
+      collectionId: target.collectionId,
+      expectedCollectionRevision: target.collectionRevision,
       name,
     }, () => undefined)
   }
 
-  const deleteCollection = () => {
-    if (selectedCollection === undefined || !deleteArmed) return Promise.resolve()
+  const deleteCollection = (target: NonNullable<typeof selectedCollection>) => {
     return executeCollectionCommand('deleting', {
       schemaVersion: 'collection-lifecycle-command.v2',
       kind: 'delete',
       commandId: crypto.randomUUID(),
-      collectionId: selectedCollection.collectionId,
-      expectedCollectionRevision: selectedCollection.collectionRevision,
+      collectionId: target.collectionId,
+      expectedCollectionRevision: target.collectionRevision,
     }, () => {
-      setSelectedCollectionId(undefined)
-      setSelectedPlaceId(undefined)
-      setDeleteArmed(false)
-      setMobileSurface('collections')
+      if (selectedCollectionId === target.collectionId) {
+        setSelectedCollectionId(undefined)
+        setSelectedPlaceId(undefined)
+        setMobileSurface('collections')
+      }
     })
   }
 
@@ -316,12 +319,13 @@ export function useCollectionLibraryWorkflow() {
     mobileSurface,
     collectionQuery,
     placeQuery,
+    search,
     setCollectionQuery,
     setPlaceQuery,
     ratingFilter,
-    tagIds,
-    areaKeys,
-    taxonomyKeys,
+    tagIds: queryFilters.tagIds,
+    areaKeys: queryFilters.areaKeys,
+    taxonomyKeys: queryFilters.taxonomyKeys,
     tags,
     tagError,
     tagNextCursor,
@@ -334,10 +338,8 @@ export function useCollectionLibraryWorkflow() {
     mapProjection,
     mapStatus,
     newCollectionName,
-    renameDraft,
     collectionMutation,
     collectionMessage,
-    deleteArmed,
     filing,
     handleAccessFailure: accessFailure,
     handleTagsChanged,
@@ -375,21 +377,28 @@ export function useCollectionLibraryWorkflow() {
       setMobileSurface('collections')
     },
     clearFilters: () => {
+      search.clearConditions()
       setRatingFilter('any')
       setTagIds([])
       setAreaKeys([])
       setTaxonomyKeys([])
     },
     setRatingFilter,
-    toggleTag: (tagId: string) => setTagIds((current) => current.includes(tagId)
-      ? current.filter((candidate) => candidate !== tagId)
-      : [...current, tagId]),
-    toggleArea: (key: string) => setAreaKeys((current) => current.includes(key)
-      ? current.filter((candidate) => candidate !== key)
-      : [...current, key]),
-    toggleTaxonomy: (key: string) => setTaxonomyKeys((current) => current.includes(key)
-      ? current.filter((candidate) => candidate !== key)
-      : [...current, key]),
+    toggleTag: (tagId: string) => {
+      const automatic = search.conditions.find((item) => item.kind === 'tag' && item.key === tagId)
+      if (automatic) search.removeCondition(automatic)
+      setTagIds((current) => current.includes(tagId) ? current.filter((candidate) => candidate !== tagId) : automatic ? current : [...current, tagId])
+    },
+    toggleArea: (key: string) => {
+      const automatic = search.conditions.find((item) => item.kind === 'area' && item.key === key)
+      if (automatic) search.removeCondition(automatic)
+      setAreaKeys((current) => current.includes(key) ? current.filter((candidate) => candidate !== key) : automatic ? current : [...current, key])
+    },
+    toggleTaxonomy: (key: string) => {
+      const automatic = search.conditions.find((item) => item.kind === 'taxonomy' && item.key === key)
+      if (automatic) search.removeCondition(automatic)
+      setTaxonomyKeys((current) => current.includes(key) ? current.filter((candidate) => candidate !== key) : automatic ? current : [...current, key])
+    },
     setMapViewport,
     retryMap: () => setRevision((current) => current + 1),
     retry: () => setRevision((current) => current + 1),
@@ -424,9 +433,6 @@ export function useCollectionLibraryWorkflow() {
       } finally { if (sequence === tagRequestSequence.current) setLoadingMoreTags(false) }
     },
     setNewCollectionName,
-    setRenameDraft,
-    armDelete: () => setDeleteArmed(true),
-    cancelDelete: () => setDeleteArmed(false),
     createCollection,
     renameCollection,
     deleteCollection,

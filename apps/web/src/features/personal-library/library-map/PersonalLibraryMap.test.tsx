@@ -7,9 +7,13 @@ import { PersonalLibraryMap } from './PersonalLibraryMap'
 
 describe('Place map Renderer Interface', () => {
   it('lets a feature render through an injected Adapter', () => {
-    const FakeMap: PlaceMapRenderer = ({ title, markers }) => (
-      <div data-adapter="fake">{title}:{markers.map((marker) => marker.label).join(',')}</div>
-    )
+    const liveViewport = { bounds: { west: 126.9, south: 37.5, east: 127.1, north: 37.6 }, zoom: 12 }
+    const FakeMap: PlaceMapRenderer = ({ title, markers, bounds, zoom }) => {
+      // Preserve the exact observed object; a separately decoded projection is not camera intent.
+      expect(bounds).toBe(liveViewport.bounds)
+      expect(zoom).toBe(liveViewport.zoom)
+      return <div data-adapter="fake">{title}:{markers.map((marker) => marker.label).join(',')}</div>
+    }
     const markup = renderToStaticMarkup(
       <PersonalLibraryMap
         loading={false}
@@ -23,7 +27,7 @@ describe('Place map Renderer Interface', () => {
             kind: 'collection', collectionId: '01992d20-0000-7000-8000-000000000011',
           },
           viewport: {
-            bounds: { west: 126.9, south: 37.5, east: 127.1, north: 37.6 }, zoom: 12,
+            bounds: { west: 130, south: 30, east: 140, north: 40 }, zoom: 6,
           },
           features: [{
             kind: 'place', placeId: '01992d20-0000-7000-8000-000000000001',
@@ -31,9 +35,7 @@ describe('Place map Renderer Interface', () => {
           }],
           coverage: { representedPlaceCount: 1, unprojectedPlaceCount: 0, complete: true },
         }}
-        viewport={{
-          bounds: { west: 126.9, south: 37.5, east: 127.1, north: 37.6 }, zoom: 12,
-        }}
+        viewport={liveViewport}
       />,
     )
 

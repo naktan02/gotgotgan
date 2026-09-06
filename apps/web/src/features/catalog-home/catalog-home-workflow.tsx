@@ -1,14 +1,14 @@
 'use client'
 
-import type { CatalogSearchInterpretationToken, SearchBounds } from '@place/contracts/search'
+import type { CatalogSearchInterpretationToken, CatalogSearchIntent, CatalogExplorationResponse, SearchBounds } from '@place/contracts/search'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { PlaceMapCluster, PlaceMapMarker, PlaceMapViewport } from '@/platform/maps/public'
 
 import { catalogHomeClient } from './catalog-home-client'
 import { createCatalogMapRequestGuard } from './catalog-map-request-guard'
-
-export const catalogQuickTypes = ['음식점', '카페', '관광지', '쇼핑', '문화시설', '숙박'] as const
+import { catalogSearchNear } from './search-input/search-location'
+import { createCatalogQueryIntentResolver } from './search-input/catalog-query-intent'
 
 export type CatalogHomePlace = Readonly<{
   placeId: string
@@ -36,6 +36,10 @@ type CollectionState = 'loading' | 'ready' | 'signed-out' | 'unavailable'
 type SearchState = 'idle' | 'loading' | 'ready' | 'unavailable'
 
 export type CatalogHomeWorkflow = Readonly<{
+  searchIntent: CatalogSearchIntent
+  destination: CatalogExplorationResponse['destinations'][number] | undefined
+  chooseDestination: (destination: CatalogExplorationResponse['destinations'][number]) => void
+  chooseCandidate: (candidate: CatalogExplorationResponse['places'][number]) => void
   draftQuery: string
   submittedQuery: string
   selectedQuickType: string | null
@@ -55,8 +59,8 @@ export type CatalogHomeWorkflow = Readonly<{
   mapState: 'idle' | 'loading' | 'ready' | 'unavailable'
   mapDescription: string
   changeDraftQuery: (query: string) => void
-  submitSearch: () => void
-  toggleQuickType: (value: string) => void
+  submitSearch: (intent?: CatalogSearchIntent) => void
+  toggleQuickType: (value: string, key?: string) => void
   excludeToken: (tokenId: string) => void
   selectPlace: (placeId: string) => void
   setCollectionPickerOpen: (open: boolean) => void
@@ -84,8 +88,13 @@ export function CatalogHomeProvider({
   library,
 }: Readonly<{ children: React.ReactNode; initialQuery?: string; library: CatalogHomeLibrary }>) {
   const [draftQuery, setDraftQuery] = useState(() => normalize(initialQuery))
+  const [searchIntent, setSearchIntent] = useState<CatalogSearchIntent>('auto')
+  const intentRef = useRef<CatalogSearchIntent>('auto')
+  const [destination, setDestination] = useState<CatalogExplorationResponse['destinations'][number]>()
   const [submittedQuery, setSubmittedQuery] = useState('')
   const [selectedQuickType, setSelectedQuickType] = useState<string | null>(null)
+  const taxonomyKeyRef = useRef<string | undefined>(undefined)
+  const searchNearRef = useRef<ReturnType<typeof catalogSearchNear>>(undefined)
   const [excludedTokenIds, setExcludedTokenIds] = useState<readonly string[]>([])
   const [interpretation, setInterpretation] = useState<readonly CatalogSearchInterpretationToken[]>([])
   const [items, setItems] = useState<readonly CatalogHomePlace[]>([])
@@ -107,6 +116,7 @@ export function CatalogHomeProvider({
   const searchSequence = useRef(0)
   const searchController = useRef<AbortController | undefined>(undefined)
   const mapRequests = useRef(createCatalogMapRequestGuard())
+  const queryIntents = useRef(createCatalogQueryIntentResolver())
   const viewportRef = useRef(initialViewport)
   const viewportTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -124,6 +134,8 @@ export function CatalogHomeProvider({
     setMapState('loading')
     try {
       const projection = await catalogHomeClient.map({
+        intent: intentRef.current,
+        ...(taxonomyKeyRef.current === undefined ? {} : { taxonomyKey: taxonomyKeyRef.current }),
         query,
         excludedTokenIds: exclusions,
         viewport: nextViewport.bounds,
@@ -179,16 +191,17 @@ export function CatalogHomeProvider({
 
   const executeSearch = useCallback(async (
     query: string,
-    quickType: string | null,
     exclusions: readonly string[],
     bounds?: SearchBounds,
     cursor?: string,
     preserveSelection = false,
   ) => {
-    const effectiveQuery = normalize([query, quickType].filter(Boolean).join(' '))
+    const effectiveQuery = normalize(query)
+    setDestination(undefined)
     clearTimeout(viewportTimer.current)
-    if (effectiveQuery.length === 0) {
+    if (effectiveQuery.length === 0 && !taxonomyKeyRef.current) {
       searchController.current?.abort()
+      ++searchSequence.current
       mapRequests.current.invalidate()
       setSubmittedQuery('')
       setItems([])
@@ -211,6 +224,7 @@ export function CatalogHomeProvider({
     if (appending) {
       setPaginationState('loading')
     } else {
+      searchNearRef.current = catalogSearchNear(viewportRef.current)
       if (!preserveSelection) setSelectedSummary(undefined)
       mapRequests.current.invalidate()
       setSubmittedQuery(query)
@@ -225,6 +239,9 @@ export function CatalogHomeProvider({
     }
     try {
       const page = await catalogHomeClient.search({
+        intent: intentRef.current,
+        ...(taxonomyKeyRef.current === undefined ? {} : { taxonomyKey: taxonomyKeyRef.current }),
+        ...(searchNearRef.current === undefined ? {} : { near: searchNearRef.current }),
         query: effectiveQuery,
         excludedTokenIds: exclusions,
         signal: controller.signal,
@@ -243,7 +260,7 @@ export function CatalogHomeProvider({
       setItems((current) => appending
         ? [...current, ...places.filter((place) => !current.some((item) => item.placeId === place.placeId))]
         : places)
-      setInterpretation(page.interpretation.tokens)
+      setInterpretation(page.interpretation.tokens.filter((token) => token.kind !== 'query'))
       if (!appending) {
         if (!preserveSelection) {
           setSelectedPlaceId((current) => places.some((item) => item.placeId === current)
@@ -278,16 +295,6 @@ export function CatalogHomeProvider({
     }
   }, [executeMapSearch, updateViewport])
 
-  useEffect(() => {
-    const query = normalize(initialQuery)
-    if (query.length > 0) void executeSearch(query, null, [])
-    return () => {
-      clearTimeout(viewportTimer.current)
-      searchController.current?.abort()
-      mapRequests.current.invalidate()
-    }
-  }, [executeSearch, initialQuery])
-
   const selectedMapPlace = mapMarkers.find((item) => item.id === selectedPlaceId)
   const selected = (selectedSummary?.placeId === selectedPlaceId ? selectedSummary : undefined) ?? items.find((item) => item.placeId === selectedPlaceId) ?? (
     selectedMapPlace === undefined ? undefined : {
@@ -295,22 +302,69 @@ export function CatalogHomeProvider({
       areaLabel: null, taxonomyLabel: null, evidenceStatus: 'unknown' as const,
     }
   )
-  const submitSearch = () => {
+  const chooseDestination = useCallback((next: CatalogExplorationResponse['destinations'][number]) => {
+    queryIntents.current.invalidate()
+    searchController.current?.abort(); mapRequests.current.invalidate(); ++searchSequence.current
+    clearTimeout(viewportTimer.current)
+    setDestination(next); setSelectedPlaceId(undefined); setSelectedSummary(undefined)
+    setDraftQuery(next.name); setSubmittedQuery(next.name); setSelectedQuickType(null)
+    intentRef.current = 'name'; setSearchIntent('name')
+    taxonomyKeyRef.current = undefined
+    setInterpretation([]); setItems([]); setMapMarkers([]); setMapClusters([])
+    setSearchState('ready'); setMapState('ready'); setNextCursor(undefined)
+    const { latitude, longitude } = next.location
+    const bounds = next.bounds ?? { west: longitude - 0.12, east: longitude + 0.12, south: latitude - 0.09, north: latitude + 0.09 }
+    const width = (bounds.east - bounds.west + 360) % 360 || 360
+    updateViewport({ bounds, zoom: next.kind === 'city' ? 11 : Math.max(1, Math.min(7, Math.log2(360 / width))) })
+  }, [updateViewport])
+  const resolveQuery = useCallback((query: string, intent: CatalogSearchIntent) => {
+    searchController.current?.abort(); ++searchSequence.current; mapRequests.current.invalidate()
+    clearTimeout(viewportTimer.current)
+    void queryIntents.current.resolve({
+      query, intent, hasTaxonomy: taxonomyKeyRef.current !== undefined,
+      explore: (signal) => catalogHomeClient.explore(query, AbortSignal.any([signal, AbortSignal.timeout(5_000)]), catalogSearchNear(viewportRef.current)),
+      search: (nextIntent) => {
+        intentRef.current = nextIntent; setSearchIntent(nextIntent)
+        void executeSearch(query, [])
+      },
+      chooseDestination,
+    })
+  }, [chooseDestination, executeSearch])
+  useEffect(() => {
+    const query = normalize(initialQuery)
+    if (query.length > 0) resolveQuery(query, 'auto')
+    return () => {
+      queryIntents.current.invalidate()
+      clearTimeout(viewportTimer.current)
+      searchController.current?.abort()
+      mapRequests.current.invalidate()
+    }
+  }, [resolveQuery, initialQuery])
+  const submitSearch = (intent: CatalogSearchIntent = 'auto') => {
     const query = normalize(draftQuery)
     setDraftQuery(query)
     setExcludedTokenIds([])
-    void executeSearch(query, selectedQuickType, [])
+    resolveQuery(query, intent)
   }
-  const toggleQuickType = (value: string) => {
-    const next = selectedQuickType === value ? null : value
+  const toggleQuickType = (value: string, key?: string) => {
+    queryIntents.current.invalidate()
+    // A picker choice is selection, including reselecting the current key. Only
+    // the keyless chip action removes it.
+    const next = key === undefined && selectedQuickType === value ? null : value
+    taxonomyKeyRef.current = next === null ? undefined : key
+    intentRef.current = 'conditions'; setSearchIntent('conditions')
     setSelectedQuickType(next)
     setExcludedTokenIds([])
-    void executeSearch(normalize(draftQuery), next, [])
+    void executeSearch(normalize(draftQuery), [])
   }
   const excludeToken = (tokenId: string) => {
+    queryIntents.current.invalidate()
     const next = [...new Set([...excludedTokenIds, tokenId])]
+    const token = interpretation.find((token) => token.tokenId === tokenId)
+    const quick = token && token.kind !== 'query' && token.key === taxonomyKeyRef.current ? null : selectedQuickType
+    if (quick === null) { taxonomyKeyRef.current = undefined; setSelectedQuickType(null) }
     setExcludedTokenIds(next)
-    void executeSearch(submittedQuery, selectedQuickType, next)
+    void executeSearch(submittedQuery, next)
   }
   const onFilingApplied = useCallback(async () => {
     await loadCollections(new AbortController().signal)
@@ -321,15 +375,37 @@ export function CatalogHomeProvider({
   }, [])
 
   const value = useMemo<CatalogHomeWorkflow>(() => ({
+    searchIntent, destination, chooseDestination,
+    chooseCandidate: (candidate) => {
+      queryIntents.current.invalidate()
+      intentRef.current = 'name'; setSearchIntent('name'); setDestination(undefined)
+      const place: CatalogHomePlace = {
+        placeId: candidate.placeId, name: candidate.name, areaLabel: candidate.area?.label ?? null,
+        taxonomyLabel: candidate.primaryTaxonomy?.label ?? null, location: candidate.location,
+        evidenceStatus: candidate.evidenceStatus,
+      }
+      setDraftQuery(place.name); setSubmittedQuery(place.name); setSelectedQuickType(null)
+      taxonomyKeyRef.current = undefined; clearTimeout(viewportTimer.current)
+      setItems([place]); setSelectedSummary(place); setSelectedPlaceId(place.placeId)
+      setInterpretation([]); setSearchState('ready'); setNextCursor(undefined)
+      searchController.current?.abort(); ++searchSequence.current; mapRequests.current.invalidate()
+      setMapClusters([]); setMapState('ready')
+      setMapMarkers(place.location ? [{ id: place.placeId, label: place.name, location: place.location }] : [])
+      if (place.location) updateViewport({ zoom: 16, bounds: {
+        west: place.location.longitude - 0.003, east: place.location.longitude + 0.003,
+        south: place.location.latitude - 0.002, north: place.location.latitude + 0.002,
+      } })
+    },
     draftQuery, submittedQuery, selectedQuickType, interpretation, items, selected,
     searchState, searchError, nextCursor, paginationState,
     collections, collectionState, collectionPickerOpen,
     viewport, mapMarkers, mapClusters, mapState, mapDescription,
-    changeDraftQuery: setDraftQuery,
+    changeDraftQuery: (query) => { queryIntents.current.invalidate(); setDraftQuery(query) },
     submitSearch,
     toggleQuickType,
     excludeToken,
     selectPlace: (placeId) => {
+      queryIntents.current.invalidate()
       const marker = mapMarkers.find((item) => item.id === placeId)
       setSelectedSummary(items.find((item) => item.placeId === placeId) ?? (marker === undefined ? undefined : {
         placeId: marker.id, name: marker.label, location: marker.location,
@@ -344,22 +420,21 @@ export function CatalogHomeProvider({
     setViewport: (next) => {
       updateViewport(next)
       clearTimeout(viewportTimer.current)
-      if (normalize([submittedQuery, selectedQuickType].filter(Boolean).join(' ')).length > 0) {
+      if (!destination && normalize([submittedQuery, selectedQuickType].filter(Boolean).join(' ')).length > 0) {
         viewportTimer.current = setTimeout(() => {
-          void executeSearch(submittedQuery, selectedQuickType, excludedTokenIds, next.bounds, undefined, true)
+          void executeMapSearch(submittedQuery, excludedTokenIds, next)
         }, 300)
       }
     },
     selectMapCluster: (cluster) => {
       const next = { bounds: cluster.bounds, zoom: Math.min(22, viewport.zoom + 2) }
       updateViewport(next)
-      void executeSearch(submittedQuery, selectedQuickType, excludedTokenIds, next.bounds, undefined, true)
+      void executeMapSearch(submittedQuery, excludedTokenIds, next)
     },
     loadMore: () => {
       if (nextCursor !== undefined && paginationState !== 'loading') {
         void executeSearch(
           submittedQuery,
-          selectedQuickType,
           excludedTokenIds,
           activeSearchBounds,
           nextCursor,
@@ -368,6 +443,7 @@ export function CatalogHomeProvider({
     },
   }), [
     collectionPickerOpen, collectionState, collections,
+    searchIntent, destination, executeMapSearch,
     activeSearchBounds, draftQuery, excludedTokenIds, executeSearch, interpretation, items,
     mapClusters, mapDescription, mapMarkers, mapState, nextCursor, onFilingAccessFailure, onFilingApplied, paginationState, searchError, searchState, selected,
     selectedQuickType, submittedQuery, updateViewport, viewport,
