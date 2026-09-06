@@ -45,12 +45,12 @@ describe('Collection-first Library browser client', () => {
     expect(url.searchParams.has('state')).toBe(false)
   })
 
-  it('uses identical place filters in the Collection-first v2 map boundary', async () => {
+  it('uses identical place filters in the Collection-first v3 map boundary', async () => {
     let requested = ''
     const fetcher = vi.fn(async (input: RequestInfo | URL) => {
       requested = String(input)
       return Response.json({
-        schemaVersion: 'personal-library-map.v2',
+        schemaVersion: 'personal-library-map.v3',
         filter: { favoriteScope: { kind: 'collection', collectionId }, ratingFilter: { kind: 'rated' },
           tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: ['ramen.shoyu'], placeQuery: '성수동 라멘' },
         viewport: { bounds: { west: 126, south: 37, east: 128, north: 38 }, zoom: 12 },
@@ -63,7 +63,7 @@ describe('Collection-first Library browser client', () => {
       west: 126, south: 37, east: 128, north: 38, zoom: 12,
     })
     const url = new URL(requested, 'https://gotgotgan.test')
-    expect(url.pathname).toBe('/api/library/workspace/map')
+    expect(url.pathname).toBe('/api/v3/library/workspace/map')
     expect(url.searchParams.get('scope')).toBeNull()
     expect(url.searchParams.get('collectionId')).toBe(collectionId)
     expect(url.searchParams.get('rating')).toBe('rated')

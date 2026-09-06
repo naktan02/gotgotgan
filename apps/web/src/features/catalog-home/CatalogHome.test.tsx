@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { PlaceMapRendererProperties } from '@/platform/maps/public'
 
-import { CatalogHomeView } from './CatalogHome'
+import { CatalogHomeView, type CatalogHomePlaceDetailRenderer } from './CatalogHome'
 import type { CatalogHomeWorkflow } from './catalog-home-workflow'
 
 function FakeMap({
@@ -14,9 +14,7 @@ function FakeMap({
   return <div data-initial-camera-mode={initialCameraMode} data-map>{markers.length} markers · {description}</div>
 }
 
-function FakePlaceFiling() {
-  return <div>주입된 컬렉션 정리</div>
-}
+const FakePlaceDetail: CatalogHomePlaceDetailRenderer = ({ place }) => <div>{place.name} · 주입된 공통 장소 상세</div>
 
 const noOperation = () => undefined
 const place = {
@@ -62,14 +60,21 @@ const workflow: CatalogHomeWorkflow = {
 }
 
 describe('Catalog Home view', () => {
-  it('counts a geographic destination independently from canonical place results', () => {
-    const markup = renderToStaticMarkup(<CatalogHomeView MapRenderer={FakeMap} PlaceFilingRenderer={FakePlaceFiling}
+  it.each([
+    ['country', '대한민국', '국가'],
+    ['city', '서울', '도시'],
+    ['administrative-area', '경기도', '광역 지역'],
+    ['locality', '양주시', '지역'],
+    ['neighborhood', '성수동', '동네'],
+  ] as const)('labels a %s destination independently from canonical place results', (kind, name, label) => {
+    const markup = renderToStaticMarkup(<CatalogHomeView MapRenderer={FakeMap} PlaceDetailRenderer={FakePlaceDetail}
       workflow={{ ...workflow, items: [], selected: undefined, searchState: 'ready', destination: {
-        key: 'country.kr', name: '대한민국', kind: 'country', countryCode: 'KR', exact: true,
+        key: 'region.fixture', name, kind, countryCode: 'KR', exact: true,
         location: { latitude: 36, longitude: 128 }, bounds: null,
       } }} />)
     expect(markup).toContain('지역 검색')
     expect(markup).toContain('1개 지역')
+    expect(markup).toContain(`${label} · 지도에서 보기`)
     expect(markup).not.toContain('0곳')
   })
 
@@ -77,28 +82,27 @@ describe('Catalog Home view', () => {
     const markup = renderToStaticMarkup(
       <CatalogHomeView
         MapRenderer={FakeMap}
-        PlaceFilingRenderer={FakePlaceFiling}
+        PlaceDetailRenderer={FakePlaceDetail}
         workflow={{ ...workflow, items: [], selected: { ...place, evidenceStatus: 'unknown' } }}
       />,
     )
 
     expect(markup).toContain('좌표 없는 전시 공간')
-    expect(markup).toContain('컬렉션 선택')
+    expect(markup).toContain('주입된 공통 장소 상세')
     expect(markup).not.toMatch(/검증됨|검토 전|정보 충돌|갱신 필요/)
   })
 
-  it('keeps the result and Collection chooser available when coordinates are absent', () => {
+  it('keeps the same detail renderer available when coordinates are absent', () => {
     const markup = renderToStaticMarkup(
       <CatalogHomeView
         MapRenderer={FakeMap}
-        PlaceFilingRenderer={FakePlaceFiling}
+        PlaceDetailRenderer={FakePlaceDetail}
         workflow={workflow}
       />,
     )
 
     expect(markup).toContain('좌표 없는 전시 공간')
-    expect(markup).toContain('컬렉션 선택')
-    expect(markup).toContain('주입된 컬렉션 정리')
+    expect(markup).toContain('주입된 공통 장소 상세')
     expect(markup).toContain('현재 결과에는 표시할 좌표가 없습니다')
     expect(markup).toContain('data-map')
     expect(markup).toContain('data-initial-camera-mode="supplied-bounds"')
@@ -120,7 +124,7 @@ describe('Catalog Home view', () => {
     const markup = renderToStaticMarkup(
       <CatalogHomeView
         MapRenderer={FakeMap}
-        PlaceFilingRenderer={FakePlaceFiling}
+        PlaceDetailRenderer={FakePlaceDetail}
         workflow={idleWorkflow}
       />,
     )

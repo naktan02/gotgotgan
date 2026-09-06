@@ -1,6 +1,6 @@
 'use client'
 
-import type { CatalogSearchInterpretationToken, CatalogSearchIntent, CatalogExplorationResponse, SearchBounds } from '@place/contracts/search'
+import type { CatalogSearchInterpretationToken, CatalogSearchIntent, CatalogExplorationResponseV2 as CatalogExplorationResponse, SearchBounds } from '@place/contracts/search'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { PlaceMapCluster, PlaceMapMarker, PlaceMapViewport } from '@/platform/maps/public'
@@ -99,6 +99,8 @@ export function CatalogHomeProvider({
   const [interpretation, setInterpretation] = useState<readonly CatalogSearchInterpretationToken[]>([])
   const [items, setItems] = useState<readonly CatalogHomePlace[]>([])
   const [selectedPlaceId, setSelectedPlaceId] = useState<string>()
+  const selectedPlaceIdRef = useRef(selectedPlaceId)
+  selectedPlaceIdRef.current = selectedPlaceId
   const [selectedSummary, setSelectedSummary] = useState<CatalogHomePlace>()
   const [searchState, setSearchState] = useState<SearchState>('idle')
   const [searchError, setSearchError] = useState<string>()
@@ -134,6 +136,7 @@ export function CatalogHomeProvider({
     setMapState('loading')
     try {
       const projection = await catalogHomeClient.map({
+        ...(selectedPlaceIdRef.current === undefined ? {} : { selectedPlaceId: selectedPlaceIdRef.current }),
         intent: intentRef.current,
         ...(taxonomyKeyRef.current === undefined ? {} : { taxonomyKey: taxonomyKeyRef.current }),
         query,
@@ -145,17 +148,19 @@ export function CatalogHomeProvider({
       if (!mapRequests.current.isCurrent(request.generation)) return
       setMapMarkers(projection.features.flatMap((feature) => feature.kind === 'place' ? [{
         id: feature.placeId,
-        label: feature.name,
+        label: feature.label,
         location: feature.location,
+        classification: feature.classification,
       }] : []))
       setMapClusters(projection.features.flatMap((feature) => feature.kind === 'cluster' ? [{
-        id: feature.featureId,
-        count: feature.placeCount,
+        id: feature.clusterId,
+        count: feature.count,
         location: feature.location,
         bounds: feature.bounds,
+        coincidentPreview: feature.coincidentPreview,
       }] : []))
       setMapDescription(
-        `현재 영역에서 ${projection.coverage.representedPlaceCount}곳을 ${projection.mode === 'clusters' ? '묶음' : '개별 장소'}으로 표시했습니다.`,
+        `현재 영역의 ${projection.coverage.representedPlaceCount}곳을 표시했습니다. 가까운 점만 묶었습니다.`,
       )
       setMapState('ready')
     } catch (reason) {
@@ -313,9 +318,11 @@ export function CatalogHomeProvider({
     setInterpretation([]); setItems([]); setMapMarkers([]); setMapClusters([])
     setSearchState('ready'); setMapState('ready'); setNextCursor(undefined)
     const { latitude, longitude } = next.location
-    const bounds = next.bounds ?? { west: longitude - 0.12, east: longitude + 0.12, south: latitude - 0.09, north: latitude + 0.09 }
+    const pointRadius = next.kind === 'neighborhood' ? 0.012 : next.kind === 'administrative-area' ? 0.5 : 0.12
+    const bounds = next.bounds ?? { west: longitude - pointRadius, east: longitude + pointRadius, south: latitude - pointRadius * 0.75, north: latitude + pointRadius * 0.75 }
     const width = (bounds.east - bounds.west + 360) % 360 || 360
-    updateViewport({ bounds, zoom: next.kind === 'city' ? 11 : Math.max(1, Math.min(7, Math.log2(360 / width))) })
+    const pointZoom = next.kind === 'neighborhood' ? 14 : next.kind === 'administrative-area' ? 8 : 11
+    updateViewport({ bounds, zoom: next.bounds === null ? pointZoom : Math.max(1, Math.min(7, Math.log2(360 / width))) })
   }, [updateViewport])
   const resolveQuery = useCallback((query: string, intent: CatalogSearchIntent) => {
     searchController.current?.abort(); ++searchSequence.current; mapRequests.current.invalidate()

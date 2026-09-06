@@ -1,7 +1,7 @@
 # Maps
 
 운영 Web 지도 Adapter는 MapLibre GL JS 6.7.0이며 기본 style은 OpenFreeMap의 OSM 기반
-`https://tiles.openfreemap.org/styles/liberty`다. 배포 시 공개 style URL은
+`https://tiles.openfreemap.org/styles/bright`다. 배포 시 공개 style URL은
 `PLACE_MAP_STYLE_URL`에 query/hash 없는 same-origin 경로나 공개 OpenFreeMap URL로 주입한다. 설정은
 Node process instrumentation에서 검증하므로 내부 host, credential, signed query가 브라우저 HTML에
 노출되지 않으며 잘못된 값은 시작을 실패시킨다. OpenFreeMap 공개 서비스에는 SLA가
@@ -17,11 +17,15 @@ zoom의 Mercator 2D 지도 전환은 MapLibre 내장 전환에 맡기며 zoom에
 열지 않는다.
 
 Canonical Catalog Home의 목록과 지도는 서로 다른 bounded projection이다. 목록은
-`POST /v1/search/catalog`, 지도는 `POST /v1/search/catalog/map`을 사용한다. 지도 요청은 query,
+`POST /v2/search/catalog`, 새 지도는 `POST /v3/search/catalog/map`을 사용한다. 기존 v1/v2 계약은 유지한다. 지도 요청은 query,
 제외 token, antimeridian-aware viewport와 zoom을 전달하고 최대 384개의 feature를 받는다. 넓은
-범위에서는 서버가 count-bearing cluster를, 상세 범위에서는 Place marker를 반환하므로 전체 장소를
+범위에서도 먼 장소를 강제로 한 격자에 묶지 않고 pixel 기준 point와 count-bearing cluster를 함께 반환하므로 전체 장소를
 브라우저에 보내 client clustering하지 않는다. Web BFF는 지도 요청 32KiB, 응답 1MiB를 streaming
 검사하고 압축·초과·비 JSON 응답을 닫는다.
+
+지도 v3의 집계·분류·동위치 preview 경계는 `backend/src/platform/map-projection/README.md`에서
+Library와 Catalog 각 구현 및 대량/회원격리 회귀로 이동한다. 지구본의 공개 SDK 표현과 실제 타일
+캡처 방법은 `apps/web/src/platform/maps/README.md`가 소유한다.
 
 Personal Library와 공개 Collection도 목록 page를 marker source로 재사용하지 않고 각 소유 모듈의
 viewport projection을 사용한다. 모든 feature는 provider-neutral `PlaceMapRenderer` Interface만 알고,

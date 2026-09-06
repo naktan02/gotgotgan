@@ -1,11 +1,16 @@
 import { expect, test } from '@playwright/test'
 import type { PlaceFilingCommandRequestV2 } from '@place/contracts/library'
 import type { CatalogPlaceMapResponse, CatalogPlaceSearchResponse } from '@place/contracts/search'
+import { installMemberDetail } from './place-detail/fixture'
 
 const configuredBaseUrl = process.env.PLACE_WEB_E2E_BASE_URL
 if (configuredBaseUrl === undefined) throw new Error('PLACE_WEB_E2E_BASE_URL is required')
 const webUrl = new URL(configuredBaseUrl)
 const backendOrigin = `http://${webUrl.hostname}:${Number(webUrl.port) + 1}`
+
+test.beforeEach(async ({ page }) => {
+  await page.route(/\/api\/v2\/places\/[^/]+$/, (route) => route.fulfill({ status: 401, json: {} }))
+})
 
 test('moves to a country without chips even when Enter precedes autocomplete', async ({ page }) => {
   await page.goto('/')
@@ -125,7 +130,7 @@ test('switches between the catalog list and map on mobile without losing selecti
 
   await expect(page.getByRole('button', { name: '검색 결과로', exact: false })).toBeVisible()
   await expect(page.getByRole('region', { name: '곳곳간 카탈로그 검색 지도' })).toBeVisible()
-  await expect(page.getByRole('button', { name: '컬렉션 선택' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '로그인하고 계속' })).toBeVisible()
   await expect(page.getByRole('region', { name: '선택한 장소', exact: true })).toContainText('성수 골목 쇼유라멘')
   await page.getByRole('button', { name: '조용한 라멘 연구소 지도에서 선택' }).click()
 
@@ -149,23 +154,36 @@ test('uses the local MapLibre style and expands a server cluster into accessible
   const style = await page.request.get('/api/maps/style')
   expect(style.status()).toBe(200)
   expect((await style.json()).sources).toEqual({})
-  await submitSearch(page, '성수 라멘')
+  // The selected result stays separate in v3; two other places are needed to exercise a cluster.
+  await submitSearch(page, '라멘')
+  await expect(page.locator('ol').getByRole('button')).toHaveCount(3)
   await expect(page.getByRole('button', { name: '조용한 라멘 연구소 지도에서 선택' })).toBeVisible()
 
   const zoomOut = page.locator('.maplibregl-ctrl-zoom-out')
-  const clusterResponse = page.waitForResponse((response) =>
-    response.url().endsWith('/api/v2/search/catalog/map') && response.request().postDataJSON().zoom < 12)
-  await zoomOut.click()
+  let projection: CatalogPlaceMapResponse | undefined
+  for (let index = 0; index < 8; index += 1) {
+    const clusterResponse = page.waitForResponse((response) => response.url().endsWith('/api/v3/search/catalog/map'))
+    await zoomOut.click()
+    projection = await (await clusterResponse).json() as CatalogPlaceMapResponse
+    if (projection.features.some((feature) => feature.kind === 'cluster')) break
+  }
   const mapRegion = page.getByRole('region', { name: '곳곳간 카탈로그 검색 지도' })
   await expect.poll(async () => Number(await mapRegion.getAttribute('data-place-map-zoom'))).toBeLessThan(12)
   await expect(page.getByRole('button', { name: '이 지역에서 보기' })).toHaveCount(0)
   const cluster = page.getByRole('button', { name: '2개 장소 묶음 확대' })
   await expect(cluster).toBeVisible()
-  const projection = await (await clusterResponse).json() as CatalogPlaceMapResponse
-  const clusterFeature = projection.features.find((feature) => feature.kind === 'cluster')!
-  const mapRequest = page.waitForRequest((request) => request.url().endsWith('/api/v2/search/catalog/map'))
+  expect(projection!.features).toEqual(expect.arrayContaining([
+    expect.objectContaining({ kind: 'place', label: '조용한 라멘 연구소' }),
+    expect.objectContaining({ kind: 'cluster', count: 2 }),
+  ]))
+  const selectedBox = (await page.getByRole('button', { name: '조용한 라멘 연구소 지도에서 선택' }).boundingBox())!
+  const clusterBox = (await cluster.boundingBox())!
+  expect(selectedBox.x + selectedBox.width <= clusterBox.x || clusterBox.x + clusterBox.width <= selectedBox.x ||
+    selectedBox.y + selectedBox.height <= clusterBox.y || clusterBox.y + clusterBox.height <= selectedBox.y).toBe(true)
+  const clusterFeature = projection!.features.find((feature) => feature.kind === 'cluster')!
+  const mapRequest = page.waitForRequest((request) => request.url().endsWith('/api/v3/search/catalog/map'))
   await cluster.click()
-  await expect(page.locator('ol').getByRole('button')).toHaveCount(2)
+  await expect(page.locator('ol').getByRole('button')).toHaveCount(3)
   expect((await mapRequest).postDataJSON().viewport).toEqual(clusterFeature.bounds)
   await expect(page.getByRole('button', { name: '성수 골목 쇼유라멘 지도에서 선택' })).toBeVisible()
   expect(unexpectedExternalRequests).toEqual([])
@@ -185,14 +203,13 @@ test('keeps global results and the selected place while only map coverage change
   await page.getByRole('button', { name: '성수 골목 쇼유라멘 지도에서 선택' }).click()
   const detail = page.getByRole('region', { name: '선택한 장소', exact: true })
   await expect(detail).toContainText('성수 골목 쇼유라멘')
-  const chooser = page.getByRole('button', { name: '컬렉션 선택', exact: true })
-  await chooser.click()
+  await expect(detail.getByRole('tab', { name: '개요', exact: true })).toHaveAttribute('aria-selected', 'true')
   const mapResponse = page.waitForResponse((response) =>
-    response.url().endsWith('/api/v2/search/catalog/map') && response.request().postDataJSON().zoom < 12)
+    response.url().endsWith('/api/v3/search/catalog/map') && response.request().postDataJSON().zoom < 12)
   await page.locator('.maplibregl-ctrl-zoom-out').click()
   await mapResponse
   await expect(detail).toContainText('성수 골목 쇼유라멘')
-  await expect(chooser).toHaveAttribute('aria-expanded', 'true')
+  await expect(detail.getByRole('tab', { name: '개요', exact: true })).toHaveAttribute('aria-selected', 'true')
   expect(listRequests).toHaveLength(1)
   expect(listRequests[0]).not.toHaveProperty('bounds')
   await page.getByRole('button', { name: '검색 결과로', exact: false }).click()
@@ -210,6 +227,7 @@ test('redirects the retired search workspace to Home', async ({ page }) => {
 
 test('files a Home search result into multiple Collections with one v2 command', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chromium', 'desktop Home filing coverage')
+  await installMemberDetail(page)
   const ramenCollectionId = '01992d20-7000-7000-8000-000000000301'
   const tripCollectionId = '01992d20-7000-7000-8000-000000000302'
   const commands: PlaceFilingCommandRequestV2[] = []
@@ -286,7 +304,6 @@ test('files a Home search result into multiple Collections with one v2 command',
   await page.goto('/')
   await submitSearch(page, '성수 라멘')
   await page.locator('ol').getByRole('button').first().click()
-  await page.getByRole('button', { name: '컬렉션 선택' }).click()
   await page.getByRole('button', { name: /내 목록에 저장.*변경/ }).click()
   const filing = page.getByRole('dialog', { name: '내 카테고리', exact: true })
   await filing.getByLabel(/서울 라멘/).check()
@@ -300,7 +317,7 @@ test('files a Home search result into multiple Collections with one v2 command',
   ]) {
     await leave()
     await expect(guard).toContainText('목록 선택')
-    await guard.getByRole('button', { name: '계속 편집' }).click()
+    await guard.getByRole('button', { name: '계속 작성' }).click()
     await expect(page.getByRole('region', { name: '선택한 장소', exact: true })).toContainText('조용한 라멘 연구소')
     expect(commands).toHaveLength(0)
   }

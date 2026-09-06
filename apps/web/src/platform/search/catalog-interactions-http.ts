@@ -1,6 +1,8 @@
 import {
   catalogExplorationRequestSchema, catalogExplorationResponseSchema,
+  catalogExplorationRequestV2Schema, catalogExplorationResponseV2Schema,
   catalogPlaceMapRequestV2Schema, catalogPlaceMapResponseV2Schema,
+  catalogPlaceMapRequestV3Schema, catalogPlaceMapResponseV3Schema,
   catalogPlaceSearchRequestV2Schema, catalogPlaceSearchResponseV2Schema,
 } from '@place/contracts/search'
 import { randomUUID } from 'node:crypto'
@@ -9,8 +11,10 @@ import { readBoundedSearchJson, CATALOG_MAP_RESPONSE_MAX_BYTES, CATALOG_SEARCH_R
 
 const routes = {
   explore: { path: '/v1/search/catalog/explore', input: catalogExplorationRequestSchema, output: catalogExplorationResponseSchema },
+  exploreV2: { path: '/v2/search/catalog/explore', input: catalogExplorationRequestV2Schema, output: catalogExplorationResponseV2Schema },
   search: { path: '/v2/search/catalog', input: catalogPlaceSearchRequestV2Schema, output: catalogPlaceSearchResponseV2Schema },
   map: { path: '/v2/search/catalog/map', input: catalogPlaceMapRequestV2Schema, output: catalogPlaceMapResponseV2Schema },
+  mapV3: { path: '/v3/search/catalog/map', input: catalogPlaceMapRequestV3Schema, output: catalogPlaceMapResponseV3Schema },
 } as const
 
 /** Fixed internal catalog only: no provider credentials or user-supplied upstream URL. */

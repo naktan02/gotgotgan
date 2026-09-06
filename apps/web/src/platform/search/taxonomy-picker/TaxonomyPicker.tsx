@@ -34,20 +34,22 @@ export function TaxonomyPickerView({ nodes, status, onRetry, ...props }: Taxonom
 
   return <section className={styles.picker} aria-labelledby={titleId}>
     <header>
-      <button type="button" onClick={props.onClose}>← 장소 검색으로</button>
       <h2 id={titleId} ref={heading} tabIndex={-1}>장소·음식 분류</h2>
-      <p>큰 분류 안에서 더 좁히거나, 원하는 분류 전체를 선택하세요.</p>
+      <p>분류 이름을 누르면 전체 선택, 화살표를 누르면 하위 분류를 봅니다.</p>
       {props.selectedLabel && <p>선택한 분류 · <strong>{props.selectedLabel}</strong></p>}
       <nav aria-label="분류 경로" className={styles.trail}>
         <button type="button" aria-current={parentKey === null ? 'location' : undefined} onClick={() => browse(null)}>전체 분류</button>
         {trail.map((node) => <span key={node.key}><span aria-hidden="true">›</span><button type="button"
           aria-current={node.key === parentKey ? 'location' : undefined} onClick={() => browse(node.key)}>{node.label}</button></span>)}
       </nav>
+      <details className={styles.searchDisclosure} key={parentKey ?? 'root'}>
+      <summary>분류 이름으로 찾기</summary>
       <label className={styles.search}>
         <span>{current ? `${current.label} 안에서 찾기` : '분류 이름으로 찾기'}</span>
         <input type="search" value={query} maxLength={160} placeholder="예: 라멘, 쇼유라멘"
           onChange={(event) => { setQuery(event.target.value); setLimit(pageSize) }} />
       </label>
+      </details>
       {current && <button className={styles.selectCurrent} type="button" onClick={() => select(current)}>{current.label} 전체 선택</button>}
     </header>
     <div className={styles.body}>
@@ -61,11 +63,14 @@ export function TaxonomyPickerView({ nodes, status, onRetry, ...props }: Taxonom
           {matching.slice(0, limit).map((node) => {
             const hasChildren = branches.has(node.key)
             const path = query.trim() ? taxonomyTrail(nodes, node.key).slice(0, -1).map((parent) => parent.label).join(' › ') : ''
-            return <li key={node.key}><button type="button" aria-label={hasChildren ? `${node.label} 하위 분류 보기` : `${node.label} 선택`}
-              onClick={() => hasChildren ? browse(node.key) : select(node)}>
+            return <li key={node.key}><button type="button" aria-label={hasChildren ? `${node.label} 전체 선택` : `${node.label} 선택`}
+              onClick={() => select(node)}>
               <span><strong>{node.label}</strong>{path && <small>{path}</small>}</span>
-              <small>{hasChildren ? '더 좁히기 ›' : node.kind === 'attribute' ? '세부 속성 선택' : '선택'}</small>
-            </button></li>
+              <small>{hasChildren ? '전체 선택' : '선택'}</small>
+            </button>{hasChildren && <button className={styles.drill} type="button"
+              aria-label={`${node.label} 하위 분류 보기`} onClick={() => browse(node.key)}>
+              <span>하위 분류</span><span aria-hidden="true">›</span>
+            </button>}</li>
           })}
         </ul>
         {matching.length === 0 && <p>일치하는 하위 분류가 없습니다. 검색어를 바꾸거나 상위 분류로 돌아가세요.</p>}

@@ -1,10 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState, type Ref } from 'react'
-import { DraftNavigation, type PersonalPlaceNavigation } from '../draft-navigation/DraftNavigation'
+import { useEffect, useRef, useState } from 'react'
 import styles from './place-filing.module.css'
 import type { PlaceFilingWorkflow } from './place-filing-workflow'
-import { usePlaceFilingWorkflow } from './place-filing-workflow'
 
 export function PlaceFilingEditor({ workflow }: Readonly<{ workflow: PlaceFilingWorkflow }>) {
   const [open, setOpen] = useState(false)
@@ -47,7 +45,7 @@ export function PlaceFilingEditor({ workflow }: Readonly<{ workflow: PlaceFiling
       )}
 
       {!workflow.loading && workflow.filing?.collections.length === 0 && (
-        <p className={styles.filingEmpty}>먼저 왼쪽에서 카테고리를 만들어 주세요.</p>
+        <p className={styles.filingEmpty}><a href="/library">내 곳곳간</a>에서 목록을 먼저 만들어 주세요.</p>
       )}
 
       <div aria-busy={workflow.loading || workflow.saving} className={styles.filingChoices}>
@@ -88,25 +86,4 @@ export function PlaceFilingEditor({ workflow }: Readonly<{ workflow: PlaceFiling
       </dialog>
     </section>
   )
-}
-
-export function PlaceFilingControl({
-  navigationRef,
-  onAccessFailure,
-  onApplied,
-  placeId,
-}: Readonly<{
-  navigationRef?: Ref<PersonalPlaceNavigation>
-  onAccessFailure: (status: number) => void
-  onApplied: () => Promise<unknown>
-  placeId: string | undefined
-}>) {
-  const workflow = usePlaceFilingWorkflow(placeId, onApplied, onAccessFailure)
-  return <>
-    {navigationRef && <DraftNavigation navigationRef={navigationRef} drafts={[
-      { label: '목록 선택', dirty: workflow.dirtyCount > 0, saving: workflow.saving, valid: true,
-        save: workflow.save, discard: workflow.discard },
-    ]} />}
-    <PlaceFilingEditor workflow={workflow} />
-  </>
 }

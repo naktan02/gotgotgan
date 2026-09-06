@@ -4,17 +4,18 @@
 .detailHeading p { margin: 0 0 7px; color: var(--accent); font-size: 12px; font-weight: 700; }
 .detailHeading h2 { margin: 0; font-size: 24px; letter-spacing: -.035em; overflow-wrap: anywhere; }
 .detailHeading span { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
-.detailTabs { position: sticky; z-index: 2; top: 42px; display: flex; gap: 4px; margin: 18px 0 0; padding: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface); overflow-x: auto; }
+.detailTabs { position: sticky; z-index: 2; top: var(--detail-tab-top, 0px); display: flex; gap: 4px; margin: 18px 0 0; padding: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface); overflow-x: auto; }
 .detailTabs button { flex: 1; min-height: 44px; padding: 11px 8px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font-size: 14px; font-weight: 650; }
 .detailTabs button[aria-selected='true'] { border-bottom-color: var(--accent); color: var(--accent); }
 .detailContent section[hidden] { display: none; }
 .detailHeading small { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
+.detailActions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.detailActions > button { min-height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--ink); font-size: 13px; }
 .recordSection { margin-top: 12px; border-bottom: 1px solid var(--line); }
 .recordSection > summary { min-height: 48px; padding: 14px 0; font-size: 14px; font-weight: 650; cursor: pointer; }
 .recordSection > section { margin-top: 0; padding-bottom: 16px; border-top: 0; }
-.placeFacts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 18px 0 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); scroll-margin-top: 94px; }
+.placeFacts { margin: 0; border-bottom: 1px solid var(--line); }
 .placeFacts div { padding: 12px 0; }
-.placeFacts div + div { padding-left: 14px; border-left: 1px solid var(--line); }
 .placeFacts dt { color: var(--muted); font-size: 12px; }
 .placeFacts dd { margin: 5px 0 0; font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
 .detailContent > div[id] { scroll-margin-top: 94px; }
@@ -86,10 +87,15 @@
 .organizationError { display: flex; justify-content: space-between; gap: 10px; margin-top: 12px; color: var(--danger); font-size: 12px; }
 .organizationError button { border: 0; background: transparent; color: inherit; text-decoration: underline; }
 .organizationMore { min-height: 40px; margin-top: 14px; border: 1px dashed var(--line-strong); border-radius: var(--radius-control); background: transparent; color: var(--muted); padding: 0 10px; font-size: 12px; }
+.tagCreation { display: grid; gap: 8px; margin: 16px 0; }
+.tagCreation label, .tagSearch { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+.tagCreation input, .tagSearch input { min-width: 0; width: 100%; min-height: 44px; border: 1px solid var(--line); border-radius: 6px; padding: 0 10px; background: var(--surface); color: var(--ink); font-size: 14px; }
+.tagCreation button { justify-self: start; min-height: 40px; border: 1px solid var(--line); border-radius: 6px; padding: 0 10px; background: var(--surface); color: var(--accent); font-size: 13px; }
+.tagCreation button:disabled { opacity: .55; }
 .detailContent button:focus-visible, .detailContent input:focus-visible, .detailContent textarea:focus-visible, .detailContent a:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
 
 @media (max-width: 720px) {
-  .detailTabs { top: 46px; margin-right: -16px; margin-left: -16px; padding: 0 10px; }
+  .detailTabs { margin-right: -16px; margin-left: -16px; padding: 0 10px; }
   .visitForm > div { align-items: stretch; flex-direction: column; }
   .visitForm button { width: 100%; }
   .noteHeading { align-items: stretch; flex-direction: column; }

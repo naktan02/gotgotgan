@@ -62,11 +62,11 @@ export function DraftNavigation({ navigationRef, drafts }: Readonly<{
     onCancel={(event) => { event.preventDefault(); if (!busy) { pending.current = undefined; setOpen(false) } }}>
     <h2 id="unsaved-place-title">저장하지 않은 변경이 있어요</h2>
     <p>{dirty.map((draft) => draft.label).join(' · ') || '저장 중인 변경'}을 확인한 뒤 이동해 주세요.</p>
-    {error && <p role="alert">변경을 모두 저장하지 못했습니다. 계속 편집에서 내용을 확인해 주세요.</p>}
+    {error && <p role="alert">변경을 모두 저장하지 못했습니다. 계속 작성에서 내용을 확인해 주세요.</p>}
     <div className={styles.actions}>
-      <button autoFocus disabled={busy} type="button" onClick={() => { pending.current = undefined; setOpen(false) }}>계속 편집</button>
-      <button disabled={busy} type="button" onClick={() => { dirty.forEach((draft) => draft.discard()); finish() }}>변경 버리고 이동</button>
-      <button disabled={busy || dirty.some((draft) => !draft.valid)} type="button" onClick={() => void save()}>{saving ? '저장 중…' : '저장하고 이동'}</button>
+      <button autoFocus disabled={busy} type="button" onClick={() => { pending.current = undefined; setOpen(false) }}>계속 작성</button>
+      <button disabled={busy} type="button" onClick={() => { dirty.forEach((draft) => draft.discard()); finish() }}>저장하지 않고 이동</button>
+      <button disabled={busy || dirty.some((draft) => !draft.valid)} type="button" onClick={() => void save()}>{saving ? '저장 중…' : '저장 후 이동'}</button>
     </div>
   </dialog>
 }

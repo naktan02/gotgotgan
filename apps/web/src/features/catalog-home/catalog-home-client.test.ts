@@ -45,16 +45,15 @@ describe('Catalog Home browser client', () => {
     const fetcher: typeof fetch = async (input, init) => {
       calls.push({ input, init })
       return Response.json({
-        schemaVersion: 'catalog-place-map.v2',
+        schemaVersion: 'catalog-place-map.v3',
         interpretation: { normalizedQuery: '서울 카페', tokens: [] },
         viewport: { west: 126, south: 37, east: 128, north: 38 },
         zoom: 11,
-        mode: 'places',
+        mode: 'mixed',
         features: [{
-          kind: 'place', featureId: 'place:550e8400-e29b-41d4-a716-446655440000',
-          placeId: '550e8400-e29b-41d4-a716-446655440000', name: '카탈로그 카페',
-          location: { latitude: 37.5, longitude: 127 }, areaLabel: '서울',
-          primaryTaxonomy: { key: 'cafe', label: '카페' }, placeCount: 1,
+          kind: 'place', placeId: '550e8400-e29b-41d4-a716-446655440000', label: '카탈로그 카페',
+          location: { latitude: 37.5, longitude: 127 },
+          classification: { primaryTaxonomy: { key: 'cafe', label: '카페' }, rootTaxonomy: null },
         }],
         coverage: { matchingPlaceCount: 1, representedPlaceCount: 1, complete: true },
       })
@@ -64,10 +63,10 @@ describe('Catalog Home browser client', () => {
       query: '서울 카페',
       viewport: { west: 126, south: 37, east: 128, north: 38 },
       zoom: 11,
-    })).resolves.toMatchObject({ mode: 'places' })
-    expect(calls[0]?.input).toBe('/api/v2/search/catalog/map')
+    })).resolves.toMatchObject({ mode: 'mixed' })
+    expect(calls[0]?.input).toBe('/api/v3/search/catalog/map')
     expect(JSON.parse(String(calls[0]?.init?.body))).toMatchObject({
-      schemaVersion: 'catalog-place-map.v2', maxFeatures: 384,
+      schemaVersion: 'catalog-place-map.v3', maxFeatures: 384,
     })
   })
 

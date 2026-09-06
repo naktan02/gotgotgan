@@ -12,12 +12,13 @@
 .stars { width: 100%; margin: 0; padding: 0; border: 0; }
 .stars legend { color: var(--muted); font-size: 12px; }
 .stars > div { display: flex; width: fit-content; margin: 8px 0; }
+.starChoice { display: flex; border-radius: 6px; }
 .halfStar { position: relative; width: 24px; height: 48px; overflow: hidden; cursor: pointer; color: var(--line-strong); }
 .halfStar span { position: absolute; width: 48px; font-size: 44px; line-height: 48px; text-align: center; pointer-events: none; }
 .halfStar[data-side='right'] span { left: -24px; }
 .halfStar[data-filled='true'] { color: #b77900; }
 .halfStar input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
-.halfStar:focus-within { background: var(--accent-soft); outline: 2px solid var(--focus); outline-offset: -2px; }
+.starChoice:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
 .stars output { font-size: 14px; font-weight: 700; }
 .preferenceError { color: var(--danger); font-size: 12px; }
 .ratingEditor button:disabled { opacity: .5; }

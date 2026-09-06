@@ -1,4 +1,4 @@
-import type { LibraryMapResponse, PersonalLibraryMapResponseV2 } from '@place/contracts/library'
+import type { LibraryMapResponse, PersonalLibraryMapResponseV2, PersonalLibraryMapResponseV3 } from '@place/contracts/library'
 
 import type {
   PlaceMapCluster,
@@ -14,16 +14,18 @@ export function PersonalLibraryMap({
   viewport,
   onRetry,
   onSelect,
+  onOpenPlaceList,
   onViewportChange,
   mapRenderer: MapRenderer,
 }: Readonly<{
   error?: string
   loading: boolean
-  projection?: LibraryMapResponse | PersonalLibraryMapResponseV2
+  projection?: LibraryMapResponse | PersonalLibraryMapResponseV2 | PersonalLibraryMapResponseV3
   selectedPlaceId?: string
   viewport: PlaceMapViewport
   onRetry: () => void
   onSelect: (placeId: string) => void
+  onOpenPlaceList?: () => void
   onViewportChange: (viewport: PlaceMapViewport) => void
   mapRenderer: PlaceMapRenderer
 }>) {
@@ -31,6 +33,7 @@ export function PersonalLibraryMap({
     id: feature.placeId,
     label: feature.label,
     location: feature.location,
+    ...('classification' in feature ? { classification: feature.classification } : {}),
   }] : []) ?? []
   const clusters: readonly PlaceMapCluster[] = projection?.features.flatMap((feature) => (
     feature.kind === 'cluster' ? [{
@@ -38,6 +41,7 @@ export function PersonalLibraryMap({
       count: feature.count,
       location: feature.location,
       bounds: feature.bounds,
+      ...('coincidentPreview' in feature ? { coincidentPreview: feature.coincidentPreview } : {}),
     }] : []
   )) ?? []
   const represented = projection?.coverage.representedPlaceCount ?? 0
@@ -64,6 +68,7 @@ export function PersonalLibraryMap({
       })}
       onMove={error === undefined ? undefined : onRetry}
       onSelect={onSelect}
+      onOpenPlaceList={onOpenPlaceList}
       onViewportChange={onViewportChange}
       selectedMarkerId={selectedPlaceId}
       title={`내 장소 ${represented}개`}

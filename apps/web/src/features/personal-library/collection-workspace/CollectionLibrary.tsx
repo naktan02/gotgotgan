@@ -88,7 +88,11 @@ export function CollectionLibraryView({ mapRenderer: MapRenderer, workflow, scop
     style={{ '--sheet-height': `${dragHeight ?? (expanded ? 82 : 54)}%` } as CSSProperties}>
     <div className={styles.workspace}>
       <div className={styles.workPanel} hidden={collapsed} id="library-work-panel" ref={panel}
-        onFocusCapture={(event) => { lastPanelFocus.current = event.target as HTMLElement }}>
+        onFocusCapture={(event) => {
+          lastPanelFocus.current = event.target as HTMLElement
+          if (isDetail && (event.target instanceof HTMLTextAreaElement ||
+            (event.target instanceof HTMLInputElement && ['text', 'search'].includes(event.target.type)))) setExpanded(true)
+        }}>
         {scopeNavigation && <div className={styles.scopeNavigation}>{typeof scopeNavigation === 'function' ? scopeNavigation(draftQuery) : scopeNavigation}</div>}
         <div className={styles.mobileSheetControls}>
           <button className={styles.mobileHandle} type="button" aria-label={`작업 패널 높이: ${expanded ? '크게' : '중간'}. 누르거나 방향키로 조절`}
@@ -141,9 +145,9 @@ export function CollectionLibraryView({ mapRenderer: MapRenderer, workflow, scop
             requestAnimationFrame(() => panel.current?.querySelector<HTMLButtonElement>('#library-filter-toggle')?.focus())
           }} />
         </div>}
-        {isDetail && <aside className={styles.detailSurface} aria-label="선택한 장소 상세" tabIndex={-1}>
+        {isDetail && <aside className={styles.detailSurface} aria-label="선택한 장소 상세" data-detail-scroll tabIndex={-1}>
           <button className={styles.backButton} onClick={backToPlaces} type="button">← 장소 목록으로</button>
-          <PersonalPlaceDetail filingEditor={<PlaceFilingEditor workflow={workflow.filing} />}
+          <PersonalPlaceDetail key={workflow.selectedPlaceId} filingEditor={<PlaceFilingEditor workflow={workflow.filing} />}
             navigationRef={detailNavigation}
             filingDraft={{ label: '목록 선택', dirty: workflow.filing.dirtyCount > 0, saving: workflow.filing.saving, valid: true,
               save: workflow.filing.save, discard: workflow.filing.discard }}
@@ -165,6 +169,10 @@ export function CollectionLibraryView({ mapRenderer: MapRenderer, workflow, scop
           error={workflow.mapStatus === 'error' ? '지도를 불러올 수 없습니다. 목록 기능은 계속 사용할 수 있습니다.' : undefined}
           loading={workflow.mapStatus === 'loading'} mapRenderer={MapRenderer} onRetry={workflow.retryMap}
           onSelect={(id) => navigate(() => { workflow.selectPlace(id); setCollapsed(false) })}
+          onOpenPlaceList={() => navigate(() => {
+            workflow.closeDetail(); setFiltersOpen(false); setCollapsed(false)
+            requestAnimationFrame(() => panel.current?.querySelector<HTMLElement>('#library-collection-heading')?.focus())
+          })}
           onViewportChange={workflow.setMapViewport} projection={workflow.mapProjection}
           selectedPlaceId={workflow.selectedPlaceId} viewport={workflow.mapViewport}
         />

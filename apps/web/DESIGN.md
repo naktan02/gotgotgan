@@ -13,6 +13,14 @@ identity-bearing candidates, not removable query chips. Compound conditions prod
 interpreted filters; ambiguous input offers a name-search/condition-search choice without requiring
 another persistent search mode. Never silently broaden private search into public results.
 
+Category names select the whole branch; a separate drill-down control opens its children. Keep
+name filtering secondary and candidate rendering bounded. Redundant ancestor chips are omitted,
+but independent attributes remain separate. Opening classification on mobile expands the existing
+sheet, retaining map space, so nested options are not hidden below its header. The decisive regression
+is `tests/e2e/taxonomy-filter.spec.ts`; component ownership is `src/platform/search/taxonomy-picker`.
+Regional destinations are navigation references, not geographic search boundaries or official Area
+assignments. Source provenance and limitations live in the Backend geographic-catalog README.
+
 Use Bright cartography with Korean-first labels, preserving local names when Korean is unavailable.
 User camera movement must not be replayed as a bounding-box-derived camera command. Keep north-up
 2D without bearing/pitch gestures while retaining globe panning. Required data attribution remains

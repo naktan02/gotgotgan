@@ -8,6 +8,7 @@ import type {
   LibraryTagListQuery,
   PersonalLibraryWorkspaceRequestV2,
   PersonalLibraryMapRequestV2,
+  PersonalLibraryMapRequestV3,
   PlaceFilingCommandRequestV2,
   PlaceFilingRequestV2,
   PublishedCollectionCopyCommandRequestV2,
@@ -104,10 +105,17 @@ export function createLibraryBackendClient(config: LibraryBackendClientConfig = 
     workspaceMap(accessToken: string, query: PersonalLibraryMapRequestV2, signal: AbortSignal) {
       const parameters = workspaceQueryString({ ...query, limit: 20 })
       parameters.delete('limit')
+      for (const key of ['west', 'south', 'east', 'north', 'zoom'] as const) parameters.set(key, String(query[key]))
+      return send(`/v2/library/workspace/map?${parameters}`, accessToken, signal)
+    },
+    workspaceMapV3(accessToken: string, query: PersonalLibraryMapRequestV3, signal: AbortSignal) {
+      const parameters = workspaceQueryString({ ...query, limit: 20 })
+      parameters.delete('limit')
       for (const key of ['west', 'south', 'east', 'north', 'zoom'] as const) {
         parameters.set(key, String(query[key]))
       }
-      return send(`/v2/library/workspace/map?${parameters}`, accessToken, signal)
+      if (query.selectedPlaceId !== undefined) parameters.set('selectedPlaceId', query.selectedPlaceId)
+      return send(`/v3/library/workspace/map?${parameters}`, accessToken, signal)
     },
     publicationCopyCommand(
       accessToken: string,

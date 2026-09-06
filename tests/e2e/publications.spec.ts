@@ -14,7 +14,12 @@ test('renders only allowlisted collection and writing publications', async ({ pa
       body: JSON.stringify({ schemaVersion: 'library-command-result.v1', status: 'applied' }),
     })
   })
-  await page.goto(`/share/collections/${collectionPublicationId}`)
+  const [initialMapResponse] = await Promise.all([
+    page.waitForResponse((response) => response.request().method() === 'GET'
+      && new URL(response.url()).pathname === `/api/public/collections/${collectionPublicationId}/map`),
+    page.goto(`/share/collections/${collectionPublicationId}`),
+  ])
+  expect(initialMapResponse.status()).toBe(200)
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/)
   await expect(page.getByRole('heading', { name: '성수에서 다시 갈 곳' })).toBeVisible()
   await expect(page.getByRole('button', { name: '두 번째 페이지 카페 지도에서 선택' })).toBeVisible()
@@ -51,7 +56,17 @@ test('renders only allowlisted collection and writing publications', async ({ pa
   await expect(page.getByRole('button', { name: '공유 목록 패널 접기' })).toHaveAttribute('aria-expanded', 'true')
   await expect(placeDetail.getByRole('heading', { name: '두 번째 페이지 카페' })).toBeVisible()
   await placeDetail.getByRole('button', { name: '공유 장소 목록으로 돌아가기' }).click()
-  await page.getByRole('button', { name: '장소 더 보기' }).click()
+  const [nextPageResponse] = await Promise.all([
+    page.waitForResponse((response) => {
+      const url = new URL(response.url())
+      return response.request().method() === 'GET'
+        && url.pathname === `/api/public/collections/${collectionPublicationId}`
+        && url.searchParams.get('cursor') === 'public-page-2'
+        && url.searchParams.get('limit') === '50'
+    }),
+    page.getByRole('button', { name: '장소 더 보기' }).click(),
+  ])
+  expect(nextPageResponse.status()).toBe(200)
   await expect(page.getByRole('list', { name: '공유된 장소' }))
     .toContainText('두 번째 페이지 카페')
   await expect(page.getByText('전체 51개 · 51개 불러옴')).toBeVisible()
@@ -90,7 +105,12 @@ test('restores the original list position and focus after consecutive map select
   await expect(originalPlace).toBeInViewport()
   await expect(page.getByRole('heading', { name: '성수에서 다시 갈 곳' })).not.toBeInViewport()
   const originalPosition = (await originalPlace.boundingBox())!.y
-  await originalPlace.click()
+  const [initialDetailResponse] = await Promise.all([
+    page.waitForResponse((response) => response.request().method() === 'GET'
+      && new URL(response.url()).pathname === '/api/public/places/01992d20-0000-7000-8000-000000000055'),
+    originalPlace.click(),
+  ])
+  expect(initialDetailResponse.status()).toBe(200)
 
   const detail = page.getByRole('region', { name: '공개 장소 상세' })
   const map = page.getByRole('region', { name: '공유 컬렉션 지도' })

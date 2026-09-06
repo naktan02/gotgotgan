@@ -27,6 +27,8 @@ import {
   libraryTagListResponseSchema,
   personalLibraryWorkspaceRequestV2Schema,
   personalLibraryWorkspaceResponseV2Schema,
+  personalLibraryMapHttpQueryV3Schema,
+  personalLibraryMapResponseV3Schema,
   personalLibraryMapHttpQueryV2Schema,
   personalLibraryMapResponseV2Schema,
   placeFilingCommandRequestV2Schema,
@@ -266,13 +268,25 @@ export function createBrowserLibraryHttp(dependencies: Dependencies) {
       const query = parseQuery(request, personalLibraryMapHttpQueryV2Schema, ['tagIds', 'areaKeys', 'taxonomyKeys'])
       if (query === undefined) return Promise.resolve(invalid())
       return invoke(request, (accessToken) => dependencies.backend.workspaceMap(accessToken, {
-        favoriteScope: query.collectionId === undefined
-          ? { kind: 'all' } : { kind: 'collection', collectionId: query.collectionId },
+        favoriteScope: query.collectionId === undefined ? { kind: 'all' } : { kind: 'collection', collectionId: query.collectionId },
         ratingFilter: { kind: query.rating }, tagIds: query.tagIds, tagMatch: query.tagMatch,
         areaKeys: query.areaKeys, taxonomyKeys: query.taxonomyKeys,
         ...(query.placeQuery === undefined ? {} : { placeQuery: query.placeQuery }),
         west: query.west, south: query.south, east: query.east, north: query.north, zoom: query.zoom,
       }, request.signal), personalLibraryMapResponseV2Schema)
+    },
+    workspaceMapV3(request: Request): Promise<Response> {
+      const query = parseQuery(request, personalLibraryMapHttpQueryV3Schema, ['tagIds', 'areaKeys', 'taxonomyKeys'])
+      if (query === undefined) return Promise.resolve(invalid())
+      return invoke(request, (accessToken) => dependencies.backend.workspaceMapV3(accessToken, {
+        favoriteScope: query.collectionId === undefined
+          ? { kind: 'all' } : { kind: 'collection', collectionId: query.collectionId },
+        ratingFilter: { kind: query.rating }, tagIds: query.tagIds, tagMatch: query.tagMatch,
+        areaKeys: query.areaKeys, taxonomyKeys: query.taxonomyKeys,
+        ...(query.placeQuery === undefined ? {} : { placeQuery: query.placeQuery }),
+        ...(query.selectedPlaceId === undefined ? {} : { selectedPlaceId: query.selectedPlaceId }),
+        west: query.west, south: query.south, east: query.east, north: query.north, zoom: query.zoom,
+      }, request.signal), personalLibraryMapResponseV3Schema)
     },
     filing(request: Request, placeId: string): Promise<Response> {
       const identifier = libraryPlaceIdentifierParamsSchema.safeParse({ placeId }).data

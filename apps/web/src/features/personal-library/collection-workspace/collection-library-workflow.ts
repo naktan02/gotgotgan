@@ -1,7 +1,7 @@
 'use client'
 
 import type {
-  PersonalLibraryMapResponseV2,
+  PersonalLibraryMapResponseV3,
   LibraryTagListResponse,
   PersonalLibraryRatingFilterV2,
   PersonalLibraryWorkspaceResponseV2,
@@ -20,7 +20,7 @@ import { useLibraryQuery } from './search/use-library-query'
 type PageStatus = 'loading' | 'ready' | 'authentication-required' | 'forbidden' | 'not-found' | 'unavailable' | 'error'
 type MobileSurface = 'collections' | 'list' | 'map' | 'detail'
 
-const initialViewport: PersonalLibraryMapResponseV2['viewport'] = {
+const initialViewport: PersonalLibraryMapResponseV3['viewport'] = {
   bounds: { west: 126.90, south: 37.50, east: 127.10, north: 37.60 },
   zoom: 12,
 }
@@ -54,7 +54,7 @@ export function useCollectionLibraryWorkflow(initial: LibraryInitialScope = {}) 
   const [loadingMore, setLoadingMore] = useState(false)
   const [revision, setRevision] = useState(0)
   const [mapViewport, setMapViewport] = useState(initialViewport)
-  const [mapProjection, setMapProjection] = useState<PersonalLibraryMapResponseV2 | undefined>()
+  const [mapProjection, setMapProjection] = useState<PersonalLibraryMapResponseV3 | undefined>()
   const [mapStatus, setMapStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const [newCollectionName, setNewCollectionName] = useState('')
   const [collectionMutation, setCollectionMutation] = useState<'idle' | 'creating' | 'renaming' | 'deleting'>('idle')
@@ -168,6 +168,7 @@ export function useCollectionLibraryWorkflow(initial: LibraryInitialScope = {}) 
     const timeout = window.setTimeout(() => {
       setMapStatus('loading')
       collectionLibraryHttp.map({
+        ...(selectedPlaceId === undefined ? {} : { selectedPlaceId }),
         favoriteScope: selectedCollectionId === undefined ? { kind: 'all' } : { kind: 'collection', collectionId: selectedCollectionId },
         ratingFilter: { kind: ratingFilter },
         tagIds: [...queryFilters.tagIds], tagMatch: 'all', areaKeys: [...queryFilters.areaKeys], taxonomyKeys: [...queryFilters.taxonomyKeys],
@@ -193,7 +194,7 @@ export function useCollectionLibraryWorkflow(initial: LibraryInitialScope = {}) 
       window.clearTimeout(timeout)
       mapRequests.current.cancel(request)
     }
-  }, [accessFailure, hasPlaceScope, mapViewport, queryFilters, queryText, ratingFilter, revision, selectedCollectionId])
+  }, [accessFailure, hasPlaceScope, mapViewport, queryFilters, queryText, ratingFilter, revision, selectedCollectionId, selectedPlaceId])
 
   const refresh = useCallback(async () => {
     setRevision((current) => current + 1)

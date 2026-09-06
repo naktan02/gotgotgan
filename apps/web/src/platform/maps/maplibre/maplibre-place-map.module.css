@@ -1,14 +1,41 @@
-.map { position: relative; width: 100%; height: 100%; min-height: 0; overflow: hidden; background: #eaf1f7; }
-.canvas { position: absolute; inset: 0; }
+.map { position: relative; width: 100%; height: 100%; min-height: 0; overflow: hidden; background: #eaf1f7; container-type: size; }
+.canvas { position: absolute; inset: 0; background: #0b1626; }
 .status button { display: block; margin-top: 8px; min-height: 34px; padding: 5px 10px; border: 1px solid #c9d7d0; border-radius: 6px; color: #087f62; background: #fff; cursor: pointer; }
 .status { position: absolute; z-index: 2; right: 12px; top: 12px; margin: 0; padding: 7px 10px; border: 1px solid rgb(217 224 234 / 90%); border-radius: 8px; background: rgb(255 255 255 / 92%); color: #596678; font-size: 11px; box-shadow: 0 4px 12px rgb(41 54 75 / 10%); }
 .action { position: absolute; z-index: 3; top: 12px; left: 50%; min-height: 36px; padding: 0 12px; transform: translateX(-50%); border: 1px solid #d9e0ea; border-radius: 8px; background: rgb(255 255 255 / 94%); color: #285f9f; font-size: 11px; font-weight: 750; box-shadow: 0 4px 12px rgb(41 54 75 / 10%); cursor: pointer; }
 .action:hover, .action:focus-visible { border-color: #82acec; outline: 3px solid #86b8ff; outline-offset: 2px; }
-.marker, .cluster { display: grid; place-items: center; border: 2px solid #fff; border-radius: 50%; background: #1768e5; color: #fff; box-shadow: 0 3px 9px rgb(20 55 100 / 28%); font: 800 10px/1 inherit; cursor: pointer; }
-.marker { width: 28px; height: 28px; }
-.cluster { width: 40px; height: 40px; background: #0f5dcf; font-size: 12px; }
+.marker, .cluster { display: grid; place-items: center; border: 0; border-radius: 50%; padding: 0; cursor: pointer; font: 700 12px/1 inherit; }
+.marker { width: 26px; height: 26px; background: transparent; overflow: visible; }
+.cluster { width: 32px; height: 32px; border: 2px solid #fff; background: #247d70; color: #fff; box-shadow: 0 2px 6px #17372f40; }
+.dot { width: 8px; height: 8px; border: 1.5px solid white; border-radius: 50%; background: var(--marker-color); box-shadow: 0 1px 3px #193b3545; }
+.markerSymbol { display: grid; place-items: center; width: 25px; height: 25px; border: 2px solid #fff; border-radius: 50%; background: var(--marker-color); box-shadow: 0 1px 5px #193b3545; }
+.markerSymbol svg { width: 16px; height: 16px; fill: none; stroke: white; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.markerLabel { position: absolute; left: 27px; top: 2px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 6px; border-radius: 4px; background: #fffffff0; color: #233c35; box-shadow: 0 1px 4px #17372f1f; font-size: 11px; font-weight: 700; }
 .marker:hover, .marker:focus-visible, .cluster:hover, .cluster:focus-visible { outline: 3px solid #86b8ff; outline-offset: 2px; }
-.selected { width: 34px; height: 34px; background: #0f4ca6; }
+.selected .dot { width: 16px; height: 16px; border-width: 3px; outline: 2px solid #1768e5; }
+.selected .markerSymbol { outline: 3px solid #1768e5; outline-offset: 1px; }
+.selected .markerLabel { color: #104ba7; box-shadow: 0 0 0 1px #86b8ff; }
+.markerLabel { pointer-events: none; }
+.presentation { position: absolute; z-index: 4; top: 12px; right: 12px; font-size: 12px; color: #28483f; }
+.presentation summary { list-style: none; cursor: pointer; width: max-content; margin-left: auto; min-height: 36px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border: 1px solid #d4ded8; border-radius: 9px; background: #fffffff5; box-shadow: 0 2px 8px #12382c15; }
+.presentation summary::-webkit-details-marker { display: none; }
+.presentation fieldset { margin-top: 6px; width: 200px; padding: 12px; border: 1px solid #d4ded8; border-radius: 10px; background: #fff; box-shadow: 0 4px 16px #17372f20; }
+.presentation legend { float: left; width: 100%; font-weight: 700; margin-bottom: 8px; }
+.presentation label { display: flex; align-items: center; gap: 8px; min-height: 38px; cursor: pointer; }
+.presentation input { accent-color: #137d64; }
+.presentation p { margin: 8px 0 0; color: #687c74; line-height: 1.5; font-size: 11px; }
+.choices { box-sizing: border-box; width: min(380px, calc(100vw - 32px)); max-height: min(560px, calc(100dvh - 48px)); padding: 18px; border: 1px solid #d4ded8; border-radius: 16px; color: #233c35; background: #fff; box-shadow: 0 12px 50px #102d3040; }
+.choices::backdrop { background: #11252b50; }
+.choices header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.choices h2 { margin: 0; font-size: 17px; }
+.choices header button { min-width: 36px; min-height: 36px; border: 0; border-radius: 50%; background: #f0f5f2; font-size: 24px; cursor: pointer; }
+.choices p { color: #667d73; font-size: 12px; line-height: 1.6; }
+.choices ul { list-style: none; margin: 12px 0; padding: 0; }
+.choices li button { width: 100%; text-align: left; display: grid; gap: 5px; min-height: 52px; padding: 10px; border: 0; border-bottom: 1px solid #edf2ef; background: white; color: inherit; cursor: pointer; }
+.choices li button:hover, .choices li button:focus-visible { background: #edf7f2; }
+.choices small { color: #75877e; }
+.choices footer > button { width: 100%; min-height: 40px; border: 1px solid #b9d5c8; border-radius: 8px; background: #f0faf4; color: #197050; cursor: pointer; }
+@container (max-height: 260px) { .presentation { left: 50%; right: auto; width: 72px; transform: translateX(-50%); } .presentation summary { margin-left: 0; } .presentation fieldset { position: absolute; left: 50%; transform: translateX(-50%); box-sizing: border-box; max-height: 120px; overflow-y: auto; } }
 .summary { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -23,3 +50,7 @@
 .map :global(.maplibregl-ctrl-group) { border: 1px solid #d7e0db; border-radius: 10px; overflow: hidden; }
 .map :global(.maplibregl-ctrl-group button) { width: 40px; height: 40px; }
 .map :global(.maplibregl-ctrl-attrib) { font-size: 10px; }
+@container (max-height: 260px) {
+  .map :global(.maplibregl-ctrl-bottom-right) { bottom: 4px; }
+  .map :global(.maplibregl-ctrl-bottom-right .maplibregl-ctrl) { margin: 4px 0 0; }
+}

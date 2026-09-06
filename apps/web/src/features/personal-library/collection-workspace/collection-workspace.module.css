@@ -61,6 +61,7 @@
 .backButton { min-height: 40px; flex: none; border: 0; background: var(--surface, white); color: var(--muted, #68716c); padding: 0; text-align: left; font-size: 13px; }
 .detailSurface { flex: 1; min-height: 0; padding: 0 20px 24px; overflow: auto; overscroll-behavior: contain; }
 .detailSurface > .backButton { position: sticky; top: 0; z-index: 2; width: 100%; min-height: 48px; border-bottom: 1px solid var(--line, #dfe5e1); }
+.detailSurface { --detail-tab-top: 48px; }
 .mapPane { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
 .mapHint { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 64px); width: max-content; margin: 0; padding: 10px 14px; border: 1px solid var(--line, #dfe5e1); border-radius: 8px; background: var(--surface, white); color: var(--muted, #68716c); font-size: 12px; text-align: center; pointer-events: none; }
 .collapseButton { position: absolute; z-index: 5; left: var(--panel-width); top: 50%; display: flex; align-items: center; justify-content: center; width: 28px; height: 60px; border: 1px solid var(--line, #dfe5e1); border-left: 0; border-radius: 0 8px 8px 0; background: var(--surface, white); color: var(--muted, #68716c); }

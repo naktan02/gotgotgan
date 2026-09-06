@@ -1,4 +1,4 @@
-import type { CatalogExplorationResponse, CatalogSearchIntent } from '@place/contracts/search'
+import type { CatalogExplorationResponseV2 as CatalogExplorationResponse, CatalogSearchIntent } from '@place/contracts/search'
 
 type QueryIntent = Readonly<{
   query: string
@@ -29,8 +29,8 @@ export function createCatalogQueryIntentResolver() {
       try {
         const result = await request.explore(signal)
         if (current !== generation || signal.aborted) return
-        const exact = result.destinations.find((destination) => destination.exact)
-        if (exact) request.chooseDestination(exact)
+        const exact = result.destinations.filter((destination) => destination.exact)
+        if (exact.length === 1) request.chooseDestination(exact[0]!)
         else request.search(result.intent === 'auto' ? 'conditions' : result.intent)
       } catch {
         if (current === generation && !signal.aborted) request.search('auto')

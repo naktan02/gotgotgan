@@ -116,6 +116,7 @@ export function usePersonalPlaceDetailWorkflow({
   })
 
   return {
+    handleAccessFailure: handleFailure,
     detail,
     loading,
     authenticationRequired,

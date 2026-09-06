@@ -2,7 +2,7 @@ export {
   CatalogHomeSearch,
   CatalogHomeView,
   CatalogHomeWorkspace,
-  type CatalogHomePlaceFilingRenderer,
+  type CatalogHomePlaceDetailRenderer,
 } from './CatalogHome'
 export {
   CatalogHomeProvider,

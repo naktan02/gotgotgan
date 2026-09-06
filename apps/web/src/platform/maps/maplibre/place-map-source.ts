@@ -73,8 +73,8 @@ export function installPlaceSource(map: MapLibreMap, data: PlaceFeatureCollectio
     filter: ['==', ['get', 'kind'], 'cluster'],
     paint: {
       'circle-color': '#1768e5',
-      'circle-opacity': 0.4,
-      'circle-radius': ['interpolate', ['linear'], ['get', 'count'], 2, 15, 384, 36],
+      'circle-opacity': 0.15,
+      'circle-radius': 12,
       'circle-stroke-color': '#ffffff',
       'circle-stroke-width': 2,
     },
@@ -86,9 +86,10 @@ export function installPlaceSource(map: MapLibreMap, data: PlaceFeatureCollectio
     filter: ['==', ['get', 'kind'], 'place'],
     paint: {
       'circle-color': ['case', ['get', 'selected'], '#0f4ca6', '#1768e5'],
-      'circle-radius': ['case', ['get', 'selected'], 10, 8],
+      'circle-radius': ['case', ['get', 'selected'], 5, 3],
+      'circle-opacity': 0.2,
       'circle-stroke-color': '#ffffff',
-      'circle-stroke-width': 2,
+      'circle-stroke-width': 1,
     },
   })
 }

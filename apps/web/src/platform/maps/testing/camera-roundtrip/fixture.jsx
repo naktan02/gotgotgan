@@ -14,8 +14,11 @@ function Fixture() {
   const [viewport, setViewport] = useState({
     bounds: { west: 120, east: 130, south: 30, north: 40 }, zoom: 1,
   })
-  window.cameraFixture = { navigate: setViewport, viewport }
-  return <MapLibrePlaceMap {...viewport} markers={[]} onSelect={() => {}}
+  const [features, setFeatures] = useState({ markers: [], clusters: [] })
+  const [selectedMarkerId, select] = useState()
+  window.cameraFixture = { navigate: setViewport, viewport, setFeatures }
+  return <MapLibrePlaceMap {...viewport} {...features} selectedMarkerId={selectedMarkerId} onSelect={(id) => { select(id); window.lastSelectedPlace = id }}
+    onOpenPlaceList={() => { window.placeListOpened = true }}
     onViewportChange={(next) => {
       const map = window.fixtureMap
       window.lastReportedCamera = { center: map.getCenter().toArray(), zoom: map.getZoom() }

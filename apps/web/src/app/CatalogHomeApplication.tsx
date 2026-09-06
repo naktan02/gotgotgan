@@ -4,9 +4,10 @@ import {
   CatalogHomeProvider,
   CatalogHomeWorkspace,
   type CatalogHomeLibrary,
+  type CatalogHomePlaceDetailRenderer,
 } from '@/features/catalog-home/public'
 import {
-  PlaceFilingControl,
+  PersonalPlaceDetail,
   favoriteCollectionDirectory,
 } from '@/features/personal-library/public'
 import type { FamilyNavigation } from '@/platform/family-navigation/family-navigation'
@@ -14,6 +15,12 @@ import { MapLibrePlaceMap } from '@/platform/maps/public'
 import { PlaceWorkspaceShell } from '@/shells/place-workspace/PlaceWorkspaceShell'
 
 const homeLibrary: CatalogHomeLibrary = favoriteCollectionDirectory
+const HomePlaceDetail: CatalogHomePlaceDetailRenderer = ({ place, navigationRef, onChanged }) => (
+  <PersonalPlaceDetail placeId={place.placeId} navigationRef={navigationRef} onChanged={onChanged} summary={{
+    name: place.name, areaLabel: place.areaLabel, location: place.location,
+    primaryTaxonomy: place.taxonomyLabel ? { label: place.taxonomyLabel } : null,
+  }} />
+)
 
 export function CatalogHomeApplication({
   familyNavigation,
@@ -24,7 +31,7 @@ export function CatalogHomeApplication({
       <PlaceWorkspaceShell familyNavigation={familyNavigation}>
         <CatalogHomeWorkspace
           MapRenderer={MapLibrePlaceMap}
-          PlaceFilingRenderer={PlaceFilingControl}
+          PlaceDetailRenderer={HomePlaceDetail}
         />
       </PlaceWorkspaceShell>
     </CatalogHomeProvider>

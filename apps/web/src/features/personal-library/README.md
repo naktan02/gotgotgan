@@ -14,9 +14,13 @@
 상세의 개요·내 기록은 실제 탭이다. 개인 기록 편집과 목록 선택은 필요할 때 열며, 숫자 입력 대신
 반점 단위 별을 선택한다. 기존 0.1 단위 평점은 사용자가 변경하기 전까지 그대로 보존한다.
 `draft-navigation`의 이동 확인과 `tests/e2e/library.spec.ts`에서 상세 이동 시
-메모·평점·목록 선택 초안의 저장/버리기/계속 편집 경계를 확인한다. 새로고침·문서 이탈은 브라우저
+메모·평점·목록 선택·새 태그 초안의 저장 후 이동/저장하지 않고 이동/계속 작성 경계를 확인한다. 새로고침·문서 이탈은 브라우저
 기본 경고를 사용한다. 앱의 프로그래밍 방식 이동은 공개 `PersonalPlaceNavigation` 경계를 사용한다.
-가져온 최소 정보는 canonical 분류와 구분해 표시하며 상세 보강이 실행 중인 것처럼 안내하지 않는다.
+가져온 최소 정보는 canonical 분류와 구분한다. 상세에는 좌표 숫자·정보 상태·보강 Job 운영 설명을
+노출하지 않는다. 홈의 별도 축약 카드 때문에 개인 기능이 빠지던 문제는 앱의 공개 renderer 주입으로
+같은 상세를 사용해 해결하며, `tests/e2e/place-detail/shared-detail.spec.ts`에서 로그인 전후·태그·메모
+진입을 확인한다. 반쪽 별의 `focus-within` 배경은 마우스 클릭에도 남았으므로 키보드 `focus-visible`을
+별 전체의 윤곽선으로 표시한다. 같은 회귀가 클릭 배경·키보드 초점과 모바일 입력 영역을 검사한다.
 
 카테고리 이름 검색(`collectionQuery`)과 범위 내 장소 검색(`placeQuery`)은 별도 서버 조회다.
 `collection-workspace/search`는 현재 범위가 실제 제공한 지역·장소 분류의 완전한 label과 명시적인
@@ -82,6 +86,8 @@ workflow도 루트에 평면 파일을 추가하지 않고 가장 가까운 소�
 `tag-management`, `place-filing`, `library-map`, `personal-place-detail`은 `collection-workspace`나
 서로의 내부 구현을 import하지 않는다. 두 편집 소비자의 이동 경계는 독립 `draft-navigation`이
 소유하며, `tests/e2e/search.spec.ts`의 Home filing 회귀에서도 저장 전 이탈을 확인한다.
+`personal-place-detail`은 `place-filing/public.ts`의 editor/workflow만 소비한다. Library는 기존 filing
+편집 상태를 주입하고 Home은 같은 공개 경계로 생성해, 초안 소유자를 중복하지 않는다.
 
 검증된 비활성 v1 화면과 호환 계층은 새 구조에 보관하지 않고 제거했다. 필요한 새 기능은 기존 코드를
 되살리는 대신 위의 동급 하위 모듈 중 실제 소유자에 추가한다.

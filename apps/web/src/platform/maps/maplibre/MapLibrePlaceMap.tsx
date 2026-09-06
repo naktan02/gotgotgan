@@ -8,9 +8,12 @@ import type {
   Marker as MapLibreMarker,
 } from 'maplibre-gl'
 
-import type { PlaceMapRendererProperties, PlaceMapViewport } from '../place-map-interface'
+import type { PlaceMapCluster, PlaceMapRendererProperties, PlaceMapViewport } from '../place-map-interface'
 import { rewriteOpenFreeMapSourceRequest } from '../openfreemap-source/source-location'
 import { replaceAccessibleMarkers } from './accessible-place-markers'
+import { configureGlobeAppearance } from './appearance/globe-appearance'
+import { CoincidentPlaceChoices, MapPresentationControls } from './MapPresentationControls'
+import type { MapMarkerMode } from './marker-presentation'
 import { readInitialCameraLocation } from './initial-camera-location'
 import { localizePlaceMapNames } from './map-label-language'
 import { configurePlaceMapProjection } from './map-projection'
@@ -41,6 +44,7 @@ export function MapLibrePlaceMap({
   onMove,
   onSelect,
   onViewportChange,
+  onOpenPlaceList,
 }: PlaceMapRendererProperties) {
   const containerRef = useRef<HTMLDivElement>(null)
   const summaryRef = useRef<HTMLParagraphElement>(null)
@@ -54,8 +58,13 @@ export function MapLibrePlaceMap({
   const synchronizingRef = useRef<Readonly<{ center: readonly [number, number]; zoom: number }> | undefined>(undefined)
   const [state, setState] = useState<'loading' | 'ready' | 'unavailable'>('loading')
   const [attempt, setAttempt] = useState(0)
+  const [markerMode, setMarkerMode] = useState<MapMarkerMode>('category')
+  const [activeCluster, setActiveCluster] = useState<PlaceMapCluster | undefined>()
 
-  callbacksRef.current = { onClusterSelect, onSelect, onViewportChange }
+  callbacksRef.current = { onClusterSelect: (cluster) => {
+    if (cluster.coincidentPreview != null) setActiveCluster(cluster)
+    else onClusterSelect?.(cluster)
+  }, onSelect, onViewportChange }
   featuresRef.current = { clusters, markers, selectedMarkerId }
   initialCameraModeRef.current = initialCameraMode
 
@@ -85,7 +94,10 @@ export function MapLibrePlaceMap({
       mapRef.current = map
       map.touchZoomRotate.disableRotation()
       map.keyboard.disableRotation()
-      map.on('style.load', () => localizePlaceMapNames(map))
+      map.on('style.load', () => {
+        localizePlaceMapNames(map)
+        configureGlobeAppearance(map)
+      })
       map.addControl(new maplibre.NavigationControl({ showCompass: false }), 'bottom-right')
       map.addControl(new maplibre.GeolocateControl({
         positionOptions: { enableHighAccuracy: false },
@@ -111,7 +123,8 @@ export function MapLibrePlaceMap({
           current: accessibleMarkersRef.current,
           ...current,
           ...(summaryRef.current === null ? {} : { focusFallback: summaryRef.current }),
-          styles: { marker: styles.marker, cluster: styles.cluster, selected: styles.selected },
+          styles: { marker: styles.marker, cluster: styles.cluster, selected: styles.selected,
+            dot: styles.dot, markerLabel: styles.markerLabel, markerSymbol: styles.markerSymbol },
           callbacks: {
             onSelect: (markerId) => callbacksRef.current.onSelect(markerId),
             onClusterSelect: (cluster) => callbacksRef.current.onClusterSelect?.(cluster),
@@ -181,21 +194,27 @@ export function MapLibrePlaceMap({
     const maplibre = moduleRef.current
     if (map === undefined || maplibre === undefined || state !== 'ready') return
     updatePlaceSource(map, createPlaceFeatureCollection(markers, clusters, selectedMarkerId))
-    accessibleMarkersRef.current = replaceAccessibleMarkers({
+    const refreshMarkers = () => { accessibleMarkersRef.current = replaceAccessibleMarkers({
       map,
       Marker: maplibre.Marker,
       current: accessibleMarkersRef.current,
       markers,
       clusters,
       selectedMarkerId,
+      mode: markerMode,
       ...(summaryRef.current === null ? {} : { focusFallback: summaryRef.current }),
-      styles: { marker: styles.marker, cluster: styles.cluster, selected: styles.selected },
+      styles: { marker: styles.marker, cluster: styles.cluster, selected: styles.selected,
+        dot: styles.dot, markerLabel: styles.markerLabel, markerSymbol: styles.markerSymbol },
       callbacks: {
         onSelect: (markerId) => callbacksRef.current.onSelect(markerId),
         onClusterSelect: (cluster) => callbacksRef.current.onClusterSelect?.(cluster),
       },
-    })
-  }, [clusters, markers, selectedMarkerId, state])
+    }) }
+    refreshMarkers()
+    // Layout resize and explicit camera navigation must not leave old screen-space offsets behind.
+    map.on('moveend', refreshMarkers)
+    return () => { map.off('moveend', refreshMarkers) }
+  }, [clusters, markers, selectedMarkerId, state, markerMode, zoom, bounds])
 
   useEffect(() => {
     const map = mapRef.current
@@ -218,6 +237,9 @@ export function MapLibrePlaceMap({
   return (
     <section aria-label={ariaLabel} className={styles.map} data-place-map-zoom={zoom}>
       <div className={styles.canvas} ref={containerRef} />
+      <MapPresentationControls mode={markerMode} onModeChange={setMarkerMode} />
+      {activeCluster !== undefined && <CoincidentPlaceChoices cluster={activeCluster} onClose={() => setActiveCluster(undefined)}
+        onSelect={onSelect} onOpenPlaceList={onOpenPlaceList} />}
       <p aria-live="polite" className={styles.summary} ref={summaryRef} tabIndex={-1}>
         지도에 장소 {markers.length}개와 장소 묶음 {clusters.length}개가 있습니다.
       </p>

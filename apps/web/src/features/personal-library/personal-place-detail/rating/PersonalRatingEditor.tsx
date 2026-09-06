@@ -58,14 +58,15 @@ export function PersonalRatingEditor({ workflow }: RatingEditorProps) {
         }}
       >
         <fieldset className={styles.stars}><legend>별을 눌러 선택 · 0.5점 단위</legend>
-          <div>{Array.from({ length: 10 }, (_, index) => {
-            const score = (index + 1) / 2
-            return <label key={score} className={styles.halfStar} data-side={index % 2 ? 'right' : 'left'} data-filled={value >= score}>
+          <div>{Array.from({ length: 5 }, (_, index) => <span className={styles.starChoice} key={index}>
+            {[0.5, 1].map((fraction) => {
+            const score = index + fraction
+            return <label key={score} className={styles.halfStar} data-side={fraction === 1 ? 'right' : 'left'} data-filled={value >= score}>
               <input type="radio" name="personal-rating" value={score} checked={value === score} disabled={busy}
                 aria-label={`별점 ${score.toFixed(1)}점`} onChange={() => workflow.setRatingDraft(score.toFixed(1))} />
               <span aria-hidden="true">★</span>
             </label>
-          })}</div>
+          })}</span>)}</div>
           <output aria-live="polite">{workflow.ratingDraft ? `${value.toFixed(1)}점` : '미선택'}</output>
         </fieldset>
         <button disabled={busy || !workflow.ratingValid} type="submit">평점 저장</button>

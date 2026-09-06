@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { CatalogExplorationResponse } from '@place/contracts/search'
+import type { CatalogExplorationResponseV2 as CatalogExplorationResponse } from '@place/contracts/search'
 import { createCatalogQueryIntentResolver } from './catalog-query-intent'
 
 const exact = { key: 'country:KR', kind: 'country', countryCode: 'KR', name: '대한민국', exact: true, location: { latitude: 36, longitude: 128 }, bounds: null } as const
 const response: CatalogExplorationResponse = {
-  schemaVersion: 'catalog-exploration.v1', intent: 'name', destinations: [exact],
+  schemaVersion: 'catalog-exploration.v2', intent: 'name', destinations: [exact],
   places: [], conditions: [], unrecognizedText: '',
 }
 function deferred() {
@@ -24,6 +24,17 @@ function setup() {
 }
 
 describe('Catalog query intent ownership', () => {
+  it('does not automatically navigate to one of several same-name regions', async () => {
+    const { resolver, request } = setup()
+    await resolver.resolve({ ...request, query: '성수동', explore: async () => ({ ...response,
+      destinations: [
+        { ...exact, key: 'seongsu-seoul', name: '성수동', kind: 'neighborhood', contextLabel: '서울특별시 · 성동구' },
+        { ...exact, key: 'seongsu-jeonnam', name: '성수동', kind: 'neighborhood', contextLabel: '전라남도 · 해남군' },
+      ],
+    }) })
+    expect(request.chooseDestination).not.toHaveBeenCalled()
+    expect(request.search).toHaveBeenCalledWith('name')
+  })
   it('cannot apply delayed initial URL interpretation after the user edits the query', async () => {
     const { resolver, pending, request } = setup()
     const initial = resolver.resolve(request)

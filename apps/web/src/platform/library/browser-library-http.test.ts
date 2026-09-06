@@ -54,7 +54,7 @@ describe('browser library HTTP', () => {
 
   it('forwards Collection-first map text and filters only through the authenticated fixed backend', async () => {
     const fetcher = vi.fn(async (url: URL, init: RequestInit) => {
-      expect(url.pathname).toBe('/v2/library/workspace/map')
+      expect(url.pathname).toBe('/v3/library/workspace/map')
       expect(url.searchParams.get('collectionId')).toBe(collectionId)
       expect(url.searchParams.get('placeQuery')).toBe('성수동 라멘')
       expect(url.searchParams.get('rating')).toBe('rated')
@@ -62,7 +62,7 @@ describe('browser library HTTP', () => {
       expect(url.searchParams.has('scope')).toBe(false)
       expect(new Headers(init.headers).get('authorization')).toBe('Bearer server-access-token')
       return Response.json({
-        schemaVersion: 'personal-library-map.v2',
+        schemaVersion: 'personal-library-map.v3',
         filter: { favoriteScope: { kind: 'collection', collectionId }, ratingFilter: { kind: 'rated' },
           tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: ['food.ramen'], placeQuery: '성수동 라멘' },
         viewport: { bounds: { west: -180, south: -85, east: 180, north: 85 }, zoom: 1 },
@@ -73,13 +73,30 @@ describe('browser library HTTP', () => {
     const query = new URLSearchParams({ collectionId, placeQuery: '성수동 라멘', rating: 'rated', taxonomyKeys: 'food.ramen',
       west: '-180', south: '-85', east: '180', north: '85', zoom: '1' })
     const requestUrl = `https://place.example/api/library/workspace/map?${query}`
-    const response = await http.workspaceMap(new Request(requestUrl))
+    const response = await http.workspaceMapV3(new Request(requestUrl))
     expect(response.status).toBe(200)
     expect(await response.text()).not.toContain('server-access-token')
     for (const extra of ['&memberId=forged', '&placeQuery=duplicate', '&collectionQuery=directory', '&placeCursor=page']) {
-      expect((await http.workspaceMap(new Request(requestUrl + extra))).status).toBe(400)
+      expect((await http.workspaceMapV3(new Request(requestUrl + extra))).status).toBe(400)
     }
     expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves the existing strict v2 BFF and rejects v3 selection input there', async () => {
+    const fetcher = vi.fn(async (url: URL) => {
+      expect(url.pathname).toBe('/v2/library/workspace/map')
+      return Response.json({ schemaVersion: 'personal-library-map.v2',
+        filter: { favoriteScope: { kind: 'all' }, ratingFilter: { kind: 'any' }, tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: [] },
+        viewport: { bounds: { west: 126, south: 37, east: 128, north: 38 }, zoom: 12 },
+        features: [], coverage: { representedPlaceCount: 0, unprojectedPlaceCount: 0, complete: true } })
+    })
+    const http = createBrowserLibraryHttp({ resolveAuthRuntime: sessionRuntime, backend: backend(fetcher), createCorrelationRef: () => 'test-ref' })
+    const url = 'https://gotgotgan.test/api/library/workspace/map?west=126&south=37&east=128&north=38&zoom=12'
+    const response = await http.workspaceMap(new Request(url))
+    expect(response.status).toBe(200)
+    expect((await response.json()).schemaVersion).toBe('personal-library-map.v2')
+    expect((await http.workspaceMap(new Request(`${url}&selectedPlaceId=${placeId}`))).status).toBe(400)
+    expect(fetcher).toHaveBeenCalledOnce()
   })
 
   it('forwards a revision-checked public Collection copy without browser authority fields', async () => {

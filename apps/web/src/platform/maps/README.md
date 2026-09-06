@@ -3,6 +3,18 @@
 이 platform owner는 MapLibre lifecycle, style, projection, viewport, marker·cluster 표현과 외부 지도
 링크 정책을 소유한다. 검색, Place 정체성, 즐겨찾기, Provider detail은 소유하지 않는다.
 
+밀도가 다른 화면을 검토할 때는 `maplibre/marker-presentation.ts`에서 원/큰 유형/세부 유형의
+확대 수준과 선택 label 우선순위, `MapPresentationControls.tsx`에서 동일 좌표의 별개 장소 선택을
+확인한다. 없는 분류를 원문 문자열로 추측하지 않는다. v3의 동위치 미리보기는 일부 선택지이며
+남은 수를 숨기지 않는다. 지도 표현상의 묶음은 장소 정체성이나 개인 Collection membership을 합치지 않는다.
+
+지구본 표현은 MapLibre 6.7의 [공개 atmosphere 예제](https://maplibre.org/maplibre-gl-js/docs/examples/display-a-globe-with-an-atmosphere/)와
+[Sky specification](https://maplibre.org/maplibre-style-spec/sky/)를 확인해 `maplibre/appearance/`에 한정한다.
+Bright의 거리 지도는 유지하며 먼 zoom의 알려진 색상만 낮은 채도로 조정한다. 커스텀 shader·별 애니메이션·
+projection 재생성은 쓰지 않는다. `testing/camera-roundtrip/appearance-smoke.mjs`는 공개 Bright 실제 타일의
+세계/한국/서울/거리와 모바일 캡처, 동위치 선택창의 키보드·여백을 검증한다. 일반 CI fixture와 분리한
+명시적 외부 네트워크 검증이며 운영 배포 상태의 증거는 별도 `live-map-smoke.mjs`가 소유한다.
+
 호출자는 `public.ts`의 provider-neutral `PlaceMapRenderer` Interface만 사용한다. 운영 Adapter인
 `maplibre/MapLibrePlaceMap.tsx`는 MapLibre GL JS를 한 번 생성하고 projection을 `globe`로 한 번만
 지정한다. 지구본과 Mercator 2D 전환은 MapLibre 내장 zoom 전환에 맡기며 수동 projection toggle을

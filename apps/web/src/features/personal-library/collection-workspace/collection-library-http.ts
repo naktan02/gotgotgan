@@ -1,12 +1,12 @@
 import {
   collectionLifecycleCommandRequestV2Schema,
   collectionLifecycleCommandResultV2Schema,
-  personalLibraryMapRequestV2Schema,
-  personalLibraryMapResponseV2Schema,
+  personalLibraryMapRequestV3Schema,
+  personalLibraryMapResponseV3Schema,
   libraryTagListResponseSchema,
   personalLibraryWorkspaceRequestV2Schema,
   personalLibraryWorkspaceResponseV2Schema,
-  type PersonalLibraryMapRequestV2,
+  type PersonalLibraryMapRequestV3,
   type CollectionLifecycleCommandRequestV2,
   type CollectionLifecycleCommandResultV2,
   type PersonalLibraryWorkspaceRequestV2,
@@ -93,8 +93,8 @@ export function createCollectionLibraryHttp(fetcher: typeof fetch = fetch) {
       return libraryTagListResponseSchema.parse(value)
     },
 
-    async map(query: PersonalLibraryMapRequestV2, signal?: AbortSignal) {
-      const parsed = personalLibraryMapRequestV2Schema.parse(query)
+    async map(query: PersonalLibraryMapRequestV3, signal?: AbortSignal) {
+      const parsed = personalLibraryMapRequestV3Schema.parse(query)
       const parameters = new URLSearchParams({
         rating: parsed.ratingFilter.kind,
         tagMatch: parsed.tagMatch,
@@ -105,17 +105,18 @@ export function createCollectionLibraryHttp(fetcher: typeof fetch = fetch) {
         zoom: String(parsed.zoom),
       })
       if (parsed.favoriteScope.kind === 'collection') parameters.set('collectionId', parsed.favoriteScope.collectionId)
+      if (parsed.selectedPlaceId !== undefined) parameters.set('selectedPlaceId', parsed.selectedPlaceId)
       for (const key of parsed.tagIds) parameters.append('tagIds', key)
       for (const key of parsed.areaKeys) parameters.append('areaKeys', key)
       for (const key of parsed.taxonomyKeys) parameters.append('taxonomyKeys', key)
       if (parsed.placeQuery !== undefined) parameters.set('placeQuery', parsed.placeQuery)
-      const response = await fetcher(`/api/library/workspace/map?${parameters}`, {
+      const response = await fetcher(`/api/v3/library/workspace/map?${parameters}`, {
         cache: 'no-store',
         ...(signal === undefined ? {} : { signal }),
       })
       const value = await json(response)
       if (!response.ok) throw new CollectionLibraryProblem(response.status)
-      return personalLibraryMapResponseV2Schema.parse(value)
+      return personalLibraryMapResponseV3Schema.parse(value)
     },
   }
 }

@@ -1,11 +1,11 @@
 import {
-  catalogPlaceMapRequestV2Schema as catalogPlaceMapRequestSchema,
-  catalogPlaceMapResponseV2Schema as catalogPlaceMapResponseSchema,
+  catalogPlaceMapRequestV3Schema as catalogPlaceMapRequestSchema,
+  catalogPlaceMapResponseV3Schema as catalogPlaceMapResponseSchema,
   catalogPlaceSearchRequestV2Schema as catalogPlaceSearchRequestSchema,
   catalogPlaceSearchResponseV2Schema as catalogPlaceSearchResponseSchema,
-  catalogExplorationResponseSchema,
+  catalogExplorationResponseV2Schema as catalogExplorationResponseSchema,
   type CatalogSearchIntent,
-  type CatalogPlaceMapResponseV2,
+  type CatalogPlaceMapResponseV3,
   type CatalogPlaceSearchResponseV2,
   type SearchBounds,
 } from '@place/contracts/search'
@@ -26,14 +26,15 @@ async function json(response: Response): Promise<unknown> {
 export function createCatalogHomeClient(fetcher: typeof fetch = fetch) {
   return {
     async explore(query: string, signal?: AbortSignal, near?: Readonly<{ latitude: number; longitude: number }>) {
-      const response = await fetcher('/api/search/catalog/explore', {
+      const response = await fetcher('/api/v2/search/catalog/explore', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ schemaVersion: 'catalog-exploration.v1', query, ...(near === undefined ? {} : { near }) }), cache: 'no-store',
+        body: JSON.stringify({ schemaVersion: 'catalog-exploration.v2', query, ...(near === undefined ? {} : { near }) }), cache: 'no-store',
         ...(signal === undefined ? {} : { signal }),
       })
       return catalogExplorationResponseSchema.parse(await json(response))
     },
     async map(input: Readonly<{
+      selectedPlaceId?: string
       taxonomyKey?: string
       intent?: CatalogSearchIntent
       query: string
@@ -41,9 +42,10 @@ export function createCatalogHomeClient(fetcher: typeof fetch = fetch) {
       viewport: SearchBounds
       zoom: number
       signal?: AbortSignal
-    }>): Promise<CatalogPlaceMapResponseV2> {
+    }>): Promise<CatalogPlaceMapResponseV3> {
       const body = catalogPlaceMapRequestSchema.parse({
-        schemaVersion: 'catalog-place-map.v2', intent: input.intent ?? 'auto',
+        schemaVersion: 'catalog-place-map.v3', intent: input.intent ?? 'auto',
+        ...(input.selectedPlaceId === undefined ? {} : { selectedPlaceId: input.selectedPlaceId }),
         ...(input.taxonomyKey === undefined ? {} : { taxonomyKey: input.taxonomyKey }),
         query: input.query,
         excludedTokenIds: input.excludedTokenIds ?? [],
@@ -51,7 +53,7 @@ export function createCatalogHomeClient(fetcher: typeof fetch = fetch) {
         zoom: input.zoom,
         maxFeatures: 384,
       })
-      const response = await fetcher('/api/v2/search/catalog/map', {
+      const response = await fetcher('/api/v3/search/catalog/map', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useId, useRef, useState } from 'react'
-import type { CatalogExplorationResponse, CatalogSearchIntent } from '@place/contracts/search'
+import type { CatalogExplorationResponseV2 as CatalogExplorationResponse, CatalogSearchIntent } from '@place/contracts/search'
 import type { CatalogHomeWorkflow } from '../catalog-home-workflow'
 import { catalogHomeClient } from '../catalog-home-client'
 import { catalogSearchNear } from './search-location'
@@ -37,7 +37,8 @@ export function CatalogSearchInput({ workflow, onSearch, requestNavigation }: Re
   })
   const choices = [
     ...(result?.destinations ?? []).map((destination) => ({
-      key: destination.key, label: destination.name, detail: destination.kind === 'country' ? '국가 · 지도에서 보기' : '도시 · 지도에서 보기',
+      key: destination.key, label: destination.name, detail: [destination.contextLabel,
+        { country: '국가', city: '도시', 'administrative-area': '시도', locality: '시군구', neighborhood: '동네' }[destination.kind], '지도에서 보기'].filter(Boolean).join(' · '),
       action: () => navigate(() => { workflow.chooseDestination(destination); onSearch?.(); setOpen(false) }),
     })),
     ...(result?.places ?? []).map((place) => ({
@@ -83,7 +84,9 @@ export function CatalogSearchInput({ workflow, onSearch, requestNavigation }: Re
         </li>)}
       </ul>
       {status && <p role="status">{status}</p>}
-      <small className={styles.hint}>곳곳간에 등록된 장소와 국가·주요 도시를 찾습니다.</small>
+      <small className={styles.hint}>등록된 장소와 지리 참조를 찾습니다. 동네 좌표는 대표점이며 주소 전체를 제공하지 않습니다.
+        {' '}지리 자료: <a href="https://www.geonames.org/" target="_blank" rel="noreferrer">GeoNames</a>
+        {' '}(<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a>), Natural Earth.</small>
     </div>}
   </div>
 }

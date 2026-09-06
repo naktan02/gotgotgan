@@ -171,7 +171,7 @@ async function installCollectionLibraryFixture(page: Page, options: LibraryFixtu
     schemaVersion: 'library-tag-list.v1',
     items: [{ tagId: ramenTagId, name: '진한 국물', placeCount: 1, createdAt: timestamp }],
   }))
-  await page.route('**/api/library/workspace/map?*', (route) => {
+  await page.route('**/api/v3/library/workspace/map?*', (route) => {
     const url = new URL(route.request().url())
     const collectionId = url.searchParams.get('collectionId')
     const collection = collectionId === null ? undefined : collections.get(collectionId)
@@ -188,7 +188,7 @@ async function installCollectionLibraryFixture(page: Page, options: LibraryFixtu
         placeQuery.split(/\s+/).every((term) => `${place.name} ${place.areaLabel} ${place.primaryTaxonomy.label}`.includes(term))
     })
     return json(route, {
-      schemaVersion: 'personal-library-map.v2',
+      schemaVersion: 'personal-library-map.v3',
       filter: { favoriteScope: collectionId === null ? { kind: 'all' } : { kind: 'collection', collectionId }, ratingFilter: { kind: rating },
         tagIds: url.searchParams.getAll('tagIds'), tagMatch: url.searchParams.get('tagMatch') ?? 'all',
         areaKeys, taxonomyKeys, ...(placeQuery ? { placeQuery } : {}),
@@ -207,6 +207,7 @@ async function installCollectionLibraryFixture(page: Page, options: LibraryFixtu
         placeId,
         label: places[placeId as keyof typeof places].name,
         location: places[placeId as keyof typeof places].location,
+        classification: { primaryTaxonomy: places[placeId as keyof typeof places].primaryTaxonomy, rootTaxonomy: { key: 'food', label: '음식점' } },
       })),
       coverage: {
         representedPlaceCount: located.length,
@@ -512,7 +513,7 @@ test('keeps directory, scoped search, bounded filters, detail, and map in one re
   await placeSearch.getByRole('searchbox').fill('성수동 라멘')
   const mapRequest = page.waitForRequest((request) => {
     const url = new URL(request.url())
-    return url.pathname === '/api/library/workspace/map' && url.searchParams.get('placeQuery') === '성수동 라멘'
+    return url.pathname === '/api/v3/library/workspace/map' && url.searchParams.get('placeQuery') === '성수동 라멘'
   })
   await placeSearch.getByRole('button', { name: '검색', exact: true }).click()
   expect(new URL((await mapRequest).url()).searchParams.get('collectionId')).toBe(ramenCollectionId)
@@ -588,7 +589,7 @@ test('opens all saved-place search only through an explicit directory action', a
   await page.getByRole('searchbox', { name: '내 모든 목록 안에서 장소 검색' }).fill('성수동 라멘')
   const request = page.waitForRequest((request) => {
     const url = new URL(request.url())
-    return url.pathname === '/api/library/workspace/map' && url.searchParams.get('placeQuery') === '성수동 라멘'
+    return url.pathname === '/api/v3/library/workspace/map' && url.searchParams.get('placeQuery') === '성수동 라멘'
   })
   await page.getByRole('searchbox', { name: '내 모든 목록 안에서 장소 검색' }).press('Enter')
   expect(new URL((await request).url()).searchParams.has('collectionId')).toBe(false)
@@ -624,7 +625,7 @@ test('uses real detail tabs, keeps precise existing stars, and guards unsaved no
   await detail.getByRole('button', { name: '← 장소 목록으로' }).click()
   const guard = page.getByRole('dialog', { name: '저장하지 않은 변경이 있어요' })
   await expect(guard).toContainText('내 별점')
-  await guard.getByRole('button', { name: '계속 편집' }).click()
+  await guard.getByRole('button', { name: '계속 작성' }).click()
   await expect(rating.getByRole('radio', { name: '별점 3.5점', exact: true })).toBeChecked()
   await detail.getByRole('tab', { name: '내 기록', exact: true }).click()
   await expect(detail.getByRole('tabpanel', { name: '개요' })).not.toBeVisible()
@@ -635,7 +636,7 @@ test('uses real detail tabs, keeps precise existing stars, and guards unsaved no
   await expect(detail.getByLabel('새 비공개 메모', { exact: true })).toHaveValue('테스트 전용 미저장 초안')
   await detail.getByRole('button', { name: '← 장소 목록으로' }).click()
   await expect(guard).toContainText('메모')
-  await guard.getByRole('button', { name: '변경 버리고 이동' }).click()
+  await guard.getByRole('button', { name: '저장하지 않고 이동' }).click()
   await expect(detail).not.toBeVisible()
   await page.getByRole('button', { name: /멘야 하루 쇼유라멘/ }).click()
   await expect(page.getByRole('region', { name: '내 평점' })).toContainText('4.7')
@@ -654,7 +655,7 @@ test('searches filing choices and saves before leaving a changed membership', as
   await page.getByRole('button', { name: '← 장소 목록으로' }).click()
   const guard = page.getByRole('dialog', { name: '저장하지 않은 변경이 있어요' })
   await expect(guard).toContainText('목록 선택')
-  await guard.getByRole('button', { name: '저장하고 이동' }).click()
+  await guard.getByRole('button', { name: '저장 후 이동' }).click()
   await expect(page.getByRole('complementary', { name: '선택한 장소 상세' })).not.toBeVisible()
   expect(fixture.collections.get(tokyoCollectionId)?.placeIds).toContain(ramenPlaceId)
   expect(fixture.filingCommands).toHaveLength(1)
@@ -695,7 +696,7 @@ test('separates verified favorite conditions from literal names and sends equal 
   await search.getByRole('searchbox').fill('쇼유라멘 멘야')
   const conditionMap = page.waitForRequest((request) => {
     const url = new URL(request.url())
-    return url.pathname === '/api/library/workspace/map' && url.searchParams.get('placeQuery') === '멘야' && url.searchParams.getAll('taxonomyKeys').includes('ramen.shoyu')
+    return url.pathname === '/api/v3/library/workspace/map' && url.searchParams.get('placeQuery') === '멘야' && url.searchParams.getAll('taxonomyKeys').includes('ramen.shoyu')
   })
   const conditionList = page.waitForRequest((request) => {
     const url = new URL(request.url())
@@ -726,8 +727,10 @@ test('shows private imported minimum information without asserting canonical cla
   await page.getByRole('button', { name: /장소 정보 준비 중/ }).click()
   const detail = page.getByRole('complementary', { name: '선택한 장소 상세' })
   await expect(detail.getByRole('heading', { name: '가져온 작은 식당' })).toBeVisible()
-  await expect(detail).toContainText('가져온 분류 · 공급자 원본 분류')
-  await expect(detail).toContainText('37.54000, 127.05000')
-  await expect(detail).toContainText('상세 보강은 현재 실행 중이 아닙니다.')
+  await expect(detail).toContainText('공급자 원본 분류')
+  await expect(detail).toContainText('가져온 정보')
+  await expect(detail).toContainText('서울 성동구 테스트 주소')
+  await expect(detail).not.toContainText('37.54000, 127.05000')
+  await expect(detail).not.toContainText('상세 보강')
   await expect(detail.getByRole('heading', { name: '장소 정보 동기화 중' })).toHaveCount(0)
 })
