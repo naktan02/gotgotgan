@@ -4,10 +4,14 @@ import {
   importAcquisitionIdentifierParamsV1Schema,
   importAcquisitionV1Schema,
   startImportAcquisitionV1Schema,
+  startImportAcquisitionV2Schema,
+  startImportAcquisitionResultV2Schema,
+  importAcquisitionCapabilitiesV2Schema,
 } from '@place/contracts/transfers'
 import type { FastifyInstance } from 'fastify'
 
 import type { ImportAcquisitions } from '../../domain/acquisitions.js'
+import { createProviderImportAcquisitions } from '../../application/provider-import-acquisitions.js'
 import {
   requireProductMember,
   sendProductProblem,
@@ -16,13 +20,13 @@ import {
 
 export type ImportAcquisitionHttpDependencies = Readonly<{
   authorizer: ProductAuthorizer
-  acquisitions: ImportAcquisitions
+  acquisitions?: ImportAcquisitions
   remoteBrowserEnabled?: boolean
 }>
 
 function rejectionStatus(code: string): 404 | 409 | 422 | 429 {
   if (code === 'not-found') return 404
-  if (code === 'not-cancellable') return 422
+  if (code === 'not-cancellable' || code === 'capability-unavailable') return 422
   if (code === 'limit-exceeded') return 429
   return 409
 }
@@ -31,6 +35,33 @@ export function registerImportAcquisitionHttpRoutes(
   application: FastifyInstance,
   dependencies: ImportAcquisitionHttpDependencies,
 ): void {
+  const providerAcquisitions = createProviderImportAcquisitions(dependencies.acquisitions)
+  application.get('/v2/transfers/import-acquisition-capabilities', async (request, reply) => {
+    const memberId = await requireProductMember(request, reply, dependencies.authorizer, 'imports.read')
+    if (memberId === undefined) return
+    return reply.header('cache-control', 'no-store').send(
+      importAcquisitionCapabilitiesV2Schema.parse(providerAcquisitions.capabilities()),
+    )
+  })
+  application.post('/v2/transfers/import-acquisitions', async (request, reply) => {
+    const parsed = startImportAcquisitionV2Schema.safeParse(request.body)
+    if (!parsed.success) {
+      return sendProductProblem(request, reply, 400, 'PLACE_IMPORT_ACQUISITION_V2_REQUEST_INVALID', 'Import acquisition request is invalid')
+    }
+    const memberId = await requireProductMember(request, reply, dependencies.authorizer, 'imports.write')
+    if (memberId === undefined) return
+    try {
+      const result = await providerAcquisitions.start(memberId, parsed.data)
+      const status = result.outcome === 'rejected'
+        ? rejectionStatus(result.rejection.code) : result.status === 'applied' ? 201 : 200
+      return reply.header('cache-control', 'no-store').status(status)
+        .send(startImportAcquisitionResultV2Schema.parse(result))
+    } catch {
+      return sendProductProblem(request, reply, 503, 'PLACE_IMPORT_ACQUISITION_V2_UNAVAILABLE', 'Import acquisition is temporarily unavailable', true)
+    }
+  })
+  const acquisitions = dependencies.acquisitions
+  if (acquisitions === undefined) return
   application.post('/v1/transfers/import-acquisitions', async (request, reply) => {
     const parsed = startImportAcquisitionV1Schema.safeParse(request.body)
     if (!parsed.success) {
@@ -50,7 +81,7 @@ export function registerImportAcquisitionHttpRoutes(
       )
     }
     try {
-      const result = await dependencies.acquisitions.start(memberId, parsed.data)
+      const result = await acquisitions.start(memberId, parsed.data)
       const response = importAcquisitionCommandResultV1Schema.parse(result)
       return reply.header('cache-control', 'no-store').status(
         result.outcome === 'rejected'
@@ -78,7 +109,7 @@ export function registerImportAcquisitionHttpRoutes(
     )
     if (memberId === undefined) return
     try {
-      const acquisition = await dependencies.acquisitions.get(
+      const acquisition = await acquisitions.get(
         memberId, parsed.data.acquisitionId,
       )
       if (acquisition === undefined) {
@@ -110,7 +141,7 @@ export function registerImportAcquisitionHttpRoutes(
     )
     if (memberId === undefined) return
     try {
-      const result = await dependencies.acquisitions.applyCommand(memberId, parsed.data)
+      const result = await acquisitions.applyCommand(memberId, parsed.data)
       return reply.header('cache-control', 'no-store').status(
         result.outcome === 'rejected' ? rejectionStatus(result.rejection.code) : 200,
       ).send(importAcquisitionCommandResultV1Schema.parse(result))

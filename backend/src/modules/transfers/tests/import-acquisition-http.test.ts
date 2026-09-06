@@ -48,6 +48,64 @@ function acquisitions(): ImportAcquisitions {
 }
 
 describe('web import acquisition HTTP', () => {
+  it('publishes provider/method capabilities even when the acquisition runtime is absent', async () => {
+    const app = Fastify({ logger: false })
+    registerImportAcquisitionHttpRoutes(app, {
+      authorizer: async (authorization) => authorization === undefined
+        ? { status: 'authentication-required' } : { status: 'authorized', memberId },
+    })
+    const denied = await app.inject({ method: 'GET', url: '/v2/transfers/import-acquisition-capabilities' })
+    expect(denied.statusCode).toBe(401)
+    const response = await app.inject({ method: 'GET', url: '/v2/transfers/import-acquisition-capabilities', headers: { authorization: 'Bearer member' } })
+    expect(response.statusCode).toBe(200)
+    expect(response.headers['cache-control']).toBe('no-store')
+    expect(response.json().providers.map((provider: { providerKey: string }) => provider.providerKey)).toEqual(['naver', 'google', 'kakao'])
+    expect(response.json().providers[0].methods[0].availability.status).toBe('configuration-required')
+    await app.close()
+  })
+
+  it('rejects unsupported v2 providers and every remote method before invoking persistence', async () => {
+    let starts = 0
+    const app = Fastify({ logger: false })
+    registerImportAcquisitionHttpRoutes(app, {
+      authorizer: async () => ({ status: 'authorized', memberId }), remoteBrowserEnabled: true,
+      acquisitions: { ...acquisitions(), start: async (...input) => { starts += 1; return acquisitions().start(...input) } },
+    })
+    for (const providerKey of ['naver', 'google', 'kakao']) {
+      for (const kind of ['shared-links', 'remote-browser']) {
+        if (providerKey === 'naver' && kind === 'shared-links') continue
+        const response = await app.inject({
+          method: 'POST', url: '/v2/transfers/import-acquisitions', headers: { authorization: 'Bearer member' },
+          payload: {
+            schemaVersion: 'start-import-acquisition.v2', kind, commandId, acquisitionId, importSourceId, providerKey,
+            ...(kind === 'shared-links' ? { snapshotId, links: [{ entryId, position: 0, url: 'https://example.com/shared' }] } : {}),
+          },
+        })
+        expect(response.statusCode).toBe(422)
+        expect(response.json().rejection.code).toBe('capability-unavailable')
+      }
+    }
+    expect(starts).toBe(0)
+    await app.close()
+  })
+
+  it('routes v2 NAVER links through the unchanged encrypted acquisition boundary', async () => {
+    const received: unknown[] = []
+    const app = Fastify({ logger: false })
+    registerImportAcquisitionHttpRoutes(app, {
+      authorizer: async () => ({ status: 'authorized', memberId }),
+      acquisitions: { ...acquisitions(), start: async (owner, command) => { received.push({ owner, command }); return acquisitions().start(owner, command) } },
+    })
+    const payload = {
+      schemaVersion: 'start-import-acquisition.v2', kind: 'shared-links', commandId, acquisitionId, importSourceId, snapshotId, providerKey: 'naver',
+      links: [{ entryId, position: 0, url: 'https://naver.me/Example' }],
+    }
+    const response = await app.inject({ method: 'POST', url: '/v2/transfers/import-acquisitions', headers: { authorization: 'Bearer member' }, payload })
+    expect(response.statusCode).toBe(201)
+    expect(response.json().schemaVersion).toBe('start-import-acquisition-result.v2')
+    expect(received).toEqual([{ owner: memberId, command: { ...payload, schemaVersion: 'start-import-acquisition.v1' } }])
+    await app.close()
+  })
   it('rejects malformed multi-link input before authorization', async () => {
     let authorizationCalls = 0
     const app = Fastify({ logger: false })

@@ -32,6 +32,11 @@ export const systemAndBrowserPaths = {
       'BrowserMapStyle',
     ),
   }, { security: anonymous }) },
+  '/api/maps/openfreemap-source': { get: operation('getOpenFreeMapSourceForBrowser', {
+    '200': described('Return the fixed public TileJSON with required attribution retained and optional branding removed', 'BrowserMapSource'),
+    '307': described('Fall back to the fixed original public TileJSON when metadata is unavailable'),
+    '400': described('Reject query parameters; this is not a configurable URL proxy'),
+  }, { security: anonymous }) },
   '/api/auth/oidc/start': { get: operation('startPlaceBrowserLogin', {
     '302': described('Redirect to the configured Identity authorization endpoint'),
     '503': ref('responses', 'BrowserAuthUnavailable'),
@@ -109,6 +114,18 @@ export const systemAndBrowserPaths = {
       '410': ref('responses', 'PlaceRetired'),
       '503': ref('responses', 'BrowserBackendUnavailable'),
     }, { security: anonymous }),
+  },
+  '/api/v2/places/{placeId}': {
+    parameters: [pathParameters.placeId],
+    get: operation('getMemberPlaceDetailV2ForBrowser', {
+      '200': described('Return member-owned minimum observations without publishing them as canonical facts', 'MemberPlaceDetailResponseV2'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '410': ref('responses', 'PlaceRetired'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, { security: browserSession }),
   },
   '/api/places/{placeId}/visits': {
     parameters: [pathParameters.placeId],

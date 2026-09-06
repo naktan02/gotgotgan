@@ -174,3 +174,86 @@ export type ImportAcquisitionV1 = z.infer<typeof importAcquisitionV1Schema>
 export type StartImportAcquisitionV1 = z.infer<typeof startImportAcquisitionV1Schema>
 export type ImportAcquisitionCommandV1 = z.infer<typeof importAcquisitionCommandV1Schema>
 export type ImportAcquisitionCommandResultV1 = z.infer<typeof importAcquisitionCommandResultV1Schema>
+
+export const importAcquisitionUnavailableV2Schema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('configuration-required'), reason: z.literal('runtime-disabled') }).strict(),
+  z.object({
+    status: z.literal('not-implemented'),
+    reason: z.enum(['provider-adapter-unavailable', 'remote-browser-integration-gated']),
+  }).strict(),
+])
+
+export const importAcquisitionCapabilitiesV2Schema = z.object({
+  schemaVersion: z.literal('import-acquisition-capabilities.v2'),
+  providers: z.array(z.object({
+    providerKey: providerKeySchema,
+    methods: z.array(z.object({
+      method: oneShotImportMethodV1Schema,
+      availability: z.union([
+        z.object({ status: z.literal('available') }).strict(),
+        importAcquisitionUnavailableV2Schema,
+      ]),
+    }).strict()).length(2).superRefine((methods, context) => {
+      if (new Set(methods.map((method) => method.method)).size !== methods.length) {
+        context.addIssue({ code: 'custom', message: 'methods must be unique' })
+      }
+    }),
+  }).strict()).length(3).superRefine((providers, context) => {
+    if (new Set(providers.map((provider) => provider.providerKey)).size !== providers.length) {
+      context.addIssue({ code: 'custom', message: 'providers must be unique' })
+    }
+  }),
+}).strict()
+
+// v1 stays NAVER-only. Provider acceptance here is not evidence of acquisition support.
+export const startImportAcquisitionV2Schema = z.discriminatedUnion('kind', [
+  z.object({
+    schemaVersion: z.literal('start-import-acquisition.v2'),
+    kind: z.literal('shared-links'),
+    commandId: uuidSchema,
+    acquisitionId: uuidSchema,
+    importSourceId: uuidSchema,
+    snapshotId: uuidSchema,
+    providerKey: providerKeySchema,
+    links: z.array(sharedLinkInputSchema).min(1).max(20),
+  }).strict().superRefine((command, context) => {
+    if (new Set(command.links.map((link) => link.entryId)).size !== command.links.length ||
+      new Set(command.links.map((link) => link.position)).size !== command.links.length) {
+      context.addIssue({ code: 'custom', path: ['links'], message: 'entry identities and positions must be unique' })
+    }
+  }),
+  z.object({
+    schemaVersion: z.literal('start-import-acquisition.v2'),
+    kind: z.literal('remote-browser'),
+    commandId: uuidSchema,
+    acquisitionId: uuidSchema,
+    importSourceId: uuidSchema,
+    providerKey: providerKeySchema,
+  }).strict(),
+])
+
+export const startImportAcquisitionResultV2Schema = z.discriminatedUnion('outcome', [
+  z.object({
+    schemaVersion: z.literal('start-import-acquisition-result.v2'),
+    outcome: z.literal('accepted'),
+    commandId: uuidSchema,
+    status: z.enum(['applied', 'replayed']),
+    acquisition: importAcquisitionV1Schema,
+  }).strict(),
+  z.object({
+    schemaVersion: z.literal('start-import-acquisition-result.v2'),
+    outcome: z.literal('rejected'),
+    commandId: uuidSchema,
+    rejection: z.union([
+      importAcquisitionCommandResultV1Schema.options[1].shape.rejection,
+      z.object({
+        code: z.literal('capability-unavailable'),
+        availability: importAcquisitionUnavailableV2Schema,
+      }).strict(),
+    ]),
+  }).strict(),
+])
+
+export type ImportAcquisitionCapabilitiesV2 = z.infer<typeof importAcquisitionCapabilitiesV2Schema>
+export type StartImportAcquisitionV2 = z.infer<typeof startImportAcquisitionV2Schema>
+export type StartImportAcquisitionResultV2 = z.infer<typeof startImportAcquisitionResultV2Schema>

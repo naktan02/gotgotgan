@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 
 import type { Pool } from 'pg'
+import { searchCatalogNames } from './postgres-catalog-name-search.js'
 
 import type { LocalSearchProjectionStore } from '../../application/ports/local-search-projection-store.js'
 import type { LocalPlaceDocumentReader } from '../../application/ports/local-place-document-reader.js'
@@ -317,6 +318,7 @@ export class PostgresLocalSearch implements
   }
 
   async searchCatalog(query: CatalogPlaceSearchQuery) {
+    if (query.intent === 'name') return searchCatalogNames(this.pool, query)
     const queryFingerprint = catalogQueryFingerprint(query)
     const cursor = decodeCatalogCursor(query.cursor, queryFingerprint)
     const normalizedQuery = query.query.normalize('NFKC').trim().toLocaleLowerCase()

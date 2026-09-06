@@ -11,6 +11,8 @@ export type CatalogMapViewport = Readonly<{
 }>
 
 export type CatalogPlaceMapInput = Readonly<{
+  intent?: 'auto' | 'name' | 'conditions'
+  taxonomyKey?: string
   query: string
   excludedTokenIds: readonly string[]
   viewport: CatalogMapViewport
@@ -19,6 +21,7 @@ export type CatalogPlaceMapInput = Readonly<{
 }>
 
 export type CatalogPlaceMapQuery = Readonly<{
+  intent?: 'auto' | 'name' | 'conditions'
   query: string
   areaReferences: readonly Readonly<{ key: string; version: number }>[]
   taxonomyReferenceGroups: readonly (readonly Readonly<{

@@ -27,6 +27,44 @@ function sessionRuntime() {
 }
 
 describe('browser transfer HTTP', () => {
+  it('forwards a provider-neutral request and preserves a capability rejection', async () => {
+    const http = createBrowserTransferHttp({
+      resolveAuthRuntime: sessionRuntime,
+      backend: backend(async (url, init) => {
+        expect(url.pathname).toBe('/v2/transfers/import-acquisitions')
+        expect(JSON.parse(String(init.body)).providerKey).toBe('kakao')
+        return Response.json({
+          schemaVersion: 'start-import-acquisition-result.v2', outcome: 'rejected', commandId,
+          rejection: { code: 'capability-unavailable', availability: { status: 'not-implemented', reason: 'provider-adapter-unavailable' } },
+        }, { status: 422 })
+      }),
+      createCorrelationRef: () => 'unused',
+    })
+    const response = await http.startImportAcquisitionV2(new Request('https://place.example/api/v2/transfers/import-acquisitions', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ schemaVersion: 'start-import-acquisition.v2', kind: 'shared-links',
+        commandId, acquisitionId: commandId, importSourceId: connectionId, snapshotId,
+        providerKey: 'kakao', links: [{ entryId: collectionId, position: 0, url: 'https://kko.to/example' }] }),
+    }))
+    expect(response.status).toBe(422)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect((await response.json()).rejection.code).toBe('capability-unavailable')
+  })
+
+  it('requires a session before reading v2 acquisition input or capabilities', async () => {
+    const fetcher = vi.fn()
+    const http = createBrowserTransferHttp({
+      resolveAuthRuntime: () => ({ bff: { resolveSession: async () => undefined } }),
+      backend: backend(fetcher), createCorrelationRef: () => 'correlation-ref',
+    })
+    const request = new Request('https://place.example/api/v2/transfers/import-acquisitions', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: 'not-json',
+    })
+    expect((await http.startImportAcquisitionV2(request)).status).toBe(401)
+    expect(request.bodyUsed).toBe(false)
+    expect((await http.importAcquisitionCapabilities(new Request('https://place.example/api/v2/transfers/import-acquisition-capabilities'))).status).toBe(401)
+    expect(fetcher).not.toHaveBeenCalled()
+  })
   it('forwards target-list discovery with server-side bearer authority', async () => {
     const http = createBrowserTransferHttp({
       resolveAuthRuntime: sessionRuntime,

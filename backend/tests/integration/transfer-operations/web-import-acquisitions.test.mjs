@@ -42,6 +42,35 @@ async function capturePath(root, artifactId) {
   return join(root, name)
 }
 
+async function assertProviderMigrationRollback(database) {
+  const migration = await import('../../../migrations/000052_generalize_web_import_acquisition_providers.ts')
+  const statements = (direction) => {
+    const sql = []
+    migration[direction]({ sql: (statement) => sql.push(statement) })
+    return sql.join('\n')
+  }
+  const administrator = database.administratorClient
+  await administrator.query('BEGIN')
+  try {
+    await administrator.query(statements('down'))
+    await administrator.query(statements('up'))
+    await administrator.query(`INSERT INTO transfers.import_sources (
+      id, owner_membership_id, provider_key, source_kind, acquisition_method, authorization_basis, created_at
+    ) VALUES ($1::uuid,$2::uuid,'google','one-shot','shared-link','link-possession',$3::timestamptz)`, [ids[117], memberId, at])
+    await administrator.query(`INSERT INTO transfers.web_import_acquisitions (
+      id, command_id, owner_membership_id, import_source_id, provider_key, method,
+      state, request_fingerprint, created_at, updated_at, completed_at
+    ) VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid,'google','shared-links','failed',$5,$6::timestamptz,$6::timestamptz,$6::timestamptz)`,
+    [ids[118], ids[119], memberId, ids[117], digest('migration-fixture'), at])
+    await administrator.query('SAVEPOINT before_rollback')
+    await assert.rejects(administrator.query(statements('down')), { code: '23514' })
+    await administrator.query('ROLLBACK TO SAVEPOINT before_rollback')
+    assert.deepEqual((await administrator.query(`SELECT provider_key FROM transfers.web_import_acquisitions WHERE id = $1::uuid`, [ids[118]])).rows, [{ provider_key: 'google' }])
+  } finally {
+    await administrator.query('ROLLBACK')
+  }
+}
+
 test('durable web imports preserve replay, owner, lease, artifact, and source boundaries', {
   timeout: 120_000,
 }, async () => {
@@ -51,7 +80,7 @@ test('durable web imports preserve replay, owner, lease, artifact, and source bo
   try {
     const { EncryptedFileCaptureArtifactStore } =
       await import('../../../dist/modules/ingestion/index.js')
-    const { WebImportAcquisitions } =
+    const { WebImportAcquisitions, createProviderImportAcquisitions } =
       await import('../../../dist/modules/transfers/index.js')
     const { PostgresWebImportAcquisitions } =
       await import('../../../dist/modules/transfers/adapters/persistence/postgres-web-import-acquisitions.js')
@@ -127,6 +156,31 @@ test('durable web imports preserve replay, owner, lease, artifact, and source bo
       nextArtifactId: () => ids[21],
       now: () => now,
     })
+    const productAcquisitions = createProviderImportAcquisitions(acquisitions)
+    for (const providerKey of ['naver', 'google', 'kakao']) {
+      for (const kind of ['shared-links', 'remote-browser']) {
+        if (providerKey === 'naver' && kind === 'shared-links') continue
+        const result = await productAcquisitions.start(memberId, {
+          schemaVersion: 'start-import-acquisition.v2', kind,
+          commandId: ids[3], acquisitionId: ids[4], importSourceId: ids[5], providerKey,
+          ...(kind === 'shared-links' ? { snapshotId: ids[6], links: [{ entryId: ids[7], position: 0, url: 'https://example.com/shared' }] } : {}),
+        })
+        assert.equal(result.rejection.code, 'capability-unavailable')
+      }
+    }
+    assert.deepEqual((await database.pool.query(`SELECT
+      (SELECT count(*)::int FROM transfers.web_import_acquisitions) AS acquisitions,
+      (SELECT count(*)::int FROM transfers.import_sources) AS sources,
+      (SELECT count(*)::int FROM transfers.web_import_acquisition_jobs) AS jobs`)).rows,
+    [{ acquisitions: 0, sources: 0, jobs: 0 }])
+    assert.deepEqual(await readdir(artifactRoot), [])
+    const providerConstraint = (await database.pool.query(`SELECT pg_get_constraintdef(oid) AS definition
+      FROM pg_constraint WHERE conrelid = 'transfers.web_import_acquisitions'::regclass
+        AND conname = 'web_import_acquisitions_provider_key_check'`)).rows[0].definition
+    assert.match(providerConstraint, /naver/)
+    assert.match(providerConstraint, /google/)
+    assert.match(providerConstraint, /kakao/)
+    await assertProviderMigrationRollback(database)
     const rawLinks = [
       'https://naver.me/TestLink1',
       'https://naver.me/TestLink2',
@@ -236,7 +290,8 @@ test('durable web imports preserve replay, owner, lease, artifact, and source bo
     assert.equal(completed.snapshot.snapshotId, sharedCommand.snapshotId)
     assert.equal(await acquisitions.get(otherMemberId, sharedCommand.acquisitionId), undefined)
 
-    const replayed = await acquisitions.start(memberId, sharedCommand)
+    const replayed = await productAcquisitions.start(memberId, { ...sharedCommand, schemaVersion: 'start-import-acquisition.v2' })
+    assert.equal(replayed.schemaVersion, 'start-import-acquisition-result.v2')
     assert.equal(replayed.outcome, 'accepted')
     assert.equal(replayed.status, 'replayed')
     assert.equal(inspectionCount, 1)

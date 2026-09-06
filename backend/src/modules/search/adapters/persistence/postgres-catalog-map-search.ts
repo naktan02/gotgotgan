@@ -26,7 +26,11 @@ type ClusterRow = Readonly<{
   place_count: number
 }>
 
-const matchingCatalogDocuments = `
+function matchingCatalogDocuments(query: CatalogPlaceMapQuery): string {
+  const textMatch = query.intent === 'name'
+    ? "lower(normalize(document.display_name, NFKC)) % $1::text OR strpos(lower(normalize(document.display_name, NFKC)), $1::text) > 0"
+    : "document.search_text % $1::text OR document.search_text LIKE '%' || $1::text || '%'"
+  return `
   WITH matching AS (
     SELECT
       document.place_id,
@@ -37,7 +41,7 @@ const matchingCatalogDocuments = `
       document.primary_taxonomy_label
     FROM search.place_documents AS document
     WHERE document.location IS NOT NULL
-      AND ($1::text = '' OR document.search_text % $1::text OR document.search_text LIKE '%' || $1::text || '%')
+      AND ($1::text = '' OR ${textMatch})
       AND document.location && ST_MakeEnvelope(-180, $3::double precision, 180, $5::double precision, 4326)
       AND (
         ($2::double precision < $4::double precision AND document.location && ST_MakeEnvelope(
@@ -69,7 +73,8 @@ const matchingCatalogDocuments = `
         )
       ))
   )
-`
+  `
+}
 
 function queryParameters(query: CatalogPlaceMapQuery): unknown[] {
   return [
@@ -118,7 +123,7 @@ function clusterBounds(
 
 async function readPlaces(client: PoolClient, query: CatalogPlaceMapQuery) {
   const result = await client.query<PlaceRow>(
-    `${matchingCatalogDocuments}
+    `${matchingCatalogDocuments(query)}
      SELECT place_id, display_name, area_label,
             ST_Y(location) AS latitude, ST_X(location) AS longitude,
             primary_taxonomy_key, primary_taxonomy_label
@@ -145,7 +150,7 @@ async function readClusters(client: PoolClient, query: CatalogPlaceMapQuery) {
   const rows = Math.max(1, Math.floor(query.maxFeatures / columns))
   const longitudeSpan = viewportLongitudeSpan(query.viewport)
   const result = await client.query<ClusterRow>(
-    `${matchingCatalogDocuments}, unwrapped AS (
+    `${matchingCatalogDocuments(query)}, unwrapped AS (
        SELECT
          CASE WHEN $2::double precision > $4::double precision AND ST_X(location) < $2::double precision
            THEN ST_X(location) + 360 ELSE ST_X(location) END AS longitude,
@@ -199,7 +204,7 @@ export class PostgresCatalogMapSearch implements CatalogPlaceMapSource {
     try {
       await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
       const count = await client.query<CountRow>(
-        `${matchingCatalogDocuments} SELECT COUNT(*)::int AS matching_place_count FROM matching`,
+        `${matchingCatalogDocuments(query)} SELECT COUNT(*)::int AS matching_place_count FROM matching`,
         queryParameters(query),
       )
       const matchingPlaceCount = count.rows[0]?.matching_place_count ?? 0

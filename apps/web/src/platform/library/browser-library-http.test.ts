@@ -30,6 +30,28 @@ function sessionRuntime() {
 }
 
 describe('browser library HTTP', () => {
+  it('returns source observations through the authenticated v2 boundary only', async () => {
+    const sourceObservedPlace = { name: '회원 개인 별명', address: '서울 성동구', categoryLabel: '원본 라멘',
+      location: { latitude: 37.54, longitude: 127.05 }, capturedAt: '2026-09-06T00:00:00.000Z' }
+    const fetcher = vi.fn(async (url: URL, init: RequestInit) => {
+      expect(url.pathname).toBe(`/v2/places/${placeId}`)
+      expect(new Headers(init.headers).get('authorization')).toBe('Bearer server-access-token')
+      return Response.json({ schemaVersion: 'place-detail.v2', status: 'pending', requestedPlaceId: placeId,
+        placeId, redirectedFrom: [], personalState: { saved: true, wanted: false, personalRating: null,
+          preferencesUpdatedAt: null, visits: { visited: false, count: 0 }, sourceObservedPlace } })
+    })
+    const dependencies = { resolveAuthRuntime: sessionRuntime, backend: backend(fetcher), createCorrelationRef: () => 'test-ref' }
+    const http = createBrowserLibraryHttp(dependencies)
+    const response = await http.memberPlace(new Request(`https://place.example/api/v2/places/${placeId}`), placeId)
+    expect(response.status).toBe(200)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect((await response.json()).personalState.sourceObservedPlace).toEqual(sourceObservedPlace)
+    const anonymous = createBrowserLibraryHttp({ ...dependencies,
+      resolveAuthRuntime: () => ({ bff: { resolveSession: async () => undefined } }) })
+    expect((await anonymous.memberPlace(new Request(`https://place.example/api/v2/places/${placeId}`), placeId)).status).toBe(401)
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+
   it('forwards Collection-first map text and filters only through the authenticated fixed backend', async () => {
     const fetcher = vi.fn(async (url: URL, init: RequestInit) => {
       expect(url.pathname).toBe('/v2/library/workspace/map')

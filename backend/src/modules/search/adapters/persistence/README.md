@@ -19,3 +19,11 @@ crossing을 두 PostGIS envelope로 읽고 exact projection coverage를 반환�
 crossing semantics를 적용하지만 provider-backed legacy 검색의 non-wrapped bounds 계약은 넓히지 않는다.
 viewport 집계처럼 transaction·coverage 불변식과 변경 이유가 다른 기능은
 `PostgresCatalogMapSearch`라는 동급 Adapter로 유지한다.
+
+명시적 장소명 검색을 검토할 때는 비공개 `postgres-catalog-name-search.ts`와
+[`local-search.test.mjs`](../../../../../tests/integration/local-search.test.mjs)의 이름·거리 회귀를 본다.
+2026-09-06 임시 PostGIS에서 분류명에만 검색어가 있는 장소가 이름 검색에도 포함되는 증상을 확인했다.
+기존 v1 순위와 이미 발급된 커서를 보존해야 하므로 이름 검색은 별도 continuation을 사용한다.
+지도 후보 정합, 전체 동명 후보에서의 거리 정렬 후 pagination, 좌표 없음, 명시적 bounds와
+날짜변경선, 기존 v1 이어읽기를 위 테스트에서 함께 검증한다. `near`는 검색 반경이나 GPS 동의가 아니다.
+정규화된 이름식의 대용량 성능은 별도 계측이 필요하며 이 변경에는 신규 index/migration을 포함하지 않는다.

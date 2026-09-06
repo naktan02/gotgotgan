@@ -74,6 +74,23 @@ function store(overrides: Partial<WebImportAcquisitionStore> = {}): WebImportAcq
 }
 
 describe('web import acquisition queue module', () => {
+  it('never replays a different provider checkpoint through the NAVER worker', async () => {
+    const claim: WebImportAcquisitionClaim = {
+      acquisitionId: command.acquisitionId, ownerMemberId: ids[7]!, importSourceId: command.importSourceId,
+      providerKey: 'google', snapshotId: command.snapshotId, observedAt: at, inspectionResults: [],
+      artifact: { artifactId: ids[6]!, reference: `capture:${ids[6]}`, checksum: digest('input'), retainedUntil: '2026-09-05T03:15:00.000Z' },
+      lease: { owner: 'worker', generation: 1, expiresAt: '2026-09-05T03:10:00.000Z' },
+    }
+    const persistence = store({ claim: vi.fn(async () => claim) })
+    const source = { providerKey: 'naver' as const, inspect: vi.fn() }
+    const artifacts: WebImportArtifactStore = { reference: vi.fn(), put: vi.fn(), get: vi.fn(), discard: vi.fn() }
+    const worker = createWebImportAcquisitionWorker({ workerId: 'worker', leaseMilliseconds: 600_000, store: persistence, artifacts, source, now: () => new Date(at) })
+    await expect(worker.runOne()).resolves.toMatchObject({ status: 'expired' })
+    expect(persistence.recordInspectionSnapshot).not.toHaveBeenCalled()
+    expect(persistence.complete).not.toHaveBeenCalled()
+    expect(artifacts.get).not.toHaveBeenCalled()
+    expect(source.inspect).not.toHaveBeenCalled()
+  })
   it('rejects a lease shorter than the provider batch deadline plus safety margin', () => {
     expect(() => createWebImportAcquisitionWorker({
       workerId: 'worker', leaseMilliseconds: 149_999, store: store(),

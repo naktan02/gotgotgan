@@ -1,6 +1,17 @@
 import { anonymous, bearer, browserSession, described, operation, optionalBearer, ref } from '../model.js'
 
 export const searchPaths = {
+  ...Object.fromEntries([
+    ['/v1/search/catalog/explore', 'exploreCatalog', 'CatalogExplorationRequest', 'CatalogExplorationResponse'],
+    ['/api/search/catalog/explore', 'exploreCatalogForBrowser', 'CatalogExplorationRequest', 'CatalogExplorationResponse'],
+    ['/v2/search/catalog', 'searchCatalogV2', 'CatalogPlaceSearchRequestV2', 'CatalogPlaceSearchResponseV2'],
+    ['/api/v2/search/catalog', 'searchCatalogV2ForBrowser', 'CatalogPlaceSearchRequestV2', 'CatalogPlaceSearchResponseV2'],
+    ['/v2/search/catalog/map', 'projectCatalogMapV2', 'CatalogPlaceMapRequestV2', 'CatalogPlaceMapResponseV2'],
+    ['/api/v2/search/catalog/map', 'projectCatalogMapV2ForBrowser', 'CatalogPlaceMapRequestV2', 'CatalogPlaceMapResponseV2'],
+  ].map(([path, id, request, response]) => [path!, { post: operation(id!, {
+    '200': described('Return internal catalog results with explicit name or condition intent; geographic candidates are navigation references, not private account observations', response!),
+    '400': ref('responses', 'ProductRequestInvalid'), '503': ref('responses', 'ProductUnavailable'),
+  }, { security: anonymous, requestSchema: request! }) }])),
   '/api/search/places': { post: operation('searchPlacesForBrowser', {
     '200': described('Return validated provider-neutral search results', 'PlaceSearchResponse'),
     '400': ref('responses', 'ProductRequestInvalid'),

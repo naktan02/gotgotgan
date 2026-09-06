@@ -66,3 +66,6 @@ domain meaning rather than storage or framework structure.
 | Local Search Projection | The bounded, discoverable Place facts and viewer-specific signals prepared for local search. It may lag its owners and never becomes canonical truth. | Canonical Place, Source Observation, or direct cross-module table access. |
 | Search Source Outcome | One search source's complete, partial, or unavailable contribution to a provider-neutral result envelope. | A failure state for the entire search request. |
 | Search Cursor | An opaque continuation identity for the exact ordered search state. | Page number or a database offset exposed to callers. |
+| Search Corpus | 검색할 데이터의 소유 범위: 공개 내부 카탈로그 또는 회원 즐겨찾기. 즐겨찾기는 저장 전체나 선택한 Collection으로 한정한다. | 이름 검색/조건 검색의 의도, 현재 화면의 지도 경계. |
+| Search Intent | 입력을 장소·지역 이름 후보로 찾을지, 확인된 조건들의 조합으로 해석할지 나타내는 의미. | 검색 대상의 소유 범위나 외부 지도 계정 접근 권한. |
+| Geographic Destination | 국가·도시 이름 후보를 지도에서 찾아가기 위한 공개 지리 참조. | Canonical Place, Area 분류 근거, 사용자 장소 또는 주소 전체를 제공하는 geocoder. |

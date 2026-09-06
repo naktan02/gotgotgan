@@ -20,7 +20,10 @@ v2 operation receipt, N:1 source-list binding과 부분 복사 provenance를 add
 성공한 가져오기의 최소 이름·좌표를 표시한다. Transfers 공개 Interface를 조립 계층이 주입하며 Library가
 Transfers table을 직접 join하지 않는다. 이 값은 `unverified`이고 지역·Taxonomy를 추측하지 않는다.
 공개 summary가 있으면 그것을 우선하며, 공개 Collection·다른 회원·legacy v1 reader에는 이 보강을
-주입하지 않는다. 개인 즐겨찾기 별명이 공개 장소 정보로 발행되는 경로도 만들지 않는다.
+주입하지 않는다. 개인 즐겨찾기 별명이 공개 장소 정보로 발행되는 경로도 만들지 않는다. 회원 reader의
+원본 주소·분류 보조 검색은 공개 summary 유무와 무관하게 소유권이 확인된 원본만 읽는다.
+`application/ports/library-place-summary-reader.ts`의 내부 record는 표시 summary와 검색 text를
+분리하며, 응답·지역/Taxonomy facet은 summary만 받는다. 원본 분류를 canonical key로 추측하지 않는다.
 
 ## Collection-first 검색과 지도
 
@@ -30,6 +33,9 @@ Transfers table을 직접 join하지 않는다. 이 값은 `unverified`이고 �
 검색한 후 page한다. 장소 검색은 NFKC·공백·대소문자를 정규화하고 모든 공백 구분 단어가 이름,
 지역 표시명, 현재 primary 분류 표시명 또는 해당 회원의 Tag 이름에 포함되는지 검사한다. 자연어
 지역 해석이나 미등록 음식 세부 분류를 추론하지 않으며, 메모·다른 회원 Tag·공개 publication은 읽지 않는다.
+개인 가져오기 주소·원문 분류의 검색 보조 및 회원 격리는
+`backend/tests/integration/imported-place-fulfillment.test.mjs`에서 실제 소유 provenance와 목록·지도
+동일 조건으로 검증한다. 이 원문은 공개 지역/분류가 없는 항목의 필터 선택지를 만들어내지 않는다.
 
 지역·분류 또는 검색어가 있는 장소 page는 요청당 최대 500개 membership 후보를 검사한다.
 일치 결과가 없는 page라도 남은 후보가 있으면 `placeNextCursor`가 있으므로 소비자는 이어 읽기를

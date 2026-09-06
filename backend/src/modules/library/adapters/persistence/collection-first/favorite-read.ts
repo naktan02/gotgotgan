@@ -15,32 +15,43 @@ export type FavoriteRow = Readonly<{
   personal_rating: string | null
 }>
 
+type FavoritePlaceRead = Readonly<{
+  summary: LibraryPlaceSummary
+  sourceObservedSearchText?: string
+}>
+
 export async function summariesById(
   read: LibraryPlaceSummaryReader, placeIds: readonly string[], memberId: string,
   readMember?: MemberLibraryPlaceSummaryReader,
-): Promise<ReadonlyMap<string, LibraryPlaceSummary>> {
+): Promise<ReadonlyMap<string, FavoritePlaceRead>> {
   const requested = new Set(placeIds)
-  const summaries = new Map((await read(placeIds))
+  const [published, personal] = await Promise.all([
+    read(placeIds),
+    placeIds.length === 0 ? [] : readMember?.(memberId, placeIds) ?? [],
+  ])
+  const summaries = new Map<string, FavoritePlaceRead>(published
     .filter((summary) => requested.has(summary.placeId))
-    .map((summary) => [summary.placeId, summary]))
-  const missing = placeIds.filter((placeId) => !summaries.has(placeId))
-  if (readMember !== undefined && missing.length > 0) {
-    const allowed = new Set(missing)
-    for (const summary of await readMember(memberId, missing)) {
-      if (allowed.has(summary.placeId)) summaries.set(summary.placeId, summary)
-    }
+    .map((summary) => [summary.placeId, { summary }]))
+  for (const own of personal) {
+    const placeId = own.summary.placeId
+    if (!requested.has(placeId)) continue
+    summaries.set(placeId, {
+      summary: summaries.get(placeId)?.summary ?? own.summary,
+      sourceObservedSearchText: own.sourceObservedSearchText,
+    })
   }
   return summaries
 }
 
 export function matchesFavorite(
-  row: FavoriteRow, summary: LibraryPlaceSummary | undefined,
+  row: FavoriteRow, read: FavoritePlaceRead | undefined,
   query: Pick<PersonalLibraryWorkspaceQuery, 'areaKeys' | 'taxonomyKeys' | 'placeQuery'>,
 ): boolean {
+  const summary = read?.summary
   if (!matchesLibraryPlaceFacets(summary, query)) return false
   const terms = query.placeQuery?.split(' ').filter(Boolean) ?? []
   if (terms.length === 0) return true
-  const text = [summary?.name, summary?.areaLabel, summary?.primaryTaxonomy?.label,
+  const text = [summary?.name, summary?.areaLabel, summary?.primaryTaxonomy?.label, read?.sourceObservedSearchText,
     ...(row.tag_names ?? [])].filter(Boolean).join(' ').normalize('NFKC').toLowerCase()
   return terms.every((term) => text.includes(term))
 }

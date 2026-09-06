@@ -7,21 +7,17 @@ import {
   placeSearchResponseSchema,
 } from '@place/contracts/search'
 import type { FastifyInstance } from 'fastify'
+import { registerCatalogInteractionsHttp } from './register-catalog-interactions-http.js'
+import type { SearchHttpDependencies } from './search-http-dependencies.js'
+export type { SearchHttpDependencies } from './search-http-dependencies.js'
 
-import type {
-  CatalogPlaceSearchInput,
-  CatalogPlaceSearchPage,
-} from '../../domain/catalog-home-search.js'
-import type { CatalogPlaceMapInput, CatalogPlaceMapResponse } from '../../domain/catalog-map.js'
-import { InvalidSearchCursorError, type PlaceSearchPage, type PlaceSearchQuery } from '../../domain/model.js'
+import { InvalidSearchCursorError, type PlaceSearchQuery } from '../../domain/model.js'
 import {
   resolveOptionalProductMember,
   sendProductProblem,
-  type ProductAuthorizer,
 } from '../../../../platform/http/product-authorization.js'
 import {
   registerSuggestionHttpRoutes,
-  type SuggestionHttpDependencies,
 } from './register-suggestion-http.js'
 
 function usesPersonalFilters(query: PlaceSearchQuery): boolean {
@@ -29,18 +25,11 @@ function usesPersonalFilters(query: PlaceSearchQuery): boolean {
     query.filters.visited !== undefined || query.filters.minimumPersonalRating !== undefined
 }
 
-export type SearchHttpDependencies = Readonly<{
-  search: (query: PlaceSearchQuery) => Promise<PlaceSearchPage>
-  catalog?: (query: CatalogPlaceSearchInput) => Promise<CatalogPlaceSearchPage>
-  catalogMap?: (query: CatalogPlaceMapInput) => Promise<CatalogPlaceMapResponse>
-  authorizer?: ProductAuthorizer
-  suggestions?: SuggestionHttpDependencies
-}>
-
 export function registerSearchHttpRoutes(
   application: FastifyInstance,
   dependencies: SearchHttpDependencies,
 ): void {
+  registerCatalogInteractionsHttp(application, dependencies)
   if (dependencies.suggestions !== undefined) {
     registerSuggestionHttpRoutes(application, dependencies.suggestions, dependencies.authorizer)
   }

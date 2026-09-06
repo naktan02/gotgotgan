@@ -1,5 +1,9 @@
 import type { SearchBounds } from './model.js'
 
+export class InvalidCatalogTaxonomyError extends Error {
+  override name = 'InvalidCatalogTaxonomyError'
+}
+
 export type CatalogAreaVocabularyNode = Readonly<{
   key: string
   version: number
@@ -39,6 +43,8 @@ export type CatalogSearchInterpretation = Readonly<{
 }>
 
 export type CatalogPlaceSearchQuery = Readonly<{
+  intent?: 'auto' | 'name' | 'conditions'
+  near?: Readonly<{ latitude: number; longitude: number }>
   query: string
   areaReference?: Readonly<{ key: string; version: number }>
   areaReferences?: readonly Readonly<{ key: string; version: number }>[]
@@ -54,6 +60,9 @@ export type CatalogPlaceSearchQuery = Readonly<{
 }>
 
 export type CatalogPlaceSearchInput = Readonly<{
+  intent?: 'auto' | 'name' | 'conditions'
+  taxonomyKey?: string
+  near?: Readonly<{ latitude: number; longitude: number }>
   query: string
   excludedTokenIds: readonly string[]
   bounds?: SearchBounds

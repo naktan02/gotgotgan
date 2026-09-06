@@ -53,3 +53,33 @@ export const placeDetailResponseSchema = z.discriminatedUnion('status', [
 export type PlaceDetailPersonalState = z.infer<typeof placeDetailPersonalStateSchema>
 export type PlaceDetailResponse = z.infer<typeof placeDetailResponseSchema>
 export type PublicPlaceDetailResponse = z.infer<typeof publicPlaceDetailResponseSchema>
+
+const sourceObservedPlaceSchema = z.object({
+  name: z.string().min(1).max(300),
+  address: z.string().min(1).max(500).nullable(),
+  categoryLabel: z.string().min(1).max(300).nullable(),
+  location: placeSummaryFields.location,
+  capturedAt: z.iso.datetime({ offset: true }),
+}).strict()
+
+const memberPlaceDetailFieldsV2 = {
+  ...placeDetailIdentityFields,
+  schemaVersion: z.literal('place-detail.v2'),
+  personalState: placeDetailPersonalStateSchema.extend({
+    sourceObservedPlace: sourceObservedPlaceSchema.optional(),
+  }).strict(),
+}
+
+/** Private source observations are never accepted by the public or frozen v1 contracts. */
+export const memberPlaceDetailResponseV2Schema = z.discriminatedUnion('status', [
+  z.object({
+    ...publicPlaceDetailFields,
+    ...memberPlaceDetailFieldsV2,
+  }).strict(),
+  z.object({
+    ...memberPlaceDetailFieldsV2,
+    status: z.literal('pending'),
+  }).strict(),
+])
+
+export type MemberPlaceDetailResponseV2 = z.infer<typeof memberPlaceDetailResponseV2Schema>

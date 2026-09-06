@@ -11,7 +11,7 @@ type ClaimRow = Readonly<{
   acquisition_id: string
   owner_membership_id: string
   import_source_id: string
-  provider_key: 'naver'
+  provider_key: WebImportAcquisitionClaim['providerKey']
   snapshot_id: string
   artifact_reference: string
   artifact_checksum: string
@@ -346,7 +346,7 @@ export class WebImportAcquisitionQueue {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error('invalid cleanup limit')
     return (await this.context.pool.query<{
       acquisition_id: string
-      provider_key: 'naver'
+      provider_key: WebImportAcquisitionClaim['providerKey']
       artifact_reference: string
     }>(
       `SELECT job.acquisition_id, acquisition.provider_key, job.artifact_reference

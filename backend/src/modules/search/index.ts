@@ -23,11 +23,13 @@ export {
   type SuggestionSession,
 } from './domain/suggestions.js'
 export { createPlaceSearch } from './application/search-places.js'
+export { createCatalogExploration } from './application/explore-catalog.js'
 export {
   createCatalogPlaceSearch,
   interpretCatalogSearch,
 } from './application/search-catalog-places.js'
 export { createCatalogPlaceMapSearch } from './application/search-catalog-map.js'
+export { InvalidCatalogTaxonomyError } from './domain/catalog-home-search.js'
 export type {
   CatalogPlaceSearchInput,
   CatalogPlaceSearchPage,

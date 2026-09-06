@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   createPlaceDetailReader,
+  createMemberPlaceDetailReader,
   registerPlaceHttpRoutes,
   type CanonicalResolutionStore,
   type PlaceDetailDocument,
@@ -29,6 +30,33 @@ function canonical(
 }
 
 describe('place detail reader', () => {
+  it('keeps imported observations private and available on direct member detail reads', async () => {
+    const sourceObservedPlace = {
+      name: '나만의 장소 별명', address: '서울 성동구', categoryLabel: '원본 분류',
+      location: { latitude: 37.54, longitude: 127.05 }, capturedAt: document.projectedAt,
+    }
+    const publicRead = createPlaceDetailReader({
+      canonical: canonical({ status: 'active', placeId: canonicalPlaceId, redirectedFrom: [] }),
+      readDocument: async () => undefined,
+      readPersonal: async () => ({ visits: { visited: false, count: 0 } }),
+    })
+    const memberRead = createMemberPlaceDetailReader({
+      read: publicRead,
+      readSourceObservedPlace: async (memberId) => memberId === 'member-1' ? sourceObservedPlace : undefined,
+    })
+    const own = await memberRead({ requestedPlaceId, memberId: 'member-1' })
+    expect(own).toMatchObject({ status: 'found', detail: {
+      schemaVersion: 'place-detail.v2', status: 'pending',
+      personalState: { sourceObservedPlace },
+    } })
+    expect(own).not.toHaveProperty('detail.name')
+    expect(await memberRead({ requestedPlaceId, memberId: 'member-2' }))
+      .not.toHaveProperty('detail.personalState.sourceObservedPlace')
+    expect(await publicRead({ requestedPlaceId })).toEqual({ status: 'unavailable', placeId: canonicalPlaceId })
+    expect(await publicRead({ requestedPlaceId, memberId: 'member-1' }))
+      .not.toHaveProperty('detail.personalState.sourceObservedPlace')
+  })
+
   it('returns public facts without reading personal state for an anonymous request', async () => {
     const readPersonal = vi.fn()
     const read = createPlaceDetailReader({
@@ -156,6 +184,34 @@ describe('place detail reader', () => {
 })
 
 describe('place detail HTTP boundary', () => {
+  it('requires member authorization for v2 while frozen public v1 stays unchanged', async () => {
+    const read = createPlaceDetailReader({
+      canonical: canonical({ status: 'active', placeId: canonicalPlaceId, redirectedFrom: [] }),
+      readDocument: async () => undefined,
+      readPersonal: async () => ({ visits: { visited: false, count: 0 } }),
+    })
+    const readMember = createMemberPlaceDetailReader({ read, readSourceObservedPlace: async () => ({
+      name: '가져온 개인 장소', address: null, categoryLabel: null, location: null, capturedAt: document.projectedAt,
+    }) })
+    const app = Fastify({ logger: false })
+    registerPlaceHttpRoutes(app, { read, readMember, authorizer: async (authorization) => (
+      authorization === 'Bearer good' ? { status: 'authorized', memberId: 'member-1' }
+        : { status: 'authentication-required' }
+    ) })
+    expect((await app.inject(`/v2/places/${canonicalPlaceId}`)).statusCode).toBe(401)
+    const response = await app.inject({ url: `/v2/places/${canonicalPlaceId}`,
+      headers: { authorization: 'Bearer good' } })
+    expect(response.statusCode).toBe(200)
+    expect(response.headers['cache-control']).toBe('no-store')
+    expect(response.json()).toHaveProperty('personalState.sourceObservedPlace.name', '가져온 개인 장소')
+    expect((await app.inject(`/v1/places/${canonicalPlaceId}`)).statusCode).toBe(503)
+    const legacy = await app.inject({ url: `/v1/places/${canonicalPlaceId}`,
+      headers: { authorization: 'Bearer good' } })
+    expect(legacy.statusCode).toBe(200)
+    expect(legacy.json()).not.toHaveProperty('personalState.sourceObservedPlace')
+    await app.close()
+  })
+
   function application(read: PlaceDetailReader) {
     const app = Fastify({ logger: false })
     registerPlaceHttpRoutes(app, {

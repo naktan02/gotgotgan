@@ -5,6 +5,9 @@ import {
   catalogPlaceMapResponseSchema,
   catalogPlaceSearchRequestSchema,
   catalogPlaceSearchResponseSchema,
+  catalogPlaceSearchRequestV2Schema,
+  catalogPlaceMapRequestV2Schema,
+  catalogExplorationRequestSchema,
   placeSearchRequestSchema,
   placeSuggestionMaterializationResponseSchema,
   placeSuggestionSelectionResponseSchema,
@@ -14,6 +17,26 @@ import {
 } from '../src/search/index.js'
 
 describe('provider-neutral search contracts', () => {
+  it('keeps name proximity and keyed taxonomy selection in the versioned catalog boundary', () => {
+    const near = { latitude: 37.5, longitude: 127 }
+    const request = catalogPlaceSearchRequestV2Schema.parse({
+      schemaVersion: 'catalog-place-search.v2', query: '가게', intent: 'name', near, taxonomyKey: 'food.ramen',
+    })
+    expect(request.near).toEqual(near)
+    expect(request.taxonomyKey).toBe('food.ramen')
+    expect(request).not.toHaveProperty('bounds')
+    expect(catalogPlaceSearchRequestSchema.safeParse({ ...request, schemaVersion: 'catalog-place-search.v1' }).success).toBe(false)
+    for (const invalid of [{ latitude: 91, longitude: 0 }, { latitude: 0, longitude: 181 }, { latitude: 0, longitude: 0, radius: 1 }]) {
+      expect(catalogPlaceSearchRequestV2Schema.safeParse({ ...request, near: invalid }).success).toBe(false)
+      expect(catalogExplorationRequestSchema.safeParse({ schemaVersion: 'catalog-exploration.v1', query: '가게', near: invalid }).success).toBe(false)
+    }
+    expect(catalogPlaceSearchRequestV2Schema.safeParse({ ...request, taxonomyKey: '' }).success).toBe(false)
+    const map = { schemaVersion: 'catalog-place-map.v2', query: '', taxonomyKey: 'food.ramen',
+      viewport: { west: 126, south: 37, east: 128, north: 38 }, zoom: 14 }
+    expect(catalogPlaceMapRequestV2Schema.safeParse(map).success).toBe(true)
+    expect(catalogPlaceMapRequestV2Schema.safeParse({ ...map, taxonomyKey: '' }).success).toBe(false)
+    expect(catalogPlaceMapRequestSchema.safeParse({ ...map, schemaVersion: 'catalog-place-map.v1' }).success).toBe(false)
+  })
   it('bounds map features while preserving exact antimeridian viewport coverage', () => {
     const request = catalogPlaceMapRequestSchema.parse({
       schemaVersion: 'catalog-place-map.v1',

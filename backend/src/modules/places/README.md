@@ -27,6 +27,14 @@ When the public Search document is missing, anonymous reads remain retryable `50
 member instead receives a `pending` projection containing only canonical identity and authoritative
 personal state, so projection lag cannot disable personal Library, Visit, or Writing capabilities.
 
+회원의 가져온 장소에 이름·좌표가 있는데 상세가 대기로 보일 때는
+[`read-place-detail.ts`](application/read-place-detail.ts)의 `createMemberPlaceDetailReader`와
+[`imported-place-fulfillment.test.mjs`](../../../tests/integration/imported-place-fulfillment.test.mjs)를 확인한다.
+`place-detail.v2`는 회원 소유 원본을 `personalState.sourceObservedPlace`에 구분하며,
+공개 상세나 다른 회원에게 공개 사실처럼 승격하지 않는다. 기존 v1 계약은 동결한다.
+이 개인 최소 정보는 상세 수집 Job의 실행 여부와 무관하며, 미보강 상태를 '동기화 중'으로
+단정하지 않는 것이 제품 의도다.
+
 ## Canonical Place Knowledge
 
 계약 정렬된 `CanonicalPlaceKnowledge` Module은 Provider 원문 payload를 받지 않고 정규화된 typed fact

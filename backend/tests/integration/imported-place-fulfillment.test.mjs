@@ -62,9 +62,9 @@ test('imported snapshots coalesce for immediate save while details remain pendin
           providerPlaceId: 'naver-shared-place',
           listName: '가보고 싶은 곳',
           name: '센카이 라멘',
-          address: null,
+          address: '서울 성동구 성수동',
           categoryLabel: '라멘',
-          location: null,
+          location: { latitude: 37.5445, longitude: 127.056 },
           reviewReasons: [],
         }, {
           sourceItemKey: 'list_fixture:shared_place_duplicate',
@@ -75,9 +75,9 @@ test('imported snapshots coalesce for immediate save while details remain pendin
           providerPlaceId: 'naver-shared-place',
           listName: '가보고 싶은 곳',
           name: '센카이 라멘',
-          address: null,
+          address: '서울 성동구 성수동',
           categoryLabel: '라멘',
-          location: null,
+          location: { latitude: 37.5445, longitude: 127.056 },
           reviewReasons: [],
         }, {
           sourceItemKey: 'list_fixture_secondary:shared_place',
@@ -88,9 +88,9 @@ test('imported snapshots coalesce for immediate save while details remain pendin
           providerPlaceId: 'naver-shared-place',
           listName: '라멘 모음',
           name: '신카이 라멘',
-          address: null,
+          address: '서울 성동구 성수동',
           categoryLabel: '라멘',
-          location: null,
+          location: { latitude: 37.5445, longitude: 127.056 },
           reviewReasons: [],
         }],
         nextCursor: null,
@@ -130,7 +130,14 @@ test('imported snapshots coalesce for immediate save while details remain pendin
         workerId: `acquisition-${sequence}`,
         store: importQueue,
         captureStore,
-        sources: [listSource],
+        sources: [{ ...listSource, async readPage() {
+          const page = await listSource.readPage()
+          return { ...page, items: page.items.map((item) => ({
+            ...item, name: sequence === 200 ? '다른 회원의 장소 별명' : item.name,
+            address: sequence === 200 ? '부산 해운대' : item.address,
+            categoryLabel: sequence === 200 ? '원문분류>티룸' : '원문분류>쇼유라멘',
+          })) }
+        } }],
         nextId: () => generated.shift(),
         now: () => new Date(at),
         leaseMilliseconds: 60_000,
@@ -206,6 +213,90 @@ test('imported snapshots coalesce for immediate save while details remain pendin
       demand_attempts: 1,
       applied_intents: 9,
     })
+
+    const ownMinimum = await importQueries.readAppliedPlaces(first.memberId, [fulfilled.canonicalPlaceId])
+    assert.equal(ownMinimum.length, 1)
+    assert.deepEqual(ownMinimum[0], {
+      placeId: fulfilled.canonicalPlaceId,
+      observedName: '센카이 라멘', observedAddress: '서울 성동구 성수동', observedCategory: '원문분류>쇼유라멘',
+      observedLocation: { latitude: 37.5445, longitude: 127.056 }, capturedAt: at,
+    })
+    assert.deepEqual(await importQueries.readAppliedPlaces(id(999), [fulfilled.canonicalPlaceId]), [])
+    assert.equal((await importQueries.readAppliedPlaces(second.memberId, [fulfilled.canonicalPlaceId]))[0].observedName,
+      '다른 회원의 장소 별명')
+    assert.deepEqual(await importQueries.readAppliedPlaces(first.memberId, []), [])
+    await assert.rejects(importQueries.readAppliedPlaces(first.memberId,
+      Array(2_001).fill(fulfilled.canonicalPlaceId)), ingestion.InvalidImportQueryError)
+
+    const search = await import('../../dist/modules/search/index.js')
+    const localSearch = new search.PostgresLocalSearch(database.pool)
+    const readPrivate = async (memberId, placeIds) => (await importQueries.readAppliedPlaces(memberId, placeIds))
+      .map((value) => ({ summary: { placeId: value.placeId, name: value.observedName, areaLabel: null,
+        location: value.observedLocation, primaryTaxonomy: null, taxonomyKeys: [],
+        evidence: { status: 'unverified', projectedAt: value.capturedAt } },
+      sourceObservedSearchText: [value.observedAddress, value.observedCategory].filter(Boolean).join(' ') }))
+    const workspace = new library.PostgresPersonalLibraryWorkspace(database.pool,
+      (placeIds) => localSearch.getCatalogPlaceDocuments(placeIds), readPrivate)
+    const query = { memberId: first.memberId, favoriteScope: { kind: 'all' },
+      ratingFilter: { kind: 'any' }, tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: [], limit: 50 }
+    const visible = await workspace.open(query)
+    assert.equal(visible.favoritePlaces.items[0].place.name, '센카이 라멘')
+    assert.equal(visible.favoritePlaces.items[0].place.primaryTaxonomy, null)
+    const map = await workspace.openMap({ ...query,
+      bounds: { west: 126, south: 37, east: 128, north: 38 }, zoom: 12 })
+    assert.deepEqual(map.coverage, { representedPlaceCount: 1, unprojectedPlaceCount: 0, complete: true })
+    assert.equal(map.features[0].placeId, fulfilled.canonicalPlaceId)
+
+    const publicSummary = { ...visible.favoritePlaces.items[0].place, name: '공개 카탈로그 이름',
+      primaryTaxonomy: { key: 'food', label: '음식점' }, taxonomyKeys: ['food'],
+      evidence: { status: 'verified', projectedAt: at } }
+    const publicPreferred = new library.PostgresPersonalLibraryWorkspace(database.pool,
+      async () => [publicSummary], readPrivate)
+    for (const [reader, expectedName, expectedTaxonomies] of [
+      [workspace, '센카이 라멘', []], [publicPreferred, '공개 카탈로그 이름', ['food']],
+    ]) {
+      const scoped = { ...query, placeQuery: '성수동 쇼유라멘',
+        bounds: { west: 126, south: 37, east: 130, north: 39 }, zoom: 12 }
+      const ownSearch = await reader.open(scoped)
+      assert.equal(ownSearch.favoritePlaces.items.length, 1, 'owner original address/category supplement both public and fallback names')
+      assert.equal(ownSearch.favoritePlaces.items[0].place.name, expectedName)
+      assert.equal((await reader.openMap(scoped)).coverage.representedPlaceCount, 1)
+      assert.deepEqual(ownSearch.availableFilters.areas, [], 'source address is not promoted into a region facet')
+      assert.deepEqual(ownSearch.availableFilters.taxonomies.map((facet) => facet.key), expectedTaxonomies)
+      assert.ok(!JSON.stringify(ownSearch).includes('원문분류>'), 'raw source category remains off the wire')
+      assert.ok(!JSON.stringify(ownSearch).includes('sourceObservedSearchText'))
+      const otherScope = { ...scoped, memberId: second.memberId }
+      assert.equal((await reader.open(otherScope)).favoritePlaces.items.length, 0, 'same canonical identity does not grant another owner source text')
+      assert.equal((await reader.openMap(otherScope)).coverage.representedPlaceCount, 0)
+      const otherOwn = { ...otherScope, placeQuery: '해운대 티룸' }
+      assert.equal((await reader.open(otherOwn)).favoritePlaces.items.length, 1)
+      assert.equal((await reader.openMap(otherOwn)).coverage.representedPlaceCount, 1)
+      assert.equal((await reader.open({ ...scoped, placeQuery: '해운대 티룸' })).favoritePlaces.items.length, 0)
+      assert.equal((await reader.open({ ...scoped, taxonomyKeys: ['raw.shoyu'] })).favoritePlaces.items.length, 0)
+      assert.equal((await reader.openMap({ ...scoped, taxonomyKeys: ['raw.shoyu'] })).coverage.representedPlaceCount, 0)
+    }
+
+    const read = places.createPlaceDetailReader({ canonical: canonicalStore,
+      readDocument: (placeId) => localSearch.getPlaceDocument(placeId),
+      readPersonal: async () => ({ visits: { visited: false, count: 0 } }),
+    })
+    const readMember = places.createMemberPlaceDetailReader({ read,
+      readSourceObservedPlace: async (memberId, placeId) => {
+        const value = (await importQueries.readAppliedPlaces(memberId, [placeId]))[0]
+        return value === undefined ? undefined : { name: value.observedName, address: value.observedAddress,
+          categoryLabel: value.observedCategory, location: value.observedLocation, capturedAt: value.capturedAt }
+      },
+    })
+    const direct = await readMember({ requestedPlaceId: fulfilled.canonicalPlaceId, memberId: first.memberId })
+    assert.equal(direct.detail.schemaVersion, 'place-detail.v2')
+    assert.equal(direct.detail.status, 'pending')
+    assert.equal(direct.detail.personalState.sourceObservedPlace.name, '센카이 라멘')
+    assert.deepEqual(direct.detail.personalState.sourceObservedPlace.location, { latitude: 37.5445, longitude: 127.056 })
+    assert.equal((await readMember({ requestedPlaceId: fulfilled.canonicalPlaceId,
+      memberId: id(999) })).detail.personalState.sourceObservedPlace, undefined)
+    assert.equal((await read({ requestedPlaceId: fulfilled.canonicalPlaceId })).status, 'unavailable')
+    assert.deepEqual(await localSearch.getCatalogPlaceDocuments([fulfilled.canonicalPlaceId]), [],
+      'private imported labels and coordinates are not published as catalog facts')
 
     const snapshot = await database.pool.query(`
       SELECT observation.id AS observation_id, candidate.id AS candidate_id

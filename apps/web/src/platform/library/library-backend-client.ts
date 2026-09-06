@@ -200,6 +200,9 @@ export function createLibraryBackendClient(config: LibraryBackendClientConfig = 
     place(accessToken: string, placeId: string, signal: AbortSignal) {
       return send(`/v1/places/${placeId}`, accessToken, signal)
     },
+    memberPlace(accessToken: string, placeId: string, signal: AbortSignal) {
+      return send(`/v2/places/${placeId}`, accessToken, signal)
+    },
   }
 }
 

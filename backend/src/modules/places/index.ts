@@ -19,6 +19,8 @@ export type { CanonicalResolutionStore } from './application/ports/canonical-res
 export { PostgresCanonicalResolutionStore } from './adapters/persistence/postgres-canonical-resolution-store.js'
 export {
   createPlaceDetailReader,
+  createMemberPlaceDetailReader,
+  type MemberPlaceDetailReader,
   type PlaceDetailReader,
 } from './application/read-place-detail.js'
 export type {
@@ -27,6 +29,9 @@ export type {
   PlaceDetailPersonalSource,
   PlaceDetailReadResult,
   PlaceDetailVisitSummary,
+  MemberPlaceDetail,
+  MemberPlaceDetailReadResult,
+  SourceObservedPlace,
 } from './domain/place-detail.js'
 export {
   registerPlaceHttpRoutes,

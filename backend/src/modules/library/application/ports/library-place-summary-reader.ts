@@ -4,8 +4,11 @@ export type LibraryPlaceSummaryReader = (
   placeIds: readonly string[],
 ) => Promise<readonly LibraryPlaceSummary[]>
 
-/** Private fallback for a member's applied imports; never a publication source. */
+/** Private applied-import evidence; search text is internal and never a facet or publication source. */
 export type MemberLibraryPlaceSummaryReader = (
   memberId: string,
   placeIds: readonly string[],
-) => Promise<readonly LibraryPlaceSummary[]>
+) => Promise<readonly Readonly<{
+  summary: LibraryPlaceSummary
+  sourceObservedSearchText: string
+}>[]>

@@ -35,6 +35,17 @@ export const placeContentPaths = {
       '403': ref('responses', 'AccessDenied'),
     }, { security: bearer }),
   },
+  '/v2/places/{placeId}': {
+    parameters: [pathParameters.placeId],
+    get: operation('getMemberPlaceDetailV2', {
+      '200': described('Return authenticated detail with member-owned source observations kept private', 'MemberPlaceDetailResponseV2'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': ref('responses', 'ProductNotFound'),
+      '410': ref('responses', 'PlaceRetired'),
+      '503': ref('responses', 'PlaceDetailUnavailable'),
+    }, { security: bearer }),
+  },
   '/v1/places/{placeId}/visits': {
     parameters: [pathParameters.placeId],
     get: operation('listCurrentMemberPlaceVisits', {

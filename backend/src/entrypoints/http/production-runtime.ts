@@ -41,6 +41,7 @@ import {
 import {
   applyCanonicalResolution,
   createPlaceDetailReader,
+  createMemberPlaceDetailReader,
   PostgresCanonicalResolutionStore,
 } from '../../modules/places/index.js'
 import {
@@ -51,6 +52,7 @@ import {
 } from '../../modules/profiles/index.js'
 import {
   createCatalogPlaceMapSearch,
+  createCatalogExploration,
   createCatalogPlaceSearch,
   createPlaceSearch,
   createPlaceSuggestionMaterialization,
@@ -61,7 +63,7 @@ import {
   PostgresPlaceSuggestions,
   projectLocalPlace,
 } from '../../modules/search/index.js'
-import { PostgresAreaCatalog } from '../../modules/areas/index.js'
+import { PostgresAreaCatalog, searchGeographicCatalog } from '../../modules/areas/index.js'
 import { PostgresTaxonomyStore } from '../../modules/taxonomy/index.js'
 import {
   PostgresConnectorCaptures,
@@ -171,6 +173,18 @@ export async function createProductionHttpRuntime(
       },
     )
     const memberImportedPlaces = new PostgresMemberImportedPlaces(pool)
+    const importQueries = new PostgresImportQueries(pool)
+    const readMemberImportedPlaces = async (memberId: string, placeIds: readonly string[]) => {
+      const [legacy, current] = await Promise.all([
+        importQueries.readAppliedPlaces(memberId, placeIds),
+        memberImportedPlaces.read(memberId, placeIds),
+      ])
+      // Both readers enforce their own member provenance. Newer observations win without
+      // publishing personal names or making provider classification a canonical taxonomy.
+      return [...new Map([...legacy, ...current]
+        .sort((left, right) => left.capturedAt.localeCompare(right.capturedAt))
+        .map((item) => [item.placeId, item])).values()]
+    }
     const personalLibraryWorkspace = new PostgresPersonalLibraryWorkspace(
       pool,
       async (placeIds) => (await localSearch.getCatalogPlaceDocuments(placeIds)).map((document) => ({
@@ -187,14 +201,17 @@ export async function createProductionHttpRuntime(
           projectedAt: document.projectedAt,
         },
       })),
-      async (memberId, placeIds) => (await memberImportedPlaces.read(memberId, placeIds)).map((item) => ({
-        placeId: item.placeId,
-        name: item.observedName,
-        areaLabel: null,
-        location: item.observedLocation,
-        primaryTaxonomy: null,
-        taxonomyKeys: [],
-        evidence: { status: 'unverified' as const, projectedAt: item.capturedAt },
+      async (memberId, placeIds) => (await readMemberImportedPlaces(memberId, placeIds)).map((item) => ({
+        summary: {
+          placeId: item.placeId,
+          name: item.observedName,
+          areaLabel: null,
+          location: item.observedLocation,
+          primaryTaxonomy: null,
+          taxonomyKeys: [],
+          evidence: { status: 'unverified' as const, projectedAt: item.capturedAt },
+        },
+        sourceObservedSearchText: [item.observedAddress, item.observedCategory].filter(Boolean).join(' '),
       })),
     )
     const publicCollectionDiscovery = new PostgresPublicCollectionDiscovery(
@@ -219,7 +236,6 @@ export async function createProductionHttpRuntime(
     const connectorImports = new PostgresConnectorImports(pool)
     const importQueue = new PostgresImportQueue(pool)
     const importManagement = new PostgresImportManagement(pool)
-    const importQueries = new PostgresImportQueries(pool)
     const importReview = new PostgresImportReview(pool)
     const canonicalStore = new PostgresCanonicalResolutionStore(pool)
     const readPlaceDetail = createPlaceDetailReader({
@@ -248,6 +264,17 @@ export async function createProductionHttpRuntime(
         return {
           ...(preferences === undefined ? {} : { preferences }),
           visits,
+        }
+      },
+    })
+    const readMemberPlaceDetail = createMemberPlaceDetailReader({
+      read: readPlaceDetail,
+      readSourceObservedPlace: async (memberId, placeId) => {
+        const item = (await readMemberImportedPlaces(memberId, [placeId]))[0]
+        return item === undefined ? undefined : {
+          name: item.observedName, address: item.observedAddress,
+          categoryLabel: item.observedCategory, location: item.observedLocation,
+          capturedAt: item.capturedAt,
         }
       },
     })
@@ -394,6 +421,7 @@ export async function createProductionHttpRuntime(
       places: {
         authorizer: productAuthorizer,
         read: readPlaceDetail,
+        readMember: readMemberPlaceDetail,
       },
       profiles: {
         authorizer: productAuthorizer,
@@ -414,6 +442,7 @@ export async function createProductionHttpRuntime(
       },
       search: {
         authorizer: productAuthorizer,
+        explore: createCatalogExploration({ source: localSearch, vocabulary: catalogVocabulary, destinations: searchGeographicCatalog }),
         search: createPlaceSearch({ sources: [localSearch] }),
         catalog: createCatalogPlaceSearch({
           source: localSearch,
@@ -434,13 +463,11 @@ export async function createProductionHttpRuntime(
         authorizer: productAuthorizer,
         transfers: providerTransfers,
       },
-      ...(importAcquisitions === undefined ? {} : {
-        importAcquisitions: {
-          authorizer: productAuthorizer,
-          acquisitions: importAcquisitions,
-          remoteBrowserEnabled: config.importAcquisitions!.remoteBrowserEnabled,
-        },
-      }),
+      importAcquisitions: {
+        authorizer: productAuthorizer,
+        ...(importAcquisitions === undefined ? {} : { acquisitions: importAcquisitions }),
+        remoteBrowserEnabled: config.importAcquisitions?.remoteBrowserEnabled ?? false,
+      },
       transferOperations: {
         authorizer: productAuthorizer,
         operations: transferOperations,

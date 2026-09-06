@@ -1,6 +1,12 @@
 # Browser imports platform
 
-이 경계는 Place 화면과 내부 Backend 또는 설치된 Place Connector 사이의 통신을 소유한다.
+이 경계는 Place 화면과 내부 Backend 사이의 통신을 소유한다. 아래 Connector 전용 경계는
+레거시 호환 범위이며, 설치 없는 Web 가져오기 제품 경로가 아니다.
+
+일회성 가져오기의 공급자·방식별 가용성과 v2 시작 요청은
+[`transfers/browser-transfer-http.ts`](transfers/browser-transfer-http.ts)에서 회원 session을 먼저 확인하고
+bounded JSON으로 전달한다. 기존 v1 NAVER 시작·상태·취소 경계는 호환용으로 유지한다.
+capability에 공급자가 존재한다고 지원된 것으로 판단하거나 원격 진단 flag를 실행 권한으로 쓰지 않는다.
 
 - 기존 import client는 서버 OIDC session을 해석하고 고정된 Import Backend 경로만 호출한다.
 - `connector/page-session/connector-page-session.ts`는 window message의

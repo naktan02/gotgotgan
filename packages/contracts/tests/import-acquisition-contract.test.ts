@@ -4,6 +4,9 @@ import {
   importAcquisitionCommandResultV1Schema,
   importAcquisitionV1Schema,
   startImportAcquisitionV1Schema,
+  startImportAcquisitionV2Schema,
+  startImportAcquisitionResultV2Schema,
+  importAcquisitionCapabilitiesV2Schema,
 } from '../src/transfers/index.js'
 import { buildOpenApiDocument } from '../src/http/openapi.js'
 
@@ -12,6 +15,43 @@ const ids = Array.from({ length: 30 }, (_, index) => (
 ))
 
 describe('one-shot import acquisition contracts', () => {
+  it('models three providers in v2 without relaxing the frozen NAVER-only v1 request', () => {
+    for (const providerKey of ['naver', 'google', 'kakao']) {
+      const command = {
+        schemaVersion: 'start-import-acquisition.v2', kind: 'shared-links',
+        commandId: ids[0], acquisitionId: ids[1], importSourceId: ids[2],
+        snapshotId: ids[3], providerKey,
+        links: [{ entryId: ids[4], position: 0, url: 'https://example.com/shared-list' }],
+      }
+      expect(startImportAcquisitionV2Schema.safeParse(command).success).toBe(true)
+      expect(startImportAcquisitionV1Schema.safeParse({
+        ...command, schemaVersion: 'start-import-acquisition.v1',
+      }).success).toBe(providerKey === 'naver')
+      expect(startImportAcquisitionV2Schema.safeParse({ ...command, connectionId: ids[5] }).success).toBe(false)
+      expect(startImportAcquisitionV2Schema.safeParse({ ...command, links: [command.links[0], command.links[0]] }).success).toBe(false)
+    }
+  })
+
+  it('separates supported methods from runtime configuration and refuses ambiguous capabilities', () => {
+    const capability = {
+      schemaVersion: 'import-acquisition-capabilities.v2',
+      providers: ['naver', 'google', 'kakao'].map((providerKey) => ({
+        providerKey,
+        methods: [
+          { method: 'shared-links', availability: providerKey === 'naver'
+            ? { status: 'configuration-required', reason: 'runtime-disabled' }
+            : { status: 'not-implemented', reason: 'provider-adapter-unavailable' } },
+          { method: 'remote-browser', availability: { status: 'not-implemented', reason: 'remote-browser-integration-gated' } },
+        ],
+      })),
+    }
+    expect(importAcquisitionCapabilitiesV2Schema.safeParse(capability).success).toBe(true)
+    expect(importAcquisitionCapabilitiesV2Schema.safeParse({ ...capability, providers: [capability.providers[0], capability.providers[0], capability.providers[2]] }).success).toBe(false)
+    expect(startImportAcquisitionResultV2Schema.safeParse({
+      schemaVersion: 'start-import-acquisition-result.v2', outcome: 'rejected', commandId: ids[0],
+      rejection: { code: 'capability-unavailable', availability: { status: 'not-implemented', reason: 'provider-adapter-unavailable' } },
+    }).success).toBe(true)
+  })
   it('accepts a bounded multi-link command and rejects duplicate entry identities', () => {
     const command = {
       schemaVersion: 'start-import-acquisition.v1',

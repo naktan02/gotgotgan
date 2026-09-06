@@ -45,6 +45,7 @@ describe('library backend client', () => {
     await client.tags('server-token', { limit: 50 }, signal)
     await client.command('server-token', { commandId: collectionId }, signal)
     await client.place('server-token', placeId, signal)
+    await client.memberPlace('server-token', placeId, signal)
 
     expect(calls.map((call) => call.url)).toEqual([
       'https://place-backend.example/v1/library/publication-copy-commands',
@@ -57,6 +58,7 @@ describe('library backend client', () => {
       'https://place-backend.example/v1/library/tags?limit=50',
       'https://place-backend.example/v1/library/commands',
       `https://place-backend.example/v1/places/${placeId}`,
+      `https://place-backend.example/v2/places/${placeId}`,
     ])
     expect(calls.every((call) => (
       new Headers(call.init.headers).get('authorization') === 'Bearer server-token'

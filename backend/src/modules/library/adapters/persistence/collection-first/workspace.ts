@@ -118,7 +118,7 @@ export class PostgresPersonalLibraryWorkspace implements PersonalLibraryWorkspac
       query.memberId, this.readMemberSummaries,
     )
     const availableFacets = buildLibraryPlaceFacets({
-      summaries: [...filterSummaries.values()],
+      summaries: [...filterSummaries.values()].map((read) => read.summary),
       savedPlaceCount: filterUniverseResult.rows[0]?.favorite_place_count ?? 0,
       sampledPlaceCount: filterUniverseResult.rows.length,
     })
@@ -146,7 +146,7 @@ export class PostgresPersonalLibraryWorkspace implements PersonalLibraryWorkspac
           collectionMembershipCount: row.collection_count,
           tagIds: row.tag_ids,
           personalRating: row.personal_rating === null ? null : Number(row.personal_rating),
-          place: summaries.get(row.canonical_place_id) ?? null,
+          place: summaries.get(row.canonical_place_id)?.summary ?? null,
         })),
         ...((hasUnreturnedMatch || hasUnscannedRows) && favoriteCursorRow !== undefined ? {
           nextCursor: encodeWorkspaceFavoriteCursor(query, { placeId: favoriteCursorRow.canonical_place_id }),

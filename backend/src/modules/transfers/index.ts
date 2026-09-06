@@ -6,6 +6,7 @@ export { PostgresOutboundExecutions } from './adapters/persistence/postgres-outb
 export { PostgresWebImportAcquisitions } from './adapters/persistence/postgres-web-import-acquisitions.js'
 export { PostgresImportMaterializationWorker } from './application/import-materialization-worker.js'
 export { WebImportAcquisitions } from './application/web-import-acquisitions.js'
+export { createProviderImportAcquisitions } from './application/provider-import-acquisitions.js'
 export { createWebImportAcquisitionWorker } from './application/web-import-acquisition-worker.js'
 export type {
   WebImportAcquisitionStore,

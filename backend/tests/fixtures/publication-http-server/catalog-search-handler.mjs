@@ -108,6 +108,7 @@ export function createCatalogSearchHandler() {
     if (request.method !== 'POST' || ![
       '/v1/search/catalog',
       '/v1/search/catalog/map',
+      '/v2/search/catalog', '/v2/search/catalog/map', '/v1/search/catalog/explore',
     ].includes(request.url)) return false
 
     let body
@@ -124,10 +125,23 @@ export function createCatalogSearchHandler() {
     }
     const query = String(body.query ?? '').normalize('NFKC').replace(/\s+/g, ' ').trim()
     const excludedTokenIds = Array.isArray(body.excludedTokenIds) ? body.excludedTokenIds : []
-    const activeTokens = interpret(query, excludedTokenIds)
-    let selected = filterItems(query, activeTokens)
+    const activeTokens = body.intent === 'name' ? [] : interpret(query, excludedTokenIds)
+    let selected = body.intent === 'name' ? items.filter((item) => item.name.includes(query)) : filterItems(query, activeTokens)
 
-    if (request.url === '/v1/search/catalog') {
+    if (request.url.endsWith('/explore')) {
+      sendPublicationJson(response, 200, {
+        schemaVersion: 'catalog-exploration.v1', intent: activeTokens.length > 0 ? 'conditions' : 'name',
+        conditions: activeTokens, unrecognizedText: '',
+        places: items.filter((item) => item.name.includes(query)),
+        destinations: query === '대한민국' ? [{
+          key: 'fixture:korea', name: '대한민국', kind: 'country', countryCode: 'KR', exact: true,
+          location: { latitude: 36, longitude: 128 }, bounds: { west: 124, south: 33, east: 130, north: 39 },
+        }] : [],
+      })
+      return true
+    }
+
+    if (request.url.endsWith('/catalog')) {
       observations.push({ query, excludedTokenIds, bounds: body.bounds ?? null })
       if (query === '오류') {
         sendPublicationJson(response, 503, {
@@ -146,7 +160,7 @@ export function createCatalogSearchHandler() {
           item.location.latitude >= body.bounds.south && item.location.latitude <= body.bounds.north)
       }
       sendPublicationJson(response, 200, {
-        schemaVersion: 'catalog-place-search.v1',
+        schemaVersion: request.url.startsWith('/v2/') ? 'catalog-place-search.v2' : 'catalog-place-search.v1',
         interpretation: { normalizedQuery: query, tokens: activeTokens },
         items: selected,
         mapBounds: selected.length === 0 ? null : {
@@ -195,7 +209,7 @@ export function createCatalogSearchHandler() {
       placeCount: 1,
     }))
     sendPublicationJson(response, 200, {
-      schemaVersion: 'catalog-place-map.v1',
+      schemaVersion: request.url.startsWith('/v2/') ? 'catalog-place-map.v2' : 'catalog-place-map.v1',
       interpretation: { normalizedQuery: query, tokens: activeTokens },
       viewport,
       zoom: body.zoom,

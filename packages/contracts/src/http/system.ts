@@ -1,5 +1,11 @@
 import { z } from 'zod'
 
+// Third-party TileJSON properties remain intact; only optional branding is adapted.
+export const browserMapSourceSchema = z.object({
+  attribution: z.string(),
+  tiles: z.array(z.string()),
+}).passthrough()
+
 const browserMapStyleLayerSchema = z.object({
   id: z.string().trim().min(1),
   type: z.string().trim().min(1),

@@ -25,7 +25,7 @@ export type WebImportAcquisitionClaim = Readonly<{
   acquisitionId: string
   ownerMemberId: string
   importSourceId: string
-  providerKey: 'naver'
+  providerKey: ImportAcquisitionV1['providerKey']
   snapshotId: string
   artifact: WebImportArtifact
   observedAt: string
@@ -66,7 +66,7 @@ export interface WebImportAcquisitionStore {
     cancelledAt: string
   }>): Promise<Readonly<{
     result: ImportAcquisitionCommandResultV1
-    artifact?: Readonly<{ reference: string; acquisitionId: string; providerKey: 'naver' }>
+    artifact?: Readonly<{ reference: string; acquisitionId: string; providerKey: ImportAcquisitionV1['providerKey'] }>
   }>>
   claim(input: Readonly<{
     workerId: string
@@ -90,7 +90,7 @@ export interface WebImportAcquisitionStore {
   }>): Promise<void>
   pendingArtifactCleanup(limit: number): Promise<readonly Readonly<{
     acquisitionId: string
-    providerKey: 'naver'
+    providerKey: ImportAcquisitionV1['providerKey']
     reference: string
   }>[]>
   markArtifactDeleted(acquisitionId: string, deletedAt: string): Promise<void>
@@ -101,7 +101,7 @@ export interface WebImportArtifactStore {
   put(input: Readonly<{
     artifactId: string
     batchId: string
-    providerKey: 'naver'
+    providerKey: ImportAcquisitionV1['providerKey']
     body: Uint8Array
     checksum: string
     contentType: 'application/json'
@@ -110,11 +110,11 @@ export interface WebImportArtifactStore {
   get(input: Readonly<{
     reference: string
     batchId: string
-    providerKey: 'naver'
+    providerKey: ImportAcquisitionV1['providerKey']
   }>): Promise<Uint8Array | undefined>
   discard(input: Readonly<{
     reference: string
     batchId: string
-    providerKey: 'naver'
+    providerKey: ImportAcquisitionV1['providerKey']
   }>): Promise<'deleted' | 'missing'>
 }

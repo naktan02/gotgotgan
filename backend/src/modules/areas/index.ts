@@ -22,3 +22,5 @@ export type {
   AreaNodeVersion,
 } from './domain/model.js'
 export { PostgresAreaCatalog } from './adapters/persistence/postgres-area-catalog.js'
+export { searchGeographicCatalog } from './adapters/geographic-catalog/search-geographic-catalog.js'
+export type { GeographicDestination } from './domain/geographic-destination.js'

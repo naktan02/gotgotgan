@@ -37,6 +37,9 @@ import {
   sourceSnapshotListQueryV3Schema,
   sourceSnapshotListV3Schema,
   startImportAcquisitionV1Schema,
+  startImportAcquisitionV2Schema,
+  startImportAcquisitionResultV2Schema,
+  importAcquisitionCapabilitiesV2Schema,
 } from '@place/contracts/transfers'
 
 import type { createOidcBff } from '../../auth/oidc-bff'
@@ -197,6 +200,7 @@ export function createBrowserTransferHttp(dependencies: Dependencies) {
     request: Request,
     requestSchema: Schema<T>,
     operation: (accessToken: string, input: T) => Promise<Response>,
+    resultSchema: Schema<unknown> = importAcquisitionCommandResultV1Schema,
   ): Promise<Response> {
     return invoke(request, async (accessToken) => {
       const read = await readBoundedJson(request, browserTransferJsonByteLimits.acquisitionRequest, request.signal)
@@ -207,11 +211,16 @@ export function createBrowserTransferHttp(dependencies: Dependencies) {
         return { earlyResponse: invalid() }
       }
       return operation(accessToken, parsedInput)
-    }, importAcquisitionCommandResultV1Schema,
+    }, resultSchema,
     [200, 201, 404, 409, 422, 429], browserTransferJsonByteLimits.acquisitionResponse)
   }
 
   return {
+    importAcquisitionCapabilities: (request: Request) => invoke(request,
+      (token) => dependencies.backend.importAcquisitionCapabilities(token, request.signal),
+      importAcquisitionCapabilitiesV2Schema, [200], browserTransferJsonByteLimits.acquisitionResponse),
+    startImportAcquisitionV2: (request: Request) => acquisitionCommand(request, startImportAcquisitionV2Schema,
+      (token, input) => dependencies.backend.startImportAcquisitionV2(token, input, request.signal), startImportAcquisitionResultV2Schema),
     capabilities: (request: Request) => invoke(request, (token) => dependencies.backend.capabilities(token, request.signal), providerCapabilityListV2Schema),
     connections: (request: Request) => invoke(request, (token) => dependencies.backend.connections(token, request.signal), providerConnectionListV2Schema),
     targetLists(request: Request, connectionId: string) {

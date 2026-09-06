@@ -17,6 +17,7 @@ export function createCatalogPlaceMapSearch(dependencies: Readonly<{
     }
     const resolved = await resolveCatalogSearch(input, dependencies.vocabulary)
     const projection = await dependencies.source.projectCatalogMap({
+      ...(input.intent === undefined ? {} : { intent: input.intent }),
       query: resolved.interpretation.normalizedQuery,
       areaReferences: resolved.areaReferences,
       taxonomyReferenceGroups: resolved.taxonomyReferenceGroups,

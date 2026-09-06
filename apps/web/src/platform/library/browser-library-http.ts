@@ -36,7 +36,7 @@ import {
   publishedCollectionCopyCommandRequestV2Schema,
   publishedCollectionCopyCommandResultV2Schema,
 } from '@place/contracts/library'
-import { placeDetailResponseSchema } from '@place/contracts/places'
+import { memberPlaceDetailResponseV2Schema, placeDetailResponseSchema } from '@place/contracts/places'
 
 import type { createOidcBff } from '../auth/oidc-bff'
 import { readNextOidcRuntime } from '../auth/next-oidc-lifecycle'
@@ -404,6 +404,15 @@ export function createBrowserLibraryHttp(dependencies: Dependencies) {
         request,
         (accessToken) => dependencies.backend.place(accessToken, identifier.placeId, request.signal),
         placeDetailResponseSchema,
+      )
+    },
+    memberPlace(request: Request, placeId: string): Promise<Response> {
+      const identifier = placeIdentifierParamsSchema.safeParse({ placeId }).data
+      if (identifier === undefined) return Promise.resolve(invalid())
+      return invoke(
+        request,
+        (accessToken) => dependencies.backend.memberPlace(accessToken, identifier.placeId, request.signal),
+        memberPlaceDetailResponseV2Schema,
       )
     },
   }

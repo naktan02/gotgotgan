@@ -1,10 +1,27 @@
 import { describe, expect, it } from 'vitest'
 
-import { placeDetailResponseSchema } from '../src/places/index.js'
+import { memberPlaceDetailResponseV2Schema, placeDetailResponseSchema, publicPlaceDetailResponseSchema } from '../src/places/index.js'
 
 const placeId = '01992d20-2000-7000-8000-000000000001'
 
 describe('place detail contract', () => {
+  it('admits source observations only in the required v2 member overlay', () => {
+    const detail = { schemaVersion: 'place-detail.v2', status: 'pending', requestedPlaceId: placeId,
+      placeId, redirectedFrom: [], personalState: { saved: true, wanted: false, personalRating: null,
+        preferencesUpdatedAt: null, visits: { visited: false, count: 0 }, sourceObservedPlace: {
+          name: '개인 별명', address: '서울 성동구', categoryLabel: '공급자 원본 분류',
+          location: { latitude: 37.54, longitude: 127.05 }, capturedAt: '2026-09-06T00:00:00.000Z',
+        } } }
+    expect(memberPlaceDetailResponseV2Schema.parse(detail)).toEqual(detail)
+    expect(placeDetailResponseSchema.safeParse({ ...detail, schemaVersion: 'place-detail.v1' }).success).toBe(false)
+    expect(publicPlaceDetailResponseSchema.safeParse(detail).success).toBe(false)
+    expect(memberPlaceDetailResponseV2Schema.safeParse({ ...detail, personalState: undefined }).success).toBe(false)
+    expect(memberPlaceDetailResponseV2Schema.safeParse({ ...detail, name: '가짜 공개 이름' }).success).toBe(false)
+    expect(memberPlaceDetailResponseV2Schema.safeParse({ ...detail, personalState: {
+      ...detail.personalState, sourceObservedPlace: { ...detail.personalState.sourceObservedPlace, providerPayload: {} },
+    } }).success).toBe(false)
+  })
+
   it('keeps public place facts separate from an optional personal overlay', () => {
     const detail = placeDetailResponseSchema.parse({
       schemaVersion: 'place-detail.v1',

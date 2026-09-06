@@ -9,6 +9,7 @@ import type {
   CatalogTaxonomyVocabularyNode,
 } from '../domain/catalog-home-search.js'
 import type { SearchBounds } from '../domain/model.js'
+import { InvalidCatalogTaxonomyError } from '../domain/catalog-home-search.js'
 
 type Candidate = Readonly<{
   token: Exclude<CatalogSearchInterpretationToken, { kind: 'query' }>
@@ -229,6 +230,8 @@ export function createCatalogPlaceSearch(dependencies: Readonly<{
   return async (input: CatalogPlaceSearchInput): Promise<CatalogPlaceSearchPage> => {
     const resolved = await resolveCatalogSearch(input, dependencies.vocabulary)
     const page = await dependencies.source.searchCatalog({
+      ...(input.intent === undefined ? {} : { intent: input.intent }),
+      ...(input.near === undefined ? {} : { near: input.near }),
       query: resolved.interpretation.normalizedQuery,
       taxonomyReferences: resolved.interpretation.taxonomyReferences,
       taxonomyReferenceGroups: resolved.taxonomyReferenceGroups,
@@ -256,7 +259,7 @@ export function createCatalogPlaceSearch(dependencies: Readonly<{
 }
 
 export async function resolveCatalogSearch(
-  input: Readonly<{ query: string; excludedTokenIds: readonly string[] }>,
+  input: Readonly<{ query: string; excludedTokenIds: readonly string[]; intent?: 'auto' | 'name' | 'conditions'; taxonomyKey?: string }>,
   vocabulary: CatalogSearchVocabulary,
 ): Promise<Readonly<{
   interpretation: CatalogSearchInterpretation
@@ -271,12 +274,36 @@ export async function resolveCatalogSearch(
     vocabulary.listAreas(),
     vocabulary.listTaxonomies(),
   ])
-  const interpretation = interpretCatalogSearch(
+  let interpretation = interpretCatalogSearch(
     input.query,
     input.excludedTokenIds,
-    areas,
-    taxonomies,
+    input.intent === 'name' ? [] : areas,
+    input.intent === 'name' ? [] : taxonomies,
   )
+  if (input.intent === 'name') {
+    const normalizedQuery = input.query.normalize('NFKC').trim().toLocaleLowerCase()
+    const tokenId = queryToken(normalizedQuery)
+    const active = normalizedQuery.length > 0 && !input.excludedTokenIds.includes(tokenId)
+    interpretation = {
+      normalizedQuery: active ? normalizedQuery : '',
+      tokens: active ? [{ tokenId, kind: 'query', label: normalizedQuery, normalizedQuery }] : [],
+      taxonomyReferences: [],
+    }
+  }
+  if (input.taxonomyKey !== undefined) {
+    const selected = taxonomies.find((node) => node.key === input.taxonomyKey)
+    if (selected === undefined) throw new InvalidCatalogTaxonomyError('Selected taxonomy is no longer available.')
+    const kind = selected.kind === 'category' ? 'place-type' : 'attribute'
+    const tokenId = referenceToken(kind, selected.key, selected.version)
+    if (!input.excludedTokenIds.includes(tokenId) && !interpretation.taxonomyReferences.some(({ key }) => key === selected.key)) {
+      const reference = { key: selected.key, version: selected.version }
+      interpretation = {
+        ...interpretation,
+        tokens: [{ tokenId, kind, ...reference, label: selected.label }, ...interpretation.tokens],
+        taxonomyReferences: [...interpretation.taxonomyReferences, reference],
+      }
+    }
+  }
   const areaReferences = interpretation.areaReference === undefined
     ? []
     : areas.filter(({ key }) => (

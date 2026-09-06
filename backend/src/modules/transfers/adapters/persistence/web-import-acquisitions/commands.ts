@@ -2,7 +2,7 @@ import type { PoolClient } from 'pg'
 
 import type { WebImportAcquisitionStore } from '../../../application/ports/web-import-acquisition.js'
 import { WebImportAcquisitionContext } from './context.js'
-import { WebImportAcquisitionProjection } from './projection.js'
+import { WebImportAcquisitionProjection, type AcquisitionRow } from './projection.js'
 import { accepted, rejected, type AcquisitionRejection } from './result.js'
 
 type ReceiptRow = Readonly<{
@@ -58,7 +58,7 @@ export class WebImportAcquisitionCommands {
         if (acquisition === undefined) throw new Error('replayed acquisition command disappeared')
         return {
           result: accepted(input.command.commandId, 'replayed', acquisition),
-          ...await this.cleanupArtifact(acquisition.acquisitionId),
+          ...await this.cleanupArtifact(acquisition.acquisitionId, acquisition.providerKey),
         }
       }
       if ((await client.query(
@@ -123,7 +123,7 @@ export class WebImportAcquisitionCommands {
         ...(job.artifact_deleted_at === null ? { artifact: {
           reference: job.artifact_reference,
           acquisitionId: input.command.acquisitionId,
-          providerKey: 'naver' as const,
+          providerKey: acquisition.providerKey,
         } } : {}),
       }
     } catch (error) {
@@ -153,7 +153,7 @@ export class WebImportAcquisitionCommands {
     return { result: rejected(input.command.commandId, code) }
   }
 
-  private async cleanupArtifact(acquisitionId: string) {
+  private async cleanupArtifact(acquisitionId: string, providerKey: AcquisitionRow['provider_key']) {
     const row = (await this.context.pool.query<ArtifactRow>(
       `SELECT artifact_reference, artifact_deleted_at
        FROM transfers.web_import_acquisition_jobs WHERE acquisition_id = $1::uuid`,
@@ -162,7 +162,7 @@ export class WebImportAcquisitionCommands {
     return row === undefined || row.artifact_deleted_at !== null ? {} : { artifact: {
       reference: row.artifact_reference,
       acquisitionId,
-      providerKey: 'naver' as const,
+      providerKey,
     } }
   }
 }

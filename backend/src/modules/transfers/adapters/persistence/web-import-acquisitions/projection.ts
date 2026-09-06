@@ -8,7 +8,7 @@ export type AcquisitionRow = Readonly<{
   command_id: string
   owner_membership_id: string
   import_source_id: string
-  provider_key: 'naver'
+  provider_key: ImportAcquisitionV1['providerKey']
   method: 'shared-links' | 'remote-browser'
   state: ImportAcquisitionV1['state']
   revision: string

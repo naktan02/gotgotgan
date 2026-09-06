@@ -6,6 +6,7 @@ import type {
   OutboundTransferCommandRequestV2,
   ProviderConnectionCommandRequestV2,
   StartImportAcquisitionV1,
+  StartImportAcquisitionV2,
 } from '@place/contracts/transfers'
 
 export type TransferBackendClientConfig = Readonly<{
@@ -49,6 +50,10 @@ export function createTransferBackendClient(config: TransferBackendClientConfig 
   }
 
   return {
+    importAcquisitionCapabilities: (accessToken: string, signal: AbortSignal) =>
+      send('/v2/transfers/import-acquisition-capabilities', accessToken, signal),
+    startImportAcquisitionV2: (accessToken: string, body: StartImportAcquisitionV2, signal: AbortSignal) =>
+      send('/v2/transfers/import-acquisitions', accessToken, signal, 'POST', body),
     capabilities: (accessToken: string, signal: AbortSignal) =>
       send('/v2/transfers/provider-capabilities', accessToken, signal),
     connections: (accessToken: string, signal: AbortSignal) =>

@@ -36,13 +36,13 @@ export async function readWorkspaceMap(
     const summaries = await summariesById(read, rows.map((row) => row.canonical_place_id), query.memberId, readMember)
     signal?.throwIfAborted()
     for (const row of rows) {
-      const summary = summaries.get(row.canonical_place_id)
-      if (summary === undefined) {
+      const read = summaries.get(row.canonical_place_id)
+      if (read === undefined) {
         // A missing projection cannot establish either a text/facet match or a non-match.
         unprojectedPlaceCount += 1
-      } else if (matchesFavorite(row, summary, query)) {
-        if (summary.location === null) unprojectedPlaceCount += 1
-        else accumulator.add(summary)
+      } else if (matchesFavorite(row, read, query)) {
+        if (read.summary.location === null) unprojectedPlaceCount += 1
+        else accumulator.add(read.summary)
       }
     }
     if (rows.length < libraryFacetFilterScanLimit) break

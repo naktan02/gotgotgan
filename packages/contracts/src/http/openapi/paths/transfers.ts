@@ -10,6 +10,25 @@ import {
   transferOperationStateParameter,
 } from '../parameters.js'
 const transferPaths: Readonly<Record<string, Record<string, unknown>>> = {
+  '/v2/transfers/import-acquisition-capabilities': {
+    get: operation('listImportAcquisitionCapabilitiesV2', {
+      '200': described('Return provider and method availability without treating one-shot imports as connected accounts', 'ImportAcquisitionCapabilitiesV2'),
+      '401': ref('responses', 'AuthenticationRequired'), '403': ref('responses', 'AccessDenied'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer }),
+  },
+  '/v2/transfers/import-acquisitions': {
+    post: operation('startImportAcquisitionV2', {
+      '200': described('Replay an existing one-shot import', 'StartImportAcquisitionResultV2'),
+      '201': described('Start an available provider-specific method', 'StartImportAcquisitionResultV2'),
+      '400': ref('responses', 'ProductRequestInvalid'), '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '409': described('Reject conflicting identifiers', 'StartImportAcquisitionResultV2'),
+      '422': described('Reject unsupported or inactive collection before persistence', 'StartImportAcquisitionResultV2'),
+      '429': described('Member acquisition capacity reached', 'StartImportAcquisitionResultV2'),
+      '503': ref('responses', 'ProductUnavailable'),
+    }, { security: bearer, requestSchema: 'StartImportAcquisitionV2' }),
+  },
   '/v1/transfers/import-acquisitions': {
     post: operation('startImportAcquisitionV1', {
       '200': described('Replay a one-shot Web import acquisition',

@@ -89,6 +89,7 @@ export function createWebImportAcquisitionWorker(options: Options) {
       await cleanup()
       return { status: 'expired' as const, acquisitionId: claim.acquisitionId }
     }
+    if (claim.providerKey !== options.source.providerKey) return expireClaim()
     if (deadlineReached && claim.inspectionResults === undefined) return expireClaim()
     if (deadlineReached) await deadlineDeletion
 

@@ -3,6 +3,8 @@ import type { Pool } from 'pg'
 export type MemberImportedPlace = Readonly<{
   placeId: string
   observedName: string
+  observedAddress: string | null
+  observedCategory: string | null
   observedLocation: Readonly<{ latitude: number; longitude: number }> | null
   capturedAt: string
 }>
@@ -17,12 +19,14 @@ export class PostgresMemberImportedPlaces {
     const rows = await this.pool.query<{
       canonical_place_id: string
       observed_name: string
+      observed_address: string | null
+      observed_category: string | null
       latitude: number | null
       longitude: number | null
       captured_at: Date
     }>(
       `SELECT DISTINCT ON (applied.canonical_place_id)
-              applied.canonical_place_id, item.observed_name,
+              applied.canonical_place_id, item.observed_name, item.observed_address, item.observed_category,
               ST_Y(item.observed_location) AS latitude, ST_X(item.observed_location) AS longitude,
               snapshot.captured_at
        FROM transfers.operation_items AS applied
@@ -52,6 +56,8 @@ export class PostgresMemberImportedPlaces {
     return rows.rows.map((row) => ({
       placeId: row.canonical_place_id,
       observedName: row.observed_name,
+      observedAddress: row.observed_address,
+      observedCategory: row.observed_category,
       observedLocation: row.latitude === null || row.longitude === null
         ? null : { latitude: row.latitude, longitude: row.longitude },
       capturedAt: row.captured_at.toISOString(),

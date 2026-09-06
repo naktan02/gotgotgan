@@ -89,6 +89,7 @@ import {
 } from '../library/index.js'
 import {
   placeDetailResponseSchema,
+  memberPlaceDetailResponseV2Schema,
   publicPlaceDetailResponseSchema,
 } from '../places/index.js'
 import {
@@ -122,6 +123,12 @@ import {
 } from '../writing/index.js'
 import {
   catalogPlaceMapRequestSchema,
+  catalogExplorationRequestSchema,
+  catalogExplorationResponseSchema,
+  catalogPlaceSearchRequestV2Schema,
+  catalogPlaceSearchResponseV2Schema,
+  catalogPlaceMapRequestV2Schema,
+  catalogPlaceMapResponseV2Schema,
   catalogPlaceMapResponseSchema,
   catalogPlaceSearchRequestSchema,
   catalogPlaceSearchResponseSchema,
@@ -182,6 +189,9 @@ import {
   sourceSnapshotListV2Schema,
   sourceSnapshotListV3Schema,
   startImportAcquisitionV1Schema,
+  startImportAcquisitionV2Schema,
+  startImportAcquisitionResultV2Schema,
+  importAcquisitionCapabilitiesV2Schema,
   transferOperationCommandRequestV2Schema,
   transferOperationCommandResultV2Schema,
   transferOperationItemPageV2Schema,
@@ -189,7 +199,7 @@ import {
   transferOperationSummaryV2Schema,
   transferOperationV2Schema,
 } from '../transfers/index.js'
-import { browserMapStyleSchema, processStatusSchema } from './system.js'
+import { browserMapSourceSchema, browserMapStyleSchema, processStatusSchema } from './system.js'
 
 import { ref } from './openapi/model.js'
 import { accessAndCommunityPaths } from './openapi/paths/access-and-community.js'
@@ -212,6 +222,7 @@ const paths = {
 
 const schemas: Readonly<Record<string, ZodType>> = {
   BrowserMapStyle: browserMapStyleSchema,
+  BrowserMapSource: browserMapSourceSchema,
   ProcessStatus: processStatusSchema,
   AdminSession: adminSessionSchema,
   ConnectorPublicOrigin: connectorPublicOriginSchema,
@@ -315,6 +326,13 @@ const schemas: Readonly<Record<string, ZodType>> = {
   PlaceSearchRequest: placeSearchRequestSchema,
   PlaceSearchResponse: placeSearchResponseSchema,
   CatalogPlaceSearchRequest: catalogPlaceSearchRequestSchema,
+  MemberPlaceDetailResponseV2: memberPlaceDetailResponseV2Schema,
+  CatalogExplorationRequest: catalogExplorationRequestSchema,
+  CatalogExplorationResponse: catalogExplorationResponseSchema,
+  CatalogPlaceSearchRequestV2: catalogPlaceSearchRequestV2Schema,
+  CatalogPlaceSearchResponseV2: catalogPlaceSearchResponseV2Schema,
+  CatalogPlaceMapRequestV2: catalogPlaceMapRequestV2Schema,
+  CatalogPlaceMapResponseV2: catalogPlaceMapResponseV2Schema,
   CatalogPlaceSearchResponse: catalogPlaceSearchResponseSchema,
   CatalogPlaceMapRequest: catalogPlaceMapRequestSchema,
   CatalogPlaceMapResponse: catalogPlaceMapResponseSchema,
@@ -332,6 +350,9 @@ const schemas: Readonly<Record<string, ZodType>> = {
   ProviderConnectionCommandResultV2: providerConnectionCommandResultV2Schema,
   ProviderTargetListProjectionV2: providerTargetListProjectionV2Schema,
   StartImportAcquisitionV1: startImportAcquisitionV1Schema,
+  StartImportAcquisitionV2: startImportAcquisitionV2Schema,
+  StartImportAcquisitionResultV2: startImportAcquisitionResultV2Schema,
+  ImportAcquisitionCapabilitiesV2: importAcquisitionCapabilitiesV2Schema,
   ImportAcquisitionV1: importAcquisitionV1Schema,
   ImportAcquisitionCommandRequestV1: importAcquisitionCommandV1Schema,
   ImportAcquisitionCommandResultV1: importAcquisitionCommandResultV1Schema,

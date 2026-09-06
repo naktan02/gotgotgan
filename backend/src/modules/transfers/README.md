@@ -5,11 +5,17 @@
 비밀번호, vault reference를 저장하지 않으며 HTTP projection에도 credential 필드가 없다.
 
 설치 없는 Web one-shot import는 [`ADR 0025`](../../../../docs/adr/0025-web-one-shot-saved-place-imports.md)를
-따른다. 현재 snapshot과 v2 capture는 connection·account fingerprint·installation에 결속돼 있으므로
-공유 링크, 파일, 원격 browser session을 그대로 연결하지 않는다. 이들은 계정 소유 미확인 provenance를
-가진 별도 versioned source와 additive migration이 생긴 뒤에만 공통 SourceSnapshot 검토·승인·queue·
-Collection materialization으로 합류한다. fake connection/fingerprint를 만들거나 아래 보안 검사를
-느슨하게 하는 것은 허용하지 않는다.
+따른다. v2 capture는 connection·account fingerprint·installation에 결속된다. 일회성 링크는
+계정 소유 미확인 one-shot source와 v3 snapshot으로 구분해 공통 검토·승인·queue·Collection 저장에
+합류한다. fake connection/fingerprint를 만들거나 아래 보안 검사를 느슨하게 하지 않는다.
+
+공급자와 획득 방식의 제품 가용성은
+[`provider-import-acquisitions.ts`](application/provider-import-acquisitions.ts)에서 확인한다.
+v2 시작 요청은 알려진 공급자를 표현하지만 미지원 조합은 저장 전에 거절한다. NAVER만 기존
+v1 encrypted queue로 이어져 배포 전 대기 작업·replay를 보존하며, 원격 진단 flag는 제품 가용성이
+아니다. [`web-import-acquisitions.test.mjs`](../../../tests/integration/transfer-operations/web-import-acquisitions.test.mjs)는
+무저장 거절, owner/replay/lease/15분 폐기와 000052 rollback 보호의 임시 PostGIS 검증 위치다.
+테스트용 수집 결과는 실제 공급자 접근 성공의 증거가 아니다.
 
 `SavedPlaceSource`는 가져오기 관찰만, `SavedPlaceTarget`은 내보내기 대상 관찰과 preflight만
 담당한다. 승인된 outbound plan은 target과 순서가 고정된 execution manifest로 동결한다.

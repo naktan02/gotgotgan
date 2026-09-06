@@ -3,6 +3,22 @@
 Search는 provider-neutral 제출 검색, 입력 중 자동완성 조정, Local/Discovery Search Projection을
 소유한다.
 
+## 현재 웹 검색 경로
+
+이름 후보와 조건 해석이 혼동될 때는
+[`explore-catalog.ts`](application/explore-catalog.ts)와
+[`catalog-interactions.test.ts`](tests/catalog-interactions.test.ts)를 확인한다.
+입력창은 하나지만 이름 검색은 삭제 가능한 의미 조건을 만들지 않는다. 조건은 현재
+Area/Taxonomy vocabulary에서 확인되는 것만 사용하며, 미지원 문장을 이해했다고 꾸미지 않는다.
+
+동명 장소의 거리 정렬·이어읽기 또는 명시적 분류 선택을 검토할 때는
+[`persistence/README.md`](adapters/persistence/README.md)를 따른다. 거리 기준점은 정렬 힌트일 뿐
+검색 반경이 아니며, 지도 이동은 목록 전체 범위를 바꾸지 않는다. 기존 v1의 의미와 커서는 유지한다.
+
+국가·주요 도시로 이동하는 후보는 composition으로 주입되는 공개 지리 참조이며,
+정확한 출처·커버리지 한계는 [Areas의 참조 설명](../areas/adapters/geographic-catalog/README.md)에 있다.
+모든 주소·동네를 찾는 geocoder나 외부 지도 전체 장소 검색으로 설명하지 않는다.
+
 ```text
 domain/       제출 검색·suggestion session/impression·결과·projection 값과 불변식
 application/  source 조정, 선택/승격, opaque cursor, projection command, consumer-owned port

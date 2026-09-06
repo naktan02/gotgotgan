@@ -121,9 +121,12 @@ test('minimum bookmark import completes without detail, dedupes identity and pre
     assert.ok(evidence.every((row) => !JSON.stringify(row.facts).includes('개인 목록 이름')))
     const memberPlaces = new transfersModule.PostgresMemberImportedPlaces(database.pool)
     const readPrivate = async (owner, placeIds) => (await memberPlaces.read(owner, placeIds)).map((row) => ({
-      placeId: row.placeId, name: row.observedName, areaLabel: null, location: row.observedLocation,
-      primaryTaxonomy: null, taxonomyKeys: [],
-      evidence: { status: 'unverified', projectedAt: row.capturedAt },
+      summary: {
+        placeId: row.placeId, name: row.observedName, areaLabel: null, location: row.observedLocation,
+        primaryTaxonomy: null, taxonomyKeys: [],
+        evidence: { status: 'unverified', projectedAt: row.capturedAt },
+      },
+      sourceObservedSearchText: [row.observedAddress, row.observedCategory].filter(Boolean).join(' '),
     }))
     const workspace = new library.PostgresPersonalLibraryWorkspace(database.pool, async () => [], readPrivate)
     const query = {

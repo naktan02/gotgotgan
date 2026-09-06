@@ -64,6 +64,27 @@ type PendingPlaceDetail = PlaceDetailIdentity & Readonly<{
 
 export type PlaceDetail = AvailablePlaceDetail | PendingPlaceDetail
 
+export type SourceObservedPlace = Readonly<{
+  name: string
+  address: string | null
+  categoryLabel: string | null
+  location: Readonly<{ latitude: number; longitude: number }> | null
+  capturedAt: string
+}>
+
+type MemberDetailState = Readonly<{
+  schemaVersion: 'place-detail.v2'
+  personalState: PlaceDetailPersonalState & Readonly<{ sourceObservedPlace?: SourceObservedPlace }>
+}>
+
+export type MemberPlaceDetail =
+  | (Omit<AvailablePlaceDetail, 'schemaVersion' | 'personalState'> & MemberDetailState)
+  | (Omit<PendingPlaceDetail, 'schemaVersion' | 'personalState'> & MemberDetailState)
+
+export type MemberPlaceDetailReadResult =
+  | Readonly<{ status: 'found'; detail: MemberPlaceDetail }>
+  | Exclude<PlaceDetailReadResult, { status: 'found' }>
+
 export type PlaceDetailReadResult =
   | Readonly<{ status: 'found'; detail: PlaceDetail }>
   | Readonly<{ status: 'not-found' }>
