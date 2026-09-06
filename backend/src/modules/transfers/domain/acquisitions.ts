@@ -6,6 +6,7 @@ import type {
 } from '@place/contracts/transfers'
 
 export type SharedLinkInspectionItem = Readonly<{
+  providerListedFacts?: import('./provider-listed-facts.js').ProviderListedFactsV1
   sourceItemId: string
   providerPlaceId: string | null
   observedName: string

@@ -9,6 +9,13 @@ import {
 } from './materialize-verified-provider-place.js'
 
 export type SnapshotProviderPlaceEvidence = Readonly<{
+  providerListedFacts?: Readonly<{
+    schemaVersion: 'provider-listed-facts.v1'
+    name: string
+    address: string | null
+    categoryLabel: string | null
+    location: GeoPoint | null
+  }>
   acquisitionKind: AcquisitionKind
   parserVersion: string
   payloadChecksum: string
@@ -41,6 +48,7 @@ export async function materializeSnapshotProviderPlace(input: Readonly<{
     facts: {
       name: snapshot.name, address: snapshot.address,
       categoryLabel: snapshot.categoryLabel, location: snapshot.location,
+      ...(snapshot.providerListedFacts === undefined ? {} : { providerListedFacts: snapshot.providerListedFacts }),
     },
     confidence: 0.8,
     store,

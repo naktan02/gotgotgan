@@ -184,6 +184,27 @@ describe('place detail reader', () => {
 })
 
 describe('place detail HTTP boundary', () => {
+  it('keeps a named unlocated public Place available in both frozen detail versions', async () => {
+    const read = createPlaceDetailReader({
+      canonical: canonical({ status: 'active', placeId: canonicalPlaceId, redirectedFrom: [] }),
+      readDocument: async () => ({ ...document, location: null, areaLabel: null }),
+      readPersonal: async () => ({ visits: { visited: false, count: 0 } }),
+    })
+    const readMember = createMemberPlaceDetailReader({ read, readSourceObservedPlace: async () => undefined })
+    const app = Fastify({ logger: false })
+    registerPlaceHttpRoutes(app, { read, readMember, authorizer: async () => ({ status: 'authorized', memberId: 'member-1' }) })
+    try {
+      for (const version of ['v1', 'v2']) {
+        const response = await app.inject({ url: `/${version}/places/${canonicalPlaceId}`,
+          ...(version === 'v2' ? { headers: { authorization: 'Bearer fixture' } } : {}) })
+        expect(response.statusCode).toBe(200)
+        expect(response.json()).toMatchObject({ schemaVersion: `place-detail.${version}`, status: 'available', name: document.name, location: null })
+        expect(response.json()).not.toHaveProperty('address')
+        if (version === 'v1') expect(response.json()).not.toHaveProperty('personalState')
+      }
+    } finally { await app.close() }
+  })
+
   it('requires member authorization for v2 while frozen public v1 stays unchanged', async () => {
     const read = createPlaceDetailReader({
       canonical: canonical({ status: 'active', placeId: canonicalPlaceId, redirectedFrom: [] }),

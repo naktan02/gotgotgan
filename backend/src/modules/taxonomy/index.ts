@@ -9,6 +9,8 @@ export {
 } from './application/taxonomy.js'
 export type { TaxonomyStore } from './application/ports/taxonomy-store.js'
 export { PostgresTaxonomyStore } from './adapters/persistence/postgres-taxonomy-store.js'
+export { seedProductTaxonomy } from './adapters/persistence/seed-product-taxonomy.js'
+export { matchProductTaxonomyLabel } from './adapters/product-catalog/match-product-taxonomy-label.js'
 export {
   registerTaxonomyHttpRoutes,
   type TaxonomyHttpDependencies,

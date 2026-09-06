@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { mapFeatureV3Schema } from '../maps/index.js'
 
 import {
   mapLocationSchema,
@@ -402,6 +403,24 @@ export const catalogPlaceMapResponseV2Schema = z.object({
   const legacy = catalogPlaceMapResponseSchema.safeParse({ ...response, schemaVersion: 'catalog-place-map.v1' })
   if (!legacy.success) for (const issue of legacy.error.issues) context.addIssue({ code: 'custom', path: issue.path, message: issue.message })
 })
+export const catalogPlaceMapRequestV3Schema = catalogPlaceMapRequestV2Schema.extend({
+  schemaVersion: z.literal('catalog-place-map.v3'), selectedPlaceId: uuidSchema.optional(),
+})
+export const catalogPlaceMapResponseV3Schema = z.object({
+  ...catalogPlaceMapResponseV2Schema.shape,
+  schemaVersion: z.literal('catalog-place-map.v3'), mode: z.literal('mixed'),
+  features: z.array(mapFeatureV3Schema).max(384),
+}).strict().superRefine((response, context) => {
+  const represented = response.features.reduce((sum, feature) => sum + (feature.kind === 'place' ? 1 : feature.count), 0)
+  const ids = response.features.map((feature) => feature.kind === 'place' ? feature.placeId : feature.clusterId)
+  if (represented !== response.coverage.representedPlaceCount || represented !== response.coverage.matchingPlaceCount ||
+      !response.coverage.complete || new Set(ids).size !== ids.length) {
+    context.addIssue({ code: 'custom', message: 'mixed map must have exact, unique coverage' })
+  }
+})
+export type CatalogPlaceMapRequestV3 = z.infer<typeof catalogPlaceMapRequestV3Schema>
+export type CatalogPlaceMapResponseV3 = z.infer<typeof catalogPlaceMapResponseV3Schema>
+
 export const catalogExplorationRequestSchema = z.object({
   schemaVersion: z.literal('catalog-exploration.v1'), query: z.string().trim().min(1).max(200),
   near: mapLocationSchema.optional(),
@@ -421,6 +440,19 @@ export const catalogExplorationResponseSchema = z.object({
 export type CatalogSearchIntent = z.infer<typeof catalogSearchIntentSchema>
 export type CatalogExplorationRequest = z.infer<typeof catalogExplorationRequestSchema>
 export type CatalogExplorationResponse = z.infer<typeof catalogExplorationResponseSchema>
+// Regional navigation is additive: the country/city-only v1 response stays frozen.
+export const catalogExplorationRequestV2Schema = catalogExplorationRequestSchema.extend({
+  schemaVersion: z.literal('catalog-exploration.v2'),
+}).strict()
+export const catalogExplorationResponseV2Schema = catalogExplorationResponseSchema.extend({
+  schemaVersion: z.literal('catalog-exploration.v2'),
+  destinations: z.array(catalogExplorationResponseSchema.shape.destinations.element.extend({
+    kind: z.enum(['country', 'city', 'administrative-area', 'locality', 'neighborhood']),
+    contextLabel: z.string().max(240).optional(),
+  }).strict()).max(8),
+}).strict()
+export type CatalogExplorationRequestV2 = z.infer<typeof catalogExplorationRequestV2Schema>
+export type CatalogExplorationResponseV2 = z.infer<typeof catalogExplorationResponseV2Schema>
 export type CatalogPlaceSearchRequestV2 = z.infer<typeof catalogPlaceSearchRequestV2Schema>
 export type CatalogPlaceMapRequestV2 = z.infer<typeof catalogPlaceMapRequestV2Schema>
 export type CatalogPlaceSearchResponseV2 = z.infer<typeof catalogPlaceSearchResponseV2Schema>

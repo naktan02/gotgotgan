@@ -309,6 +309,17 @@ export class NaverSharedListSource {
               sourceItemId: bookmark.bookmarkId,
               providerPlaceId: bookmark.sid ?? null,
               observedName: bookmark.displayName || bookmark.name,
+              ...(bookmark.sid === undefined || bookmark.sid === null ? {} : {
+                providerListedFacts: {
+                  schemaVersion: 'provider-listed-facts.v1' as const,
+                  name: bookmark.name,
+                  address: bookmark.address || null,
+                  categoryLabel: bookmark.mcidName || null,
+                  location: bookmark.py === undefined || bookmark.py === null ||
+                    bookmark.px === undefined || bookmark.px === null
+                    ? null : { latitude: bookmark.py, longitude: bookmark.px },
+                },
+              }),
               observedAddress: bookmark.address || null,
               observedCategory: bookmark.mcidName || null,
               observedLocation: bookmark.py === undefined || bookmark.py === null ||

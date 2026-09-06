@@ -2,6 +2,7 @@ import {
   readPublicationRequestJson,
   sendPublicationJson,
 } from './publication-http.mjs'
+import { createBoundedMapAccumulator } from '../../../dist/platform/map-projection/bounded-map-accumulator.js'
 
 const items = [
   {
@@ -108,7 +109,8 @@ export function createCatalogSearchHandler() {
     if (request.method !== 'POST' || ![
       '/v1/search/catalog',
       '/v1/search/catalog/map',
-      '/v2/search/catalog', '/v2/search/catalog/map', '/v1/search/catalog/explore',
+      '/v2/search/catalog', '/v2/search/catalog/map', '/v1/search/catalog/explore', '/v2/search/catalog/explore',
+      '/v3/search/catalog/map',
     ].includes(request.url)) return false
 
     let body
@@ -130,7 +132,8 @@ export function createCatalogSearchHandler() {
 
     if (request.url.endsWith('/explore')) {
       sendPublicationJson(response, 200, {
-        schemaVersion: 'catalog-exploration.v1', intent: activeTokens.length > 0 ? 'conditions' : 'name',
+        schemaVersion: request.url.startsWith('/v2/') ? 'catalog-exploration.v2' : 'catalog-exploration.v1',
+        intent: activeTokens.some((token) => token.label === query) ? 'auto' : activeTokens.length > 0 ? 'conditions' : 'name',
         conditions: activeTokens, unrecognizedText: '',
         places: items.filter((item) => item.name.includes(query)),
         destinations: query === '대한민국' ? [{
@@ -180,6 +183,16 @@ export function createCatalogSearchHandler() {
     selected = selected.filter((item) =>
       longitudeMatches(item.location.longitude) &&
       item.location.latitude >= viewport.south && item.location.latitude <= viewport.north)
+    if (request.url === '/v3/search/catalog/map') {
+      const accumulator = createBoundedMapAccumulator({ bounds: viewport, zoom: Number(body.zoom), maxFeatures: 384, selectedPlaceId: body.selectedPlaceId })
+      for (const item of selected) accumulator.add({ kind: 'place', placeId: item.placeId, label: item.name, location: item.location,
+        classification: item.primaryTaxonomy === null ? null : { primaryTaxonomy: { key: item.primaryTaxonomy.key, label: item.primaryTaxonomy.label },
+          rootTaxonomy: { key: item.primaryTaxonomy.key.startsWith('drink.') ? 'drink' : 'food', label: item.primaryTaxonomy.key.startsWith('drink.') ? '카페·음료' : '음식점' } } })
+      sendPublicationJson(response, 200, { schemaVersion: 'catalog-place-map.v3', interpretation: { normalizedQuery: query, tokens: activeTokens },
+        viewport, zoom: body.zoom, mode: 'mixed', features: accumulator.finish(),
+        coverage: { matchingPlaceCount: selected.length, representedPlaceCount: selected.length, complete: true } })
+      return true
+    }
     const clustered = Number(body.zoom) < 12 && selected.length > 0
     const features = clustered ? [{
       kind: 'cluster',

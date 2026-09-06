@@ -23,7 +23,8 @@ to anonymous access; Product Tier names and bearer tokens never enter the detail
 The current `place-detail.v1` projection contains only facts already owned by Place: name, area,
 coordinates, taxonomy, evidence freshness, and optional preferences/visit summary. Provider hours,
 menus, photos, ratings, raw observations, and review state are not fabricated into this response.
-When the public Search document is missing, anonymous reads remain retryable `503`. An authorized
+When neither the current public canonical profile nor its Search fallback is available,
+anonymous reads remain retryable `503`. An authorized
 member instead receives a `pending` projection containing only canonical identity and authoritative
 personal state, so projection lag cannot disable personal Library, Visit, or Writing capabilities.
 
@@ -34,6 +35,11 @@ personal state, so projection lag cannot disable personal Library, Visit, or Wri
 공개 상세나 다른 회원에게 공개 사실처럼 승격하지 않는다. 기존 v1 계약은 동결한다.
 이 개인 최소 정보는 상세 수집 Job의 실행 여부와 무관하며, 미보강 상태를 '동기화 중'으로
 단정하지 않는 것이 제품 의도다.
+
+좌표 없는 공통 장소가 상세 대기로 남던 문제는 `PlaceDetailDocument` 내부 DTO가 이미 nullable인
+v1/v2 wire보다 좁았기 때문이다. `tests/place-detail.test.ts`의 두 버전 HTTP 회귀와
+`packages/contracts/tests/place-detail-contract.test.ts`가 null 좌표를 0으로 대체하지 않고 이름을
+그대로 전달하는 경계를 확인한다. 별도 v3 계약이나 주소를 지역명으로 위장하는 변경은 하지 않는다.
 
 ## Canonical Place Knowledge
 
@@ -69,3 +75,9 @@ Canonical identity의 `retired` lifecycle은 장소의 `permanently-closed` 운�
 따라서 read/publish 결과의 `identityState`와 Profile의 운영 상태를 별도 필드로 유지한다. PostgreSQL,
 migration과 HTTP transport는 이 단계의 Interface 밖이며 후속 Adapter가
 `CanonicalPlaceKnowledgeStore`를 구현한다.
+
+최소 장소 사실과 검색 누락을 조사할 때는
+[`import-catalog-gap.md`](../../../../docs/operations/import-catalog-gap.md)를 먼저 확인한다.
+현재 추가된 최소 사실 Adapter는 기존 assertion/profile/activation 제약을 재사용하는 제한된 경로이며,
+위 일반 Knowledge Store의 전체 PostgreSQL 구현이나 자동 공개 승인을 뜻하지 않는다.
+개인 별칭을 공개 이름으로 추정하는 backfill과 import runtime의 자동 공개 연결은 활성화하지 않는다.

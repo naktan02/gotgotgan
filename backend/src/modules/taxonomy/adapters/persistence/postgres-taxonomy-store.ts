@@ -2,6 +2,7 @@ import type { Pool, PoolClient } from 'pg'
 
 import type { TaxonomyStore } from '../../application/ports/taxonomy-store.js'
 import type { TaxonomyNodeVersion } from '../../domain/model.js'
+import { InvalidTaxonomyNodeError } from '../../domain/model.js'
 
 type TaxonomyRow = Readonly<{
   node_key: string
@@ -46,6 +47,27 @@ async function publishWithClient(client: PoolClient, node: TaxonomyNodeVersion) 
 
 export class PostgresTaxonomyStore implements TaxonomyStore {
   constructor(private readonly pool: Pool) {}
+
+  async readVersions(references: readonly Readonly<{ key: string; version: number }>[]): Promise<readonly TaxonomyNodeVersion[]> {
+    if (references.length > 256 || references.some(({ key, version }) =>
+      key.trim().length === 0 || key.length > 128 || !Number.isInteger(version) || version < 1 || version > 2_147_483_647)) {
+      throw new InvalidTaxonomyNodeError('Taxonomy version references are invalid.')
+    }
+    if (references.length === 0) return []
+    const unique = [...new Map(references.map((reference) => [`${reference.key}\u0000${reference.version}`, reference])).values()]
+    const result = await this.pool.query<TaxonomyRow>(`
+      SELECT nodes.node_key, nodes.parent_key, nodes.label, nodes.kind,
+             nodes.version, nodes.active, nodes.effective_at
+      FROM taxonomy.node_versions nodes
+      JOIN unnest($1::text[], $2::integer[]) AS requested(node_key, version)
+        ON nodes.node_key = requested.node_key AND nodes.version = requested.version
+      ORDER BY nodes.node_key, nodes.version
+    `, [unique.map(({ key }) => key), unique.map(({ version }) => version)])
+    return result.rows.map((row) => ({
+      key: row.node_key, parentKey: row.parent_key, label: row.label, kind: row.kind,
+      version: row.version, active: row.active, effectiveAt: row.effective_at.toISOString(),
+    }))
+  }
 
   async publish(node: TaxonomyNodeVersion) {
     const client = await this.pool.connect()

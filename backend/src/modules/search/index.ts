@@ -23,7 +23,7 @@ export {
   type SuggestionSession,
 } from './domain/suggestions.js'
 export { createPlaceSearch } from './application/search-places.js'
-export { createCatalogExploration } from './application/explore-catalog.js'
+export { createCatalogExploration, createCatalogExplorationV2 } from './application/explore-catalog.js'
 export {
   createCatalogPlaceSearch,
   interpretCatalogSearch,
@@ -84,3 +84,6 @@ export {
   type SearchHttpDependencies,
 } from './transport/http/register-search-http.js'
 export type { SuggestionHttpDependencies } from './transport/http/register-suggestion-http.js'
+export { PostgresCanonicalCatalogProjection, type CanonicalCatalogProjection } from './adapters/persistence/postgres-canonical-catalog-projection.js'
+export { createCatalogPlaceMapSearchV3 } from './application/search-catalog-map-v3.js'
+export { PostgresCatalogMapSearchV3 } from './adapters/persistence/postgres-catalog-map-v3.js'

@@ -44,6 +44,10 @@ Transfers table을 직접 join하지 않는다. 이 값은 `unverified`이고 �
 membership의 최대 2,000개 표본과 축별 상위 50개이며, 선택한 Tag·Rating·검색어의 전체 집계가 아니다.
 sample/projected coverage와 `complete`를 함께 표시해야 하며 미투영은 분류 부재의 증거가 아니다.
 
+선택 Collection은 사용자가 정한 순서로 page하므로 cursor가 같은 Collection revision에도 묶여야 한다.
+재배치 전 cursor나 조회 도중 변경된 revision은 거절하고 목록을 처음부터 다시 연다. 순서·회원 전용
+별칭 검색·중복 membership·페이지 사이 및 조회 도중 재배치 회귀는 아래 `workspace-search-map` 테스트에서 확인한다.
+
 선택 목록이 directory 첫 page 밖에 있어도 이름·revision이 사라지지 않도록 새 UI는
 `includeSelectedCollection=true`로 현행 `selectedCollection` summary를 명시적으로 요청한다.
 이 metadata는 별도 소유권 확인을 거치고 directory 검색어와 독립적이다. 입력 생략 또는 전체 scope는

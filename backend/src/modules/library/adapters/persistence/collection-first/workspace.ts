@@ -19,8 +19,10 @@ import type {
 import type { PersonalLibraryWorkspaceQuery } from '../../../domain/collection-first.js'
 import type { PersonalLibraryMapQuery } from '../../../domain/collection-first.js'
 import { normalizePersonalLibraryWorkspaceQuery } from '../../../application/validate-collection-first.js'
-import { readWorkspaceMap } from './workspace-map.js'
-import { InvalidLibraryQueryError } from '../../../domain/queries.js'
+import { readWorkspaceMap, readWorkspaceMapV3 } from './workspace-map.js'
+import type { MapTaxonomyReader } from '../../../../../platform/map-projection/map-classification.js'
+import type { PersonalLibraryMapQueryV3 } from '../../../application/ports/personal-library-map-v3.js'
+import { InvalidLibraryCursorError, InvalidLibraryQueryError } from '../../../domain/queries.js'
 import { matchesFavorite, readFavoriteRows, summariesById } from './favorite-read.js'
 import { type CollectionRow, toCollectionWorkspaceSummary } from './collection-record.js'
 
@@ -34,10 +36,15 @@ export class PostgresPersonalLibraryWorkspace implements PersonalLibraryWorkspac
     private readonly pool: Pool,
     private readonly readPlaceSummaries: LibraryPlaceSummaryReader,
     private readonly readMemberSummaries?: MemberLibraryPlaceSummaryReader,
+    private readonly readMapTaxonomy?: MapTaxonomyReader,
   ) {}
 
   openMap(query: PersonalLibraryMapQuery, signal?: AbortSignal) {
     return readWorkspaceMap(this.pool, this.readPlaceSummaries, this.readMemberSummaries, query, signal)
+  }
+
+  openMapV3(query: PersonalLibraryMapQueryV3, signal?: AbortSignal) {
+    return readWorkspaceMapV3(this.pool, this.readPlaceSummaries, this.readMemberSummaries, query, signal, this.readMapTaxonomy)
   }
 
   async open(input: PersonalLibraryWorkspaceQuery) {
@@ -58,10 +65,10 @@ export class PostgresPersonalLibraryWorkspace implements PersonalLibraryWorkspac
         [query.favoriteScope.collectionId, query.memberId],
       )
       if (owned.rows[0] === undefined) return undefined
-      if (query.includeSelectedCollection) selectedCollection = owned.rows[0]
+      selectedCollection = owned.rows[0]
     }
     const collectionCursor = decodeWorkspaceCollectionCursor(query.collectionCursor, query)
-    const placeCursor = decodeWorkspaceFavoriteCursor(query.placeCursor, query)
+    const placeCursor = decodeWorkspaceFavoriteCursor(query.placeCursor, query, selectedCollection?.revision)
     const collectionsResult = await this.pool.query<CollectionRow>(
       `SELECT collection.id, collection.name, collection.description, collection.visibility,
               collection.publication_id, count(placed.canonical_place_id)::int AS place_count,
@@ -85,7 +92,8 @@ export class PostgresPersonalLibraryWorkspace implements PersonalLibraryWorkspac
     const selectedCollectionId = query.favoriteScope.kind === 'collection'
       ? query.favoriteScope.collectionId
       : null
-    const favoriteCandidates = await readFavoriteRows(this.pool, query, placeCursor?.placeId, scanLimit + 1)
+    const favoriteCandidates = await readFavoriteRows(this.pool, query, placeCursor?.placeId, scanLimit + 1,
+      selectedCollectionId === null ? undefined : { afterPosition: placeCursor?.position })
     const scannedRows = favoriteCandidates.slice(0, scanLimit)
     const summaries = await summariesById(
       this.readPlaceSummaries,
@@ -122,9 +130,20 @@ export class PostgresPersonalLibraryWorkspace implements PersonalLibraryWorkspac
       savedPlaceCount: filterUniverseResult.rows[0]?.favorite_place_count ?? 0,
       sampledPlaceCount: filterUniverseResult.rows.length,
     })
+    if (selectedCollection !== undefined) {
+      const current = await this.pool.query<{ revision: string }>(
+        `SELECT revision::text FROM library.collections
+         WHERE id = $1::uuid AND owner_membership_id = $2::uuid`,
+        [selectedCollection.id, query.memberId],
+      )
+      if (current.rows[0]?.revision !== selectedCollection.revision) {
+        throw new InvalidLibraryCursorError('Collection order changed; reopen this list.')
+      }
+    }
     return {
       schemaVersion: 'personal-library-workspace.v2' as const,
-      ...(selectedCollection === undefined ? {} : { selectedCollection: toCollectionWorkspaceSummary(selectedCollection) }),
+      ...(!query.includeSelectedCollection || selectedCollection === undefined
+        ? {} : { selectedCollection: toCollectionWorkspaceSummary(selectedCollection) }),
       filter: {
         ...(query.collectionQuery === undefined ? {} : { collectionQuery: query.collectionQuery }),
         ...(query.placeQuery === undefined ? {} : { placeQuery: query.placeQuery }),
@@ -149,7 +168,12 @@ export class PostgresPersonalLibraryWorkspace implements PersonalLibraryWorkspac
           place: summaries.get(row.canonical_place_id)?.summary ?? null,
         })),
         ...((hasUnreturnedMatch || hasUnscannedRows) && favoriteCursorRow !== undefined ? {
-          nextCursor: encodeWorkspaceFavoriteCursor(query, { placeId: favoriteCursorRow.canonical_place_id }),
+          nextCursor: encodeWorkspaceFavoriteCursor(query, {
+            placeId: favoriteCursorRow.canonical_place_id,
+            ...(selectedCollection === undefined ? {} : {
+              position: favoriteCursorRow.source_position, collectionRevision: selectedCollection.revision,
+            }),
+          }),
         } : {}),
       },
       availableFilters: {

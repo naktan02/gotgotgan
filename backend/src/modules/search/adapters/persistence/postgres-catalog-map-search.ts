@@ -26,7 +26,7 @@ type ClusterRow = Readonly<{
   place_count: number
 }>
 
-function matchingCatalogDocuments(query: CatalogPlaceMapQuery): string {
+export function matchingCatalogDocuments(query: CatalogPlaceMapQuery): string {
   const textMatch = query.intent === 'name'
     ? "lower(normalize(document.display_name, NFKC)) % $1::text OR strpos(lower(normalize(document.display_name, NFKC)), $1::text) > 0"
     : "document.search_text % $1::text OR document.search_text LIKE '%' || $1::text || '%'"
@@ -76,7 +76,7 @@ function matchingCatalogDocuments(query: CatalogPlaceMapQuery): string {
   `
 }
 
-function queryParameters(query: CatalogPlaceMapQuery): unknown[] {
+export function queryParameters(query: CatalogPlaceMapQuery): unknown[] {
   return [
     query.query.normalize('NFKC').trim().toLocaleLowerCase(),
     query.viewport.west,

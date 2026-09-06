@@ -9,6 +9,7 @@ import type { LibraryPlaceSummary } from '../../../domain/queries.js'
 
 export type FavoriteRow = Readonly<{
   canonical_place_id: string
+  source_position: number
   collection_count: number
   tag_ids: string[]
   tag_names: string[]
@@ -59,19 +60,24 @@ export function matchesFavorite(
 /** One bounded owner-only candidate page; public facts are joined through summary ports, never SQL. */
 export async function readFavoriteRows(
   pool: Pool, query: PersonalLibraryWorkspaceQuery, afterPlaceId: string | undefined, limit: number,
+  collectionOrder?: Readonly<{ afterPosition: number | undefined }>,
 ): Promise<FavoriteRow[]> {
   const selectedCollectionId = query.favoriteScope.kind === 'collection'
     ? query.favoriteScope.collectionId : null
   const result = await pool.query<FavoriteRow>(
     `WITH candidates AS (
-       SELECT DISTINCT placed.canonical_place_id
+       SELECT placed.canonical_place_id, min(placed.position)::int AS source_position
        FROM library.collection_places AS placed
        JOIN library.collections AS collection ON collection.id = placed.collection_id
        WHERE collection.owner_membership_id = $1::uuid
          AND ($2::uuid IS NULL OR collection.id = $2::uuid)
-         AND ($3::uuid IS NULL OR placed.canonical_place_id > $3::uuid)
+         AND ($3::uuid IS NULL
+           OR (NOT $8::boolean AND placed.canonical_place_id > $3::uuid)
+           OR ($8::boolean AND (placed.position > $9::integer
+             OR (placed.position = $9::integer AND placed.canonical_place_id > $3::uuid))))
+       GROUP BY placed.canonical_place_id
      )
-     SELECT candidate.canonical_place_id,
+     SELECT candidate.canonical_place_id, candidate.source_position,
             (SELECT count(*)::int FROM library.collection_places AS all_placed
              JOIN library.collections AS all_collection ON all_collection.id = all_placed.collection_id
              WHERE all_collection.owner_membership_id = $1::uuid
@@ -90,15 +96,17 @@ export async function readFavoriteRows(
      WHERE ($4::text = 'any'
          OR ($4::text = 'rated' AND preference.personal_rating IS NOT NULL)
          OR ($4::text = 'unrated' AND preference.personal_rating IS NULL))
-     GROUP BY candidate.canonical_place_id, preference.personal_rating
+     GROUP BY candidate.canonical_place_id, candidate.source_position, preference.personal_rating
      HAVING cardinality($5::uuid[]) = 0
         OR ($6::text = 'any' AND count(DISTINCT tagged.tag_id)
             FILTER (WHERE tagged.tag_id = ANY($5::uuid[])) > 0)
         OR ($6::text = 'all' AND count(DISTINCT tagged.tag_id)
             FILTER (WHERE tagged.tag_id = ANY($5::uuid[])) = cardinality($5::uuid[]))
-     ORDER BY candidate.canonical_place_id ASC LIMIT $7`,
+     ORDER BY CASE WHEN $8::boolean THEN candidate.source_position END ASC,
+       candidate.canonical_place_id ASC LIMIT $7`,
     [query.memberId, selectedCollectionId, afterPlaceId ?? null,
-      query.ratingFilter.kind, query.tagIds, query.tagMatch, limit],
+      query.ratingFilter.kind, query.tagIds, query.tagMatch, limit,
+      collectionOrder !== undefined && selectedCollectionId !== null, collectionOrder?.afterPosition ?? null],
   )
   return result.rows
 }

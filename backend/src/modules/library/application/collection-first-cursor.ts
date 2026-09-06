@@ -4,7 +4,7 @@ import type { PersonalLibraryWorkspaceQuery } from '../domain/collection-first.j
 import { InvalidLibraryCursorError } from '../domain/queries.js'
 
 type CollectionCursor = Readonly<{ updatedAt: string; collectionId: string }>
-type FavoriteCursor = Readonly<{ placeId: string }>
+type FavoriteCursor = Readonly<{ placeId: string; position?: number; collectionRevision?: string }>
 type FilingCursor = Readonly<{ updatedAt: string; collectionId: string }>
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -71,19 +71,28 @@ export function encodeWorkspaceFavoriteCursor(
   query: PersonalLibraryWorkspaceQuery,
   cursor: FavoriteCursor,
 ): string {
-  return encode({ v: 2, kind: 'workspace-favorites', query: queryFingerprint(query), ...cursor })
+  return encode({ v: 3, kind: 'workspace-favorites', query: queryFingerprint(query), ...cursor })
 }
 
 export function decodeWorkspaceFavoriteCursor(
   value: string | undefined,
   query: PersonalLibraryWorkspaceQuery,
+  collectionRevision?: string,
 ): FavoriteCursor | undefined {
   const payload = decode(value)
   if (payload === undefined) return undefined
   if (
-    payload.v !== 2 || payload.kind !== 'workspace-favorites' ||
+    (payload.v !== 2 && payload.v !== 3) || payload.kind !== 'workspace-favorites' ||
     payload.query !== queryFingerprint(query) || !validUuid(payload.placeId)
   ) throw new InvalidLibraryCursorError('Collection favorite cursor is invalid.')
+  if (query.favoriteScope.kind === 'collection') {
+    if (payload.v !== 3 || !Number.isInteger(payload.position) || Number(payload.position) < 0 ||
+      Number(payload.position) > 2_147_483_647 || collectionRevision === undefined ||
+      payload.collectionRevision !== collectionRevision) {
+      throw new InvalidLibraryCursorError('Collection order changed; reopen this list.')
+    }
+    return { placeId: payload.placeId, position: Number(payload.position), collectionRevision }
+  }
   return { placeId: payload.placeId }
 }
 

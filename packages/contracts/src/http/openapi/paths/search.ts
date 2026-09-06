@@ -4,10 +4,14 @@ export const searchPaths = {
   ...Object.fromEntries([
     ['/v1/search/catalog/explore', 'exploreCatalog', 'CatalogExplorationRequest', 'CatalogExplorationResponse'],
     ['/api/search/catalog/explore', 'exploreCatalogForBrowser', 'CatalogExplorationRequest', 'CatalogExplorationResponse'],
+    ['/v2/search/catalog/explore', 'exploreCatalogV2', 'CatalogExplorationRequestV2', 'CatalogExplorationResponseV2'],
+    ['/api/v2/search/catalog/explore', 'exploreCatalogV2ForBrowser', 'CatalogExplorationRequestV2', 'CatalogExplorationResponseV2'],
     ['/v2/search/catalog', 'searchCatalogV2', 'CatalogPlaceSearchRequestV2', 'CatalogPlaceSearchResponseV2'],
     ['/api/v2/search/catalog', 'searchCatalogV2ForBrowser', 'CatalogPlaceSearchRequestV2', 'CatalogPlaceSearchResponseV2'],
     ['/v2/search/catalog/map', 'projectCatalogMapV2', 'CatalogPlaceMapRequestV2', 'CatalogPlaceMapResponseV2'],
     ['/api/v2/search/catalog/map', 'projectCatalogMapV2ForBrowser', 'CatalogPlaceMapRequestV2', 'CatalogPlaceMapResponseV2'],
+    ['/v3/search/catalog/map', 'projectCatalogMapV3', 'CatalogPlaceMapRequestV3', 'CatalogPlaceMapResponseV3'],
+    ['/api/v3/search/catalog/map', 'projectCatalogMapV3ForBrowser', 'CatalogPlaceMapRequestV3', 'CatalogPlaceMapResponseV3'],
   ].map(([path, id, request, response]) => [path!, { post: operation(id!, {
     '200': described('Return internal catalog results with explicit name or condition intent; geographic candidates are navigation references, not private account observations', response!),
     '400': ref('responses', 'ProductRequestInvalid'), '503': ref('responses', 'ProductUnavailable'),

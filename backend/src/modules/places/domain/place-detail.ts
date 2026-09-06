@@ -2,7 +2,7 @@ export type PlaceDetailDocument = Readonly<{
   placeId: string
   name: string
   areaLabel: string | null
-  location: Readonly<{ latitude: number; longitude: number }>
+  location: Readonly<{ latitude: number; longitude: number }> | null
   primaryTaxonomy: Readonly<{ key: string; label: string }> | null
   taxonomyKeys: readonly string[]
   evidenceStatus: 'verified' | 'unverified' | 'conflicted' | 'stale'
@@ -47,7 +47,7 @@ type AvailablePlaceDetail = PlaceDetailIdentity & Readonly<{
   status: 'available' | 'redirected'
   name: string
   areaLabel: string | null
-  location: Readonly<{ latitude: number; longitude: number }>
+  location: Readonly<{ latitude: number; longitude: number }> | null
   primaryTaxonomy: Readonly<{ key: string; label: string }> | null
   taxonomyKeys: readonly string[]
   evidence: Readonly<{

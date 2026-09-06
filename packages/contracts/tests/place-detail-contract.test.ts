@@ -5,6 +5,16 @@ import { memberPlaceDetailResponseV2Schema, placeDetailResponseSchema, publicPla
 const placeId = '01992d20-2000-7000-8000-000000000001'
 
 describe('place detail contract', () => {
+  it('already admits null coordinates in frozen public v1 and member v2', () => {
+    const facts = { status: 'available', requestedPlaceId: placeId, placeId, redirectedFrom: [],
+      name: '좌표 없는 전시 공간', areaLabel: null, location: null, primaryTaxonomy: null, taxonomyKeys: [],
+      evidence: { status: 'unverified', projectedAt: '2026-09-06T00:00:00.000Z' } }
+    expect(publicPlaceDetailResponseSchema.parse({ ...facts, schemaVersion: 'place-detail.v1' }).location).toBeNull()
+    expect(memberPlaceDetailResponseV2Schema.parse({ ...facts, schemaVersion: 'place-detail.v2', personalState: {
+      saved: false, wanted: false, personalRating: null, preferencesUpdatedAt: null, visits: { visited: false, count: 0 },
+    } }).location).toBeNull()
+  })
+
   it('admits source observations only in the required v2 member overlay', () => {
     const detail = { schemaVersion: 'place-detail.v2', status: 'pending', requestedPlaceId: placeId,
       placeId, redirectedFrom: [], personalState: { saved: true, wanted: false, personalRating: null,

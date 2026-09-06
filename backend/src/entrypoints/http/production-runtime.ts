@@ -43,6 +43,7 @@ import {
   createPlaceDetailReader,
   createMemberPlaceDetailReader,
   PostgresCanonicalResolutionStore,
+  PostgresMinimumPlaceCatalog,
 } from '../../modules/places/index.js'
 import {
   InvalidPublicProfileCursorError,
@@ -52,18 +53,21 @@ import {
 } from '../../modules/profiles/index.js'
 import {
   createCatalogPlaceMapSearch,
+  createCatalogPlaceMapSearchV3,
   createCatalogExploration,
+  createCatalogExplorationV2,
   createCatalogPlaceSearch,
   createPlaceSearch,
   createPlaceSuggestionMaterialization,
   createPlaceSuggestionSelection,
   createPlaceSuggestions,
   PostgresCatalogMapSearch,
+  PostgresCatalogMapSearchV3,
   PostgresLocalSearch,
   PostgresPlaceSuggestions,
   projectLocalPlace,
 } from '../../modules/search/index.js'
-import { PostgresAreaCatalog, searchGeographicCatalog } from '../../modules/areas/index.js'
+import { PostgresAreaCatalog, searchGeographicCatalog, searchLegacyGeographicCatalog } from '../../modules/areas/index.js'
 import { PostgresTaxonomyStore } from '../../modules/taxonomy/index.js'
 import {
   PostgresConnectorCaptures,
@@ -79,6 +83,7 @@ import { PostgresWritingQueries, PostgresWritingStore } from '../../modules/writ
 import type { ProductAuthorizer } from '../../platform/http/product-authorization.js'
 import { buildHttpApplication } from './app.js'
 import type { ProductionHttpConfig } from './config.js'
+import { createCanonicalLibrarySummaryReader } from '../catalog/library-place-summaries.js'
 
 type ProductionRuntimeDependencies = Readonly<{
   createPrincipalVerifier?: (config: OidcPrincipalVerifierConfig) => PrincipalVerifier
@@ -149,6 +154,9 @@ export async function createProductionHttpRuntime(
     const writingStore = new PostgresWritingStore(pool)
     const writingQueries = new PostgresWritingQueries(pool)
     const localSearch = new PostgresLocalSearch(pool)
+    const minimumCatalog = new PostgresMinimumPlaceCatalog(pool)
+    const taxonomyStore = new PostgresTaxonomyStore(pool)
+    const readCanonicalLibrarySummaries = createCanonicalLibrarySummaryReader(minimumCatalog, localSearch, taxonomyStore)
     const toLibraryPlaceSummary = (document: Awaited<ReturnType<typeof localSearch.getPlaceDocuments>>[number]) => ({
       placeId: document.placeId,
       name: document.name,
@@ -187,20 +195,7 @@ export async function createProductionHttpRuntime(
     }
     const personalLibraryWorkspace = new PostgresPersonalLibraryWorkspace(
       pool,
-      async (placeIds) => (await localSearch.getCatalogPlaceDocuments(placeIds)).map((document) => ({
-        placeId: document.placeId,
-        name: document.name,
-        areaLabel: document.area?.label ?? null,
-        location: document.location,
-        primaryTaxonomy: document.primaryTaxonomy === null
-          ? null
-          : { key: document.primaryTaxonomy.key, label: document.primaryTaxonomy.label },
-        taxonomyKeys: document.taxonomyReferences.map((reference) => reference.key),
-        evidence: {
-          status: document.evidenceStatus,
-          projectedAt: document.projectedAt,
-        },
-      })),
+      readCanonicalLibrarySummaries,
       async (memberId, placeIds) => (await readMemberImportedPlaces(memberId, placeIds)).map((item) => ({
         summary: {
           placeId: item.placeId,
@@ -213,6 +208,7 @@ export async function createProductionHttpRuntime(
         },
         sourceObservedSearchText: [item.observedAddress, item.observedCategory].filter(Boolean).join(' '),
       })),
+      async () => (await taxonomyStore.listCurrent()).filter((node) => node.active),
     )
     const publicCollectionDiscovery = new PostgresPublicCollectionDiscovery(
       pool,
@@ -241,19 +237,16 @@ export async function createProductionHttpRuntime(
     const readPlaceDetail = createPlaceDetailReader({
       canonical: canonicalStore,
       readDocument: async (placeId) => {
-        const document = await localSearch.getPlaceDocument(placeId)
+        const document = (await readCanonicalLibrarySummaries([placeId]))[0]
         return document === undefined ? undefined : {
           placeId: document.placeId,
           name: document.name,
           areaLabel: document.areaLabel,
-          location: {
-            latitude: document.latitude,
-            longitude: document.longitude,
-          },
+          location: document.location,
           primaryTaxonomy: document.primaryTaxonomy,
           taxonomyKeys: document.taxonomyKeys,
-          evidenceStatus: document.evidenceStatus,
-          projectedAt: document.projectedAt,
+          evidenceStatus: document.evidence.status,
+          projectedAt: document.evidence.projectedAt,
         }
       },
       readPersonal: async (memberId, placeId) => {
@@ -321,7 +314,6 @@ export async function createProductionHttpRuntime(
         return result
       },
     })
-    const taxonomyStore = new PostgresTaxonomyStore(pool)
     const areaCatalog = new PostgresAreaCatalog(pool)
     const catalogVocabulary = {
       listAreas: () => areaCatalog.listCurrent(),
@@ -386,6 +378,7 @@ export async function createProductionHttpRuntime(
       },
       library: {
         authorizer: productAuthorizer,
+        mapV3: personalLibraryWorkspace,
         store: libraryStore,
         queries: libraryQueries,
         now,
@@ -442,7 +435,8 @@ export async function createProductionHttpRuntime(
       },
       search: {
         authorizer: productAuthorizer,
-        explore: createCatalogExploration({ source: localSearch, vocabulary: catalogVocabulary, destinations: searchGeographicCatalog }),
+        explore: createCatalogExploration({ source: localSearch, vocabulary: catalogVocabulary, destinations: searchLegacyGeographicCatalog }),
+        exploreV2: createCatalogExplorationV2({ source: localSearch, vocabulary: catalogVocabulary, destinations: searchGeographicCatalog }),
         search: createPlaceSearch({ sources: [localSearch] }),
         catalog: createCatalogPlaceSearch({
           source: localSearch,
@@ -451,6 +445,10 @@ export async function createProductionHttpRuntime(
         catalogMap: createCatalogPlaceMapSearch({
           source: new PostgresCatalogMapSearch(pool),
           vocabulary: catalogVocabulary,
+        }),
+        catalogMapV3: createCatalogPlaceMapSearchV3({
+          source: new PostgresCatalogMapSearchV3(pool), vocabulary: catalogVocabulary,
+          readTaxonomy: async () => (await taxonomyStore.listCurrent()).filter((node) => node.active),
         }),
         suggestions: {
           suggest,

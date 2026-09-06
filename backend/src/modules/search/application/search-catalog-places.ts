@@ -10,6 +10,7 @@ import type {
 } from '../domain/catalog-home-search.js'
 import type { SearchBounds } from '../domain/model.js'
 import { InvalidCatalogTaxonomyError } from '../domain/catalog-home-search.js'
+import { narrowTaxonomyConditions } from './catalog-taxonomy-conditions.js'
 
 type Candidate = Readonly<{
   token: Exclude<CatalogSearchInterpretationToken, { kind: 'query' }>
@@ -304,6 +305,7 @@ export async function resolveCatalogSearch(
       }
     }
   }
+  if (input.intent !== undefined) interpretation = narrowTaxonomyConditions(interpretation, taxonomies)
   const areaReferences = interpretation.areaReference === undefined
     ? []
     : areas.filter(({ key }) => (

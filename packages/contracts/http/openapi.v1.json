@@ -4027,6 +4027,394 @@
         }
       }
     },
+    "/v3/library/workspace/map": {
+      "get": {
+        "operationId": "getPersonalLibraryMapV3",
+        "summary": "getPersonalLibraryMapV3",
+        "security": [
+          {
+            "placeBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "collectionId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "rating",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "any",
+                "rated",
+                "unrated"
+              ],
+              "default": "any"
+            }
+          },
+          {
+            "name": "placeQuery",
+            "in": "query",
+            "required": false,
+            "description": "All whitespace-separated terms must occur in the Place name, area, primary classification, or own tags. No public note projection.",
+            "schema": {
+              "type": "string",
+              "maxLength": 160
+            }
+          },
+          {
+            "name": "tagIds",
+            "in": "query",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "maxItems": 20,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tagMatch",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "any"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "areaKeys",
+            "in": "query",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "maxItems": 10,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^area_[A-Za-z0-9_-]{22}$"
+              }
+            }
+          },
+          {
+            "name": "taxonomyKeys",
+            "in": "query",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "maxItems": 10,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              }
+            }
+          },
+          {
+            "name": "west",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            }
+          },
+          {
+            "name": "south",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "minimum": -85.051129,
+              "maximum": 85.051129
+            }
+          },
+          {
+            "name": "east",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            }
+          },
+          {
+            "name": "north",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "minimum": -85.051129,
+              "maximum": 85.051129
+            }
+          },
+          {
+            "name": "zoom",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 22
+            }
+          },
+          {
+            "name": "selectedPlaceId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return owner-scoped viewport-complete map features with exact canonical classification and coincident-place previews",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalLibraryMapV3"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/LibraryQueryUnavailable"
+          }
+        }
+      }
+    },
+    "/api/v3/library/workspace/map": {
+      "get": {
+        "operationId": "getPersonalLibraryMapForBrowserV3",
+        "summary": "getPersonalLibraryMapForBrowserV3",
+        "security": [
+          {
+            "placeBrowserSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "collectionId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "rating",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "any",
+                "rated",
+                "unrated"
+              ],
+              "default": "any"
+            }
+          },
+          {
+            "name": "placeQuery",
+            "in": "query",
+            "required": false,
+            "description": "All whitespace-separated terms must occur in the Place name, area, primary classification, or own tags. No public note projection.",
+            "schema": {
+              "type": "string",
+              "maxLength": 160
+            }
+          },
+          {
+            "name": "tagIds",
+            "in": "query",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "maxItems": 20,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "tagMatch",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "any"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "areaKeys",
+            "in": "query",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "maxItems": 10,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^area_[A-Za-z0-9_-]{22}$"
+              }
+            }
+          },
+          {
+            "name": "taxonomyKeys",
+            "in": "query",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "maxItems": 10,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              }
+            }
+          },
+          {
+            "name": "west",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            }
+          },
+          {
+            "name": "south",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "minimum": -85.051129,
+              "maximum": 85.051129
+            }
+          },
+          {
+            "name": "east",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            }
+          },
+          {
+            "name": "north",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "minimum": -85.051129,
+              "maximum": 85.051129
+            }
+          },
+          {
+            "name": "zoom",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 22
+            }
+          },
+          {
+            "name": "selectedPlaceId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return owner-scoped viewport-complete map features with exact canonical classification and coincident-place previews",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalLibraryMapV3"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "401": {
+            "$ref": "#/components/responses/AuthenticationRequired"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccessDenied"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "503": {
+            "$ref": "#/components/responses/BrowserBackendUnavailable"
+          }
+        }
+      }
+    },
     "/api/library/workspace": {
       "get": {
         "operationId": "getPersonalLibraryWorkspaceForBrowserV2",
@@ -7041,6 +7429,76 @@
         }
       }
     },
+    "/v2/search/catalog/explore": {
+      "post": {
+        "operationId": "exploreCatalogV2",
+        "summary": "exploreCatalogV2",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogExplorationRequestV2"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return internal catalog results with explicit name or condition intent; geographic candidates are navigation references, not private account observations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogExplorationResponseV2"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "503": {
+            "$ref": "#/components/responses/ProductUnavailable"
+          }
+        }
+      }
+    },
+    "/api/v2/search/catalog/explore": {
+      "post": {
+        "operationId": "exploreCatalogV2ForBrowser",
+        "summary": "exploreCatalogV2ForBrowser",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogExplorationRequestV2"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return internal catalog results with explicit name or condition intent; geographic candidates are navigation references, not private account observations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogExplorationResponseV2"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "503": {
+            "$ref": "#/components/responses/ProductUnavailable"
+          }
+        }
+      }
+    },
     "/v2/search/catalog": {
       "post": {
         "operationId": "searchCatalogV2",
@@ -7168,6 +7626,76 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CatalogPlaceMapResponseV2"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "503": {
+            "$ref": "#/components/responses/ProductUnavailable"
+          }
+        }
+      }
+    },
+    "/v3/search/catalog/map": {
+      "post": {
+        "operationId": "projectCatalogMapV3",
+        "summary": "projectCatalogMapV3",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogPlaceMapRequestV3"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return internal catalog results with explicit name or condition intent; geographic candidates are navigation references, not private account observations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogPlaceMapResponseV3"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductRequestInvalid"
+          },
+          "503": {
+            "$ref": "#/components/responses/ProductUnavailable"
+          }
+        }
+      }
+    },
+    "/api/v3/search/catalog/map": {
+      "post": {
+        "operationId": "projectCatalogMapV3ForBrowser",
+        "summary": "projectCatalogMapV3ForBrowser",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogPlaceMapRequestV3"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return internal catalog results with explicit name or condition intent; geographic candidates are navigation references, not private account observations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogPlaceMapResponseV3"
                 }
               }
             }
@@ -17851,6 +18379,822 @@
         ],
         "additionalProperties": false
       },
+      "PersonalLibraryMapRequestV3": {
+        "type": "object",
+        "properties": {
+          "placeQuery": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "favoriteScope": {
+            "default": {
+              "kind": "all"
+            },
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "all"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "collection"
+                  },
+                  "collectionId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collectionId"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "ratingFilter": {
+            "default": {
+              "kind": "any"
+            },
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "any"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "rated"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "unrated"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "tagIds": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          "tagMatch": {
+            "default": "all",
+            "type": "string",
+            "enum": [
+              "all",
+              "any"
+            ]
+          },
+          "areaKeys": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^area_[A-Za-z0-9_-]{22}$"
+            }
+          },
+          "taxonomyKeys": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "west": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "south": {
+            "type": "number",
+            "minimum": -85.051129,
+            "maximum": 85.051129
+          },
+          "east": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "north": {
+            "type": "number",
+            "minimum": -85.051129,
+            "maximum": 85.051129
+          },
+          "zoom": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 22
+          },
+          "selectedPlaceId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "west",
+          "south",
+          "east",
+          "north",
+          "zoom"
+        ],
+        "additionalProperties": false
+      },
+      "PersonalLibraryMapHttpQueryV3": {
+        "type": "object",
+        "properties": {
+          "placeQuery": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "collectionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "rating": {
+            "default": "any",
+            "type": "string",
+            "enum": [
+              "any",
+              "rated",
+              "unrated"
+            ]
+          },
+          "tagIds": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          "tagMatch": {
+            "default": "all",
+            "type": "string",
+            "enum": [
+              "all",
+              "any"
+            ]
+          },
+          "areaKeys": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^area_[A-Za-z0-9_-]{22}$"
+            }
+          },
+          "taxonomyKeys": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "west": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "south": {
+            "type": "number",
+            "minimum": -85.051129,
+            "maximum": 85.051129
+          },
+          "east": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "north": {
+            "type": "number",
+            "minimum": -85.051129,
+            "maximum": 85.051129
+          },
+          "zoom": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 22
+          },
+          "selectedPlaceId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "west",
+          "south",
+          "east",
+          "north",
+          "zoom"
+        ],
+        "additionalProperties": false
+      },
+      "PersonalLibraryMapV3": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "personal-library-map.v3"
+          },
+          "filter": {
+            "type": "object",
+            "properties": {
+              "favoriteScope": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "all"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "collection"
+                      },
+                      "collectionId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "collectionId"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "placeQuery": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "ratingFilter": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "any"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "rated"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "unrated"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "tagIds": {
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                }
+              },
+              "tagMatch": {
+                "type": "string",
+                "enum": [
+                  "all",
+                  "any"
+                ]
+              },
+              "areaKeys": {
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^area_[A-Za-z0-9_-]{22}$"
+                }
+              },
+              "taxonomyKeys": {
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            },
+            "required": [
+              "favoriteScope",
+              "ratingFilter",
+              "tagIds",
+              "tagMatch",
+              "areaKeys",
+              "taxonomyKeys"
+            ],
+            "additionalProperties": false
+          },
+          "viewport": {
+            "type": "object",
+            "properties": {
+              "bounds": {
+                "type": "object",
+                "properties": {
+                  "west": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  },
+                  "south": {
+                    "type": "number",
+                    "minimum": -85.051129,
+                    "maximum": 85.051129
+                  },
+                  "east": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  },
+                  "north": {
+                    "type": "number",
+                    "minimum": -85.051129,
+                    "maximum": 85.051129
+                  }
+                },
+                "required": [
+                  "west",
+                  "south",
+                  "east",
+                  "north"
+                ],
+                "additionalProperties": false
+              },
+              "zoom": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 22
+              }
+            },
+            "required": [
+              "bounds",
+              "zoom"
+            ],
+            "additionalProperties": false
+          },
+          "features": {
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "place"
+                    },
+                    "placeId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300
+                    },
+                    "location": {
+                      "type": "object",
+                      "properties": {
+                        "latitude": {
+                          "type": "number",
+                          "minimum": -85.051129,
+                          "maximum": 85.051129
+                        },
+                        "longitude": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        }
+                      },
+                      "required": [
+                        "latitude",
+                        "longitude"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "classification": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "primaryTaxonomy": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 160
+                                },
+                                "label": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 160
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "label"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "rootTaxonomy": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "key": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 160
+                                    },
+                                    "label": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 160
+                                    }
+                                  },
+                                  "required": [
+                                    "key",
+                                    "label"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "primaryTaxonomy",
+                            "rootTaxonomy"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "placeId",
+                    "label",
+                    "location",
+                    "classification"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "cluster"
+                    },
+                    "clusterId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 160
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 2,
+                      "maximum": 9007199254740991
+                    },
+                    "location": {
+                      "type": "object",
+                      "properties": {
+                        "latitude": {
+                          "type": "number",
+                          "minimum": -85.051129,
+                          "maximum": 85.051129
+                        },
+                        "longitude": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        }
+                      },
+                      "required": [
+                        "latitude",
+                        "longitude"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "bounds": {
+                      "type": "object",
+                      "properties": {
+                        "west": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        },
+                        "south": {
+                          "type": "number",
+                          "minimum": -85.051129,
+                          "maximum": 85.051129
+                        },
+                        "east": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        },
+                        "north": {
+                          "type": "number",
+                          "minimum": -85.051129,
+                          "maximum": 85.051129
+                        }
+                      },
+                      "required": [
+                        "west",
+                        "south",
+                        "east",
+                        "north"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "coincidentPreview": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "places": {
+                              "minItems": 1,
+                              "maxItems": 20,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "place"
+                                  },
+                                  "placeId": {
+                                    "type": "string",
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 300
+                                  },
+                                  "location": {
+                                    "type": "object",
+                                    "properties": {
+                                      "latitude": {
+                                        "type": "number",
+                                        "minimum": -85.051129,
+                                        "maximum": 85.051129
+                                      },
+                                      "longitude": {
+                                        "type": "number",
+                                        "minimum": -180,
+                                        "maximum": 180
+                                      }
+                                    },
+                                    "required": [
+                                      "latitude",
+                                      "longitude"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "classification": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "primaryTaxonomy": {
+                                            "type": "object",
+                                            "properties": {
+                                              "key": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 160
+                                              },
+                                              "label": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 160
+                                              }
+                                            },
+                                            "required": [
+                                              "key",
+                                              "label"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          "rootTaxonomy": {
+                                            "anyOf": [
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "key": {
+                                                    "type": "string",
+                                                    "minLength": 1,
+                                                    "maxLength": 160
+                                                  },
+                                                  "label": {
+                                                    "type": "string",
+                                                    "minLength": 1,
+                                                    "maxLength": 160
+                                                  }
+                                                },
+                                                "required": [
+                                                  "key",
+                                                  "label"
+                                                ],
+                                                "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "required": [
+                                          "primaryTaxonomy",
+                                          "rootTaxonomy"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "placeId",
+                                  "label",
+                                  "location",
+                                  "classification"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "remainingCount": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "places",
+                            "remainingCount"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "clusterId",
+                    "count",
+                    "location",
+                    "bounds",
+                    "coincidentPreview"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "coverage": {
+            "type": "object",
+            "properties": {
+              "representedPlaceCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "unprojectedPlaceCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "complete": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "representedPlaceCount",
+              "unprojectedPlaceCount",
+              "complete"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "filter",
+          "viewport",
+          "features",
+          "coverage"
+        ],
+        "additionalProperties": false
+      },
       "PlaceFilingV2": {
         "type": "object",
         "properties": {
@@ -23482,6 +24826,526 @@
         ],
         "additionalProperties": false
       },
+      "CatalogExplorationRequestV2": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "catalog-exploration.v2"
+          },
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "near": {
+            "type": "object",
+            "properties": {
+              "latitude": {
+                "type": "number",
+                "minimum": -85.051129,
+                "maximum": 85.051129
+              },
+              "longitude": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              }
+            },
+            "required": [
+              "latitude",
+              "longitude"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "query"
+        ],
+        "additionalProperties": false
+      },
+      "CatalogExplorationResponseV2": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "catalog-exploration.v2"
+          },
+          "intent": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "name",
+              "conditions"
+            ]
+          },
+          "destinations": {
+            "maxItems": 8,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "country",
+                    "city",
+                    "administrative-area",
+                    "locality",
+                    "neighborhood"
+                  ]
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "countryCode": {
+                  "type": "string",
+                  "maxLength": 8
+                },
+                "location": {
+                  "type": "object",
+                  "properties": {
+                    "latitude": {
+                      "type": "number",
+                      "minimum": -85.051129,
+                      "maximum": 85.051129
+                    },
+                    "longitude": {
+                      "type": "number",
+                      "minimum": -180,
+                      "maximum": 180
+                    }
+                  },
+                  "required": [
+                    "latitude",
+                    "longitude"
+                  ],
+                  "additionalProperties": false
+                },
+                "bounds": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "west": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        },
+                        "south": {
+                          "type": "number",
+                          "minimum": -85.051129,
+                          "maximum": 85.051129
+                        },
+                        "east": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        },
+                        "north": {
+                          "type": "number",
+                          "minimum": -85.051129,
+                          "maximum": 85.051129
+                        }
+                      },
+                      "required": [
+                        "west",
+                        "south",
+                        "east",
+                        "north"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "exact": {
+                  "type": "boolean"
+                },
+                "contextLabel": {
+                  "type": "string",
+                  "maxLength": 240
+                }
+              },
+              "required": [
+                "key",
+                "kind",
+                "name",
+                "countryCode",
+                "location",
+                "bounds",
+                "exact"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "places": {
+            "maxItems": 8,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "placeId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300
+                },
+                "area": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "label": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 300
+                        },
+                        "reference": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 128
+                                },
+                                "version": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "version"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "label",
+                        "reference"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "location": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "latitude": {
+                          "type": "number",
+                          "minimum": -90,
+                          "maximum": 90
+                        },
+                        "longitude": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        }
+                      },
+                      "required": [
+                        "latitude",
+                        "longitude"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "primaryTaxonomy": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        "version": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "label": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 160
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "version",
+                        "label"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "taxonomyReferences": {
+                  "maxItems": 32,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128
+                      },
+                      "version": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "category",
+                          "attribute"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "version",
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "evidenceStatus": {
+                  "type": "string",
+                  "enum": [
+                    "verified",
+                    "unverified",
+                    "conflicted",
+                    "stale"
+                  ]
+                },
+                "projectedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                }
+              },
+              "required": [
+                "placeId",
+                "name",
+                "area",
+                "location",
+                "primaryTaxonomy",
+                "taxonomyReferences",
+                "evidenceStatus",
+                "projectedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "conditions": {
+            "maxItems": 32,
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "version": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "tokenId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 512
+                    },
+                    "kind": {
+                      "type": "string",
+                      "const": "area"
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 160
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "version",
+                    "tokenId",
+                    "kind",
+                    "label"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "version": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "tokenId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 512
+                    },
+                    "kind": {
+                      "type": "string",
+                      "const": "place-type"
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 160
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "version",
+                    "tokenId",
+                    "kind",
+                    "label"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "version": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "tokenId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 512
+                    },
+                    "kind": {
+                      "type": "string",
+                      "const": "attribute"
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 160
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "version",
+                    "tokenId",
+                    "kind",
+                    "label"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "tokenId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 512
+                    },
+                    "kind": {
+                      "type": "string",
+                      "const": "query"
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "normalizedQuery": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    }
+                  },
+                  "required": [
+                    "tokenId",
+                    "kind",
+                    "label",
+                    "normalizedQuery"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "unrecognizedText": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "intent",
+          "destinations",
+          "places",
+          "conditions",
+          "unrecognizedText"
+        ],
+        "additionalProperties": false
+      },
       "CatalogPlaceSearchRequestV2": {
         "type": "object",
         "properties": {
@@ -24484,6 +26348,684 @@
                     "location",
                     "bounds",
                     "placeCount"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "coverage": {
+            "type": "object",
+            "properties": {
+              "matchingPlaceCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "representedPlaceCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "complete": {
+                "type": "boolean",
+                "const": true
+              }
+            },
+            "required": [
+              "matchingPlaceCount",
+              "representedPlaceCount",
+              "complete"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "interpretation",
+          "viewport",
+          "zoom",
+          "mode",
+          "features",
+          "coverage"
+        ],
+        "additionalProperties": false
+      },
+      "CatalogPlaceMapRequestV3": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "catalog-place-map.v3"
+          },
+          "query": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "excludedTokenIds": {
+            "default": [],
+            "maxItems": 32,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          "viewport": {
+            "type": "object",
+            "properties": {
+              "west": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              },
+              "south": {
+                "type": "number",
+                "minimum": -85.051129,
+                "maximum": 85.051129
+              },
+              "east": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              },
+              "north": {
+                "type": "number",
+                "minimum": -85.051129,
+                "maximum": 85.051129
+              }
+            },
+            "required": [
+              "west",
+              "south",
+              "east",
+              "north"
+            ],
+            "additionalProperties": false
+          },
+          "zoom": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 22
+          },
+          "maxFeatures": {
+            "default": 384,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 384
+          },
+          "intent": {
+            "default": "auto",
+            "type": "string",
+            "enum": [
+              "auto",
+              "name",
+              "conditions"
+            ]
+          },
+          "taxonomyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "selectedPlaceId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "query",
+          "viewport",
+          "zoom"
+        ],
+        "additionalProperties": false
+      },
+      "CatalogPlaceMapResponseV3": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "catalog-place-map.v3"
+          },
+          "interpretation": {
+            "type": "object",
+            "properties": {
+              "normalizedQuery": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "tokens": {
+                "maxItems": 32,
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        "version": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "tokenId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 512
+                        },
+                        "kind": {
+                          "type": "string",
+                          "const": "area"
+                        },
+                        "label": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 160
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "version",
+                        "tokenId",
+                        "kind",
+                        "label"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        "version": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "tokenId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 512
+                        },
+                        "kind": {
+                          "type": "string",
+                          "const": "place-type"
+                        },
+                        "label": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 160
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "version",
+                        "tokenId",
+                        "kind",
+                        "label"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        "version": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "tokenId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 512
+                        },
+                        "kind": {
+                          "type": "string",
+                          "const": "attribute"
+                        },
+                        "label": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 160
+                        }
+                      },
+                      "required": [
+                        "key",
+                        "version",
+                        "tokenId",
+                        "kind",
+                        "label"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "tokenId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 512
+                        },
+                        "kind": {
+                          "type": "string",
+                          "const": "query"
+                        },
+                        "label": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "normalizedQuery": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        }
+                      },
+                      "required": [
+                        "tokenId",
+                        "kind",
+                        "label",
+                        "normalizedQuery"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            },
+            "required": [
+              "normalizedQuery",
+              "tokens"
+            ],
+            "additionalProperties": false
+          },
+          "viewport": {
+            "type": "object",
+            "properties": {
+              "west": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              },
+              "south": {
+                "type": "number",
+                "minimum": -85.051129,
+                "maximum": 85.051129
+              },
+              "east": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              },
+              "north": {
+                "type": "number",
+                "minimum": -85.051129,
+                "maximum": 85.051129
+              }
+            },
+            "required": [
+              "west",
+              "south",
+              "east",
+              "north"
+            ],
+            "additionalProperties": false
+          },
+          "zoom": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 22
+          },
+          "mode": {
+            "type": "string",
+            "const": "mixed"
+          },
+          "features": {
+            "maxItems": 384,
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "place"
+                    },
+                    "placeId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300
+                    },
+                    "location": {
+                      "type": "object",
+                      "properties": {
+                        "latitude": {
+                          "type": "number",
+                          "minimum": -85.051129,
+                          "maximum": 85.051129
+                        },
+                        "longitude": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        }
+                      },
+                      "required": [
+                        "latitude",
+                        "longitude"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "classification": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "primaryTaxonomy": {
+                              "type": "object",
+                              "properties": {
+                                "key": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 160
+                                },
+                                "label": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 160
+                                }
+                              },
+                              "required": [
+                                "key",
+                                "label"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "rootTaxonomy": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "key": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 160
+                                    },
+                                    "label": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 160
+                                    }
+                                  },
+                                  "required": [
+                                    "key",
+                                    "label"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "primaryTaxonomy",
+                            "rootTaxonomy"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "placeId",
+                    "label",
+                    "location",
+                    "classification"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "cluster"
+                    },
+                    "clusterId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 160
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 2,
+                      "maximum": 9007199254740991
+                    },
+                    "location": {
+                      "type": "object",
+                      "properties": {
+                        "latitude": {
+                          "type": "number",
+                          "minimum": -85.051129,
+                          "maximum": 85.051129
+                        },
+                        "longitude": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        }
+                      },
+                      "required": [
+                        "latitude",
+                        "longitude"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "bounds": {
+                      "type": "object",
+                      "properties": {
+                        "west": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        },
+                        "south": {
+                          "type": "number",
+                          "minimum": -85.051129,
+                          "maximum": 85.051129
+                        },
+                        "east": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        },
+                        "north": {
+                          "type": "number",
+                          "minimum": -85.051129,
+                          "maximum": 85.051129
+                        }
+                      },
+                      "required": [
+                        "west",
+                        "south",
+                        "east",
+                        "north"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "coincidentPreview": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "places": {
+                              "minItems": 1,
+                              "maxItems": 20,
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "type": "string",
+                                    "const": "place"
+                                  },
+                                  "placeId": {
+                                    "type": "string",
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 300
+                                  },
+                                  "location": {
+                                    "type": "object",
+                                    "properties": {
+                                      "latitude": {
+                                        "type": "number",
+                                        "minimum": -85.051129,
+                                        "maximum": 85.051129
+                                      },
+                                      "longitude": {
+                                        "type": "number",
+                                        "minimum": -180,
+                                        "maximum": 180
+                                      }
+                                    },
+                                    "required": [
+                                      "latitude",
+                                      "longitude"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "classification": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "primaryTaxonomy": {
+                                            "type": "object",
+                                            "properties": {
+                                              "key": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 160
+                                              },
+                                              "label": {
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 160
+                                              }
+                                            },
+                                            "required": [
+                                              "key",
+                                              "label"
+                                            ],
+                                            "additionalProperties": false
+                                          },
+                                          "rootTaxonomy": {
+                                            "anyOf": [
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "key": {
+                                                    "type": "string",
+                                                    "minLength": 1,
+                                                    "maxLength": 160
+                                                  },
+                                                  "label": {
+                                                    "type": "string",
+                                                    "minLength": 1,
+                                                    "maxLength": 160
+                                                  }
+                                                },
+                                                "required": [
+                                                  "key",
+                                                  "label"
+                                                ],
+                                                "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "required": [
+                                          "primaryTaxonomy",
+                                          "rootTaxonomy"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "placeId",
+                                  "label",
+                                  "location",
+                                  "classification"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "remainingCount": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "places",
+                            "remainingCount"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "clusterId",
+                    "count",
+                    "location",
+                    "bounds",
+                    "coincidentPreview"
                   ],
                   "additionalProperties": false
                 }

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import Fastify from 'fastify'
-import { createCatalogExploration, createCatalogPlaceSearch, createCatalogPlaceMapSearch, registerSearchHttpRoutes, type CatalogPlaceSearchQuery, type CatalogPlaceMapQuery } from '../index.js'
-import { catalogExplorationResponseSchema } from '@place/contracts/search'
+import { createCatalogExploration, createCatalogExplorationV2, createCatalogPlaceSearch, createCatalogPlaceMapSearch, registerSearchHttpRoutes, type CatalogPlaceSearchQuery, type CatalogPlaceMapQuery } from '../index.js'
+import { catalogExplorationResponseSchema, catalogExplorationResponseV2Schema } from '@place/contracts/search'
 
 const vocabulary = {
   listAreas: async () => [{ key: 'seongsu', version: 1, parentKey: null, names: [{ languageTag: 'ko', name: '성수동' }], defaultLanguageTag: 'ko' }],
@@ -10,6 +10,59 @@ const vocabulary = {
 const searchGeographicCatalog = () => [{ key: 'fixture:korea', kind: 'country' as const, name: '대한민국', names: ['대한민국'], countryCode: 'KR',
   location: { latitude: 36, longitude: 128 }, bounds: { west: 124, south: 33, east: 130, north: 39 } }]
 describe('named destinations and conditions are separate intentions', () => {
+  it('versions regional point destinations and keeps exact classification and name evidence separate', async () => {
+    const region = { key: 'geonames:1841610', kind: 'administrative-area' as const, name: '경기도', names: ['경기도'],
+      countryCode: 'KR', contextLabel: '대한민국', location: { latitude: 37.6, longitude: 127.25 }, bounds: null }
+    const place = { placeId: '01992d20-0000-7000-8000-000000000101', name: '쇼유라멘', area: null,
+      location: { latitude: 37.5, longitude: 127 }, primaryTaxonomy: null, taxonomyReferences: [],
+      evidenceStatus: 'verified' as const, projectedAt: '2026-09-06T00:00:00.000Z' }
+    const searchCatalog = vi.fn(async (_query: CatalogPlaceSearchQuery) => ({ items: [place] }))
+    const dependencies = { vocabulary, destinations: () => [region], source: { searchCatalog } }
+    const exploreV2 = createCatalogExplorationV2(dependencies)
+    const current = catalogExplorationResponseV2Schema.parse(await exploreV2('경기도'))
+    expect(current.destinations[0]).toMatchObject({ kind: 'administrative-area', bounds: null, exact: true })
+    expect(catalogExplorationResponseSchema.safeParse(current).success).toBe(false)
+    expect((await createCatalogExploration(dependencies)('경기도')).destinations).toEqual([])
+    const ambiguous = await exploreV2('쇼유라멘')
+    expect(ambiguous.intent).toBe('auto')
+    expect(ambiguous.places[0]?.name).toBe('쇼유라멘')
+    expect(ambiguous.conditions[0]?.label).toBe('쇼유라멘')
+    const app = Fastify({ logger: false })
+    registerSearchHttpRoutes(app, { search: async () => ({ schemaVersion: 'place-search.v1', items: [], sources: [] }), exploreV2 })
+    try {
+      const response = await app.inject({ method: 'POST', url: '/v2/search/catalog/explore',
+        payload: { schemaVersion: 'catalog-exploration.v2', query: '경기도', near: { latitude: 37, longitude: 127 } } })
+      expect(response.statusCode).toBe(200)
+      expect(response.headers['cache-control']).toBe('no-store')
+      expect(searchCatalog).toHaveBeenLastCalledWith(expect.objectContaining({ intent: 'name', near: { latitude: 37, longitude: 127 } }))
+      expect(searchCatalog.mock.calls.at(-1)?.[0]).not.toHaveProperty('bounds')
+      const invalid = await app.inject({ method: 'POST', url: '/v2/search/catalog/explore',
+        payload: { schemaVersion: 'catalog-exploration.v1', query: '경기도' } })
+      expect(invalid.statusCode).toBe(400)
+    } finally { await app.close() }
+  })
+  it('keeps only the narrowest category chip in v2, retaining independent attributes and v1 behavior', async () => {
+    const hierarchy = {
+      listAreas: async () => [],
+      listTaxonomies: async () => [
+        { key: 'food', parentKey: null, label: '음식점', version: 1, kind: 'category' as const },
+        { key: 'japanese', parentKey: 'food', label: '일식', version: 1, kind: 'category' as const },
+        { key: 'ramen', parentKey: 'japanese', label: '라멘', version: 1, kind: 'category' as const },
+        { key: 'shoyu', parentKey: 'ramen', label: '쇼유라멘', version: 1, kind: 'category' as const },
+        { key: 'parking', parentKey: null, label: '주차', version: 1, kind: 'attribute' as const },
+      ],
+    }
+    const searchCatalog = vi.fn(async (_query: CatalogPlaceSearchQuery) => ({ items: [] }))
+    const search = createCatalogPlaceSearch({ vocabulary: hierarchy, source: { searchCatalog } })
+    const input = { query: '일식 라멘 쇼유라멘 주차', excludedTokenIds: [], limit: 20 }
+    const legacy = await search(input)
+    expect(legacy.interpretation.tokens).toHaveLength(4)
+    const current = await search({ ...input, intent: 'auto', taxonomyKey: 'food' })
+    expect(current.interpretation.tokens.map((token) => token.label)).toEqual(['쇼유라멘', '주차'])
+    expect(searchCatalog).toHaveBeenLastCalledWith(expect.objectContaining({
+      query: '', taxonomyReferences: [{ key: 'shoyu', version: 1 }, { key: 'parking', version: 1 }],
+    }))
+  })
   it('finds 대한민국 internally with real geometry and never makes a place or filter', async () => {
     const explore = createCatalogExploration({ vocabulary, destinations: searchGeographicCatalog, source: { searchCatalog: async () => ({ items: [] }) } })
     const result = catalogExplorationResponseSchema.parse(await explore('대한민국'))

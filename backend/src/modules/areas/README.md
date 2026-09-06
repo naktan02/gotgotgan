@@ -16,3 +16,7 @@ reads Place, Search, Library, or Provider tables.
 Administrative levels are deliberately not encoded as Korea-specific columns. The hierarchy uses
 `country`, `administrative-area`, `locality`, `neighborhood`, and `custom`, so the same Interface can
 represent Seoul, Tokyo, or provider-neutral user-facing regions.
+
+Map navigation is a separate read-only reference, not an Area assignment. Its legacy country/city
+lookup and v2 Korean regional points, source provenance, coverage and limitations are owned by
+[geographic-catalog](adapters/geographic-catalog/README.md).

@@ -82,17 +82,17 @@ export async function recordOneShotSourceSnapshot(
         `INSERT INTO transfers.source_snapshot_items (
            snapshot_id, source_list_id, source_item_id, provider_place_id,
            observed_name, observed_address, observed_category, observed_location,
-           canonical_place_id, match_reason, source_position
+           canonical_place_id, match_reason, source_position, provider_listed_facts
          ) VALUES ($1::uuid,$2,$3,$4,$5,$6,$7,
            CASE WHEN $8::float8 IS NULL THEN NULL
              ELSE ST_SetSRID(ST_MakePoint($9::float8,$8::float8),4326) END,
-           $10::uuid,$11,$12)`,
+           $10::uuid,$11,$12,$13::jsonb)`,
         [input.snapshotId, list.sourceListId, item.sourceItemId, item.providerPlaceId,
           item.observedName, item.observedAddress, item.observedCategory,
           item.observedLocation?.latitude ?? null, item.observedLocation?.longitude ?? null,
           item.match.status === 'matched' ? item.match.placeId : null,
           item.match.status === 'unresolved' ? item.match.reason : null,
-          item.sourcePosition],
+          item.sourcePosition, item.providerListedFacts === undefined ? null : JSON.stringify(item.providerListedFacts)],
       )
     }
   }

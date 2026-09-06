@@ -17,6 +17,8 @@ export {
 } from './application/resolve-place-reference.js'
 export type { CanonicalResolutionStore } from './application/ports/canonical-resolution-store.js'
 export { PostgresCanonicalResolutionStore } from './adapters/persistence/postgres-canonical-resolution-store.js'
+export { PostgresMinimumPlaceCatalog } from './adapters/persistence/postgres-minimum-place-catalog.js'
+export type { MinimumPlaceFacts, MinimumPlacePublication, CurrentMinimumPlace } from './domain/minimum-place-facts.js'
 export {
   createPlaceDetailReader,
   createMemberPlaceDetailReader,

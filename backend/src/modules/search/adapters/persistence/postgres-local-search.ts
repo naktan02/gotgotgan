@@ -187,7 +187,8 @@ export class PostgresLocalSearch implements
           area_key = EXCLUDED.area_key,
           area_version = EXCLUDED.area_version,
           taxonomy_references = EXCLUDED.taxonomy_references
-        WHERE search.place_documents.source_version < EXCLUDED.source_version
+        WHERE search.place_documents.canonical_profile_revision IS NULL
+          AND search.place_documents.source_version < EXCLUDED.source_version
       `,
       [
         document.placeId, document.sourceVersion, document.name, document.areaLabel,

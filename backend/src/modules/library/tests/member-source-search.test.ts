@@ -8,7 +8,7 @@ const summary: LibraryPlaceSummary = {
   location: { latitude: 37.54, longitude: 127.05 }, primaryTaxonomy: null, taxonomyKeys: [],
   evidence: { status: 'unverified', projectedAt: '2026-09-06T00:00:00.000Z' },
 }
-const row = { canonical_place_id: 'place-1', collection_count: 1, tag_ids: [], tag_names: ['혼밥'], personal_rating: null }
+const row = { canonical_place_id: 'place-1', source_position: 0, collection_count: 1, tag_ids: [], tag_names: ['혼밥'], personal_rating: null }
 const query = { areaKeys: [], taxonomyKeys: [], placeQuery: '성수동 쇼유라멘' }
 
 describe('owner-only source text for personal Collection search', () => {

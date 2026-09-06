@@ -30,6 +30,7 @@ type PolicyCreateRow = Readonly<{
   observed_name: string
   observed_address: string | null
   observed_category: string | null
+  provider_listed_facts: import('../../domain/provider-listed-facts.js').ProviderListedFactsV1 | null
   latitude: number | null
   longitude: number | null
 }>
@@ -103,7 +104,7 @@ export class PostgresSourcePlaceResolution {
               item.evidence_snapshot_id, snapshot.acquisition_kind, snapshot.parser_version,
               snapshot.content_digest, snapshot.observed_at, snapshot.captured_at,
               snapshot_item.observed_name, snapshot_item.observed_address,
-              snapshot_item.observed_category,
+              snapshot_item.observed_category, snapshot_item.provider_listed_facts,
               ST_Y(snapshot_item.observed_location) AS latitude,
               ST_X(snapshot_item.observed_location) AS longitude
        FROM transfers.import_plan_items AS item
@@ -142,6 +143,7 @@ export class PostgresSourcePlaceResolution {
       name: row.observed_name,
       address: row.observed_address,
       categoryLabel: row.observed_category,
+      ...(row.provider_listed_facts === null ? {} : { providerListedFacts: row.provider_listed_facts }),
       location: row.latitude === null || row.longitude === null
         ? null : { latitude: row.latitude, longitude: row.longitude },
     }

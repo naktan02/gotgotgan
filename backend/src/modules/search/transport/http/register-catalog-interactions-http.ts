@@ -1,6 +1,8 @@
 import {
   catalogExplorationRequestSchema, catalogExplorationResponseSchema,
+  catalogExplorationRequestV2Schema, catalogExplorationResponseV2Schema,
   catalogPlaceMapRequestV2Schema, catalogPlaceMapResponseV2Schema,
+  catalogPlaceMapRequestV3Schema, catalogPlaceMapResponseV3Schema,
   catalogPlaceSearchRequestV2Schema, catalogPlaceSearchResponseV2Schema,
 } from '@place/contracts/search'
 import type { FastifyInstance } from 'fastify'
@@ -10,6 +12,30 @@ import { InvalidSearchCursorError } from '../../domain/model.js'
 import { InvalidCatalogTaxonomyError } from '../../domain/catalog-home-search.js'
 
 export function registerCatalogInteractionsHttp(application: FastifyInstance, dependencies: SearchHttpDependencies) {
+  if (dependencies.catalogMapV3) application.post('/v3/search/catalog/map', async (request, reply) => {
+    const parsed = catalogPlaceMapRequestV3Schema.safeParse(request.body)
+    if (!parsed.success) return sendProductProblem(request, reply, 400, 'PLACE_CATALOG_MAP_REQUEST_INVALID', 'Invalid map input')
+    try {
+      const { taxonomyKey, ...input } = parsed.data
+      return reply.header('cache-control', 'no-store').send(catalogPlaceMapResponseV3Schema.parse(
+        await dependencies.catalogMapV3!({ ...input, ...(taxonomyKey === undefined ? {} : { taxonomyKey }) }),
+      ))
+    } catch (error) {
+      if (error instanceof InvalidCatalogTaxonomyError) return sendProductProblem(request, reply, 400, 'PLACE_CATALOG_TAXONOMY_INVALID', 'Selected taxonomy is unavailable')
+      return sendProductProblem(request, reply, 503, 'PLACE_CATALOG_MAP_UNAVAILABLE', 'Map search is unavailable', true)
+    }
+  })
+  if (dependencies.exploreV2) application.post('/v2/search/catalog/explore', async (request, reply) => {
+    const parsed = catalogExplorationRequestV2Schema.safeParse(request.body)
+    if (!parsed.success) return sendProductProblem(request, reply, 400, 'PLACE_EXPLORATION_INVALID', 'Invalid search input')
+    try {
+      return reply.header('cache-control', 'no-store').send(
+        catalogExplorationResponseV2Schema.parse(await dependencies.exploreV2!(parsed.data.query, parsed.data.near)),
+      )
+    } catch {
+      return sendProductProblem(request, reply, 503, 'PLACE_EXPLORATION_UNAVAILABLE', 'Search suggestions are unavailable', true)
+    }
+  })
   if (dependencies.explore) application.post('/v1/search/catalog/explore', async (request, reply) => {
     const parsed = catalogExplorationRequestSchema.safeParse(request.body)
     if (!parsed.success) return sendProductProblem(request, reply, 400, 'PLACE_EXPLORATION_INVALID', 'Invalid search input')

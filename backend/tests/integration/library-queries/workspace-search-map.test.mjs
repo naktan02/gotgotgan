@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { randomUUID } from 'node:crypto'
 
 import {
   at, collectionA, collectionA2, collectionB, memberA, memberB, places,
@@ -77,6 +78,17 @@ test('Collection-first text search traverses owner pages and matches the indepen
     assert.equal(map.coverage.representedPlaceCount, 1)
     assert.equal(map.features[0].placeId, targetId)
     assert.ok(batches.every((count) => count <= 500), 'map summary reads are bounded independently of scope size')
+    const v3 = await workspace.openMapV3({ ...scope, selectedPlaceId: targetId })
+    assert.equal(v3.schemaVersion, 'personal-library-map.v3')
+    assert.equal(v3.features[0].placeId, targetId)
+    assert.equal(v3.coverage.representedPlaceCount, 1)
+    assert.equal(await workspace.openMapV3({ ...scope, memberId: memberB, selectedPlaceId: targetId }), undefined,
+      'v3 selection and coordinate previews cannot bypass Collection ownership')
+    const allV3 = await workspace.openMapV3({ ...scope, placeQuery: '', tagIds: [], selectedPlaceId: targetId })
+    const coincident = allV3.features.find((feature) => feature.kind === 'cluster')
+    assert.equal(coincident.coincidentPreview.places.length, 20)
+    assert.equal(coincident.coincidentPreview.remainingCount, coincident.count - 20)
+    assert.equal(allV3.features.reduce((sum, feature) => sum + (feature.kind === 'place' ? 1 : feature.count), 0), allV3.coverage.representedPlaceCount)
     const areaKey = first.availableFilters.areas.find((facet) => facet.label === '서울 성동구 성수동').key
     const filtered = { ...scope, areaKeys: [areaKey], taxonomyKeys: ['food.ramen'], ratingFilter: { kind: 'unrated' } }
     assert.deepEqual((await workspace.open(filtered)).favoritePlaces.items.map((row) => row.placeId), [targetId])
@@ -107,4 +119,57 @@ test('Collection-first text search traverses owner pages and matches the indepen
   } finally {
     await fixture.close()
   }
+})
+
+test('Collection order pages preserve owner aliases and reject a cursor after reordering', { timeout: 120_000 }, async () => {
+  const fixture = await startLibraryQueriesPostgresFixture('place-workspace-order')
+  try {
+    const { database, library, seedCollections, command } = fixture
+    await seedCollections()
+    const sourceOrder = [places[2], places[0], places[1]]
+    for (const [position, placeId] of sourceOrder.entries()) {
+      await command(randomUUID(), memberA, { kind: 'add-collection-place', collectionId: collectionA2, placeId, position })
+    }
+    const publicSummaries = sourceOrder.map((placeId, index) => ({ placeId, name: `공통 장소 ${index + 1}`,
+      areaLabel: null, location: null, primaryTaxonomy: null, taxonomyKeys: [], evidence: { status: 'unverified', projectedAt: at } }))
+    const workspace = new library.PostgresPersonalLibraryWorkspace(database.pool,
+      async (ids) => publicSummaries.filter((place) => ids.includes(place.placeId)),
+      async (memberId, ids) => memberId !== memberA ? [] : publicSummaries.filter((place) => ids.includes(place.placeId)).map((summary) => ({
+        summary: { ...summary, name: '개인 별칭' }, sourceObservedSearchText: '내 별칭 순서검증',
+      })))
+    const query = { memberId: memberA, favoriteScope: { kind: 'collection', collectionId: collectionA2 },
+      ratingFilter: { kind: 'any' }, tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: [], placeQuery: '내 별칭', limit: 1 }
+    async function readPages(input) {
+      const result = []
+      let cursor
+      for (let page = 0; page < 10; page += 1) {
+        const view = await workspace.open({ ...input, placeCursor: cursor })
+        result.push(...view.favoritePlaces.items)
+        cursor = view.favoritePlaces.nextCursor
+        if (!cursor) return result
+      }
+      assert.fail('bounded fixture pagination did not terminate')
+    }
+    const selected = await readPages(query)
+    assert.deepEqual(selected.map((row) => row.placeId), sourceOrder, 'SQL source_position must reach the cursor, not UUID order')
+    assert.ok(selected.every((row) => row.place.name.startsWith('공통 장소')), 'private aliases match without replacing public display facts')
+    const all = await readPages({ ...query, favoriteScope: { kind: 'all' } })
+    assert.deepEqual(all.map((row) => row.placeId), [...sourceOrder].sort(), 'membership in two lists must not duplicate all-favorites pages')
+    assert.ok(all.every((row) => row.collectionMembershipCount === 2))
+    assert.deepEqual(await readPages({ ...query, memberId: memberB, favoriteScope: { kind: 'all' } }), [])
+    const before = await workspace.open(query)
+    await command(randomUUID(), memberA, { kind: 'move-collection-place', collectionId: collectionA2, placeId: places[1], position: 0 })
+    await assert.rejects(workspace.open({ ...query, placeCursor: before.favoritePlaces.nextCursor }), library.InvalidLibraryCursorError)
+    assert.deepEqual((await readPages(query)).map((row) => row.placeId), [places[1], places[2], places[0]])
+    let reorderedDuringRead = false
+    const concurrent = new library.PostgresPersonalLibraryWorkspace(database.pool, async (ids) => {
+      if (!reorderedDuringRead) {
+        reorderedDuringRead = true
+        await command(randomUUID(), memberA, { kind: 'move-collection-place', collectionId: collectionA2, placeId: places[0], position: 0 })
+      }
+      return publicSummaries.filter((place) => ids.includes(place.placeId))
+    })
+    await assert.rejects(concurrent.open({ ...query, placeQuery: '' }), library.InvalidLibraryCursorError,
+      'a concurrent reorder must not produce a cursor bound to mixed Collection revisions')
+  } finally { await fixture.close() }
 })

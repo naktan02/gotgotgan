@@ -250,6 +250,8 @@ export type SourceSnapshotCapture = Readonly<{
     observedName: string
     sourcePosition: number
     items: readonly Readonly<{
+      /** Server-only typed venue evidence; existing public capture schemas do not accept it. */
+      providerListedFacts?: import('./provider-listed-facts.js').ProviderListedFactsV1
       sourceItemId: string
       providerPlaceId: string | null
       observedName: string

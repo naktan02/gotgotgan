@@ -13,3 +13,7 @@ tests/        publish/replay/conflict와 current projection 행동
 
 식당, 카페, 여행지는 고정 enum이 아니다. 운영 데이터가 category/attribute Node와 parent
 관계를 정의한다. 같은 `(key, version)`의 같은 내용은 replay이고 다른 내용은 conflict다.
+
+빈 설치의 제품 분류를 준비할 때는 [product catalog](adapters/product-catalog/README.md)와
+owner 전용 [seed 진입점](../../entrypoints/cli/seed-product-taxonomy.ts)을 읽는다. HTTP 시작 시
+자동 삽입하지 않는다. 실제 기존 분류와 의미가 충돌하면 버전을 덮어쓰지 않고 중단한다.

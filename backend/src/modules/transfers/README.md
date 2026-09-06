@@ -17,6 +17,11 @@ v1 encrypted queue로 이어져 배포 전 대기 작업·replay를 보존하며
 무저장 거절, owner/replay/lease/15분 폐기와 000052 rollback 보호의 임시 PostGIS 검증 위치다.
 테스트용 수집 결과는 실제 공급자 접근 성공의 증거가 아니다.
 
+서버 parser의 원본 장소명·분류·좌표와 개인 북마크 별칭의 보존 경계는
+[`one-shot-provider-listed-facts.test.mjs`](../../../tests/integration/transfer-operations/one-shot-provider-listed-facts.test.mjs)에서
+capture→불변 snapshot→승인/queue→실제 Ingestion observation으로 검증한다. 원본 사실이 없는
+legacy NULL은 별칭으로 보충하지 않으며, 이 보존만으로 공개 카탈로그 게시를 승인하지 않는다.
+
 `SavedPlaceSource`는 가져오기 관찰만, `SavedPlaceTarget`은 내보내기 대상 관찰과 preflight만
 담당한다. 승인된 outbound plan은 target과 순서가 고정된 execution manifest로 동결한다.
 Connector mutation은 plan digest, verified account fingerprint, connection, installation, origin,

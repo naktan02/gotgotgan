@@ -343,3 +343,17 @@ export async function prepareDatabase(): Promise<DatabasePreparationResult> {
     }
   }
 }
+
+/** Explicit CLI lifecycle for product-owned reference-data provisioning after migrations. */
+export async function withDatabaseOwner<T>(operation: (client: Client) => Promise<T>): Promise<T> {
+  const runtime = await readDatabaseRuntime()
+  const environmentName = runtime.configuration.migrationDatabaseUrlFileEnvironment
+  const client = new Client({ connectionString: validateDatabaseUrl(await readSecretFile(environmentName), environmentName) })
+  try {
+    await client.connect()
+    await assertConnectedAuthority(client, runtime.database, runtime.roles.migration)
+    return await operation(client)
+  } finally {
+    await client.end().catch(() => undefined)
+  }
+}

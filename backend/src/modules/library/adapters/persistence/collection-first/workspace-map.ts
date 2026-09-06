@@ -9,11 +9,48 @@ import type {
 import type { PersonalLibraryMapQuery, PersonalLibraryMapView } from '../../../domain/collection-first.js'
 import { InvalidLibraryQueryError, isValidLibraryMapViewport } from '../../../domain/queries.js'
 import { matchesFavorite, readFavoriteRows, summariesById } from './favorite-read.js'
+import { createBoundedMapAccumulator } from '../../../../../platform/map-projection/bounded-map-accumulator.js'
+import { boundMapPreviews } from '../../../../../platform/map-projection/bounded-map-previews.js'
+import { classifyMapFeatures, type MapTaxonomyReader } from '../../../../../platform/map-projection/map-classification.js'
+import type { PersonalLibraryMapQueryV3, PersonalLibraryMapViewV3 } from '../../../application/ports/personal-library-map-v3.js'
+import type { LibraryPlaceSummary } from '../../../domain/queries.js'
 
 export async function readWorkspaceMap(
   pool: Pool, read: LibraryPlaceSummaryReader, readMember: MemberLibraryPlaceSummaryReader | undefined,
   input: PersonalLibraryMapQuery, signal?: AbortSignal,
 ): Promise<PersonalLibraryMapView | undefined> {
+  const accumulator = createLibraryMapAccumulator(input)
+  const scan = await scanWorkspaceMap(pool, read, readMember, input, accumulator, signal)
+  if (scan === undefined) return undefined
+  return { schemaVersion: 'personal-library-map.v2', ...scan, features: accumulator.finish() }
+}
+
+export async function readWorkspaceMapV3(
+  pool: Pool, read: LibraryPlaceSummaryReader, readMember: MemberLibraryPlaceSummaryReader | undefined,
+  input: PersonalLibraryMapQueryV3, signal?: AbortSignal, readTaxonomy?: MapTaxonomyReader,
+): Promise<PersonalLibraryMapViewV3 | undefined> {
+  const accumulator = createBoundedMapAccumulator({ ...input, maxFeatures: 500 })
+  const scan = await scanWorkspaceMap(pool, read, readMember, input, {
+    add(place) {
+      if (place.location !== null) accumulator.add({ kind: 'place', placeId: place.placeId,
+        label: place.name, location: place.location, classification: place.primaryTaxonomy === null
+          ? null : { primaryTaxonomy: place.primaryTaxonomy, rootTaxonomy: null } })
+    },
+    finish: accumulator.finish,
+  }, signal)
+  if (scan === undefined) return undefined
+  const features = await classifyMapFeatures(boundMapPreviews(accumulator.finish(), 500), readTaxonomy)
+  signal?.throwIfAborted()
+  return { schemaVersion: 'personal-library-map.v3', ...scan, features }
+}
+
+async function scanWorkspaceMap(
+  pool: Pool, read: LibraryPlaceSummaryReader, readMember: MemberLibraryPlaceSummaryReader | undefined,
+  input: PersonalLibraryMapQuery, accumulator: Readonly<{
+    add(place: LibraryPlaceSummary): void
+    finish(): readonly Readonly<{ kind: 'place' } | { kind: 'cluster'; count: number }>[]
+  }>, signal?: AbortSignal,
+) {
   signal?.throwIfAborted()
   if (!isValidLibraryMapViewport(input.bounds, input.zoom)) {
     throw new InvalidLibraryQueryError('Library map viewport is invalid.')
@@ -26,7 +63,6 @@ export async function readWorkspaceMap(
     )
     if (owned.rows[0] === undefined) return undefined
   }
-  const accumulator = createLibraryMapAccumulator(input)
   let afterPlaceId: string | undefined
   let unprojectedPlaceCount = 0
   while (true) {
@@ -50,13 +86,12 @@ export async function readWorkspaceMap(
   }
   const features = accumulator.finish()
   return {
-    schemaVersion: 'personal-library-map.v2',
     filter: {
       favoriteScope: query.favoriteScope, ratingFilter: query.ratingFilter,
       tagIds: query.tagIds, tagMatch: query.tagMatch, areaKeys: query.areaKeys, taxonomyKeys: query.taxonomyKeys,
       ...(query.placeQuery === undefined ? {} : { placeQuery: query.placeQuery }),
     },
-    viewport: { bounds: input.bounds, zoom: input.zoom }, features,
+    viewport: { bounds: input.bounds, zoom: input.zoom },
     coverage: {
       representedPlaceCount: features.reduce((count, feature) => count + (feature.kind === 'place' ? 1 : feature.count), 0),
       unprojectedPlaceCount, complete: unprojectedPlaceCount === 0,

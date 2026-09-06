@@ -24,6 +24,10 @@
       "types": "./dist/library/index.d.ts",
       "default": "./dist/library/index.js"
     },
+    "./maps": {
+      "types": "./dist/maps/index.d.ts",
+      "default": "./dist/maps/index.js"
+    },
     "./place-reference": {
       "types": "./dist/place-reference/index.d.ts",
       "default": "./dist/place-reference/index.js"

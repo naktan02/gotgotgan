@@ -7,6 +7,7 @@ export type VerifiedSourcePlaceMaterialization = Readonly<{
   placeCandidateId: string
   occurredAt: string
   snapshotEvidence?: Readonly<{
+    providerListedFacts?: import('../../domain/provider-listed-facts.js').ProviderListedFactsV1
     acquisitionKind: 'documented-api' | 'account-export' | 'structured-web' |
       'browser-network' | 'browser-dom' | 'manual-capture'
     parserVersion: string

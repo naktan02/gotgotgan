@@ -6,6 +6,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "database:prepare": "npm run build && node dist/entrypoints/cli/prepare-database.js",
+    "catalog:rebuild-search": "node dist/entrypoints/cli/rebuild-catalog-search.js",
+    "database:seed-taxonomy": "npm run build && node dist/entrypoints/cli/seed-product-taxonomy.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --exclude \"tests/integration/**\"",
     "test:provider-live": "vitest run tests/provider-live-smoke.test.ts tests/provider-live-forge-detail.test.ts tests/provider-live-shared-link.test.ts",

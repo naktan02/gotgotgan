@@ -12,6 +12,7 @@ export {
 } from './domain/model.js'
 export { applyLibraryCommand } from './application/apply-library-command.js'
 export type { LibraryQueries } from './application/library-queries.js'
+export type { PersonalLibraryMapV3, PersonalLibraryMapQueryV3, PersonalLibraryMapViewV3 } from './application/ports/personal-library-map-v3.js'
 export { saveImportedPlace } from './application/save-imported-place.js'
 export type {
   ImportedPlaceSaveAttempt,

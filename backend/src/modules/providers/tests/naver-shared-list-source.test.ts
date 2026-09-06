@@ -71,6 +71,10 @@ describe('NAVER shared-list source', () => {
           sourceItemId: '11',
           providerPlaceId: 'place-11',
           observedName: '조용한 카페',
+          providerListedFacts: {
+            schemaVersion: 'provider-listed-facts.v1', name: '카페 원본명',
+            address: '서울시 중구', categoryLabel: '카페', location: { latitude: 37.56, longitude: 126.98 },
+          },
           observedAddress: '서울시 중구',
           observedCategory: '카페',
           observedLocation: { latitude: 37.56, longitude: 126.98 },

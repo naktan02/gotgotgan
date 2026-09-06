@@ -34,6 +34,7 @@ export type {
   LibraryTagMatch,
 } from './contract-primitives.js'
 export * from './map.js'
+export * from './map-v3.js'
 export * from './workspace.js'
 export * from './public-collections.js'
 

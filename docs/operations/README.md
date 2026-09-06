@@ -8,3 +8,5 @@
   failure cleanup, and activation gates.
 - `database-runbook.md`: future migration and restore gates.
 - `incident-and-rollback.md`: evidence, containment, and rollback ownership.
+- `import-catalog-gap.md`: when imported places appear privately but Home cannot find them;
+  minimum-fact evidence, publication gate and recurrence probes.
