@@ -265,4 +265,27 @@ describe('Collection-first Library HTTP', () => {
       outcome: 'accepted', collection: { collectionId, collectionRevision: revision },
     })
   })
+
+  it('changes a Collection color through its own revision-aware command', async () => {
+    const apply = vi.fn(dependencies().lifecycle.apply)
+    const { app } = fixture({ lifecycle: { apply } })
+
+    const response = await app.inject({
+      method: 'POST', url: '/v1/library/collection-color-commands',
+      headers: { authorization: 'Bearer good' },
+      payload: {
+        schemaVersion: 'collection-color-command.v1', commandId,
+        collectionId, expectedCollectionRevision: revision, colorToken: 'coral',
+      },
+    })
+
+    expect(response.statusCode).toBe(201)
+    expect(response.json()).toMatchObject({
+      schemaVersion: 'collection-color-command-result.v1', outcome: 'accepted',
+      collectionId, collectionRevision: revision, colorToken: 'coral',
+    })
+    expect(apply).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'update', collectionId, expectedVersion: revision, colorToken: 'coral',
+    }))
+  })
 })

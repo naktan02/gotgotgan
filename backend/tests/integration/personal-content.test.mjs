@@ -193,9 +193,12 @@ test('personal content remains owned, repeatable, versioned, and privacy project
     await library.applyLibraryCommand({ commandId: '01992d10-0000-7000-8000-000000000033', memberId, occurredAt: at, store: libraryStore, command: {
       kind: 'add-collection-place', collectionId: publicCollectionId, placeId, position: 0,
     } })
+    const collectionBeforePublication = await libraryQueries.getCollection({
+      memberId, collectionId: publicCollectionId, limit: 20,
+    })
     await library.applyLibraryCommand({ commandId: '01992d10-0000-7000-8000-000000000036', memberId, occurredAt: at, store: libraryStore, command: {
       kind: 'set-collection-publication', collectionId: publicCollectionId,
-      expectedUpdatedAt: at, visibility: 'unlisted',
+      expectedUpdatedAt: collectionBeforePublication.collection.updatedAt, visibility: 'unlisted',
     } })
     let ownedCollection = await libraryQueries.getCollection({
       memberId, collectionId: publicCollectionId, limit: 20,

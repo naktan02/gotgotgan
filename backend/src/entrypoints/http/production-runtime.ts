@@ -379,6 +379,7 @@ export async function createProductionHttpRuntime(
       library: {
         authorizer: productAuthorizer,
         mapV3: personalLibraryWorkspace,
+        mapV4: personalLibraryWorkspace,
         store: libraryStore,
         queries: libraryQueries,
         now,

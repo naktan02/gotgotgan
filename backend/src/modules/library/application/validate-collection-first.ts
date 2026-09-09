@@ -194,7 +194,7 @@ export function normalizeCollectionLifecycleCommand(
   }
   if (
     input.name === undefined && input.description === undefined &&
-    input.visibility === undefined
+    input.visibility === undefined && input.colorToken === undefined
   ) invalid('command', 'update must change at least one Collection field')
   return {
     kind: 'update', context, collectionId, expectedVersion,
@@ -205,6 +205,7 @@ export function normalizeCollectionLifecycleCommand(
         : requireText(input.description, 'description', 2_000),
     }),
     ...(input.visibility === undefined ? {} : { visibility: input.visibility }),
+    ...(input.colorToken === undefined ? {} : { colorToken: input.colorToken }),
   }
 }
 

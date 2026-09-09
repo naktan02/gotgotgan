@@ -1,6 +1,7 @@
 import type { Pool, PoolClient } from 'pg'
 
 import { collectionVersion, readCollectionRevision } from '../../application/collection-version.js'
+import { collectionColorForId } from '../../application/collection-color.js'
 import type { PublishedCollectionExchange } from '../../application/ports/collection-first.js'
 import type {
   CollectionPublicationReceipt,
@@ -136,11 +137,12 @@ export class PostgresPublishedCollectionExchange implements PublishedCollectionE
       const created = await client.query(
         `INSERT INTO library.collections (
            id, owner_membership_id, name, description, visibility, publication_id,
-           created_at, updated_at, revision
-         ) VALUES ($1::uuid,$2::uuid,$3,NULL,'private',NULL,$4::timestamptz,$4::timestamptz,1)
+           color_token, created_at, updated_at, revision
+         ) VALUES ($1::uuid,$2::uuid,$3,NULL,'private',NULL,$4,$5::timestamptz,$5::timestamptz,1)
          ON CONFLICT (id) DO NOTHING
          RETURNING id`,
-        [input.targetCollectionId, context.memberId, input.targetName, context.occurredAt],
+        [input.targetCollectionId, context.memberId, input.targetName,
+          collectionColorForId(input.targetCollectionId), context.occurredAt],
       )
       if (created.rows[0] === undefined) {
         return rejected(client, {

@@ -13,6 +13,19 @@ export {
 export { applyLibraryCommand } from './application/apply-library-command.js'
 export type { LibraryQueries } from './application/library-queries.js'
 export type { PersonalLibraryMapV3, PersonalLibraryMapQueryV3, PersonalLibraryMapViewV3 } from './application/ports/personal-library-map-v3.js'
+export type {
+  PersonalLibraryMapCollectionV4,
+  PersonalLibraryMapFeatureV4,
+  PersonalLibraryMapQueryV4,
+  PersonalLibraryMapSelectionV4,
+  PersonalLibraryMapV4,
+  PersonalLibraryMapViewV4,
+} from './application/ports/personal-library-map-v4.js'
+export {
+  collectionColorForId,
+  collectionColorTokens,
+  type CollectionColorToken,
+} from './application/collection-color.js'
 export { saveImportedPlace } from './application/save-imported-place.js'
 export type {
   ImportedPlaceSaveAttempt,

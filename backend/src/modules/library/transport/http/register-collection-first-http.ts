@@ -1,4 +1,6 @@
 import {
+  collectionColorCommandRequestV1Schema,
+  collectionColorCommandResultV1Schema,
   collectionLifecycleCommandRequestV2Schema,
   collectionLifecycleCommandResultV2Schema,
   collectionOrderCommandRequestV2Schema,
@@ -402,6 +404,46 @@ export function registerCollectionFirstHttpRoutes(
               collectionRevision: result.value.collection.version,
               updatedAt: result.value.collection.updatedAt,
             },
+          })
+      const status = result.status === 'rejected'
+        ? commandStatus(result.rejection)
+        : result.status === 'applied' ? 201 : 200
+      return reply.header('cache-control', 'no-store').status(status).send(response)
+    } catch (error) {
+      return unavailable(request, reply, error)
+    }
+  })
+
+  application.post('/v1/library/collection-color-commands', async (request, reply) => {
+    const parsed = collectionColorCommandRequestV1Schema.safeParse(request.body)
+    if (!parsed.success) return invalid(request, reply, 'Collection color command is invalid')
+    const memberId = await requireProductMember(
+      request, reply, dependencies.authorizer, 'library.write',
+    )
+    if (memberId === undefined) return
+    try {
+      const result = await dependencies.lifecycle.apply(normalizeCollectionLifecycleCommand({
+        kind: 'update',
+        context: {
+          operationId: parsed.data.commandId,
+          memberId,
+          occurredAt: dependencies.now().toISOString(),
+        },
+        collectionId: parsed.data.collectionId,
+        expectedVersion: asOpaqueVersion(parsed.data.expectedCollectionRevision),
+        colorToken: parsed.data.colorToken,
+      }))
+      const response = result.status === 'rejected'
+        ? collectionColorCommandResultV1Schema.parse({
+            schemaVersion: 'collection-color-command-result.v1', outcome: 'rejected',
+            commandId: parsed.data.commandId, rejection: result.rejection,
+          })
+        : collectionColorCommandResultV1Schema.parse({
+            schemaVersion: 'collection-color-command-result.v1', outcome: 'accepted',
+            receipt: { commandId: parsed.data.commandId, status: result.status },
+            collectionId: parsed.data.collectionId,
+            collectionRevision: result.value.collection!.version,
+            colorToken: parsed.data.colorToken,
           })
       const status = result.status === 'rejected'
         ? commandStatus(result.rejection)

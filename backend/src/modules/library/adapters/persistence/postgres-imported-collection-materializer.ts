@@ -1,6 +1,7 @@
 import type { Pool } from 'pg'
 
 import { collectionVersion, readCollectionRevision } from '../../application/collection-version.js'
+import { collectionColorForId } from '../../application/collection-color.js'
 import type { ImportedCollectionMaterializer } from '../../application/ports/collection-first.js'
 import {
   type ImportedCollectionMaterialization,
@@ -137,11 +138,12 @@ export class PostgresImportedCollectionMaterializer implements ImportedCollectio
         const inserted = await client.query<{ revision: string }>(
           `INSERT INTO library.collections (
              id, owner_membership_id, name, description, visibility, publication_id,
-             revision, created_at, updated_at
-           ) VALUES ($1::uuid,$2::uuid,$3,NULL,'private',NULL,1,$4::timestamptz,$4::timestamptz)
+             color_token, revision, created_at, updated_at
+           ) VALUES ($1::uuid,$2::uuid,$3,NULL,'private',NULL,$4,1,$5::timestamptz,$5::timestamptz)
            ON CONFLICT (id) DO NOTHING
            RETURNING revision::text`,
-          [input.target.collectionId, context.memberId, input.target.name, context.occurredAt],
+          [input.target.collectionId, context.memberId, input.target.name,
+            collectionColorForId(input.target.collectionId), context.occurredAt],
         )
         if (inserted.rows[0] === undefined) {
           const rejected = await recordRejectedLibraryOperation<ImportedCollectionReceipt>(client, {

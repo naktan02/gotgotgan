@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import type { Pool } from 'pg'
 
 import type { LibraryStore } from '../../application/ports/library-store.js'
+import { collectionColorForId } from '../../application/collection-color.js'
 import type {
   ImportedPlaceSaveAttempt,
   ImportedPlaceSaveStore,
@@ -109,9 +110,10 @@ export class PostgresLibraryStore implements LibraryStore, ImportedPlaceSaveStor
         await client.query(
           `INSERT INTO library.collections (
              id, owner_membership_id, name, description, visibility,
-             publication_id, created_at, updated_at
-           ) VALUES ($1::uuid,$2::uuid,$3,NULL,'private',NULL,$4::timestamptz,$4::timestamptz)`,
-          [collectionId, attempt.memberId, attempt.source.collectionName, attempt.occurredAt],
+             publication_id, color_token, created_at, updated_at
+           ) VALUES ($1::uuid,$2::uuid,$3,NULL,'private',NULL,$4,$5::timestamptz,$5::timestamptz)`,
+          [collectionId, attempt.memberId, attempt.source.collectionName,
+            collectionColorForId(collectionId), attempt.occurredAt],
         )
         await client.query(
           `INSERT INTO library.collection_import_provenance (

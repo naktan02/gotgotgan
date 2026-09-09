@@ -192,3 +192,7 @@ backfill하지 않으며, 필요하면 별도의 bounded 운영 작업으로 예
 plan 행을 `FOR UPDATE`로 잠근다. 따라서 draft evidence 갱신, 사용자 결정, 승인 전이가 모두 plan을
 먼저 직렬화하며 승인과 동시에 item이 바뀌는 시간차를 허용하지 않는다. rollback은 기존 draft 상태
 검사 함수로 복원하고 저장된 plan/item/evidence는 변경하지 않는다.
+
+`000054`는 모든 Collection에 제한된 팔레트의 안정된 `color_token`을 추가한다. 기존 행은 Collection
+ID의 digest로 결정적으로 채우며, 새 삽입은 호출 경로가 값을 생략해도 같은 규칙의 trigger가 보완한다.
+DB constraint는 임의 CSS 색상을 거부하고 runtime role에는 이 column의 제한된 UPDATE만 허용한다.

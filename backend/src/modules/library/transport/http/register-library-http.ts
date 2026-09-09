@@ -26,6 +26,8 @@ import { InvalidLibraryCursorError, InvalidLibraryQueryError } from '../../domai
 import { registerLibraryQueryHttpRoutes } from './register-library-query-http.js'
 import { registerLibraryMapV3HttpRoutes } from './register-library-map-v3-http.js'
 import type { PersonalLibraryMapV3 } from '../../application/ports/personal-library-map-v3.js'
+import { registerLibraryMapV4HttpRoutes } from './register-library-map-v4-http.js'
+import type { PersonalLibraryMapV4 } from '../../application/ports/personal-library-map-v4.js'
 import {
   registerCollectionFirstHttpRoutes,
   type CollectionFirstHttpDependencies,
@@ -41,12 +43,14 @@ export type LibraryHttpDependencies = Readonly<{
   queries: LibraryQueries
   now: () => Date
   mapV3?: PersonalLibraryMapV3 | undefined
+  mapV4?: PersonalLibraryMapV4 | undefined
   collectionFirst?: Omit<CollectionFirstHttpDependencies, 'authorizer' | 'now'> | undefined
   publicCollections?: Omit<PublicCollectionHttpDependencies, 'authorizer' | 'now'> | undefined
 }>
 
 export function registerLibraryHttpRoutes(application: FastifyInstance, dependencies: LibraryHttpDependencies): void {
   if (dependencies.mapV3 !== undefined) registerLibraryMapV3HttpRoutes(application, { authorizer: dependencies.authorizer, map: dependencies.mapV3 })
+  if (dependencies.mapV4 !== undefined) registerLibraryMapV4HttpRoutes(application, { authorizer: dependencies.authorizer, map: dependencies.mapV4 })
   registerLibraryQueryHttpRoutes(application, {
     authorizer: dependencies.authorizer,
     queries: dependencies.queries,

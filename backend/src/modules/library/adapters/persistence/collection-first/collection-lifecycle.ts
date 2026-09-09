@@ -1,6 +1,7 @@
 import type { Pool } from 'pg'
 
 import { readCollectionRevision } from '../../../application/collection-version.js'
+import { collectionColorForId } from '../../../application/collection-color.js'
 import type { CollectionLifecycle } from '../../../application/ports/collection-first.js'
 import type {
   CollectionLifecycleCommand,
@@ -41,12 +42,13 @@ export class PostgresCollectionLifecycle implements CollectionLifecycle {
         const created = await client.query<CollectionRow>(
           `INSERT INTO library.collections (
              id, owner_membership_id, name, description, visibility, publication_id,
-             revision, created_at, updated_at
-           ) VALUES ($1::uuid,$2::uuid,$3,$4,'private',NULL,1,$5::timestamptz,$5::timestamptz)
+             color_token, revision, created_at, updated_at
+           ) VALUES ($1::uuid,$2::uuid,$3,$4,'private',NULL,$5,1,$6::timestamptz,$6::timestamptz)
            ON CONFLICT (id) DO NOTHING
            RETURNING id, name, description, visibility, publication_id,
                      0::int AS place_count, revision::text, updated_at`,
-          [input.collectionId, context.memberId, input.name, input.description, context.occurredAt],
+          [input.collectionId, context.memberId, input.name, input.description,
+            collectionColorForId(input.collectionId), context.occurredAt],
         )
         if (created.rows[0] === undefined) {
           const result = await recordRejectedLibraryOperation<CollectionLifecycleReceipt>(client, {
@@ -114,18 +116,19 @@ export class PostgresCollectionLifecycle implements CollectionLifecycle {
              SET name = coalesce($3::text, name),
                  description = CASE WHEN $4::boolean THEN $5::text ELSE description END,
                  visibility = $6,
+                 color_token = coalesce($7::text, color_token),
                  publication_id = CASE
                    WHEN $6 = 'private' THEN NULL
                    WHEN visibility = 'private' THEN gen_random_uuid()
                    ELSE publication_id END,
                  revision = revision + 1,
-                 updated_at = greatest(updated_at + interval '1 millisecond', $7::timestamptz)
+                 updated_at = greatest(updated_at + interval '1 millisecond', $8::timestamptz)
              WHERE id = $1::uuid AND owner_membership_id = $2::uuid
              RETURNING id, name, description, visibility, publication_id,
-                       $8::int AS place_count, revision::text, updated_at`,
+                       $9::int AS place_count, revision::text, updated_at`,
             [input.collectionId, context.memberId, input.name ?? null,
               input.description !== undefined, input.description ?? null,
-              visibility, context.occurredAt, row.place_count],
+              visibility, input.colorToken ?? null, context.occurredAt, row.place_count],
           )
           value = { collection: toCollectionWorkspaceSummary(updated.rows[0]!) }
         }

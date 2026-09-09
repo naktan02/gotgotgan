@@ -22,16 +22,21 @@ import { normalizePersonalLibraryWorkspaceQuery } from '../../../application/val
 import { readWorkspaceMap, readWorkspaceMapV3 } from './workspace-map.js'
 import type { MapTaxonomyReader } from '../../../../../platform/map-projection/map-classification.js'
 import type { PersonalLibraryMapQueryV3 } from '../../../application/ports/personal-library-map-v3.js'
+import type {
+  PersonalLibraryMapQueryV4,
+  PersonalLibraryMapV4,
+} from '../../../application/ports/personal-library-map-v4.js'
 import { InvalidLibraryCursorError, InvalidLibraryQueryError } from '../../../domain/queries.js'
 import { matchesFavorite, readFavoriteRows, summariesById } from './favorite-read.js'
 import { type CollectionRow, toCollectionWorkspaceSummary } from './collection-record.js'
+import { readWorkspaceMapV4 } from './workspace-map-v4.js'
 
 type FilterUniverseRow = Readonly<{
   canonical_place_id: string
   favorite_place_count: number
 }>
 
-export class PostgresPersonalLibraryWorkspace implements PersonalLibraryWorkspace {
+export class PostgresPersonalLibraryWorkspace implements PersonalLibraryWorkspace, PersonalLibraryMapV4 {
   constructor(
     private readonly pool: Pool,
     private readonly readPlaceSummaries: LibraryPlaceSummaryReader,
@@ -45,6 +50,10 @@ export class PostgresPersonalLibraryWorkspace implements PersonalLibraryWorkspac
 
   openMapV3(query: PersonalLibraryMapQueryV3, signal?: AbortSignal) {
     return readWorkspaceMapV3(this.pool, this.readPlaceSummaries, this.readMemberSummaries, query, signal, this.readMapTaxonomy)
+  }
+
+  openMapV4(query: PersonalLibraryMapQueryV4, signal?: AbortSignal) {
+    return readWorkspaceMapV4(this.pool, this.readPlaceSummaries, this.readMemberSummaries, query, signal, this.readMapTaxonomy)
   }
 
   async open(input: PersonalLibraryWorkspaceQuery) {

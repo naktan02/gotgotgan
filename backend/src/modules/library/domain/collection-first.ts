@@ -1,3 +1,4 @@
+import type { CollectionColorToken } from './collection-color.js'
 import type { LibraryMapBounds, LibraryMapFeature, LibraryPlaceSummary, LibraryTagMatch } from './queries.js'
 
 declare const opaqueVersionBrand: unique symbol
@@ -192,6 +193,7 @@ export type CollectionLifecycleCommand =
       name?: string | undefined
       description?: string | null | undefined
       visibility?: CollectionVisibility | undefined
+      colorToken?: CollectionColorToken | undefined
     }>
   | Readonly<{
       kind: 'delete'

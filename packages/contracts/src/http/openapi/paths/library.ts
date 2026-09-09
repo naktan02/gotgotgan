@@ -25,6 +25,24 @@ import {
 
 export const libraryPaths = {
   ...Object.fromEntries([
+    ['/v4/library/workspace/map', 'getPersonalLibraryMapV4', bearer, 'LibraryQueryUnavailable'],
+    ['/api/v4/library/workspace/map', 'getPersonalLibraryMapForBrowserV4', browserSession, 'BrowserBackendUnavailable'],
+  ].map(([path, id, security, unavailable]) => [path as string, {
+    get: operation(id as string, {
+      '200': described('Return one de-duplicated Place overlay with selected Collection memberships and bounded cluster distribution', 'PersonalLibraryMapV4'),
+      '400': ref('responses', 'ProductRequestInvalid'), '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'), '404': ref('responses', 'ProductNotFound'),
+      '503': ref('responses', unavailable as string),
+    }, { security: security as readonly unknown[], parameters: [
+      { name: 'scope', in: 'query', required: false, schema: { type: 'string', enum: ['all', 'collections'], default: 'all' } },
+      { name: 'collectionIds', in: 'query', required: false, schema: { type: 'array', maxItems: 100, uniqueItems: true, items: { type: 'string', format: 'uuid' } }, style: 'form', explode: true },
+      personalLibraryRatingParameter, personalLibraryPlaceQueryParameter,
+      libraryTagIdsParameter, libraryTagMatchParameter, libraryAreaKeysParameter, libraryTaxonomyKeysParameter,
+      ...libraryMapViewportParameters,
+      { name: 'selectedPlaceId', in: 'query', required: false, schema: { type: 'string', format: 'uuid' } },
+    ] }),
+  }])),
+  ...Object.fromEntries([
     ['/v3/library/workspace/map', 'getPersonalLibraryMapV3', bearer, 'LibraryQueryUnavailable'],
     ['/api/v3/library/workspace/map', 'getPersonalLibraryMapForBrowserV3', browserSession, 'BrowserBackendUnavailable'],
   ].map(([path, id, security, unavailable]) => [path as string, {
@@ -105,6 +123,19 @@ export const libraryPaths = {
       '422': described('Reject an invalid Collection lifecycle operation', 'CollectionLifecycleCommandResultV2'),
       '503': ref('responses', 'BrowserBackendUnavailable'),
     }, { security: browserSession, requestSchema: 'CollectionLifecycleCommandRequestV2' }),
+  },
+  '/api/library/collection-color-commands': {
+    post: operation('applyCollectionColorForBrowserV1', {
+      '200': described('Replay one Collection palette change', 'CollectionColorCommandResultV1'),
+      '201': described('Apply one Collection palette change', 'CollectionColorCommandResultV1'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': described('Reject a non-disclosed unavailable Collection', 'CollectionColorCommandResultV1'),
+      '409': described('Reject a revision or operation identity conflict', 'CollectionColorCommandResultV1'),
+      '422': described('Reject an invalid palette change', 'CollectionColorCommandResultV1'),
+      '503': ref('responses', 'BrowserBackendUnavailable'),
+    }, { security: browserSession, requestSchema: 'CollectionColorCommandRequestV1' }),
   },
   '/api/library/publication-copy-commands': {
     post: operation('copyPublishedCollectionForBrowserV2', {
@@ -196,6 +227,19 @@ export const libraryPaths = {
       '422': described('Reject an invalid Collection lifecycle operation', 'CollectionLifecycleCommandResultV2'),
       '503': ref('responses', 'LibraryQueryUnavailable'),
     }, { security: bearer, requestSchema: 'CollectionLifecycleCommandRequestV2' }),
+  },
+  '/v1/library/collection-color-commands': {
+    post: operation('applyCollectionColorV1', {
+      '200': described('Replay one Collection palette change', 'CollectionColorCommandResultV1'),
+      '201': described('Apply one Collection palette change', 'CollectionColorCommandResultV1'),
+      '400': ref('responses', 'ProductRequestInvalid'),
+      '401': ref('responses', 'AuthenticationRequired'),
+      '403': ref('responses', 'AccessDenied'),
+      '404': described('Reject a non-disclosed unavailable Collection', 'CollectionColorCommandResultV1'),
+      '409': described('Reject a revision or operation identity conflict', 'CollectionColorCommandResultV1'),
+      '422': described('Reject an invalid palette change', 'CollectionColorCommandResultV1'),
+      '503': ref('responses', 'LibraryQueryUnavailable'),
+    }, { security: bearer, requestSchema: 'CollectionColorCommandRequestV1' }),
   },
   '/v1/library/publication-copy-commands': {
     post: operation('copyPublishedCollectionV2', {
