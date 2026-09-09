@@ -6,6 +6,8 @@ import {
   problemSchema,
 } from '@place/contracts/http'
 import {
+  collectionColorCommandRequestV1Schema,
+  collectionColorCommandResultV1Schema,
   collectionLifecycleCommandRequestV2Schema,
   collectionLifecycleCommandResultV2Schema,
   libraryCollectionDetailQuerySchema,
@@ -29,6 +31,8 @@ import {
   personalLibraryWorkspaceResponseV2Schema,
   personalLibraryMapHttpQueryV3Schema,
   personalLibraryMapResponseV3Schema,
+  personalLibraryMapHttpQueryV4Schema,
+  personalLibraryMapResponseV4Schema,
   personalLibraryMapHttpQueryV2Schema,
   personalLibraryMapResponseV2Schema,
   placeFilingCommandRequestV2Schema,
@@ -214,6 +218,20 @@ export function createBrowserLibraryHttp(dependencies: Dependencies) {
         [200, 201, 404, 409, 422],
       )
     },
+    async collectionColorCommand(request: Request): Promise<Response> {
+      const body = await requestBody(request, collectionColorCommandRequestV1Schema)
+      if (body === undefined) return invalid()
+      return invoke(
+        request,
+        (accessToken) => dependencies.backend.collectionColorCommand(
+          accessToken,
+          body,
+          request.signal,
+        ),
+        collectionColorCommandResultV1Schema,
+        [200, 201, 404, 409, 422],
+      )
+    },
     workspace(request: Request): Promise<Response> {
       const url = new URL(request.url)
       const allowed = new Set([
@@ -287,6 +305,27 @@ export function createBrowserLibraryHttp(dependencies: Dependencies) {
         ...(query.selectedPlaceId === undefined ? {} : { selectedPlaceId: query.selectedPlaceId }),
         west: query.west, south: query.south, east: query.east, north: query.north, zoom: query.zoom,
       }, request.signal), personalLibraryMapResponseV3Schema)
+    },
+    workspaceMapV4(request: Request): Promise<Response> {
+      const query = parseQuery(request, personalLibraryMapHttpQueryV4Schema, ['collectionIds'])
+      if (query === undefined) return Promise.resolve(invalid())
+      return invoke(request, (accessToken) => dependencies.backend.workspaceMapV4(accessToken, {
+        selection: query.scope === 'all'
+          ? { kind: 'all' }
+          : { kind: 'collections', collectionIds: query.collectionIds },
+        ...(query.placeQuery === undefined ? {} : { placeQuery: query.placeQuery }),
+        ratingFilter: { kind: query.rating },
+        tagIds: query.tagIds,
+        tagMatch: query.tagMatch,
+        areaKeys: query.areaKeys,
+        taxonomyKeys: query.taxonomyKeys,
+        ...(query.selectedPlaceId === undefined ? {} : { selectedPlaceId: query.selectedPlaceId }),
+        west: query.west,
+        south: query.south,
+        east: query.east,
+        north: query.north,
+        zoom: query.zoom,
+      }, request.signal), personalLibraryMapResponseV4Schema)
     },
     filing(request: Request, placeId: string): Promise<Response> {
       const identifier = libraryPlaceIdentifierParamsSchema.safeParse({ placeId }).data

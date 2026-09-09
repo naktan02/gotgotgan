@@ -31,6 +31,20 @@ discloses overview and personal records; category filing, visits and notes are n
 Ratings use stars without rounding existing stored values. Leaving a dirty editor requires an explicit
 decision. A mobile sheet handle must actually resize the sheet and have keyboard/button alternatives.
 
+## Unified map overlay correction — 2026-09-09
+
+The root app keeps one map-first workspace and switches the left working surface between canonical
+catalog and Personal Library without discarding the query. `/library` remains a compatibility entry
+into that same composition. Search corpus and favorite-map overlay are independent: both surfaces
+offer a star control with Collection search, all favorites, explicit multi-selection, clear-all and
+a named color legend. Catalog and Library projections meet only at the app seam and de-duplicate by
+canonical Place ID.
+
+Collection colors are stable palette tokens, not arbitrary CSS input. A Place with several selected
+memberships has one accessible marker and a bounded segmented ring; clusters keep a bounded Collection
+distribution. Selection focus uses the separate blue halo. Map display mode remains a user choice,
+with zoom-aware dot/category/detail simplification in the renderer.
+
 Import is a provider-neutral product workflow. Present only verified methods for each provider and
 distinguish unavailable collection methods from failed requests. One-shot sources are never verified
 account connections. Preserve the detailed-information worker gate and member-only source observations.

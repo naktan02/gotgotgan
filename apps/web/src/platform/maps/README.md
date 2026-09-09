@@ -10,16 +10,30 @@
 
 지구본 표현은 MapLibre 6.7의 [공개 atmosphere 예제](https://maplibre.org/maplibre-gl-js/docs/examples/display-a-globe-with-an-atmosphere/)와
 [Sky specification](https://maplibre.org/maplibre-style-spec/sky/)를 확인해 `maplibre/appearance/`에 한정한다.
-Bright의 거리 지도는 유지하며 먼 zoom의 알려진 색상만 낮은 채도로 조정한다. 커스텀 shader·별 애니메이션·
+Bright의 색상은 zoom과 무관하게 원본 style 그대로 유지한다. 커스텀 shader·별 애니메이션·
 projection 재생성은 쓰지 않는다. `testing/camera-roundtrip/appearance-smoke.mjs`는 공개 Bright 실제 타일의
 세계/한국/서울/거리와 모바일 캡처, 동위치 선택창의 키보드·여백을 검증한다. 일반 CI fixture와 분리한
 명시적 외부 네트워크 검증이며 운영 배포 상태의 증거는 별도 `live-map-smoke.mjs`가 소유한다.
+낮은 zoom의 정적 별 레이어는 CSS mask로 지구 바깥쪽에만 합성하며 pointer event를 받지 않는다.
+
+2026-09-09 공개 planet TileJSON과 서울 z14 tile 확인에서 철도 geometry는 `transportation`의
+`rail`/`transit`, 지하철역은 `poi`의 `class=railway, subclass=subway`로 제공됐다. 철도 geometry에는
+노선별 색상·식별자가 없었으므로 임의 노선색은 만들지 않는다. `appearance/transit-appearance.ts`는
+OpenMapTiles 소유 layer가 확인될 때만 기존 선 대비를 높이고 Bright가 놓치는 `railway` 역을 기존 rail
+pictogram에 연결한다. 다른 provider/custom style은 fail closed로 그대로 둔다.
+
+OpenFreeMap 2026-08-30 planet TileJSON과 서울 z14 tile을 2026-09-09에 확인했다. 철도 geometry는
+`transportation.class=rail|transit`, 지하철역은 `poi.class=railway/subclass=subway`로 제공되지만 철도
+geometry에는 노선별 색상이 없다. `appearance/transit-appearance.ts`는 `openmaptiles`의 알려진 Bright
+레이어에만 fail-closed로 일반 철도 대비를 높이고, 누락되던 `railway` 역을 기존 rail pictogram에 연결한다.
+도로 route 색을 철도 노선색으로 오인하거나 임의 노선색을 만들지 않는다. 노선별 색은 별도 교통 source
+결정 전까지 지원하지 않는다.
 
 호출자는 `public.ts`의 provider-neutral `PlaceMapRenderer` Interface만 사용한다. 운영 Adapter인
 `maplibre/MapLibrePlaceMap.tsx`는 MapLibre GL JS를 한 번 생성하고 projection을 `globe`로 한 번만
 지정한다. 지구본과 Mercator 2D 전환은 MapLibre 내장 zoom 전환에 맡기며 수동 projection toggle을
-두지 않는다. feature의 Canvas source와 같은 DOM Marker button을 함께 유지해 키보드와 screen reader
-선택도 목록 선택과 같은 callback을 지난다.
+두지 않는다. feature source의 Canvas layer는 그리지 않고 DOM Marker button만 실제 marker를 표현해
+이중 원 표시를 막는다. 키보드와 screen reader 선택도 목록 선택과 같은 callback을 지난다.
 
 Map style은 server-rendered root에서 `PLACE_MAP_STYLE_URL`을 읽어 공개 DOM 설정으로 전달한다. 값은
 same-origin path 또는 공개 OpenFreeMap HTTPS URL만 허용하며 기본은 OpenFreeMap Bright style이다. OpenFreeMap 공개

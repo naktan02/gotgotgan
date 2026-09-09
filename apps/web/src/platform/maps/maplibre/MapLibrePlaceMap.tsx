@@ -12,6 +12,7 @@ import type { PlaceMapCluster, PlaceMapRendererProperties, PlaceMapViewport } fr
 import { rewriteOpenFreeMapSourceRequest } from '../openfreemap-source/source-location'
 import { replaceAccessibleMarkers } from './accessible-place-markers'
 import { configureGlobeAppearance } from './appearance/globe-appearance'
+import { configureTransitAppearance } from './appearance/transit-appearance'
 import { CoincidentPlaceChoices, MapPresentationControls } from './MapPresentationControls'
 import type { MapMarkerMode } from './marker-presentation'
 import { readInitialCameraLocation } from './initial-camera-location'
@@ -97,6 +98,7 @@ export function MapLibrePlaceMap({
       map.on('style.load', () => {
         localizePlaceMapNames(map)
         configureGlobeAppearance(map)
+        configureTransitAppearance(map)
       })
       map.addControl(new maplibre.NavigationControl({ showCompass: false }), 'bottom-right')
       map.addControl(new maplibre.GeolocateControl({
@@ -124,7 +126,8 @@ export function MapLibrePlaceMap({
           ...current,
           ...(summaryRef.current === null ? {} : { focusFallback: summaryRef.current }),
           styles: { marker: styles.marker, cluster: styles.cluster, selected: styles.selected,
-            dot: styles.dot, markerLabel: styles.markerLabel, markerSymbol: styles.markerSymbol },
+            dot: styles.dot, markerLabel: styles.markerLabel, markerSymbol: styles.markerSymbol,
+            collectionMarker: styles.collectionMarker },
           callbacks: {
             onSelect: (markerId) => callbacksRef.current.onSelect(markerId),
             onClusterSelect: (cluster) => callbacksRef.current.onClusterSelect?.(cluster),
@@ -204,7 +207,8 @@ export function MapLibrePlaceMap({
       mode: markerMode,
       ...(summaryRef.current === null ? {} : { focusFallback: summaryRef.current }),
       styles: { marker: styles.marker, cluster: styles.cluster, selected: styles.selected,
-        dot: styles.dot, markerLabel: styles.markerLabel, markerSymbol: styles.markerSymbol },
+        dot: styles.dot, markerLabel: styles.markerLabel, markerSymbol: styles.markerSymbol,
+        collectionMarker: styles.collectionMarker },
       callbacks: {
         onSelect: (markerId) => callbacksRef.current.onSelect(markerId),
         onClusterSelect: (cluster) => callbacksRef.current.onClusterSelect?.(cluster),
@@ -235,7 +239,7 @@ export function MapLibrePlaceMap({
   }, [bounds, state, zoom])
 
   return (
-    <section aria-label={ariaLabel} className={styles.map} data-place-map-zoom={zoom}>
+    <section aria-label={ariaLabel} className={styles.map} data-place-map-globe={zoom < 5} data-place-map-zoom={zoom}>
       <div className={styles.canvas} ref={containerRef} />
       <MapPresentationControls mode={markerMode} onModeChange={setMarkerMode} />
       {activeCluster !== undefined && <CoincidentPlaceChoices cluster={activeCluster} onClose={() => setActiveCluster(undefined)}

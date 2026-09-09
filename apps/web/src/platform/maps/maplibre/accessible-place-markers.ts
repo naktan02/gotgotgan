@@ -15,7 +15,21 @@ type MarkerStyles = Readonly<{
   dot: string
   markerLabel: string
   markerSymbol: string
+  collectionMarker: string
 }>
+
+function conicFill(segments: readonly Readonly<{ color: string; count: number }>[]): string | undefined {
+  const total = segments.reduce((sum, segment) => sum + segment.count, 0)
+  if (total <= 0) return undefined
+  let consumed = 0
+  const stops = segments.flatMap((segment) => {
+    const start = consumed / total * 100
+    consumed += segment.count
+    const end = consumed / total * 100
+    return [`${segment.color} ${start}%`, `${segment.color} ${end}%`]
+  })
+  return segments.length === 1 ? segments[0]?.color : `conic-gradient(${stops.join(', ')})`
+}
 
 export type AccessibleMarkerCallbacks = Readonly<{
   onClusterSelect?: (cluster: PlaceMapCluster) => void
@@ -51,6 +65,8 @@ export function replaceAccessibleMarkers(input: Readonly<{
     button.dataset.placeMapFeatureId = cluster.id
     button.dataset.placeMapFeatureKind = 'cluster'
     button.textContent = String(cluster.count)
+    const clusterFill = conicFill(cluster.segments ?? [])
+    if (clusterFill !== undefined) button.style.setProperty('--cluster-fill', clusterFill)
     button.setAttribute('aria-label', cluster.coincidentPreview == null ? `${cluster.count}개 장소 묶음 확대` : `같은 위치의 장소 ${cluster.count}개 선택`)
     button.addEventListener('click', (event) => {
       event.stopPropagation()
@@ -74,11 +90,14 @@ export function replaceAccessibleMarkers(input: Readonly<{
     button.className = marker.id === input.selectedMarkerId
       ? `${input.styles.marker} ${input.styles.selected}`
       : input.styles.marker
+    if ((marker.accentColors?.length ?? 0) > 0) button.className += ` ${input.styles.collectionMarker}`
     button.dataset.placeMapFeatureId = marker.id
     button.dataset.placeMapFeatureKind = 'marker'
     firstMarkerButton ??= button
     const presentation = markerPresentation(marker, input.mode ?? 'category', input.map.getZoom(), marker.id === input.selectedMarkerId)
     button.style.setProperty('--marker-color', presentation.color)
+    const collectionFill = conicFill(marker.accentColors?.map((color) => ({ color, count: 1 })) ?? [])
+    if (collectionFill !== undefined) button.style.setProperty('--collection-fill', collectionFill)
     button.style.zIndex = marker.id === input.selectedMarkerId ? '1000' : '1'
     const symbol = document.createElement('span')
     symbol.className = presentation.dot ? input.styles.dot : input.styles.markerSymbol
@@ -105,7 +124,8 @@ export function replaceAccessibleMarkers(input: Readonly<{
       label.setAttribute('aria-hidden', 'true')
       button.append(label)
     }
-    button.setAttribute('aria-label', `${marker.label} 지도에서 선택`)
+    button.setAttribute('aria-label', `${marker.label}${marker.membershipLabels?.length
+      ? ` · ${marker.membershipLabels.join(', ')}` : ''} 지도에서 선택`)
     button.setAttribute('aria-pressed', String(marker.id === input.selectedMarkerId))
     button.addEventListener('click', (event) => {
       event.stopPropagation()

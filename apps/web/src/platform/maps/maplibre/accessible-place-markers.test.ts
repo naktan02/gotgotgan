@@ -26,7 +26,7 @@ function harness(kind = 'marker') {
     map: { getZoom: () => 14, project: () => ({ x: 200, y: 200 }), getContainer: () => ({ clientWidth: 1000, clientHeight: 900 }) } as unknown as MapLibreMap,
     Marker: Marker as unknown as typeof import('maplibre-gl')['Marker'],
     current: [new Marker() as unknown as MapLibreMarker], clusters: [],
-    styles: { marker: 'marker', cluster: 'cluster', selected: 'selected', dot: 'dot', markerLabel: 'label', markerSymbol: 'symbol' },
+    styles: { marker: 'marker', cluster: 'cluster', selected: 'selected', dot: 'dot', markerLabel: 'label', markerSymbol: 'symbol', collectionMarker: 'collection' },
     callbacks: { onSelect: () => undefined },
   } }
 }

@@ -1,7 +1,8 @@
 'use client'
 
 import type {
-  PersonalLibraryMapResponseV3,
+  CollectionColorToken,
+  PersonalLibraryMapResponseV4,
   LibraryTagListResponse,
   PersonalLibraryRatingFilterV2,
   PersonalLibraryWorkspaceResponseV2,
@@ -14,13 +15,14 @@ import {
 } from './collection-library-http'
 import { usePlaceFilingWorkflow } from '../place-filing/place-filing-workflow'
 import { createLibraryMapRequestGuard } from '../library-map/library-map-request-guard'
+import { toggleMapCollectionSelection, type MapCollectionSelection } from '../library-map/map-collection-selection'
 import { useCollectionDirectory } from './collection-directory-workflow'
 import { useLibraryQuery } from './search/use-library-query'
 
 type PageStatus = 'loading' | 'ready' | 'authentication-required' | 'forbidden' | 'not-found' | 'unavailable' | 'error'
 type MobileSurface = 'collections' | 'list' | 'map' | 'detail'
 
-const initialViewport: PersonalLibraryMapResponseV3['viewport'] = {
+const initialViewport: PersonalLibraryMapResponseV4['viewport'] = {
   bounds: { west: 126.90, south: 37.50, east: 127.10, north: 37.60 },
   zoom: 12,
 }
@@ -54,10 +56,16 @@ export function useCollectionLibraryWorkflow(initial: LibraryInitialScope = {}) 
   const [loadingMore, setLoadingMore] = useState(false)
   const [revision, setRevision] = useState(0)
   const [mapViewport, setMapViewport] = useState(initialViewport)
-  const [mapProjection, setMapProjection] = useState<PersonalLibraryMapResponseV3 | undefined>()
+  const [mapSelection, setMapSelection] = useState<MapCollectionSelection>(() => (
+    initial.initialCollectionId === undefined
+      ? { kind: 'all' }
+      : { kind: 'collections', collectionIds: [initial.initialCollectionId] }
+  ))
+  const [mapProjection, setMapProjection] = useState<PersonalLibraryMapResponseV4 | undefined>()
+  const [mapCollectionMetadata, setMapCollectionMetadata] = useState<PersonalLibraryMapResponseV4['selectedCollections']>([])
   const [mapStatus, setMapStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const [newCollectionName, setNewCollectionName] = useState('')
-  const [collectionMutation, setCollectionMutation] = useState<'idle' | 'creating' | 'renaming' | 'deleting'>('idle')
+  const [collectionMutation, setCollectionMutation] = useState<'idle' | 'creating' | 'renaming' | 'coloring' | 'deleting'>('idle')
   const [collectionMessage, setCollectionMessage] = useState<string | undefined>()
   const requestSequence = useRef(0)
   const mapRequests = useRef(createLibraryMapRequestGuard())
@@ -75,7 +83,6 @@ export function useCollectionLibraryWorkflow(initial: LibraryInitialScope = {}) 
     ...tags.map((item) => ({ kind: 'tag' as const, key: item.tagId, label: item.name })),
   ], { areaKeys, taxonomyKeys, tagIds })
   const { query: placeQuery, submit: setPlaceQuery, text: queryText, filters: queryFilters } = search
-  const hasPlaceScope = mobileSurface !== 'collections'
 
   const loadWorkspace = useCallback(async (
     cursors: Readonly<{ placeCursor?: string }> = {},
@@ -159,17 +166,16 @@ export function useCollectionLibraryWorkflow(initial: LibraryInitialScope = {}) 
 
   useEffect(() => {
     setMapProjection(undefined)
-    if (!hasPlaceScope) {
-      mapRequests.current.invalidate()
-      setMapStatus('idle')
-      return
-    }
     const request = mapRequests.current.start()
+    if (mapSelection.kind === 'none') {
+      setMapStatus('ready')
+      return () => mapRequests.current.cancel(request)
+    }
     const timeout = window.setTimeout(() => {
       setMapStatus('loading')
-      collectionLibraryHttp.map({
+      collectionLibraryHttp.mapV4({
         ...(selectedPlaceId === undefined ? {} : { selectedPlaceId }),
-        favoriteScope: selectedCollectionId === undefined ? { kind: 'all' } : { kind: 'collection', collectionId: selectedCollectionId },
+        selection: mapSelection,
         ratingFilter: { kind: ratingFilter },
         tagIds: [...queryFilters.tagIds], tagMatch: 'all', areaKeys: [...queryFilters.areaKeys], taxonomyKeys: [...queryFilters.taxonomyKeys],
         ...(queryText ? { placeQuery: queryText } : {}),
@@ -181,6 +187,11 @@ export function useCollectionLibraryWorkflow(initial: LibraryInitialScope = {}) 
       }, request.signal).then((projection) => {
         if (!mapRequests.current.isCurrent(request)) return
         setMapProjection(projection)
+        setMapCollectionMetadata((current) => {
+          const byId = new Map(current.map((collection) => [collection.collectionId, collection]))
+          for (const collection of projection.selectedCollections) byId.set(collection.collectionId, collection)
+          return [...byId.values()]
+        })
         setMapStatus('ready')
       }).catch((reason) => {
         if (!mapRequests.current.isCurrent(request)) return
@@ -194,7 +205,7 @@ export function useCollectionLibraryWorkflow(initial: LibraryInitialScope = {}) 
       window.clearTimeout(timeout)
       mapRequests.current.cancel(request)
     }
-  }, [accessFailure, hasPlaceScope, mapViewport, queryFilters, queryText, ratingFilter, revision, selectedCollectionId, selectedPlaceId])
+  }, [accessFailure, mapSelection, mapViewport, queryFilters, queryText, ratingFilter, revision, selectedPlaceId])
 
   const refresh = useCallback(async () => {
     setRevision((current) => current + 1)
@@ -217,15 +228,20 @@ export function useCollectionLibraryWorkflow(initial: LibraryInitialScope = {}) 
   }, [workspace])
 
   const executeCollectionCommand = useCallback(async (
-    kind: 'creating' | 'renaming' | 'deleting',
-    request: Parameters<typeof collectionLibraryHttp.collectionCommand>[0],
+    kind: 'creating' | 'renaming' | 'coloring' | 'deleting',
+    execute: () => Promise<Readonly<{
+      outcome: 'accepted'
+    }> | Readonly<{
+      outcome: 'rejected'
+      rejection: Readonly<{ code: string }>
+    }>>,
     onApplied: () => void,
   ) => {
     if (collectionMutation !== 'idle') return false
     setCollectionMutation(kind)
     setCollectionMessage(undefined)
     try {
-      const result = await collectionLibraryHttp.collectionCommand(request)
+      const result = await execute()
       if (result.outcome === 'rejected') {
         setCollectionMessage(result.rejection.code === 'not-found'
           ? '이 카테고리는 더 이상 존재하지 않습니다.'
@@ -258,14 +274,14 @@ export function useCollectionLibraryWorkflow(initial: LibraryInitialScope = {}) 
     const name = newCollectionName.trim()
     if (name.length === 0 || name.length > 120) return Promise.resolve()
     const collectionId = crypto.randomUUID()
-    return executeCollectionCommand('creating', {
+    return executeCollectionCommand('creating', () => collectionLibraryHttp.collectionCommand({
       schemaVersion: 'collection-lifecycle-command.v2',
       kind: 'create',
       commandId: crypto.randomUUID(),
       collectionId,
       name,
       description: null,
-    }, () => {
+    }), () => {
       setNewCollectionName('')
       setCollectionQuery('')
       setSelectedCollectionId(collectionId)
@@ -279,24 +295,29 @@ export function useCollectionLibraryWorkflow(initial: LibraryInitialScope = {}) 
       name.length === 0 || name.length > 120 ||
       name === target.name
     ) return Promise.resolve(false)
-    return executeCollectionCommand('renaming', {
+    return executeCollectionCommand('renaming', () => collectionLibraryHttp.collectionCommand({
       schemaVersion: 'collection-lifecycle-command.v2',
       kind: 'update',
       commandId: crypto.randomUUID(),
       collectionId: target.collectionId,
       expectedCollectionRevision: target.collectionRevision,
       name,
-    }, () => undefined)
+    }), () => undefined)
   }
 
   const deleteCollection = (target: NonNullable<typeof selectedCollection>) => {
-    return executeCollectionCommand('deleting', {
+    return executeCollectionCommand('deleting', () => collectionLibraryHttp.collectionCommand({
       schemaVersion: 'collection-lifecycle-command.v2',
       kind: 'delete',
       commandId: crypto.randomUUID(),
       collectionId: target.collectionId,
       expectedCollectionRevision: target.collectionRevision,
-    }, () => {
+    }), () => {
+      setMapSelection((current) => {
+        if (current.kind !== 'collections' || !current.collectionIds.includes(target.collectionId)) return current
+        const collectionIds = current.collectionIds.filter((collectionId) => collectionId !== target.collectionId)
+        return collectionIds.length === 0 ? { kind: 'none' } : { kind: 'collections', collectionIds }
+      })
       if (selectedCollectionId === target.collectionId) {
         setSelectedCollectionId(undefined)
         setSelectedPlaceId(undefined)
@@ -304,6 +325,19 @@ export function useCollectionLibraryWorkflow(initial: LibraryInitialScope = {}) 
       }
     })
   }
+
+  const changeCollectionColor = (
+    target: NonNullable<typeof selectedCollection>,
+    colorToken: CollectionColorToken,
+  ) => executeCollectionCommand('coloring', () => collectionLibraryHttp.collectionColorCommand({
+    schemaVersion: 'collection-color-command.v1',
+    commandId: crypto.randomUUID(),
+    collectionId: target.collectionId,
+    expectedCollectionRevision: target.collectionRevision,
+    colorToken,
+  }), () => setMapCollectionMetadata((current) => current.map((collection) => (
+    collection.collectionId === target.collectionId ? { ...collection, colorToken } : collection
+  ))))
 
   const selectedPlace = workspace?.places.find((row) => row.placeId === selectedPlaceId)
 
@@ -336,7 +370,9 @@ export function useCollectionLibraryWorkflow(initial: LibraryInitialScope = {}) 
     loadingMore,
     loadingMoreCollections: directory.loadingMore,
     mapViewport,
+    mapSelection,
     mapProjection,
+    mapCollectionMetadata,
     mapStatus,
     newCollectionName,
     collectionMutation,
@@ -344,6 +380,11 @@ export function useCollectionLibraryWorkflow(initial: LibraryInitialScope = {}) 
     filing,
     handleAccessFailure: accessFailure,
     handleTagsChanged,
+    selectAllMapCollections: () => setMapSelection({ kind: 'all' }),
+    clearMapCollections: () => setMapSelection({ kind: 'none' }),
+    toggleMapCollection: (collectionId: string) => setMapSelection((current) => (
+      toggleMapCollectionSelection(current, collectionId, directory.collections.map((collection) => collection.collectionId))
+    )),
     selectCollection: (collectionId: string) => {
       if (selectedCollectionId !== collectionId) {
         setPlaceQuery('')
@@ -353,6 +394,7 @@ export function useCollectionLibraryWorkflow(initial: LibraryInitialScope = {}) 
         setTaxonomyKeys([])
       }
       setSelectedCollectionId(collectionId)
+      setMapSelection({ kind: 'collections', collectionIds: [collectionId] })
       setSelectedPlaceId(undefined)
       setMobileSurface('list')
     },
@@ -365,6 +407,7 @@ export function useCollectionLibraryWorkflow(initial: LibraryInitialScope = {}) 
         setPlaceQuery(''); setRatingFilter('any'); setTagIds([]); setAreaKeys([]); setTaxonomyKeys([])
       }
       setSelectedCollectionId(undefined)
+      setMapSelection({ kind: 'all' })
       setSelectedPlaceId(undefined)
       setMobileSurface('list')
     },
@@ -436,6 +479,7 @@ export function useCollectionLibraryWorkflow(initial: LibraryInitialScope = {}) 
     setNewCollectionName,
     createCollection,
     renameCollection,
+    changeCollectionColor,
     deleteCollection,
     refresh,
   }

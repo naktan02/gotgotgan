@@ -82,6 +82,60 @@ describe('browser library HTTP', () => {
     expect(fetcher).toHaveBeenCalledTimes(1)
   })
 
+  it('forwards repeated v4 Collection selections through the authenticated fixed backend', async () => {
+    const collectionB = '01992d20-0000-7000-8000-000000000006'
+    const fetcher = vi.fn(async (url: URL, init: RequestInit) => {
+      expect(url.pathname).toBe('/v4/library/workspace/map')
+      expect(url.searchParams.get('scope')).toBe('collections')
+      expect(url.searchParams.getAll('collectionIds')).toEqual([collectionId, collectionB])
+      expect(new Headers(init.headers).get('authorization')).toBe('Bearer server-access-token')
+      return Response.json({
+        schemaVersion: 'personal-library-map.v4',
+        selection: { kind: 'collections', collectionIds: [collectionId, collectionB] },
+        filter: { ratingFilter: { kind: 'any' }, tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: [] },
+        selectedCollections: [
+          { collectionId, name: '성수', colorToken: 'fern' },
+          { collectionId: collectionB, name: '을지로', colorToken: 'ocean' },
+        ],
+        viewport: { bounds: { west: 126, south: 37, east: 128, north: 38 }, zoom: 14 },
+        features: [],
+        coverage: { representedPlaceCount: 0, unprojectedPlaceCount: 0, complete: true },
+      })
+    })
+    const http = createBrowserLibraryHttp({ resolveAuthRuntime: sessionRuntime, backend: backend(fetcher), createCorrelationRef: () => 'test-ref' })
+    const requestUrl = `https://place.example/api/v4/library/workspace/map?scope=collections&collectionIds=${collectionId}&collectionIds=${collectionB}&west=126&south=37&east=128&north=38&zoom=14`
+    const response = await http.workspaceMapV4(new Request(requestUrl))
+    expect(response.status).toBe(200)
+    expect((await response.json()).selectedCollections).toHaveLength(2)
+    expect((await http.workspaceMapV4(new Request(`${requestUrl}&memberId=forged`))).status).toBe(400)
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+
+  it('forwards a strict Collection color command without browser authority fields', async () => {
+    const fetcher = vi.fn(async (url: URL, init: RequestInit) => {
+      expect(url.pathname).toBe('/v1/library/collection-color-commands')
+      expect(new Headers(init.headers).get('authorization')).toBe('Bearer server-access-token')
+      expect(JSON.parse(String(init.body))).toEqual({
+        schemaVersion: 'collection-color-command.v1', commandId, collectionId,
+        expectedCollectionRevision: 'opaque-revision', colorToken: 'coral',
+      })
+      return Response.json({
+        schemaVersion: 'collection-color-command-result.v1', outcome: 'accepted',
+        receipt: { commandId, status: 'applied' }, collectionId,
+        collectionRevision: 'next-revision', colorToken: 'coral',
+      }, { status: 201 })
+    })
+    const http = createBrowserLibraryHttp({ resolveAuthRuntime: sessionRuntime, backend: backend(fetcher), createCorrelationRef: () => 'test-ref' })
+    const request = new Request('https://place.example/api/library/collection-color-commands', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ schemaVersion: 'collection-color-command.v1', commandId, collectionId,
+        expectedCollectionRevision: 'opaque-revision', colorToken: 'coral' }),
+    })
+
+    expect((await http.collectionColorCommand(request)).status).toBe(201)
+    expect(fetcher).toHaveBeenCalledOnce()
+  })
+
   it('preserves the existing strict v2 BFF and rejects v3 selection input there', async () => {
     const fetcher = vi.fn(async (url: URL) => {
       expect(url.pathname).toBe('/v2/library/workspace/map')

@@ -4,8 +4,15 @@ import type { CatalogSearchInterpretationToken, CatalogSearchIntent, CatalogExpl
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { PlaceMapCluster, PlaceMapMarker, PlaceMapViewport } from '@/platform/maps/public'
-
 import { catalogHomeClient } from './catalog-home-client'
+import { composeCatalogAndLibraryMap } from './catalog-library-map-composition'
+import {
+  useCatalogLibraryOverlay,
+  type CatalogHomeLibrary,
+  type CatalogLibraryState,
+  type FavoriteCollection,
+  type MapCollectionSelection,
+} from './catalog-library-overlay'
 import { createCatalogMapRequestGuard } from './catalog-map-request-guard'
 import { catalogSearchNear } from './search-input/search-location'
 import { createCatalogQueryIntentResolver } from './search-input/catalog-query-intent'
@@ -19,20 +26,7 @@ export type CatalogHomePlace = Readonly<{
   evidenceStatus: 'verified' | 'unverified' | 'conflicted' | 'stale' | 'unknown'
 }>
 
-export type FavoriteCollection = Readonly<{
-  collectionId: string
-  name: string
-  placeCount: number
-}>
-
-export type CatalogHomeLibrary = Readonly<{
-  readCollections: (signal: AbortSignal) => Promise<
-    | Readonly<{ kind: 'ready'; items: readonly FavoriteCollection[] }>
-    | Readonly<{ kind: 'signed-out' | 'unavailable' }>
-  >
-}>
-
-type CollectionState = 'loading' | 'ready' | 'signed-out' | 'unavailable'
+export type { CatalogHomeLibrary, FavoriteCollection } from './catalog-library-overlay'
 type SearchState = 'idle' | 'loading' | 'ready' | 'unavailable'
 
 export type CatalogHomeWorkflow = Readonly<{
@@ -51,8 +45,11 @@ export type CatalogHomeWorkflow = Readonly<{
   nextCursor: string | undefined
   paginationState: 'idle' | 'loading' | 'unavailable'
   collections: readonly FavoriteCollection[]
-  collectionState: CollectionState
+  collectionState: CatalogLibraryState
   collectionPickerOpen: boolean
+  mapCollectionSelection: MapCollectionSelection
+  mapCollectionMetadata: ReturnType<typeof useCatalogLibraryOverlay>['metadata']
+  mapCollectionState: CatalogLibraryState
   viewport: PlaceMapViewport
   mapMarkers: readonly PlaceMapMarker[]
   mapClusters: readonly PlaceMapCluster[]
@@ -64,11 +61,15 @@ export type CatalogHomeWorkflow = Readonly<{
   excludeToken: (tokenId: string) => void
   selectPlace: (placeId: string) => void
   setCollectionPickerOpen: (open: boolean) => void
+  clearMapCollections: () => void
+  selectAllMapCollections: () => void
+  toggleMapCollection: (collectionId: string) => void
   onFilingApplied: () => Promise<void>
   onFilingAccessFailure: (status: number) => void
   setViewport: (viewport: PlaceMapViewport) => void
   selectMapCluster: (cluster: PlaceMapCluster) => void
   loadMore: () => void
+  openFavorites?: ((query: string) => void) | undefined
 }>
 
 const initialViewport: PlaceMapViewport = {
@@ -86,7 +87,13 @@ export function CatalogHomeProvider({
   children,
   initialQuery = '',
   library,
-}: Readonly<{ children: React.ReactNode; initialQuery?: string; library: CatalogHomeLibrary }>) {
+  openFavorites,
+}: Readonly<{
+  children: React.ReactNode
+  initialQuery?: string
+  library: CatalogHomeLibrary
+  openFavorites?: ((query: string) => void) | undefined
+}>) {
   const [draftQuery, setDraftQuery] = useState(() => normalize(initialQuery))
   const [searchIntent, setSearchIntent] = useState<CatalogSearchIntent>('auto')
   const intentRef = useRef<CatalogSearchIntent>('auto')
@@ -107,12 +114,10 @@ export function CatalogHomeProvider({
   const [nextCursor, setNextCursor] = useState<string>()
   const [paginationState, setPaginationState] = useState<'idle' | 'loading' | 'unavailable'>('idle')
   const [activeSearchBounds, setActiveSearchBounds] = useState<SearchBounds>()
-  const [collections, setCollections] = useState<readonly FavoriteCollection[]>([])
-  const [collectionState, setCollectionState] = useState<CollectionState>('loading')
-  const [collectionPickerOpen, setCollectionPickerOpen] = useState(false)
   const [viewport, setViewport] = useState<PlaceMapViewport>(initialViewport)
-  const [mapMarkers, setMapMarkers] = useState<readonly PlaceMapMarker[]>([])
-  const [mapClusters, setMapClusters] = useState<readonly PlaceMapCluster[]>([])
+  const [catalogMapMarkers, setCatalogMapMarkers] = useState<readonly PlaceMapMarker[]>([])
+  const [catalogMapClusters, setCatalogMapClusters] = useState<readonly PlaceMapCluster[]>([])
+  const libraryOverlay = useCatalogLibraryOverlay({ library, selectedPlaceId, viewport })
   const [mapState, setMapState] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
   const [mapDescription, setMapDescription] = useState('검색하면 현재 지도 영역의 장소를 표시합니다.')
   const searchSequence = useRef(0)
@@ -146,13 +151,13 @@ export function CatalogHomeProvider({
         signal: request.signal,
       })
       if (!mapRequests.current.isCurrent(request.generation)) return
-      setMapMarkers(projection.features.flatMap((feature) => feature.kind === 'place' ? [{
+      setCatalogMapMarkers(projection.features.flatMap((feature) => feature.kind === 'place' ? [{
         id: feature.placeId,
         label: feature.label,
         location: feature.location,
         classification: feature.classification,
       }] : []))
-      setMapClusters(projection.features.flatMap((feature) => feature.kind === 'cluster' ? [{
+      setCatalogMapClusters(projection.features.flatMap((feature) => feature.kind === 'cluster' ? [{
         id: feature.clusterId,
         count: feature.count,
         location: feature.location,
@@ -166,33 +171,12 @@ export function CatalogHomeProvider({
     } catch (reason) {
       if (reason instanceof DOMException && reason.name === 'AbortError') return
       if (!mapRequests.current.isCurrent(request.generation)) return
-      setMapMarkers([])
-      setMapClusters([])
+      setCatalogMapMarkers([])
+      setCatalogMapClusters([])
       setMapDescription('현재 영역의 지도 장소를 불러오지 못했습니다. 목록은 계속 사용할 수 있습니다.')
       setMapState('unavailable')
     }
   }, [])
-
-  const loadCollections = useCallback(async (signal: AbortSignal) => {
-    try {
-      const result = await library.readCollections(signal)
-      if (result.kind === 'ready') {
-        setCollections(result.items)
-        setCollectionState('ready')
-        return
-      }
-      setCollectionState(result.kind)
-    } catch (reason: unknown) {
-      if (reason instanceof DOMException && reason.name === 'AbortError') return
-      setCollectionState('unavailable')
-    }
-  }, [library])
-
-  useEffect(() => {
-    const controller = new AbortController()
-    void loadCollections(controller.signal)
-    return () => controller.abort()
-  }, [loadCollections])
 
   const executeSearch = useCallback(async (
     query: string,
@@ -216,8 +200,8 @@ export function CatalogHomeProvider({
       setSearchState('idle')
       setNextCursor(undefined)
       setPaginationState('idle')
-      setMapMarkers([])
-      setMapClusters([])
+      setCatalogMapMarkers([])
+      setCatalogMapClusters([])
       setMapState('idle')
       return
     }
@@ -239,8 +223,8 @@ export function CatalogHomeProvider({
       setNextCursor(undefined)
       setPaginationState('idle')
       setMapState('loading')
-      setMapMarkers([])
-      setMapClusters([])
+      setCatalogMapMarkers([])
+      setCatalogMapClusters([])
     }
     try {
       const page = await catalogHomeClient.search({
@@ -300,6 +284,14 @@ export function CatalogHomeProvider({
     }
   }, [executeMapSearch, updateViewport])
 
+  const composedMap = useMemo(() => composeCatalogAndLibraryMap({
+    catalogMarkers: catalogMapMarkers,
+    catalogClusters: catalogMapClusters,
+    libraryProjection: libraryOverlay.projection,
+    showLibrary: libraryOverlay.selection.kind !== 'none',
+  }), [catalogMapClusters, catalogMapMarkers, libraryOverlay.projection, libraryOverlay.selection.kind])
+  const mapMarkers = composedMap.markers
+  const mapClusters = composedMap.clusters
   const selectedMapPlace = mapMarkers.find((item) => item.id === selectedPlaceId)
   const selected = (selectedSummary?.placeId === selectedPlaceId ? selectedSummary : undefined) ?? items.find((item) => item.placeId === selectedPlaceId) ?? (
     selectedMapPlace === undefined ? undefined : {
@@ -315,7 +307,7 @@ export function CatalogHomeProvider({
     setDraftQuery(next.name); setSubmittedQuery(next.name); setSelectedQuickType(null)
     intentRef.current = 'name'; setSearchIntent('name')
     taxonomyKeyRef.current = undefined
-    setInterpretation([]); setItems([]); setMapMarkers([]); setMapClusters([])
+    setInterpretation([]); setItems([]); setCatalogMapMarkers([]); setCatalogMapClusters([])
     setSearchState('ready'); setMapState('ready'); setNextCursor(undefined)
     const { latitude, longitude } = next.location
     const pointRadius = next.kind === 'neighborhood' ? 0.012 : next.kind === 'administrative-area' ? 0.5 : 0.12
@@ -373,14 +365,6 @@ export function CatalogHomeProvider({
     setExcludedTokenIds(next)
     void executeSearch(submittedQuery, next)
   }
-  const onFilingApplied = useCallback(async () => {
-    await loadCollections(new AbortController().signal)
-  }, [loadCollections])
-
-  const onFilingAccessFailure = useCallback((status: number) => {
-    setCollectionState(status === 401 ? 'signed-out' : 'unavailable')
-  }, [])
-
   const value = useMemo<CatalogHomeWorkflow>(() => ({
     searchIntent, destination, chooseDestination,
     chooseCandidate: (candidate) => {
@@ -396,8 +380,8 @@ export function CatalogHomeProvider({
       setItems([place]); setSelectedSummary(place); setSelectedPlaceId(place.placeId)
       setInterpretation([]); setSearchState('ready'); setNextCursor(undefined)
       searchController.current?.abort(); ++searchSequence.current; mapRequests.current.invalidate()
-      setMapClusters([]); setMapState('ready')
-      setMapMarkers(place.location ? [{ id: place.placeId, label: place.name, location: place.location }] : [])
+      setCatalogMapClusters([]); setMapState('ready')
+      setCatalogMapMarkers(place.location ? [{ id: place.placeId, label: place.name, location: place.location }] : [])
       if (place.location) updateViewport({ zoom: 16, bounds: {
         west: place.location.longitude - 0.003, east: place.location.longitude + 0.003,
         south: place.location.latitude - 0.002, north: place.location.latitude + 0.002,
@@ -405,7 +389,12 @@ export function CatalogHomeProvider({
     },
     draftQuery, submittedQuery, selectedQuickType, interpretation, items, selected,
     searchState, searchError, nextCursor, paginationState,
-    collections, collectionState, collectionPickerOpen,
+    collections: libraryOverlay.collections,
+    collectionState: libraryOverlay.collectionState,
+    collectionPickerOpen: libraryOverlay.collectionPickerOpen,
+    mapCollectionSelection: libraryOverlay.selection,
+    mapCollectionMetadata: libraryOverlay.metadata,
+    mapCollectionState: libraryOverlay.mapState,
     viewport, mapMarkers, mapClusters, mapState, mapDescription,
     changeDraftQuery: (query) => { queryIntents.current.invalidate(); setDraftQuery(query) },
     submitSearch,
@@ -419,11 +408,14 @@ export function CatalogHomeProvider({
         areaLabel: null, taxonomyLabel: null, evidenceStatus: 'unknown',
       }))
       setSelectedPlaceId(placeId)
-      setCollectionPickerOpen(false)
+      libraryOverlay.setCollectionPickerOpen(false)
     },
-    setCollectionPickerOpen,
-    onFilingApplied,
-    onFilingAccessFailure,
+    setCollectionPickerOpen: libraryOverlay.setCollectionPickerOpen,
+    clearMapCollections: libraryOverlay.clear,
+    selectAllMapCollections: libraryOverlay.selectAll,
+    toggleMapCollection: libraryOverlay.toggle,
+    onFilingApplied: libraryOverlay.refresh,
+    onFilingAccessFailure: libraryOverlay.recordAccessFailure,
     setViewport: (next) => {
       updateViewport(next)
       clearTimeout(viewportTimer.current)
@@ -438,6 +430,7 @@ export function CatalogHomeProvider({
       updateViewport(next)
       void executeMapSearch(submittedQuery, excludedTokenIds, next)
     },
+    ...(openFavorites === undefined ? {} : { openFavorites }),
     loadMore: () => {
       if (nextCursor !== undefined && paginationState !== 'loading') {
         void executeSearch(
@@ -449,10 +442,9 @@ export function CatalogHomeProvider({
       }
     },
   }), [
-    collectionPickerOpen, collectionState, collections,
     searchIntent, destination, executeMapSearch,
     activeSearchBounds, draftQuery, excludedTokenIds, executeSearch, interpretation, items,
-    mapClusters, mapDescription, mapMarkers, mapState, nextCursor, onFilingAccessFailure, onFilingApplied, paginationState, searchError, searchState, selected,
+    libraryOverlay, mapClusters, mapDescription, mapMarkers, mapState, nextCursor, openFavorites, paginationState, searchError, searchState, selected,
     selectedQuickType, submittedQuery, updateViewport, viewport,
   ])
 

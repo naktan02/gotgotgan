@@ -1,12 +1,19 @@
 import {
+  collectionColorCommandRequestV1Schema,
+  collectionColorCommandResultV1Schema,
   collectionLifecycleCommandRequestV2Schema,
   collectionLifecycleCommandResultV2Schema,
   personalLibraryMapRequestV3Schema,
   personalLibraryMapResponseV3Schema,
+  personalLibraryMapRequestV4Schema,
+  personalLibraryMapResponseV4Schema,
   libraryTagListResponseSchema,
   personalLibraryWorkspaceRequestV2Schema,
   personalLibraryWorkspaceResponseV2Schema,
   type PersonalLibraryMapRequestV3,
+  type PersonalLibraryMapRequestV4,
+  type CollectionColorCommandRequestV1,
+  type CollectionColorCommandResultV1,
   type CollectionLifecycleCommandRequestV2,
   type CollectionLifecycleCommandResultV2,
   type PersonalLibraryWorkspaceRequestV2,
@@ -81,6 +88,23 @@ export function createCollectionLibraryHttp(fetcher: typeof fetch = fetch) {
       throw new CollectionLibraryProblem(response.status || 503)
     },
 
+    async collectionColorCommand(
+      request: CollectionColorCommandRequestV1,
+      signal?: AbortSignal,
+    ): Promise<CollectionColorCommandResultV1> {
+      const body = collectionColorCommandRequestV1Schema.parse(request)
+      const response = await fetcher('/api/library/collection-color-commands', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+        ...(signal === undefined ? {} : { signal }),
+      })
+      const value = await json(response)
+      const parsed = collectionColorCommandResultV1Schema.safeParse(value)
+      if (parsed.success) return parsed.data
+      throw new CollectionLibraryProblem(response.status || 503)
+    },
+
     async tags(signal?: AbortSignal, cursor?: string) {
       const parameters = new URLSearchParams({ limit: '50' })
       if (cursor !== undefined) parameters.set('cursor', cursor)
@@ -117,6 +141,35 @@ export function createCollectionLibraryHttp(fetcher: typeof fetch = fetch) {
       const value = await json(response)
       if (!response.ok) throw new CollectionLibraryProblem(response.status)
       return personalLibraryMapResponseV3Schema.parse(value)
+    },
+
+    async mapV4(query: PersonalLibraryMapRequestV4, signal?: AbortSignal) {
+      const parsed = personalLibraryMapRequestV4Schema.parse(query)
+      const parameters = new URLSearchParams({
+        scope: parsed.selection.kind === 'all' ? 'all' : 'collections',
+        rating: parsed.ratingFilter.kind,
+        tagMatch: parsed.tagMatch,
+        west: String(parsed.west),
+        south: String(parsed.south),
+        east: String(parsed.east),
+        north: String(parsed.north),
+        zoom: String(parsed.zoom),
+      })
+      if (parsed.selection.kind === 'collections') {
+        for (const collectionId of parsed.selection.collectionIds) parameters.append('collectionIds', collectionId)
+      }
+      if (parsed.placeQuery !== undefined) parameters.set('placeQuery', parsed.placeQuery)
+      if (parsed.selectedPlaceId !== undefined) parameters.set('selectedPlaceId', parsed.selectedPlaceId)
+      for (const tagId of parsed.tagIds) parameters.append('tagIds', tagId)
+      for (const areaKey of parsed.areaKeys) parameters.append('areaKeys', areaKey)
+      for (const taxonomyKey of parsed.taxonomyKeys) parameters.append('taxonomyKeys', taxonomyKey)
+      const response = await fetcher(`/api/v4/library/workspace/map?${parameters}`, {
+        cache: 'no-store',
+        ...(signal === undefined ? {} : { signal }),
+      })
+      const value = await json(response)
+      if (!response.ok) throw new CollectionLibraryProblem(response.status)
+      return personalLibraryMapResponseV4Schema.parse(value)
     },
   }
 }

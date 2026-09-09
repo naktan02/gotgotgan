@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import type { PlaceMapRenderer } from '@/platform/maps/public'
 
 import { PersonalLibraryMap } from '../library-map/PersonalLibraryMap'
+import { collectionColorValue } from '../library-map/collection-color-palette'
 import { PersonalPlaceDetail } from '../personal-place-detail/PersonalPlaceDetail'
 import type { PersonalPlaceNavigation } from '../draft-navigation/DraftNavigation'
 import { PlaceFilingEditor } from '../place-filing/PlaceFilingEditor'
@@ -32,6 +33,8 @@ export function CollectionLibraryView({ mapRenderer: MapRenderer, workflow, scop
   const suppressSheetClick = useRef(false)
   const detailNavigation = useRef<PersonalPlaceNavigation>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [mapCollectionsOpen, setMapCollectionsOpen] = useState(false)
+  const [mapCollectionQuery, setMapCollectionQuery] = useState('')
   const [draftQuery, setDraftQuery] = useState(workflow.placeQuery)
   const directoryFocus = useRef<HTMLButtonElement | null>(null)
   const placeFocus = useRef<HTMLButtonElement | null>(null)
@@ -41,6 +44,16 @@ export function CollectionLibraryView({ mapRenderer: MapRenderer, workflow, scop
   const isDetail = workflow.selectedPlaceId !== undefined && !isDirectory
   const selected = workflow.selectedPlace?.place
   const scope = isDirectory ? '내 목록' : workflow.selectedCollection?.name ?? '전체 저장 장소'
+  const visibleMapCollections = workflow.collections.filter((collection) => collection.name
+    .normalize('NFKC').toLocaleLowerCase().includes(mapCollectionQuery.trim().normalize('NFKC').toLocaleLowerCase()))
+  const selectedMapCollections = workflow.mapSelection.kind === 'all'
+    ? workflow.mapCollectionMetadata
+    : workflow.mapSelection.kind === 'none'
+      ? []
+      : workflow.mapSelection.collectionIds.flatMap((collectionId) => {
+          const collection = workflow.mapCollectionMetadata.find((item) => item.collectionId === collectionId)
+          return collection === undefined ? [] : [collection]
+        })
 
   useEffect(() => { setDraftQuery(workflow.placeQuery) }, [workflow.placeQuery])
 
@@ -165,6 +178,41 @@ export function CollectionLibraryView({ mapRenderer: MapRenderer, workflow, scop
         <span className={styles.collapseLabel}>{collapsed ? scope : '지도 넓게'}</span>
       </button>
       <div className={styles.mapPane}>
+        {workflow.collections.length > 0 && <div className={styles.mapCollectionControl}>
+          <button aria-expanded={mapCollectionsOpen} className={styles.mapCollectionTrigger}
+            onClick={() => setMapCollectionsOpen(!mapCollectionsOpen)} type="button">
+            <span aria-hidden="true">★</span> 즐겨찾기 표시
+            {workflow.mapSelection.kind !== 'none' && <small>{workflow.mapSelection.kind === 'all'
+              ? '전체' : workflow.mapSelection.collectionIds.length}</small>}
+          </button>
+          {mapCollectionsOpen && <section aria-label="지도 즐겨찾기 표시 설정" className={styles.mapCollections}>
+            <header><strong>지도에 겹쳐 보기</strong><button onClick={workflow.clearMapCollections} type="button">전체 해제</button></header>
+            <input aria-label="표시할 즐겨찾기 목록 검색" maxLength={160}
+              onChange={(event) => setMapCollectionQuery(event.target.value)} placeholder="Collection 검색"
+              type="search" value={mapCollectionQuery} />
+            <button aria-pressed={workflow.mapSelection.kind === 'all'} type="button"
+              onClick={workflow.selectAllMapCollections}>전체 저장 장소</button>
+            <div>{visibleMapCollections.map((collection) => {
+              const projected = workflow.mapCollectionMetadata.find((item) => item.collectionId === collection.collectionId)
+              const checked = workflow.mapSelection.kind === 'all' || (
+                workflow.mapSelection.kind === 'collections' && workflow.mapSelection.collectionIds.includes(collection.collectionId)
+              )
+              return <label key={collection.collectionId}>
+                <input checked={checked} onChange={() => workflow.toggleMapCollection(collection.collectionId)} type="checkbox" />
+                <span aria-hidden="true" style={projected === undefined ? undefined : {
+                  background: collectionColorValue(projected.colorToken),
+                }} />
+                {collection.name}
+              </label>
+            })}</div>
+            <small>지도에는 한 번에 최대 100개 Collection을 표시합니다.</small>
+            {selectedMapCollections.length > 0 && <div aria-label="선택한 Collection 범례" className={styles.mapCollectionLegend}>
+              {selectedMapCollections.map((collection) => <span key={collection.collectionId}>
+                <i aria-hidden="true" style={{ background: collectionColorValue(collection.colorToken) }} />{collection.name}
+              </span>)}
+            </div>}
+          </section>}
+        </div>}
         <PersonalLibraryMap
           error={workflow.mapStatus === 'error' ? '지도를 불러올 수 없습니다. 목록 기능은 계속 사용할 수 있습니다.' : undefined}
           loading={workflow.mapStatus === 'loading'} mapRenderer={MapRenderer} onRetry={workflow.retryMap}
@@ -176,7 +224,7 @@ export function CollectionLibraryView({ mapRenderer: MapRenderer, workflow, scop
           onViewportChange={workflow.setMapViewport} projection={workflow.mapProjection}
           selectedPlaceId={workflow.selectedPlaceId} viewport={workflow.mapViewport}
         />
-        {isDirectory && <p className={styles.mapHint}>목록을 선택하면 담아 둔 장소가 지도에 표시됩니다.</p>}
+        {isDirectory && <p className={styles.mapHint}>전체 저장 장소를 지도에서 보고, 목록을 선택해 좁혀 볼 수 있습니다.</p>}
       </div>
     </div>
   </section>

@@ -1,4 +1,5 @@
 import type {
+  CollectionColorCommandRequestV1,
   CollectionLifecycleCommandRequestV2,
   LibraryCollectionDetailQuery,
   LibraryCollectionListQuery,
@@ -9,6 +10,7 @@ import type {
   PersonalLibraryWorkspaceRequestV2,
   PersonalLibraryMapRequestV2,
   PersonalLibraryMapRequestV3,
+  PersonalLibraryMapRequestV4,
   PlaceFilingCommandRequestV2,
   PlaceFilingRequestV2,
   PublishedCollectionCopyCommandRequestV2,
@@ -117,6 +119,27 @@ export function createLibraryBackendClient(config: LibraryBackendClientConfig = 
       if (query.selectedPlaceId !== undefined) parameters.set('selectedPlaceId', query.selectedPlaceId)
       return send(`/v3/library/workspace/map?${parameters}`, accessToken, signal)
     },
+    workspaceMapV4(accessToken: string, query: PersonalLibraryMapRequestV4, signal: AbortSignal) {
+      const parameters = new URLSearchParams({
+        scope: query.selection.kind === 'all' ? 'all' : 'collections',
+        rating: query.ratingFilter.kind,
+        tagMatch: query.tagMatch,
+        west: String(query.west),
+        south: String(query.south),
+        east: String(query.east),
+        north: String(query.north),
+        zoom: String(query.zoom),
+      })
+      if (query.selection.kind === 'collections') {
+        for (const collectionId of query.selection.collectionIds) parameters.append('collectionIds', collectionId)
+      }
+      for (const tagId of query.tagIds) parameters.append('tagIds', tagId)
+      for (const areaKey of query.areaKeys) parameters.append('areaKeys', areaKey)
+      for (const taxonomyKey of query.taxonomyKeys) parameters.append('taxonomyKeys', taxonomyKey)
+      if (query.placeQuery !== undefined) parameters.set('placeQuery', query.placeQuery)
+      if (query.selectedPlaceId !== undefined) parameters.set('selectedPlaceId', query.selectedPlaceId)
+      return send(`/v4/library/workspace/map?${parameters}`, accessToken, signal)
+    },
     publicationCopyCommand(
       accessToken: string,
       body: PublishedCollectionCopyCommandRequestV2,
@@ -130,6 +153,13 @@ export function createLibraryBackendClient(config: LibraryBackendClientConfig = 
       signal: AbortSignal,
     ) {
       return send('/v1/library/collection-commands', accessToken, signal, 'POST', body)
+    },
+    collectionColorCommand(
+      accessToken: string,
+      body: CollectionColorCommandRequestV1,
+      signal: AbortSignal,
+    ) {
+      return send('/v1/library/collection-color-commands', accessToken, signal, 'POST', body)
     },
     workspace(
       accessToken: string,

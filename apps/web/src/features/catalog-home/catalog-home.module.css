@@ -40,6 +40,25 @@
 .loadMore { width: 100%; margin-top: 14px; }
 .backButton { margin-bottom: 18px; }
 .mapPane { min-width: 0; min-height: 0; position: relative; }
+.mapCollectionControl { position: absolute; z-index: 5; top: 12px; left: 40px; display: grid; justify-items: start; gap: 8px; pointer-events: none; }
+.mapCollectionControl > * { pointer-events: auto; }
+.mapCollectionTrigger { display: flex; align-items: center; gap: 7px; min-height: 42px; padding: 0 13px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--surface); color: var(--ink); box-shadow: 0 3px 14px rgb(20 35 30 / 14%); cursor: pointer; }
+.mapCollectionTrigger > span { color: #b7791f; font-size: 17px; }
+.mapCollectionTrigger small { display: grid; place-items: center; min-width: 22px; height: 22px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+.mapCollectionPanel { box-sizing: border-box; width: min(340px, calc(100vw - 32px)); max-height: min(560px, calc(100dvh - 120px)); overflow: auto; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); box-shadow: 0 8px 28px rgb(20 35 30 / 18%); }
+.mapCollectionPanel header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mapCollectionPanel header button, .allMapCollections { min-height: 36px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--ink); cursor: pointer; }
+.mapCollectionPanel > input { box-sizing: border-box; width: 100%; min-height: 42px; margin: 12px 0 8px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--canvas); color: var(--ink); }
+.allMapCollections { width: 100%; margin-bottom: 8px; text-align: left; padding: 0 10px; }
+.allMapCollections[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.mapCollectionChoices { display: grid; max-height: 250px; overflow: auto; }
+.mapCollectionChoices label { display: grid; grid-template-columns: 22px 14px minmax(0, 1fr); align-items: center; gap: 8px; min-height: 44px; cursor: pointer; }
+.mapCollectionChoices label > span:nth-of-type(1) { width: 12px; height: 12px; border-radius: 999px; background: var(--line-strong); box-shadow: 0 0 0 1px rgb(0 0 0 / 18%); }
+.mapCollectionChoices label > span:last-child { display: flex; justify-content: space-between; gap: 8px; }
+.mapCollectionChoices small, .mapCollectionPanel > small, .mapCollectionPanel p { color: var(--muted); font-size: 11px; }
+.mapCollectionLegend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.mapCollectionLegend span { display: inline-flex; align-items: center; gap: 5px; padding: 5px 7px; border-radius: 999px; background: var(--canvas); font-size: 11px; }
+.mapCollectionLegend i { width: 9px; height: 9px; border-radius: 999px; }
 .mapNotice { position: absolute; top: 12px; right: 12px; max-width: calc(100% - 52px); background: var(--surface); color: var(--muted); padding: 10px; border-radius: 8px; font-size: 12px; }
 .mapAlternative { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 30px; text-align: center; color: var(--muted); background: var(--canvas); font-size: 13px; }
 .collapseButton { position: absolute; z-index: 4; left: var(--panel-width); top: 50%; display: grid; place-items: center; width: 26px; min-height: 56px; border: 1px solid var(--line); border-left: 0; border-radius: 0 8px 8px 0; background: var(--surface); color: var(--muted); box-shadow: 4px 2px 10px rgb(20 40 30 / 8%); cursor: pointer; }
@@ -66,4 +85,7 @@
   .collapseButton > span:first-child { font-size: 20px; }
   .collapseButton > span:last-child { display: block; font-size: 12px; }
   .home[data-collapsed="true"] .mapPane { height: 100%; }
+  .mapCollectionControl { top: 12px; left: 12px; }
+  .mapCollectionTrigger { transform: translateX(100px); }
+  .mapCollectionPanel { max-height: min(420px, calc(100dvh - 190px)); }
 }

@@ -57,7 +57,9 @@ export function CatalogSearchInput({ workflow, onSearch, requestNavigation }: Re
   return <div className={styles.root} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false) }}>
     <nav aria-label="검색 대상" className={styles.scope}>
       <span aria-current="page">전체 장소</span>
-      <a href={`/library?scope=favorites${workflow.draftQuery ? `&q=${encodeURIComponent(workflow.draftQuery)}` : ''}`}>즐겨찾기</a>
+      {workflow.openFavorites === undefined
+        ? <a href={`/library?scope=favorites${workflow.draftQuery ? `&q=${encodeURIComponent(workflow.draftQuery)}` : ''}`}>즐겨찾기</a>
+        : <button onClick={() => workflow.openFavorites?.(workflow.draftQuery)} type="button">즐겨찾기</button>}
     </nav>
     <form role="search" className={styles.form} onSubmit={(event) => { event.preventDefault(); void submit() }}>
       <span aria-hidden="true">⌕</span>

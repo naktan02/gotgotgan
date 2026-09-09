@@ -36,7 +36,8 @@ test('chooses a named place candidate rather than converting its name into filte
   await expect(page.locator('ol')).toContainText('성수 골목 쇼유라멘')
   await expect(page.locator('[class*="interpretation"] button')).toHaveCount(0)
   await expect(input).toHaveValue('성수 골목 쇼유라멘')
-  await expect(page.getByRole('navigation', { name: '검색 대상' }).getByRole('link', { name: '즐겨찾기', exact: true })).toHaveAttribute('href', /scope=favorites.*q=/)
+  await expect(page.getByRole('navigation', { name: '검색 대상' })
+    .getByRole('button', { name: '즐겨찾기', exact: true })).toBeEnabled()
 })
 
 async function submitSearch(page: import('@playwright/test').Page, query: string) {

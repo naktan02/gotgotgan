@@ -8,6 +8,10 @@
 - 검색 대상은 전체 장소/즐겨찾기 두 가지다. 즐겨찾기 내부에서 저장 전체/특정 Collection을 고른다.
   앱 조립은 [CatalogHomeApplication](../../app/CatalogHomeApplication.tsx)과
   [Library 진입](../../app/library/PlaceLibraryWorkspace.tsx)에서 확인한다.
+- 검색 대상과 지도 즐겨찾기 표시는 독립 상태다. 전체 장소를 검색하는 동안에도 지도 위 별표 버튼에서
+  Collection을 검색해 여러 개 또는 전체를 겹쳐 볼 수 있고 전체 해제할 수 있다. v4 Library projection은
+  app 조립 seam에서 canonical Place ID로 카탈로그 marker와 합쳐지므로 한 장소는 한 marker만 남고,
+  Collection 이름·팔레트 색상은 segment ring과 범례로 함께 전달된다.
 - 입력 중 이름 후보/지리 후보/조건 해석의 선택은
   [CatalogSearchInput](search-input/CatalogSearchInput.tsx)에 있다. 원입력은 유지하고,
   이름을 일괄 × 칩으로 바꾸지 않는다. 조건은 실제 vocabulary만 사용한다.
@@ -36,3 +40,5 @@ Fixture 검색 결과는 외부 공급자 연동이나 실제 공개 카탈로�
 상세 scrollport의 상단 padding은 고정 탭 위로 지난 내용이 비치는 띠를 만들었다. 초기 여백은
 뒤로 버튼에 두며, 기록 바로가기는 고정 숫자가 아닌 실제 탭 높이에 맞춘다.
 `tests/e2e/place-detail/shared-detail.spec.ts`의 탭 경계·메모 제목 간격과 모바일 캡처로 재발을 확인한다.
+카탈로그/Library marker의 canonical ID 합성과 overlay 비활성 상태는
+[지도 합성 회귀](catalog-library-map-composition.test.ts)가 소유한다.

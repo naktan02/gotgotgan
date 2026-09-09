@@ -17,6 +17,7 @@ type Collection = {
   collectionId: string
   name: string
   description: string | null
+  colorToken: 'fern' | 'ocean'
   placeIds: string[]
   revision: number
 }
@@ -81,6 +82,7 @@ async function installCollectionLibraryFixture(page: Page, options: LibraryFixtu
       collectionId: ramenCollectionId,
       name: '서울 라멘',
       description: '다시 먹고 싶은 라멘집',
+      colorToken: 'fern',
       placeIds: [ramenPlaceId],
       revision: 1,
     }],
@@ -88,6 +90,7 @@ async function installCollectionLibraryFixture(page: Page, options: LibraryFixtu
       collectionId: tokyoCollectionId,
       name: '도쿄 여행',
       description: '도쿄에서 둘러볼 곳',
+      colorToken: 'ocean',
       placeIds: [museumPlaceId],
       revision: 1,
     }],
@@ -171,28 +174,41 @@ async function installCollectionLibraryFixture(page: Page, options: LibraryFixtu
     schemaVersion: 'library-tag-list.v1',
     items: [{ tagId: ramenTagId, name: '진한 국물', placeCount: 1, createdAt: timestamp }],
   }))
-  await page.route('**/api/v3/library/workspace/map?*', (route) => {
+  await page.route('**/api/v4/library/workspace/map?*', (route) => {
     const url = new URL(route.request().url())
-    const collectionId = url.searchParams.get('collectionId')
-    const collection = collectionId === null ? undefined : collections.get(collectionId)
-    const selectedIds = collectionId === null ? [...new Set([...collections.values()].flatMap((item) => item.placeIds))] : collection?.placeIds ?? []
+    const selection = url.searchParams.get('scope') === 'collections'
+      ? { kind: 'collections' as const, collectionIds: url.searchParams.getAll('collectionIds') }
+      : { kind: 'all' as const }
+    const selectedCollections = selection.kind === 'all'
+      ? [...collections.values()]
+      : selection.collectionIds.flatMap((collectionId) => {
+          const collection = collections.get(collectionId)
+          return collection === undefined ? [] : [collection]
+        })
+    const selectedIds = [...new Set(selectedCollections.flatMap((item) => item.placeIds))]
     const taxonomyKeys = url.searchParams.getAll('taxonomyKeys')
     const areaKeys = url.searchParams.getAll('areaKeys')
     const placeQuery = url.searchParams.get('placeQuery') ?? ''
     const rating = url.searchParams.get('rating') ?? 'any'
-    const located = selectedIds.filter((placeId) => {
+    const filtered = selectedIds.filter((placeId) => {
       const place = places[placeId as keyof typeof places]
-      return place.location !== null && rating !== 'unrated' &&
-        (areaKeys.length === 0 || areaKeys.includes(seongsuAreaKey)) &&
+      const personalRating = placeId === ramenPlaceId ? 4.5 : null
+      return (rating === 'any' || (rating === 'rated' ? personalRating !== null : personalRating === null)) &&
+        (areaKeys.length === 0 || areaKeys.includes(placeId === ramenPlaceId ? seongsuAreaKey : uenoAreaKey)) &&
         (taxonomyKeys.length === 0 || taxonomyKeys.some((key) => place.taxonomyKeys.includes(key as never))) &&
         placeQuery.split(/\s+/).every((term) => `${place.name} ${place.areaLabel} ${place.primaryTaxonomy.label}`.includes(term))
     })
+    const located = filtered.filter((placeId) => places[placeId as keyof typeof places].location !== null)
     return json(route, {
-      schemaVersion: 'personal-library-map.v3',
-      filter: { favoriteScope: collectionId === null ? { kind: 'all' } : { kind: 'collection', collectionId }, ratingFilter: { kind: rating },
+      schemaVersion: 'personal-library-map.v4',
+      selection,
+      filter: { ratingFilter: { kind: rating },
         tagIds: url.searchParams.getAll('tagIds'), tagMatch: url.searchParams.get('tagMatch') ?? 'all',
         areaKeys, taxonomyKeys, ...(placeQuery ? { placeQuery } : {}),
       },
+      selectedCollections: selectedCollections.map(({ collectionId, name, colorToken }) => ({
+        collectionId, name, colorToken,
+      })),
       viewport: {
         bounds: {
           west: Number(url.searchParams.get('west')),
@@ -208,11 +224,13 @@ async function installCollectionLibraryFixture(page: Page, options: LibraryFixtu
         label: places[placeId as keyof typeof places].name,
         location: places[placeId as keyof typeof places].location,
         classification: { primaryTaxonomy: places[placeId as keyof typeof places].primaryTaxonomy, rootTaxonomy: { key: 'food', label: '음식점' } },
+        memberships: selectedCollections.filter((collection) => collection.placeIds.includes(placeId))
+          .map(({ collectionId, name, colorToken }) => ({ collectionId, name, colorToken })),
       })),
       coverage: {
         representedPlaceCount: located.length,
-        unprojectedPlaceCount: selectedIds.filter((id) => places[id as keyof typeof places].location === null).length,
-        complete: selectedIds.every((id) => places[id as keyof typeof places].location !== null),
+        unprojectedPlaceCount: filtered.filter((id) => places[id as keyof typeof places].location === null).length,
+        complete: filtered.every((id) => places[id as keyof typeof places].location !== null),
       },
     })
   })
@@ -513,10 +531,12 @@ test('keeps directory, scoped search, bounded filters, detail, and map in one re
   await placeSearch.getByRole('searchbox').fill('성수동 라멘')
   const mapRequest = page.waitForRequest((request) => {
     const url = new URL(request.url())
-    return url.pathname === '/api/v3/library/workspace/map' && url.searchParams.get('placeQuery') === '성수동 라멘'
+    return url.pathname === '/api/v4/library/workspace/map' && url.searchParams.get('placeQuery') === '성수동 라멘'
   })
   await placeSearch.getByRole('button', { name: '검색', exact: true }).click()
-  expect(new URL((await mapRequest).url()).searchParams.get('collectionId')).toBe(ramenCollectionId)
+  const requestedMap = new URL((await mapRequest).url())
+  expect(requestedMap.searchParams.get('scope')).toBe('collections')
+  expect(requestedMap.searchParams.getAll('collectionIds')).toEqual([ramenCollectionId])
   await page.getByRole('button', { name: '필터', exact: true }).click()
   await page.getByRole('button', { name: /장소·음식 분류/ }).click()
   await expect(page.getByRole('checkbox')).toHaveCount(12)
@@ -589,7 +609,7 @@ test('opens all saved-place search only through an explicit directory action', a
   await page.getByRole('searchbox', { name: '내 모든 목록 안에서 장소 검색' }).fill('성수동 라멘')
   const request = page.waitForRequest((request) => {
     const url = new URL(request.url())
-    return url.pathname === '/api/v3/library/workspace/map' && url.searchParams.get('placeQuery') === '성수동 라멘'
+    return url.pathname === '/api/v4/library/workspace/map' && url.searchParams.get('placeQuery') === '성수동 라멘'
   })
   await page.getByRole('searchbox', { name: '내 모든 목록 안에서 장소 검색' }).press('Enter')
   expect(new URL((await request).url()).searchParams.has('collectionId')).toBe(false)
@@ -696,15 +716,18 @@ test('separates verified favorite conditions from literal names and sends equal 
   await search.getByRole('searchbox').fill('쇼유라멘 멘야')
   const conditionMap = page.waitForRequest((request) => {
     const url = new URL(request.url())
-    return url.pathname === '/api/v3/library/workspace/map' && url.searchParams.get('placeQuery') === '멘야' && url.searchParams.getAll('taxonomyKeys').includes('ramen.shoyu')
+    return url.pathname === '/api/v4/library/workspace/map' && url.searchParams.get('placeQuery') === '멘야' && url.searchParams.getAll('taxonomyKeys').includes('ramen.shoyu')
   })
   const conditionList = page.waitForRequest((request) => {
     const url = new URL(request.url())
     return url.pathname === '/api/library/workspace' && url.searchParams.get('placeQuery') === '멘야' && url.searchParams.getAll('taxonomyKeys').includes('ramen.shoyu')
   })
   await search.getByRole('button', { name: '검색', exact: true }).click()
-  const requests = await Promise.all([conditionList, conditionMap])
-  requests.forEach((request) => expect(new URL(request.url()).searchParams.get('collectionId')).toBe(ramenCollectionId))
+  const [listRequest, mapRequest] = await Promise.all([conditionList, conditionMap])
+  expect(new URL(listRequest.url()).searchParams.get('collectionId')).toBe(ramenCollectionId)
+  const mapUrl = new URL(mapRequest.url())
+  expect(mapUrl.searchParams.get('scope')).toBe('collections')
+  expect(mapUrl.searchParams.getAll('collectionIds')).toEqual([ramenCollectionId])
   await expect(search.getByRole('searchbox')).toHaveValue('쇼유라멘 멘야')
   await expect(page.getByRole('button', { name: '쇼유라멘 필터 해제' })).toHaveCount(1)
   await expect(page.getByRole('link', { name: '전체 장소', exact: true })).toHaveAttribute('href', '/?q=%EC%87%BC%EC%9C%A0%EB%9D%BC%EB%A9%98%20%EB%A9%98%EC%95%BC')

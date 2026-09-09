@@ -1,10 +1,16 @@
-import type { LibraryMapResponse, PersonalLibraryMapResponseV2, PersonalLibraryMapResponseV3 } from '@place/contracts/library'
+import type {
+  LibraryMapResponse,
+  PersonalLibraryMapResponseV2,
+  PersonalLibraryMapResponseV3,
+  PersonalLibraryMapResponseV4,
+} from '@place/contracts/library'
 
 import type {
   PlaceMapCluster,
   PlaceMapRenderer,
   PlaceMapViewport,
 } from '@/platform/maps/public'
+import { collectionColorValue } from './collection-color-palette'
 
 export function PersonalLibraryMap({
   error,
@@ -20,7 +26,7 @@ export function PersonalLibraryMap({
 }: Readonly<{
   error?: string
   loading: boolean
-  projection?: LibraryMapResponse | PersonalLibraryMapResponseV2 | PersonalLibraryMapResponseV3
+  projection?: LibraryMapResponse | PersonalLibraryMapResponseV2 | PersonalLibraryMapResponseV3 | PersonalLibraryMapResponseV4
   selectedPlaceId?: string
   viewport: PlaceMapViewport
   onRetry: () => void
@@ -34,6 +40,10 @@ export function PersonalLibraryMap({
     label: feature.label,
     location: feature.location,
     ...('classification' in feature ? { classification: feature.classification } : {}),
+    ...('memberships' in feature ? {
+      accentColors: feature.memberships.map((membership) => collectionColorValue(membership.colorToken)),
+      membershipLabels: feature.memberships.map((membership) => membership.name),
+    } : {}),
   }] : []) ?? []
   const clusters: readonly PlaceMapCluster[] = projection?.features.flatMap((feature) => (
     feature.kind === 'cluster' ? [{
@@ -42,6 +52,9 @@ export function PersonalLibraryMap({
       location: feature.location,
       bounds: feature.bounds,
       ...('coincidentPreview' in feature ? { coincidentPreview: feature.coincidentPreview } : {}),
+      ...('collectionDistribution' in feature ? { segments: feature.collectionDistribution.map((item) => ({
+        color: collectionColorValue(item.colorToken), count: item.placeCount,
+      })) } : {}),
     }] : []
   )) ?? []
   const represented = projection?.coverage.representedPlaceCount ?? 0

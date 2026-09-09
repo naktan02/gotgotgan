@@ -3,6 +3,7 @@
 import { Component, useRef, useState, type ComponentType, type ErrorInfo, type ReactNode, type Ref } from 'react'
 
 import type { PlaceMapRenderer } from '../../platform/maps/public'
+import { mapAccentColor } from '../../platform/maps/map-accent-palette'
 import { TaxonomyPicker } from '../../platform/search/taxonomy-picker/public'
 
 import {
@@ -131,6 +132,7 @@ export function CatalogHomeView({ MapRenderer, PlaceDetailRenderer, workflow }: 
   const sheetDrag = useRef<number | undefined>(undefined)
   const [detailOpen, setDetailOpen] = useState(workflow.selected !== undefined)
   const [typesOpen, setTypesOpen] = useState(false)
+  const [collectionFilter, setCollectionFilter] = useState('')
   const filingNavigation = useRef<PlaceFilingNavigation>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const detailTitle = useRef<HTMLButtonElement>(null)
@@ -160,6 +162,22 @@ export function CatalogHomeView({ MapRenderer, PlaceDetailRenderer, workflow }: 
   const initialCameraMode = workflow.searchState === 'idle' &&
     workflow.draftQuery.length === 0 && workflow.submittedQuery.length === 0 &&
     workflow.selectedQuickType === null ? 'granted-current-location' : 'supplied-bounds'
+  const collectionMetadata = new Map(workflow.mapCollectionMetadata.map((collection) => (
+    [collection.collectionId, collection] as const
+  )))
+  const visibleCollections = workflow.collections.filter((collection) => (
+    collection.name.normalize('NFKC').toLocaleLowerCase().includes(
+      collectionFilter.trim().normalize('NFKC').toLocaleLowerCase(),
+    )
+  ))
+  const selectedCollections = workflow.mapCollectionSelection.kind === 'all'
+    ? workflow.mapCollectionMetadata
+    : workflow.mapCollectionSelection.kind === 'none'
+      ? []
+      : workflow.mapCollectionSelection.collectionIds.flatMap((collectionId) => {
+          const collection = collectionMetadata.get(collectionId)
+          return collection === undefined ? [] : [collection]
+        })
   return <div className={styles.home} data-collapsed={collapsed} data-expanded={expanded} data-detail={detailOpen && !typesOpen}>
     <aside aria-label="카탈로그 탐색 패널" className={styles.listPane} hidden={collapsed}>
       <button className={styles.sheetHandle} type="button" aria-expanded={expanded}
@@ -208,6 +226,47 @@ export function CatalogHomeView({ MapRenderer, PlaceDetailRenderer, workflow }: 
       </div>
     </aside>
     <section aria-label="카탈로그 지도와 선택한 장소" className={styles.mapPane}>
+      <div className={styles.mapCollectionControl}>
+        <button aria-expanded={workflow.collectionPickerOpen} className={styles.mapCollectionTrigger}
+          onClick={() => workflow.setCollectionPickerOpen(!workflow.collectionPickerOpen)} type="button">
+          <span aria-hidden="true">★</span> 즐겨찾기 표시
+          {workflow.mapCollectionSelection.kind !== 'none' && <small>{workflow.mapCollectionSelection.kind === 'all'
+            ? '전체' : workflow.mapCollectionSelection.collectionIds.length}</small>}
+        </button>
+        {workflow.collectionPickerOpen && <section aria-label="지도 즐겨찾기 표시 설정" className={styles.mapCollectionPanel}>
+          <header><strong>지도에 겹쳐 보기</strong><button onClick={workflow.clearMapCollections} type="button">전체 해제</button></header>
+          {workflow.collectionState === 'signed-out' || workflow.mapCollectionState === 'signed-out'
+            ? <p>로그인하면 내 즐겨찾기 목록을 지도에 표시할 수 있습니다.</p>
+            : workflow.collectionState === 'unavailable' || workflow.mapCollectionState === 'unavailable'
+              ? <p>즐겨찾기 목록을 불러오지 못했습니다. 카탈로그 검색은 계속 사용할 수 있습니다.</p>
+              : <>
+                <input aria-label="표시할 즐겨찾기 목록 검색" maxLength={160} onChange={(event) => setCollectionFilter(event.target.value)}
+                  placeholder="Collection 검색" type="search" value={collectionFilter} />
+                <button aria-pressed={workflow.mapCollectionSelection.kind === 'all'} className={styles.allMapCollections}
+                  onClick={workflow.selectAllMapCollections} type="button">전체 저장 장소</button>
+                <div className={styles.mapCollectionChoices}>{visibleCollections.map((collection) => {
+                  const metadata = collectionMetadata.get(collection.collectionId)
+                  const checked = workflow.mapCollectionSelection.kind === 'all' || (
+                    workflow.mapCollectionSelection.kind === 'collections' &&
+                    workflow.mapCollectionSelection.collectionIds.includes(collection.collectionId)
+                  )
+                  return <label key={collection.collectionId}>
+                    <input checked={checked} onChange={() => workflow.toggleMapCollection(collection.collectionId)} type="checkbox" />
+                    <span aria-hidden="true" style={metadata === undefined ? undefined : {
+                      background: mapAccentColor(metadata.colorToken),
+                    }} />
+                    <span>{collection.name}<small>{collection.placeCount}곳</small></span>
+                  </label>
+                })}</div>
+                <small>지도에는 한 번에 최대 100개 Collection을 표시합니다.</small>
+              </>}
+          {selectedCollections.length > 0 && <div aria-label="선택한 Collection 범례" className={styles.mapCollectionLegend}>
+            {selectedCollections.map((collection) => <span key={collection.collectionId}>
+              <i aria-hidden="true" style={{ background: mapAccentColor(collection.colorToken) }} />{collection.name}
+            </span>)}
+          </div>}
+        </section>}
+      </div>
       <MapBoundary><MapRenderer
         ariaLabel="곳곳간 카탈로그 검색 지도"
         bounds={workflow.viewport.bounds} clusters={workflow.mapClusters}

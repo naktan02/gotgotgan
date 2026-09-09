@@ -2,6 +2,7 @@
 .scope { display: flex; gap: 6px; padding: 3px; margin-bottom: 12px; background: var(--canvas); border-radius: 10px; }
 .scope > * { flex: 1; text-align: center; padding: 9px; border-radius: 8px; text-decoration: none; color: inherit; font-size: 13px; }
 .scope > [aria-current] { background: var(--surface, white); color: #008568; font-weight: 700; box-shadow: 0 1px 4px #1232; }
+.scope button { border: 0; background: transparent; cursor: pointer; }
 .form { display: flex; align-items: center; gap: 7px; border: 1px solid #c8d9d4; border-radius: 12px; padding: 8px 10px; background: var(--surface, white); }
 .form:focus-within { outline: 2px solid #008568; outline-offset: 1px; }
 .form > span { font-size: 24px; }

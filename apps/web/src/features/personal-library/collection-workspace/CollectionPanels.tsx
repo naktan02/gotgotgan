@@ -11,8 +11,13 @@ const visibilityLabel = { private: '비공개', unlisted: '링크 공개', publi
 function ManageCollection({ collection, workflow }: Readonly<{
   collection: NonNullable<CollectionLibraryWorkflow['selectedCollection']>; workflow: CollectionLibraryWorkflow
 }>) {
-  return <CollectionActions collection={collection} busy={workflow.collectionMutation !== 'idle'} error={workflow.collectionMessage}
+  const colorToken = workflow.mapCollectionMetadata.find(
+    (candidate) => candidate.collectionId === collection.collectionId,
+  )?.colorToken
+  return <CollectionActions collection={collection} colorToken={colorToken}
+    busy={workflow.collectionMutation !== 'idle'} error={workflow.collectionMessage}
     onRename={(name) => workflow.renameCollection(collection, name)} onDelete={() => workflow.deleteCollection(collection)}
+    onColor={(color) => workflow.changeCollectionColor(collection, color)}
     onAccessFailure={workflow.handleAccessFailure} onChanged={workflow.refresh} />
 }
 

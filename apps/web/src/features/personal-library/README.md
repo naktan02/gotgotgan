@@ -31,8 +31,10 @@
 페이지를 잃지 않는다. 선택 범위 조회는 `includeSelectedCollection`을 명시해 디렉터리의 현재
 page·검색어와 무관한 최신 카테고리 이름·revision을 받는다. 장소의 추가 검색 page가 비어 있어도
 다음 cursor가 있으면 이어서 검색한다.
-지도는 `personal-library-map.v2`로 같은 Collection·검색어·지역·분류·태그·평점 조건을 보낸다.
-이전 v1 지도 호출처럼 Collection만 보내 필터가 누락되지 않는다.
+지도는 additive `personal-library-map.v4`로 같은 검색어·지역·분류·태그·평점 조건과 전체 또는 최대
+100개 Collection 선택을 보낸다. 장소 feature는 선택 Collection membership을 모두 보존하고 cluster는
+bounded 색상 분포를 반환한다. 별표 버튼 안에서 Collection 검색·다중 체크·전체·전체 해제·이름을
+동반한 범례를 제공하며, 한 장소가 여러 목록에 들어가도 marker를 복제하지 않는다.
 
 필터는 종류 선택 → 후보 검색으로 같은 패널 안에서 좁힌다. 처음에는 최대 12개 후보만 그리고,
 실제 API가 제공한 분류만 사용한다. 계층이 없는 분류 키로 음식 계층을 추측하지 않는다. API의
@@ -48,10 +50,11 @@ page·검색어와 무관한 최신 카테고리 이름·revision을 받는다. 
 지역·Taxonomy 선택지는 같은 v2 workspace의 Collection-first `availableFilters`를 사용한다. Tag 보조
 요청이 실패해도 workspace 전체를 지우지 않는다.
 
-행과 선택 제목의 더보기 메뉴, 이름 변경·삭제, 공개 범위·공유 링크·장소 순서·장소 제외는
+행과 선택 제목의 더보기 메뉴, 이름 변경·색상 변경·삭제, 공개 범위·공유 링크·장소 순서·장소 제외는
 `collection-management`가 소유한다. 목록 삭제의 영향은 Collection과 그 membership·공유 링크이며
 다른 목록과 개인 기록 삭제로 넓히지 않는다. 공개 범위는 opaque revision을 요구하는 lifecycle v2 command를,
-순서와 제외는 기존 Library command 계약을 전용 same-origin client 뒤에서 사용한다. 태그 목록과
+색상은 제한된 팔레트와 opaque revision을 쓰는 별도 color command를, 순서와 제외는 기존 Library
+command 계약을 전용 same-origin client 뒤에서 사용한다. 태그 목록과
 생성·이름 변경·2단계 확인 삭제는 `tag-management`가 독립적으로 읽고 변경한 뒤 workspace 필터를
 갱신한다.
 

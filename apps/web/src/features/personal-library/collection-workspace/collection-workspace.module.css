@@ -63,12 +63,32 @@
 .detailSurface > .backButton { position: sticky; top: 0; z-index: 2; width: 100%; min-height: 48px; border-bottom: 1px solid var(--line, #dfe5e1); }
 .detailSurface { --detail-tab-top: 48px; }
 .mapPane { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+.mapCollectionControl { position: absolute; z-index: 5; left: 40px; top: 12px; display: grid; justify-items: start; gap: 8px; pointer-events: none; }
+.mapCollectionControl > * { pointer-events: auto; }
+.mapCollectionTrigger { display: flex; align-items: center; gap: 7px; min-height: 42px; padding: 0 13px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--surface); color: var(--ink); box-shadow: 0 3px 14px rgb(20 35 30 / 14%); cursor: pointer; }
+.mapCollectionTrigger > span { color: #b7791f; font-size: 17px; }
+.mapCollectionTrigger small { display: grid; place-items: center; min-width: 22px; height: 22px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+.mapCollections { box-sizing: border-box; width: min(320px, calc(100vw - 32px)); max-height: min(520px, calc(100dvh - 120px)); overflow: auto; margin: 0; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--surface) 96%, transparent); box-shadow: 0 8px 28px rgb(20 40 30 / 18%); }
+.mapCollections header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mapCollections header button { min-height: 34px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.mapCollections > input { box-sizing: border-box; width: 100%; min-height: 40px; margin: 10px 0 7px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--canvas); color: var(--ink); }
+.mapCollections > button { min-height: 36px; width: 100%; margin-bottom: 7px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--ink); cursor: pointer; font-size: 11px; }
+.mapCollections > button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.mapCollections > div { display: grid; gap: 3px; }
+.mapCollections label { display: flex; align-items: center; gap: 7px; min-height: 30px; color: var(--ink); font-size: 11px; cursor: pointer; }
+.mapCollections label > span { width: 9px; height: 9px; flex: 0 0 auto; border: 1px solid var(--line-strong); border-radius: 50%; background: var(--canvas); }
+.mapCollections input { accent-color: var(--accent); }
+.mapCollections > small { color: var(--muted); font-size: 11px; }
+.mapCollectionLegend { display: flex !important; flex-wrap: wrap; gap: 6px !important; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.mapCollectionLegend span { display: inline-flex; align-items: center; gap: 5px; padding: 5px 7px; border-radius: 999px; background: var(--canvas); font-size: 11px; }
+.mapCollectionLegend i { width: 9px; height: 9px; border-radius: 999px; }
 .mapHint { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 64px); width: max-content; margin: 0; padding: 10px 14px; border: 1px solid var(--line, #dfe5e1); border-radius: 8px; background: var(--surface, white); color: var(--muted, #68716c); font-size: 12px; text-align: center; pointer-events: none; }
 .collapseButton { position: absolute; z-index: 5; left: var(--panel-width); top: 50%; display: flex; align-items: center; justify-content: center; width: 28px; height: 60px; border: 1px solid var(--line, #dfe5e1); border-left: 0; border-radius: 0 8px 8px 0; background: var(--surface, white); color: var(--muted, #68716c); }
 .collapseButton > span:first-child { font-size: 26px; }
 .collapseLabel, .mobileSheetControls { display: none; }
 .collapsed .workspace { grid-template-columns: minmax(0, 1fr); }
 .collapsed .collapseButton { left: 12px; top: 12px; width: auto; max-width: calc(100% - 80px); height: 44px; gap: 8px; padding: 0 12px; border-left: 1px solid var(--line, #dfe5e1); border-radius: 8px; }
+.collapsed .mapCollectionControl { left: 12px; top: 64px; }
 .collapsed .collapseLabel { display: block; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .collapsed .mapHint { display: none; }
 .selectedFilters { display: flex; gap: 5px; min-width: 0; }
@@ -129,6 +149,7 @@
   .collapseButton { left: 12px; top: 12px; width: auto; height: 40px; gap: 6px; padding: 0 10px; border-left: 1px solid var(--line, #dfe5e1); border-radius: 7px; }
   .collapseLabel { display: block; font-size: 12px; }
   .collapseButton > span:first-child { transform: rotate(-90deg); }
+  .mapCollectionControl, .collapsed .mapCollectionControl { left: 12px; top: 60px; }
   .mapHint { display: none; }
   .detailSurface { padding: 0 16px 20px; }
   .filterFooter { padding: 8px 16px; }

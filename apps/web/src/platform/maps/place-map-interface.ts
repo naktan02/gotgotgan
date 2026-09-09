@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import type { MapPlaceClassificationV3, MapFeatureV3 } from '@place/contracts/maps'
+import type { MapPlaceClassificationV3 } from '@place/contracts/maps'
 
 export type PlaceMapBounds = Readonly<{
   north: number
@@ -20,6 +20,18 @@ export type PlaceMapMarker = Readonly<{
   label: string
   location: Readonly<{ latitude: number; longitude: number }>
   classification?: MapPlaceClassificationV3
+  accentColors?: readonly string[]
+  membershipLabels?: readonly string[]
+}>
+
+export type PlaceMapCoincidentPreview = Readonly<{
+  places: readonly Readonly<{
+    placeId: string
+    label: string
+    location: Readonly<{ latitude: number; longitude: number }>
+    classification?: MapPlaceClassificationV3
+  }>[]
+  remainingCount: number
 }>
 
 export type PlaceMapCluster = Readonly<{
@@ -27,7 +39,8 @@ export type PlaceMapCluster = Readonly<{
   count: number
   location: Readonly<{ latitude: number; longitude: number }>
   bounds: PlaceMapBounds
-  coincidentPreview?: Extract<MapFeatureV3, {kind: 'cluster'}>['coincidentPreview']
+  coincidentPreview?: PlaceMapCoincidentPreview | null
+  segments?: readonly Readonly<{ color: string; count: number }>[]
 }>
 
 export type PlaceMapRendererProperties = Readonly<{

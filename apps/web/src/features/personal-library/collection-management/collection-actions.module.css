@@ -16,3 +16,8 @@
 .dialog p { font-size: 14px; line-height: 1.7; }
 .dialog .danger, .dialog [role='alert'] { color: var(--danger); }
 .dialog button:disabled { opacity: .5; }
+.colors { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 16px 0 0; padding: 14px; border: 1px solid var(--line); border-radius: 8px; }
+.colors legend { padding: 0 6px; color: var(--muted); font-size: 12px; }
+.colors button { display: grid; place-items: center; min-width: 44px; padding: 0; }
+.colors button > span { width: 24px; height: 24px; border-radius: 999px; background: var(--collection-color); box-shadow: 0 0 0 1px rgb(0 0 0 / 20%); }
+.colors button[aria-pressed='true'] { outline: 3px solid var(--focus); outline-offset: 2px; }

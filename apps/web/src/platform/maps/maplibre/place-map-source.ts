@@ -70,6 +70,7 @@ export function installPlaceSource(map: MapLibreMap, data: PlaceFeatureCollectio
     id: CLUSTER_LAYER_ID,
     type: 'circle',
     source: PLACE_SOURCE_ID,
+    layout: { visibility: 'none' },
     filter: ['==', ['get', 'kind'], 'cluster'],
     paint: {
       'circle-color': '#1768e5',
@@ -83,6 +84,7 @@ export function installPlaceSource(map: MapLibreMap, data: PlaceFeatureCollectio
     id: PLACE_LAYER_ID,
     type: 'circle',
     source: PLACE_SOURCE_ID,
+    layout: { visibility: 'none' },
     filter: ['==', ['get', 'kind'], 'place'],
     paint: {
       'circle-color': ['case', ['get', 'selected'], '#0f4ca6', '#1768e5'],

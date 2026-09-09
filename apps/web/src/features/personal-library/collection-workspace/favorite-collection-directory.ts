@@ -10,7 +10,9 @@ type CollectionWorkspaceReader = Readonly<{
       name: string
       placeCount: number
     }>[]
+    collectionNextCursor?: string
   }>>
+  mapV4: typeof collectionLibraryHttp.mapV4
 }>
 
 export function createFavoriteCollectionDirectory(
@@ -19,23 +21,42 @@ export function createFavoriteCollectionDirectory(
   return {
     async readCollections(signal: AbortSignal) {
       try {
-        const page = await reader.workspace({
-          favoriteScope: { kind: 'all' },
-          ratingFilter: { kind: 'any' },
-          tagIds: [],
-          tagMatch: 'all',
-          areaKeys: [],
-          taxonomyKeys: [],
-          limit: 20,
-        }, signal)
+        const items: Array<{ collectionId: string; name: string; placeCount: number }> = []
+        let collectionCursor: string | undefined
+        do {
+          const page = await reader.workspace({
+            favoriteScope: { kind: 'all' },
+            ratingFilter: { kind: 'any' },
+            tagIds: [],
+            tagMatch: 'all',
+            areaKeys: [],
+            taxonomyKeys: [],
+            ...(collectionCursor === undefined ? {} : { collectionCursor }),
+            limit: 50,
+          }, signal)
+          items.push(...page.collections)
+          collectionCursor = page.collectionNextCursor
+        } while (collectionCursor !== undefined && items.length < 100)
         return {
           kind: 'ready' as const,
-          items: page.collections.map((item) => ({
+          items: items.slice(0, 100).map((item) => ({
             collectionId: item.collectionId,
             name: item.name,
             placeCount: item.placeCount,
           })),
         }
+      } catch (error) {
+        return error instanceof CollectionLibraryProblem && error.status === 401
+          ? { kind: 'signed-out' as const }
+          : { kind: 'unavailable' as const }
+      }
+    },
+    async readMap(
+      query: Parameters<typeof reader.mapV4>[0],
+      signal: AbortSignal,
+    ) {
+      try {
+        return { kind: 'ready' as const, projection: await reader.mapV4(query, signal) }
       } catch (error) {
         return error instanceof CollectionLibraryProblem && error.status === 401
           ? { kind: 'signed-out' as const }

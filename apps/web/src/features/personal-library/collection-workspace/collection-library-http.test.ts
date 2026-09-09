@@ -71,6 +71,34 @@ describe('Collection-first Library browser client', () => {
     expect(url.searchParams.get('placeQuery')).toBe('성수동 라멘')
   })
 
+  it('serializes a repeated multi-Collection v4 map selection', async () => {
+    const secondCollectionId = '01992d20-3000-7000-8000-000000000012'
+    let requested = ''
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      requested = String(input)
+      return Response.json({
+        schemaVersion: 'personal-library-map.v4',
+        selection: { kind: 'collections', collectionIds: [collectionId, secondCollectionId] },
+        filter: { ratingFilter: { kind: 'any' }, tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: [] },
+        selectedCollections: [
+          { collectionId, name: '라멘', colorToken: 'fern' },
+          { collectionId: secondCollectionId, name: '카페', colorToken: 'ocean' },
+        ],
+        viewport: { bounds: { west: 126, south: 37, east: 128, north: 38 }, zoom: 12 },
+        features: [], coverage: { representedPlaceCount: 0, unprojectedPlaceCount: 0, complete: true },
+      })
+    })
+    await createCollectionLibraryHttp(fetcher as typeof fetch).mapV4({
+      selection: { kind: 'collections', collectionIds: [collectionId, secondCollectionId] },
+      ratingFilter: { kind: 'any' }, tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: [],
+      west: 126, south: 37, east: 128, north: 38, zoom: 12,
+    })
+    const url = new URL(requested, 'https://gotgotgan.test')
+    expect(url.pathname).toBe('/api/v4/library/workspace/map')
+    expect(url.searchParams.get('scope')).toBe('collections')
+    expect(url.searchParams.getAll('collectionIds')).toEqual([collectionId, secondCollectionId])
+  })
+
   it('uses revision-checked v2 commands for Collection lifecycle changes', async () => {
     let body: unknown
     const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -99,5 +127,27 @@ describe('Collection-first Library browser client', () => {
       collectionId,
       expectedCollectionRevision: 'opaque-revision',
     })
+  })
+
+  it('uses the bounded palette contract for Collection color changes', async () => {
+    let requested = ''
+    let body: unknown
+    const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      requested = String(input)
+      body = JSON.parse(String(init?.body))
+      return Response.json({
+        schemaVersion: 'collection-color-command-result.v1', outcome: 'accepted',
+        receipt: { commandId, status: 'applied' }, collectionId,
+        collectionRevision: 'next-revision', colorToken: 'violet',
+      }, { status: 201 })
+    })
+
+    await createCollectionLibraryHttp(fetcher as typeof fetch).collectionColorCommand({
+      schemaVersion: 'collection-color-command.v1', commandId, collectionId,
+      expectedCollectionRevision: 'opaque-revision', colorToken: 'violet',
+    })
+
+    expect(new URL(requested, 'https://gotgotgan.test').pathname).toBe('/api/library/collection-color-commands')
+    expect(body).toMatchObject({ colorToken: 'violet', expectedCollectionRevision: 'opaque-revision' })
   })
 })

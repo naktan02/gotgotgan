@@ -1,18 +1,45 @@
 .map { position: relative; width: 100%; height: 100%; min-height: 0; overflow: hidden; background: #eaf1f7; container-type: size; }
 .canvas { position: absolute; inset: 0; background: #0b1626; }
+.map[data-place-map-globe='true'] .canvas::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+  opacity: .72;
+  background-image:
+    radial-gradient(circle at 4% 9%, #fff 0 1px, transparent 1.4px),
+    radial-gradient(circle at 12% 72%, #a9c8e8 0 1px, transparent 1.5px),
+    radial-gradient(circle at 20% 30%, #fff 0 .7px, transparent 1.2px),
+    radial-gradient(circle at 29% 88%, #d9e7f5 0 1.2px, transparent 1.7px),
+    radial-gradient(circle at 38% 6%, #9db8d4 0 .8px, transparent 1.2px),
+    radial-gradient(circle at 46% 79%, #fff 0 .7px, transparent 1.1px),
+    radial-gradient(circle at 57% 16%, #dcecff 0 1.1px, transparent 1.6px),
+    radial-gradient(circle at 66% 91%, #9db8d4 0 .8px, transparent 1.2px),
+    radial-gradient(circle at 74% 35%, #fff 0 .7px, transparent 1.1px),
+    radial-gradient(circle at 83% 7%, #d9e7f5 0 1px, transparent 1.5px),
+    radial-gradient(circle at 91% 68%, #fff 0 1.1px, transparent 1.6px),
+    radial-gradient(circle at 97% 25%, #9db8d4 0 .7px, transparent 1.1px);
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent 0 37%, #000 55%);
+  mask-image: radial-gradient(circle at 50% 50%, transparent 0 37%, #000 55%);
+}
 .status button { display: block; margin-top: 8px; min-height: 34px; padding: 5px 10px; border: 1px solid #c9d7d0; border-radius: 6px; color: #087f62; background: #fff; cursor: pointer; }
 .status { position: absolute; z-index: 2; right: 12px; top: 12px; margin: 0; padding: 7px 10px; border: 1px solid rgb(217 224 234 / 90%); border-radius: 8px; background: rgb(255 255 255 / 92%); color: #596678; font-size: 11px; box-shadow: 0 4px 12px rgb(41 54 75 / 10%); }
 .action { position: absolute; z-index: 3; top: 12px; left: 50%; min-height: 36px; padding: 0 12px; transform: translateX(-50%); border: 1px solid #d9e0ea; border-radius: 8px; background: rgb(255 255 255 / 94%); color: #285f9f; font-size: 11px; font-weight: 750; box-shadow: 0 4px 12px rgb(41 54 75 / 10%); cursor: pointer; }
 .action:hover, .action:focus-visible { border-color: #82acec; outline: 3px solid #86b8ff; outline-offset: 2px; }
 .marker, .cluster { display: grid; place-items: center; border: 0; border-radius: 50%; padding: 0; cursor: pointer; font: 700 12px/1 inherit; }
 .marker { width: 26px; height: 26px; background: transparent; overflow: visible; }
-.cluster { width: 32px; height: 32px; border: 2px solid #fff; background: #247d70; color: #fff; box-shadow: 0 2px 6px #17372f40; }
+.cluster { width: 32px; height: 32px; border: 2px solid #fff; background: var(--cluster-fill, #247d70); color: #fff; box-shadow: 0 2px 6px #17372f40; text-shadow: 0 1px 2px #16251f; }
+.collectionMarker { width: 32px; height: 32px; background: var(--collection-fill); box-shadow: 0 0 0 2px #fff, 0 2px 7px #17372f55; }
+.collectionMarker .dot { width: 16px; height: 16px; border-width: 3px; }
+.collectionMarker .markerSymbol { width: 22px; height: 22px; border-width: 2px; }
 .dot { width: 8px; height: 8px; border: 1.5px solid white; border-radius: 50%; background: var(--marker-color); box-shadow: 0 1px 3px #193b3545; }
 .markerSymbol { display: grid; place-items: center; width: 25px; height: 25px; border: 2px solid #fff; border-radius: 50%; background: var(--marker-color); box-shadow: 0 1px 5px #193b3545; }
 .markerSymbol svg { width: 16px; height: 16px; fill: none; stroke: white; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .markerLabel { position: absolute; left: 27px; top: 2px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 6px; border-radius: 4px; background: #fffffff0; color: #233c35; box-shadow: 0 1px 4px #17372f1f; font-size: 11px; font-weight: 700; }
 .marker:hover, .marker:focus-visible, .cluster:hover, .cluster:focus-visible { outline: 3px solid #86b8ff; outline-offset: 2px; }
 .selected .dot { width: 16px; height: 16px; border-width: 3px; outline: 2px solid #1768e5; }
+.selected.collectionMarker { outline: 3px solid #1768e5; outline-offset: 3px; }
 .selected .markerSymbol { outline: 3px solid #1768e5; outline-offset: 1px; }
 .selected .markerLabel { color: #104ba7; box-shadow: 0 0 0 1px #86b8ff; }
 .markerLabel { pointer-events: none; }

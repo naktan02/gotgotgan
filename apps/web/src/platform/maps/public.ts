@@ -7,6 +7,7 @@ export type {
   PlaceMapBounds,
   PlaceMapCluster,
   PlaceMapInitialCameraMode,
+  PlaceMapCoincidentPreview,
   PlaceMapMarker,
   PlaceMapRenderer,
   PlaceMapRendererProperties,

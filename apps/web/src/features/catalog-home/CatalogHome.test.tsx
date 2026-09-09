@@ -41,6 +41,13 @@ const workflow: CatalogHomeWorkflow = {
   collections: [{ collectionId: 'collection-1', name: '전시 후보', placeCount: 2 }],
   collectionState: 'ready',
   collectionPickerOpen: true,
+  mapCollectionSelection: { kind: 'collections', collectionIds: ['d2719f7f-26e7-4ccf-afd1-8c1c066bb6f1'] },
+  mapCollectionMetadata: [{
+    collectionId: 'd2719f7f-26e7-4ccf-afd1-8c1c066bb6f1',
+    name: '전시 후보',
+    colorToken: 'coral',
+  }],
+  mapCollectionState: 'ready',
   viewport: { zoom: 11, bounds: { west: 126, south: 37, east: 128, north: 38 } },
   mapMarkers: [],
   mapClusters: [],
@@ -52,6 +59,9 @@ const workflow: CatalogHomeWorkflow = {
   excludeToken: noOperation,
   selectPlace: noOperation,
   setCollectionPickerOpen: noOperation,
+  clearMapCollections: noOperation,
+  selectAllMapCollections: noOperation,
+  toggleMapCollection: noOperation,
   onFilingApplied: async () => undefined,
   onFilingAccessFailure: noOperation,
   setViewport: noOperation,
@@ -108,6 +118,9 @@ describe('Catalog Home view', () => {
     expect(markup).toContain('data-initial-camera-mode="supplied-bounds"')
     expect(markup).not.toContain('저장됨')
     expect(markup).not.toContain('가고 싶음')
+    expect(markup).toContain('즐겨찾기 표시')
+    expect(markup).toContain('선택한 Collection 범례')
+    expect(markup).toContain('전시 후보')
   })
 
   it('opts into granted current location only for the empty idle Home camera', () => {
