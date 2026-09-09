@@ -19,6 +19,10 @@ export type { CanonicalResolutionStore } from './application/ports/canonical-res
 export { PostgresCanonicalResolutionStore } from './adapters/persistence/postgres-canonical-resolution-store.js'
 export { PostgresMinimumPlaceCatalog } from './adapters/persistence/postgres-minimum-place-catalog.js'
 export type { MinimumPlaceFacts, MinimumPlacePublication, CurrentMinimumPlace } from './domain/minimum-place-facts.js'
+export type {
+  SharedCatalogContributionPort,
+  SharedCatalogContributionResult,
+} from './application/ports/shared-catalog-contribution.js'
 export {
   createPlaceDetailReader,
   createMemberPlaceDetailReader,

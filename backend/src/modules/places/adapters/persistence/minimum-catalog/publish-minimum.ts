@@ -11,8 +11,26 @@ function id(seed: string) {
 
 /** Identity reuse never overwrites an existing, possibly richer, current profile. */
 export async function publishMinimumProfile(client: PoolClient, input: MinimumPlacePublication) {
-  const place = (await client.query<{ status: string; current_profile_revision: string | null }>(
-    `SELECT status, current_profile_revision FROM places.canonical_places WHERE id = $1::uuid FOR UPDATE`,
+  const place = (await client.query<{
+    status: string
+    current_profile_revision: string | null
+    current_policy_version: string | null
+    current_display_name: string | null
+    current_formatted_address: string | null
+    current_has_location: boolean
+    current_published_at: Date | null
+  }>(
+    `SELECT place.status, place.current_profile_revision,
+            profile.policy_version AS current_policy_version,
+            profile.display_name AS current_display_name,
+            profile.formatted_address AS current_formatted_address,
+            profile.location IS NOT NULL AS current_has_location,
+            profile.published_at AS current_published_at
+     FROM places.canonical_places AS place
+     LEFT JOIN places.canonical_place_profile_revisions AS profile
+       ON profile.canonical_place_id = place.id
+      AND profile.revision = place.current_profile_revision
+     WHERE place.id = $1::uuid FOR UPDATE OF place`,
     [input.placeId],
   )).rows[0]
   if (place?.status !== 'active') throw new Error('Canonical place is not active')
@@ -57,7 +75,113 @@ export async function publishMinimumProfile(client: PoolClient, input: MinimumPl
       )
     }
   }
-  if (place.current_profile_revision !== null) return 'existing' as const
+  await client.query(
+     `INSERT INTO places.place_aliases (
+       id, canonical_place_id, alias, language_tag, source_observation_id, created_at
+     ) VALUES ($1::uuid,$2::uuid,$3,NULL,$4::uuid,$5::timestamptz)
+     ON CONFLICT DO NOTHING`,
+    [id(`${policy}:alias:${input.sourceObservationId}`), input.placeId, input.facts.name,
+      input.sourceObservationId, input.recordedAt],
+  )
+  if (place.current_profile_revision !== null) {
+    if (place.current_policy_version !== policy) return 'existing' as const
+    const fillAddress = place.current_formatted_address === null && input.facts.address !== null
+    const fillLocation = !place.current_has_location && input.facts.location !== null
+    if (!fillAddress && !fillLocation) return 'existing' as const
+
+    const previousRevision = Number(place.current_profile_revision)
+    const revision = previousRevision + 1
+    const operationId = id(`${policy}:profile:${input.placeId}:${revision}:${batchId}`)
+    const rationale = `Fill missing venue facts; ${input.publicationBasis}; existing selections preserved`
+    const publishedAt = new Date(Math.max(
+      Date.parse(input.recordedAt),
+      (place.current_published_at?.getTime() ?? 0) + 1,
+    )).toISOString()
+    const profileFingerprint = hash({
+      placeId: input.placeId,
+      revision,
+      previousRevision,
+      sourceObservationId: input.sourceObservationId,
+      fillAddress,
+      fillLocation,
+      facts: input.facts,
+    })
+    await client.query(
+      `INSERT INTO places.canonical_place_profile_revisions (
+         canonical_place_id, revision, operation_id, expected_previous_revision,
+         display_name, display_name_language_tag,
+         formatted_address, formatted_address_language_tag, location,
+         phone, phone_e164, website_uri, operational_status, opening_hours,
+         policy_version, rationale, published_by_kind, published_by_reference,
+         published_at, fingerprint
+       )
+       SELECT canonical_place_id, $2, $3::uuid, $4,
+              display_name, display_name_language_tag,
+              CASE WHEN $5::boolean THEN $6::text ELSE formatted_address END,
+              CASE WHEN $5::boolean THEN NULL ELSE formatted_address_language_tag END,
+              CASE WHEN $7::boolean THEN
+                ST_SetSRID(ST_MakePoint($9::float8,$8::float8),4326)::geography
+                ELSE location END,
+              phone, phone_e164, website_uri, operational_status, opening_hours,
+              $10, $11, 'policy', $10, $12::timestamptz, $13
+       FROM places.canonical_place_profile_revisions
+       WHERE canonical_place_id = $1::uuid AND revision = $4`,
+      [input.placeId, revision, operationId, previousRevision,
+        fillAddress, input.facts.address,
+        fillLocation, input.facts.location?.latitude ?? null,
+        input.facts.location?.longitude ?? null,
+        policy, rationale, publishedAt, profileFingerprint],
+    )
+    await client.query(
+      `INSERT INTO places.canonical_place_profile_evidence (
+         canonical_place_id, profile_revision, fact_kind, assertion_id, evidence_role
+       )
+       SELECT canonical_place_id, $2, fact_kind, assertion_id, evidence_role
+       FROM places.canonical_place_profile_evidence
+       WHERE canonical_place_id = $1::uuid AND profile_revision = $3
+         AND NOT (($4::boolean AND fact_kind = 'formatted-address')
+           OR ($5::boolean AND fact_kind = 'location'))`,
+      [input.placeId, revision, previousRevision, fillAddress, fillLocation],
+    )
+    if (fillAddress) {
+      await client.query(
+        `INSERT INTO places.canonical_place_profile_evidence (
+           canonical_place_id, profile_revision, fact_kind, assertion_id, evidence_role
+         ) VALUES ($1::uuid,$2,'formatted-address',$3::uuid,'selected')`,
+        [input.placeId, revision, id(`${batchId}:formatted-address`)],
+      )
+    }
+    if (fillLocation) {
+      await client.query(
+        `INSERT INTO places.canonical_place_profile_evidence (
+           canonical_place_id, profile_revision, fact_kind, assertion_id, evidence_role
+         ) VALUES ($1::uuid,$2,'location',$3::uuid,'selected')`,
+        [input.placeId, revision, id(`${batchId}:location`)],
+      )
+    }
+    if (input.facts.name !== place.current_display_name) {
+      await client.query(
+        `INSERT INTO places.canonical_place_profile_evidence (
+           canonical_place_id, profile_revision, fact_kind, assertion_id, evidence_role
+         ) VALUES ($1::uuid,$2,'name',$3::uuid,'supporting')`,
+        [input.placeId, revision, id(`${batchId}:name`)],
+      )
+    }
+    await client.query(
+      `INSERT INTO places.canonical_place_profile_operations (
+         operation_id, operation_fingerprint, canonical_place_id, expected_previous_revision,
+         resulting_revision, outcome, acceptance_status, rationale, result, occurred_at
+       ) VALUES ($1::uuid,$2,$3::uuid,$4,$5,'accepted','applied',$6,$7::jsonb,$8::timestamptz)`,
+      [operationId, profileFingerprint, input.placeId, previousRevision, revision, rationale,
+        JSON.stringify({ schemaVersion: 'minimum-place-publication.v1', placeId: input.placeId, revision }),
+        publishedAt],
+    )
+    await client.query(
+      'SELECT places.activate_canonical_place_profile($1::uuid,$2,$3)',
+      [input.placeId, previousRevision, revision],
+    )
+    return 'published' as const
+  }
   const operationId = id(`${policy}:profile:${input.placeId}:${batchId}`)
   const rationale = `Initial venue facts; ${input.publicationBasis}; personal fields excluded`
   await client.query(

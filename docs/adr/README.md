@@ -4,9 +4,9 @@ ADRs record durable repository-local decisions. Copy `template.md`, assign the n
 status and date, link evidence, name consequences and supersession conditions, and update routed docs.
 
 현재 최신 결정은
-[`0025-web-one-shot-saved-place-imports.md`](0025-web-one-shot-saved-place-imports.md)이며,
-설치 없는 웹 일회성 가져오기를 제품 경계로 두고 공유 링크 batch, 파일, 격리 원격 session을 서로
-다른 source 계약으로 분리한다.
+[`0026-share-eligible-provider-place-facts.md`](0026-share-eligible-provider-place-facts.md)이며,
+회원 가져오기에서 Provider가 직접 제공한 적격 장소 기본정보와 개인 별칭·기록을 분리해 전자만
+공통 카탈로그에 필드별로 기여한다.
 
 Stage 7 결정은 `0011-connected-import-pipeline-and-provider-isolation.md`에 기록한다. 연결 계정
 작업, Provider parser 격리, 암호화 캡처, 명시적 검토와 Library 반영 경계를 정의한다.
@@ -60,3 +60,5 @@ Stage 7 결정은 `0011-connected-import-pipeline-and-provider-isolation.md`에 
   분리하고 확장 프로그램을 필수 설치물로 두지 않는다.
 - `0025-web-one-shot-saved-place-imports.md`: NAVER multi-share-link batch를 주 경로로 두고 계정 미확인
   일회성 source와 검증된 connection, 선택형 원격 browser beta를 분리한다.
+- `0026-share-eligible-provider-place-facts.md`: 적격한 Provider 장소 기본정보의 공통 기여와 개인 정보
+  제외, 필드별 선택, 역사 데이터의 보수적 복구 경계를 정의한다.

@@ -27,11 +27,13 @@ and the additive
 [`migration 53`](../../backend/migrations/000053_preserve_provider_listed_facts.ts).
 Legacy NULL evidence remains unknown; this migration does not publish or rewrite historical data.
 
-Automatic import → public catalog activation and historical backfill are **pending explicit
-disclosure-policy confirmation**. The minimum publication adapter is not attached to the active
-import runtime. Its versioned disclosure-policy key is not an assertion of a provider licence.
-The approved-field boundary must be confirmed before connecting it; source eligibility and
-provider-specific use restrictions are separate from account ownership or possession of a link.
+ADR 0026은 versioned source-eligibility 정책을 통과한 Provider 원본 장소 사실에 한해 가져오기에서
+공통 카탈로그로 자동 기여하는 것을 승인한다. Transfer materialization runtime은
+[`provider-listed-place-contribution.ts`](../../backend/src/entrypoints/catalog/provider-listed-place-contribution.ts)의
+좁은 port를 통해 구조화된 `providerListedFacts`만 최소 Profile·alias·Search에 기여하고, 성공한 뒤에만
+개인 membership 단계로 진행한다. disclosure-policy key는 Provider 이용 허가를 주장하는 값이 아니다.
+Provider·획득 방식별 저장·표시 제한은 계정 소유나 링크 보유 여부와 별개인 fail-closed 활성 조건으로
+유지한다.
 
 Current public facts and personal observations remain distinct read sources. For detail and
 Library composition, use
@@ -47,6 +49,16 @@ uses the existing append-only canonical change feed. Its repair operation is del
 to minimum-profile policy records; it skips richer profiles rather than indexing incomplete
 classification/area data as a current canonical revision. A full rich-profile projector remains
 separate work. The runtime DB role still cannot directly overwrite canonical coordinates.
+
+Later eligible Provider observations add immutable assertions and searchable aliases. They create a
+new minimum-policy Profile revision only when they fill a missing address or location; a later name
+does not silently replace the selected display name. Re-projecting the same current revision is
+allowed so newly eligible aliases repair Search without inventing another Profile revision.
+
+The historical 410 identities still have no structured `source_snapshot_items` evidence from which
+provider-listed names can be distinguished from personal display aliases. Therefore this change does
+not backfill those records. Recovery remains gated on allowed Provider revalidation plus an encrypted,
+restore-verified environment backup; unknown strings stay in the personal fallback.
 
 No cross-provider fuzzy auto-merge is enabled. Reuse a verified provider identity; retain
 independent observations when equivalence is uncertain. Similar names, nearby coordinates,

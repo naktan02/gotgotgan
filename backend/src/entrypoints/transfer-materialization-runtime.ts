@@ -28,6 +28,8 @@ import {
   PostgresCanonicalResolutionStore,
 } from '../modules/places/index.js'
 import type { TransferMaterializationConfig } from './worker/config.js'
+import { createMinimumPlacePublication } from './catalog/minimum-place-publication.js'
+import { withProviderListedPlaceContribution } from './catalog/provider-listed-place-contribution.js'
 
 function wait(milliseconds: number, signal: AbortSignal): Promise<void> {
   if (signal.aborted) return Promise.resolve()
@@ -78,7 +80,7 @@ export async function runTransferMaterialization(
         }),
       ),
     }
-    const placeMaterializer: VerifiedSourcePlaceMaterializerPort = {
+    const canonicalPlaceMaterializer: VerifiedSourcePlaceMaterializerPort = {
       async materialize(input) {
         try {
           const materialization = {
@@ -123,6 +125,10 @@ export async function runTransferMaterialization(
         }
       },
     }
+    const placeMaterializer = withProviderListedPlaceContribution(
+      canonicalPlaceMaterializer,
+      createMinimumPlacePublication(pool),
+    )
     const worker = new PostgresImportMaterializationWorker(pool, materializer, placeMaterializer, {
       workerId: config.workerId,
       leaseMilliseconds: config.leaseMilliseconds,

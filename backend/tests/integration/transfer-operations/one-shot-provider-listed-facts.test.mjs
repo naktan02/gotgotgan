@@ -12,6 +12,12 @@ test('one-shot server facts survive persistence and materialization separately f
   try {
     const ingestion = await import('../../../dist/modules/ingestion/index.js')
     const places = await import('../../../dist/modules/places/index.js')
+    const { createMinimumPlacePublication } = await import(
+      '../../../dist/entrypoints/catalog/minimum-place-publication.js'
+    )
+    const { withProviderListedPlaceContribution } = await import(
+      '../../../dist/entrypoints/catalog/provider-listed-place-contribution.js'
+    )
     const store = new ingestion.PostgresIngestionStore(database.pool)
     const canonicalStore = new places.PostgresCanonicalResolutionStore(database.pool)
     const canonical = {
@@ -78,17 +84,21 @@ test('one-shot server facts survive persistence and materialization separately f
     })
     assert.equal(approved.status, 'applied')
     const observedEvidence = new Map()
+    const canonicalPlaceMaterializer = { async materialize(input) {
+      observedEvidence.set(input.providerPlaceId, input.snapshotEvidence)
+      const result = await ingestion.materializeSnapshotProviderPlace({
+        evidence: { ...input, externalPlaceId: input.providerPlaceId,
+          policyReference: 'transfer-source-snapshot-policy-create.v1', rationale: 'approved-import:minimum-source-snapshot' },
+        snapshot: input.snapshotEvidence, ingestionStore: store, canonical,
+      })
+      return { placeId: result.canonicalPlaceId }
+    } }
     const worker = new transfersModule.PostgresImportMaterializationWorker(database.pool,
       { materialize: (input) => materializer.materialize(library.normalizeImportedCollectionMaterialization(input)) },
-      { async materialize(input) {
-        observedEvidence.set(input.providerPlaceId, input.snapshotEvidence)
-        const result = await ingestion.materializeSnapshotProviderPlace({
-          evidence: { ...input, externalPlaceId: input.providerPlaceId,
-            policyReference: 'transfer-source-snapshot-policy-create.v1', rationale: 'approved-import:minimum-source-snapshot' },
-          snapshot: input.snapshotEvidence, ingestionStore: store, canonical,
-        })
-        return { placeId: result.canonicalPlaceId }
-      } },
+      withProviderListedPlaceContribution(
+        canonicalPlaceMaterializer,
+        createMinimumPlacePublication(database.pool),
+      ),
       { workerId: 'listed-facts-worker', now: () => new Date(at), leaseMilliseconds: 30_000, maximumBackoffMilliseconds: 60_000 },
     )
     assert.equal(await worker.runOnce(), 'completed')
@@ -107,7 +117,15 @@ test('one-shot server facts survive persistence and materialization separately f
       (SELECT count(*)::int FROM places.canonical_place_profile_revisions) AS profiles,
       (SELECT count(*)::int FROM search.place_documents) AS public_documents,
       (SELECT count(*)::int FROM library.collection_places WHERE collection_id=$1) AS private_places`, [id(904)])).rows,
-    [{ profiles: 0, public_documents: 0, private_places: 2 }])
+    [{ profiles: 1, public_documents: 1, private_places: 2 }])
+    assert.deepEqual((await database.pool.query(`SELECT profile.display_name, document.display_name AS search_name
+      FROM places.canonical_place_profile_revisions AS profile
+      JOIN search.place_documents AS document ON document.place_id = profile.canonical_place_id`)).rows,
+    [{ display_name: facts.name, search_name: facts.name }])
+    assert.ok(!(await database.pool.query(`SELECT profile.display_name, document.search_text
+      FROM places.canonical_place_profile_revisions AS profile
+      JOIN search.place_documents AS document ON document.place_id = profile.canonical_place_id`)).rows
+      .some((row) => JSON.stringify(row).includes('내 비밀 별칭')))
     assert.deepEqual((await database.pool.query(`SELECT connection_id, import_source_kind
       FROM transfers.operations WHERE resource_id=$1`, [id(903)])).rows, [{ connection_id: null, import_source_kind: 'one-shot' }])
   } finally { await fixture.close() }

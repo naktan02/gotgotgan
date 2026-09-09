@@ -1,18 +1,25 @@
 import type { Pool } from 'pg'
-import { PostgresMinimumPlaceCatalog, type MinimumPlacePublication } from '../../modules/places/index.js'
+import {
+  PostgresMinimumPlaceCatalog,
+  type MinimumPlacePublication,
+  type SharedCatalogContributionPort,
+} from '../../modules/places/index.js'
 import { PostgresCanonicalCatalogProjection } from '../../modules/search/index.js'
 
 export function createMinimumPlacePublication(pool: Pool) {
   const catalog = new PostgresMinimumPlaceCatalog(pool)
   const projection = new PostgresCanonicalCatalogProjection(pool)
+  const contribute: SharedCatalogContributionPort['contribute'] = async (input) => {
+    const result = await catalog.publish(input)
+    // A failure is retryable: the immutable profile survives; replay repairs only the index.
+    await projection.project(result.current)
+    return result
+  }
   return {
     catalog,
-    async publish(input: MinimumPlacePublication) {
-      const result = await catalog.publish(input)
-      // A failure is retryable: the immutable profile survives; replay repairs only the index.
-      await projection.project(result.current)
-      return result
-    },
+    contribute,
+    /** Compatibility alias for callers that still use the publication vocabulary. */
+    publish: (input: MinimumPlacePublication) => contribute(input),
     async rebuild() {
       let after = '0'
       let projected = 0
