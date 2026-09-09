@@ -37,3 +37,12 @@ export function up(pgm: MigrationBuilder): void {
       'Versioned server parser venue facts, separate from a private bookmark alias. NULL legacy data is not eligible for automatic public publication.';
   `)
 }
+
+export function down(pgm: MigrationBuilder): void {
+  pgm.sql(`
+    ALTER TABLE transfers.source_snapshot_items
+      DROP CONSTRAINT provider_listed_facts_v1_shape,
+      DROP COLUMN provider_listed_facts;
+    ALTER TABLE search.place_documents DROP COLUMN canonical_profile_revision;
+  `)
+}

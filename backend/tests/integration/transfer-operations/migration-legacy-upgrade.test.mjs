@@ -19,12 +19,17 @@ async function verifyLegacyUpgrade(importSourceKind) {
   const { at } = transferOperationEvidence
 
   try {
+    const upgradeMigrationCount = (await database.administratorClient.query(
+      `SELECT count(*)::integer AS count
+       FROM place_migrations.applied_migrations
+       WHERE name >= '000042_cut_over_transfer_operations'`,
+    )).rows[0].count
     const runCurrentUpgradeMigrations = async (direction) => runMigrations({
       dbClient: database.administratorClient,
       dir: fileURLToPath(new URL('../../../migrations', import.meta.url)),
       ignorePattern: 'README.md',
       direction,
-      count: 10,
+      count: upgradeMigrationCount,
       migrationsTable: 'applied_migrations',
       migrationsSchema: 'place_migrations',
       checkOrder: true,
