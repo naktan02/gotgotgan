@@ -1,4 +1,4 @@
-# Place web design contract
+# 곳곳간 Web design contract
 
 Read the workspace design brief at `../../../plans/place-platform-ui-design-brief.md` before changing
 user-visible behavior. The direction is **Calm Utility Map**: restrained surfaces, clear hierarchy,

@@ -1,4 +1,4 @@
-# Place backend
+# 곳곳간 Backend
 
 This TypeScript package owns Place domain rules, adapters, incoming transports, and separate HTTP and
 worker process composition. The HTTP process serves interactive product behavior. The acquisition

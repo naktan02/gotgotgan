@@ -10,7 +10,7 @@
 이 기능은 두 개의 Provider-neutral 경로를 같은 검토 화면으로 연결한다.
 
 - 서버 연결 경로: 연결 선택, ImportBatch 시작·재개·취소·재시도, preview/review를 수행한다.
-- 현재 브라우저 경로: Place Connector를 확인하고 Provider 권한을 준비한 뒤 일회성 grant로 수집을
+- 현재 브라우저 경로: 곳곳간 커넥터를 확인하고 Provider 권한을 준비한 뒤 일회성 grant로 수집을
   시작하며, 진행 상황과 완성된 `importBatchId`를 받아 같은 batch 상세로 전환한다.
 
 `connected-place-imports-workflow.ts`가 onboarding, Connector session, 서버 import, polling,

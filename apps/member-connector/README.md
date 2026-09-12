@@ -202,7 +202,7 @@ WXT `0.21.4`와 Vite `6.4.3`을 고정했다. Chrome·Edge·Whale은 Chromium Ma
 공개 origin 하나만 사용한다. 아직 비활성인 v2 capability transport용 Connector origin은 manifest에
 없다. `scripting`은 기존 진단/legacy seam과 사용자가 선택 권한을 부여한 Provider 페이지의 same-origin
 JSON 요청에만 사용한다. NAVER는
-`https://pages.map.naver.com/*`를 optional host permission으로 둔다. Place에서 가져오기를 선택했을 때
+`https://pages.map.naver.com/*`를 optional host permission으로 둔다. 곳곳간에서 가져오기를 선택했을 때
 권한이 없으면 확장 소유 권한 탭을 열고, 사용자가 해당 Provider 버튼을 직접 눌렀을 때만 요청한다.
 실제 배포 산출물은 다음처럼 만든다.
 
@@ -282,7 +282,7 @@ npm run member-connector:observe:naver
 
 관찰 보고서는 지정한 private 디렉터리에 UUID 파일명과 생성 전용 쓰기로 저장된다. query,
 response 값, cookie, header, request body, token, 프로필 경로는 보고서에 쓰지 않는다. JSON은 최대
-크기·깊이·키 수를 제한하고 키와 값의 타입만 남긴다. 보고서는 Place 서버로 자동 전송되지 않는다.
+크기·깊이·키 수를 제한하고 키와 값의 타입만 남긴다. 보고서는 곳곳간 서버로 자동 전송되지 않는다.
 
 ## 전체 저장 목록 수집
 
@@ -307,7 +307,7 @@ npm run member-connector:collect:naver
 ```
 
 CLI는 개인 필드, ID, checksum, 경로를 출력하지 않고 목록·bookmark·요청 수만 반환한다. 현재 수집
-결과는 파일이나 Place 서버에 쓰지 않고 프로세스 종료 시 폐기한다. 실제 ImportBatch로 전달하려면
+결과는 파일이나 곳곳간 서버에 쓰지 않고 프로세스 종료 시 폐기한다. 실제 ImportBatch로 전달하려면
 회원 동의와 일회성·짧은 수명의 connector upload grant를 소유하는 별도 versioned 제출 계약이 먼저
 필요하다. 장기 bearer token이나 Web cookie를 CLI에 복사하지 않는다.
 

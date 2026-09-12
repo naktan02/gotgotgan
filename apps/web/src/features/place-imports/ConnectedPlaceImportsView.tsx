@@ -182,10 +182,10 @@ export function ConnectedPlaceImportsView({
       {onboardingRequired && (
         <section aria-labelledby="place-onboarding-title" className={styles.onboarding}>
           <p className={styles.eyebrow}>첫 서비스 연결</p>
-          <h2 id="place-onboarding-title">Place 이용 동의 후 Owner로 연결합니다</h2>
+          <h2 id="place-onboarding-title">곳곳간 이용 동의 후 Owner로 연결합니다</h2>
           <p>
             중앙 플랫폼 Owner 권한은 확인되었습니다. 아래 현재 문서에 동의하면 이 계정을
-            Place의 유일한 Owner로 자동 연결합니다.
+            곳곳간의 유일한 Owner로 자동 연결합니다.
           </p>
           {onboardingConsents === undefined ? (
             <p className={styles.muted}>현재 동의 문서를 불러오는 중입니다.</p>
@@ -234,7 +234,7 @@ export function ConnectedPlaceImportsView({
             </div>
             {connectorReady === undefined ? (
               <p className={styles.muted}>
-                Place Connector를 설치한 뒤 다시 확인하세요. 아이디·비밀번호는 Place로 전송하지 않습니다.
+                곳곳간 커넥터를 설치한 뒤 다시 확인하세요. 아이디·비밀번호는 곳곳간으로 전송하지 않습니다.
               </p>
             ) : (
               <p className={styles.muted}>

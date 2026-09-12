@@ -26,7 +26,7 @@ async function renderPermission(): Promise<void> {
   button.disabled = allowed
   button.textContent = allowed ? 'NAVER 접근 허용됨' : 'NAVER 접근 허용'
   status.textContent = allowed
-    ? 'Place로 돌아가 가져오기를 다시 실행하세요.'
+    ? '곳곳간으로 돌아가 가져오기를 다시 실행하세요.'
     : '버튼을 누르면 Chrome의 NAVER 사이트 접근 권한 창이 열립니다.'
 }
 

@@ -123,7 +123,7 @@ export function useConnectedPlaceImportsWorkflow() {
           setError(
             consentFailure instanceof Error
               ? consentFailure.message
-              : '현재 Place 이용 동의를 불러오지 못했습니다.',
+              : '현재 곳곳간 이용 동의를 불러오지 못했습니다.',
           )
         }
         return
@@ -178,14 +178,14 @@ export function useConnectedPlaceImportsWorkflow() {
         }),
       )
       if (result.authorityRole !== 'owner') {
-        throw new ImportBrowserProblem('Platform Owner 권한을 Place에 연결하지 못했습니다.', true)
+        throw new ImportBrowserProblem('Platform Owner 권한을 곳곳간에 연결하지 못했습니다.', true)
       }
       setOnboardingRequired(false)
       setOnboardingConsents(undefined)
       setAcceptedConsentKeys(new Set())
       await loadConnections()
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'Place 가입을 완료하지 못했습니다.')
+      setError(failure instanceof Error ? failure.message : '곳곳간 가입을 완료하지 못했습니다.')
     } finally {
       setOnboardingBusy(false)
     }

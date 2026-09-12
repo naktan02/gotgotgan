@@ -1,7 +1,7 @@
 {
   "serviceId": "place",
-  "displayName": "Place",
-  "applicationName": "Place Web",
+  "displayName": "곳곳간",
+  "applicationName": "곳곳간 Web",
   "applicationType": "web",
   "authMethod": "basic",
   "redirectUris": [

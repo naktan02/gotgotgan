@@ -9,9 +9,9 @@ export function ImportBrowserSession({
     return (
       <section aria-labelledby="place-login-title" className={styles.sessionBoundary}>
         <div>
-          <p className={styles.eyebrow}>Place 계정</p>
+          <p className={styles.eyebrow}>곳곳간 계정</p>
           <h2 id="place-login-title">저장 목록을 가져오려면 로그인해 주세요</h2>
-          <p>통합 계정 로그인 후 Place 이용 동의와 개인 멤버십 연결을 이어서 진행합니다.</p>
+          <p>통합 계정 로그인 후 곳곳간 이용 동의와 개인 멤버십 연결을 이어서 진행합니다.</p>
         </div>
         <a className={styles.primaryLink} href="/api/auth/oidc/start">
           통합 계정으로 로그인

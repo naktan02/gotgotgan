@@ -1,7 +1,7 @@
 {
   "serviceId": "place-admin",
-  "displayName": "Place Admin",
-  "applicationName": "Place Admin Web",
+  "displayName": "곳곳간 Admin",
+  "applicationName": "곳곳간 Admin Web",
   "applicationType": "web",
   "authMethod": "basic",
   "redirectUris": [

@@ -1,6 +1,6 @@
-# Place web
+# 곳곳간 Web
 
-This Next.js application is the Place product surface. Routes stay thin and compose screens through
+This Next.js application is the 곳곳간 product surface. Routes stay thin and compose screens through
 the dependency direction documented in `DESIGN.md` and the repository `AGENTS.md`.
 
 Stage 2 contains the responsive product shell, the family-navigation consumer contract, and a
