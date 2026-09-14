@@ -3,20 +3,16 @@
 The workspace `../AGENTS.md` applies first. This repository owns the Place product and must remain
 independently buildable without sibling source trees.
 
-## Required reading
+## Task reading
 
-Before any change:
+Before the first modification, load only the documentation routed to the affected boundary. Inspect
+current code, repository state, and relevant dirty diffs. Inspect contracts, migrations, tests, or
+history when they affect the requested change. Load the full workspace document set and
+`../plans/place-platform-service-implementation.md` only for an actual cross-service boundary change.
 
-1. read `README.md` and `docs/README.md`;
-2. follow the task route in `docs/README.md`;
-3. read the nearest boundary `README.md` files;
-4. inspect current code, contracts, migrations, tests, recent commits, status, and dirty diff; and
-5. for cross-service changes, reread the full workspace document set and
-   `../plans/place-platform-service-implementation.md`.
-
-For product/frontend work also read `apps/web/DESIGN.md`. For a decision already covered by the
-pre-implementation record, read `../plans/place-platform-stage-0-decision-record.md` and revalidate
-its evidence before changing it.
+For product/frontend work, read `apps/web/DESIGN.md` when its design rules affect the requested
+change. For a decision already covered by the pre-implementation record, read
+`../plans/place-platform-stage-0-decision-record.md` when that decision is being revisited.
 
 Before adding, moving, or splitting source files, read `docs/architecture/module-layout.md`. Its
 homogeneous-sibling and deep-module checks are completion criteria for structural changes.
