@@ -1,10 +1,19 @@
 import type {
+  CollectionColorCommandRequestV1,
+  CollectionLifecycleCommandRequestV2,
   LibraryCollectionDetailQuery,
   LibraryCollectionListQuery,
   LibraryMapQuery,
   LibraryPlaceListQuery,
   LibraryPlaceOrganizationQuery,
   LibraryTagListQuery,
+  PersonalLibraryWorkspaceRequestV2,
+  PersonalLibraryMapRequestV2,
+  PersonalLibraryMapRequestV3,
+  PersonalLibraryMapRequestV4,
+  PlaceFilingCommandRequestV2,
+  PlaceFilingRequestV2,
+  PublishedCollectionCopyCommandRequestV2,
 } from '@place/contracts/library'
 
 import {
@@ -46,6 +55,28 @@ function mapQueryString(query: LibraryMapQuery): URLSearchParams {
   return parameters
 }
 
+function workspaceQueryString(query: PersonalLibraryWorkspaceRequestV2): URLSearchParams {
+  const parameters = new URLSearchParams({
+    rating: query.ratingFilter.kind,
+    tagMatch: query.tagMatch,
+    limit: String(query.limit),
+  })
+  if (query.favoriteScope.kind === 'collection') {
+    parameters.set('collectionId', query.favoriteScope.collectionId)
+  }
+  for (const tagId of query.tagIds) parameters.append('tagIds', tagId)
+  for (const areaKey of query.areaKeys) parameters.append('areaKeys', areaKey)
+  for (const taxonomyKey of query.taxonomyKeys) parameters.append('taxonomyKeys', taxonomyKey)
+  if (query.collectionCursor !== undefined) {
+    parameters.set('collectionCursor', query.collectionCursor)
+  }
+  if (query.placeCursor !== undefined) parameters.set('placeCursor', query.placeCursor)
+  if (query.collectionQuery !== undefined) parameters.set('collectionQuery', query.collectionQuery)
+  if (query.placeQuery !== undefined) parameters.set('placeQuery', query.placeQuery)
+  if (query.includeSelectedCollection === true) parameters.set('includeSelectedCollection', 'true')
+  return parameters
+}
+
 export function createLibraryBackendClient(config: LibraryBackendClientConfig = {}) {
   const environment = config.environment ?? process.env
   const fetcher = config.fetcher ?? fetch
@@ -73,6 +104,89 @@ export function createLibraryBackendClient(config: LibraryBackendClientConfig = 
   }
 
   return {
+    workspaceMap(accessToken: string, query: PersonalLibraryMapRequestV2, signal: AbortSignal) {
+      const parameters = workspaceQueryString({ ...query, limit: 20 })
+      parameters.delete('limit')
+      for (const key of ['west', 'south', 'east', 'north', 'zoom'] as const) parameters.set(key, String(query[key]))
+      return send(`/v2/library/workspace/map?${parameters}`, accessToken, signal)
+    },
+    workspaceMapV3(accessToken: string, query: PersonalLibraryMapRequestV3, signal: AbortSignal) {
+      const parameters = workspaceQueryString({ ...query, limit: 20 })
+      parameters.delete('limit')
+      for (const key of ['west', 'south', 'east', 'north', 'zoom'] as const) {
+        parameters.set(key, String(query[key]))
+      }
+      if (query.selectedPlaceId !== undefined) parameters.set('selectedPlaceId', query.selectedPlaceId)
+      return send(`/v3/library/workspace/map?${parameters}`, accessToken, signal)
+    },
+    workspaceMapV4(accessToken: string, query: PersonalLibraryMapRequestV4, signal: AbortSignal) {
+      const parameters = new URLSearchParams({
+        scope: query.selection.kind === 'all' ? 'all' : 'collections',
+        rating: query.ratingFilter.kind,
+        tagMatch: query.tagMatch,
+        west: String(query.west),
+        south: String(query.south),
+        east: String(query.east),
+        north: String(query.north),
+        zoom: String(query.zoom),
+      })
+      if (query.selection.kind === 'collections') {
+        for (const collectionId of query.selection.collectionIds) parameters.append('collectionIds', collectionId)
+      }
+      for (const tagId of query.tagIds) parameters.append('tagIds', tagId)
+      for (const areaKey of query.areaKeys) parameters.append('areaKeys', areaKey)
+      for (const taxonomyKey of query.taxonomyKeys) parameters.append('taxonomyKeys', taxonomyKey)
+      if (query.placeQuery !== undefined) parameters.set('placeQuery', query.placeQuery)
+      if (query.selectedPlaceId !== undefined) parameters.set('selectedPlaceId', query.selectedPlaceId)
+      return send(`/v4/library/workspace/map?${parameters}`, accessToken, signal)
+    },
+    publicationCopyCommand(
+      accessToken: string,
+      body: PublishedCollectionCopyCommandRequestV2,
+      signal: AbortSignal,
+    ) {
+      return send('/v1/library/publication-copy-commands', accessToken, signal, 'POST', body)
+    },
+    collectionCommand(
+      accessToken: string,
+      body: CollectionLifecycleCommandRequestV2,
+      signal: AbortSignal,
+    ) {
+      return send('/v1/library/collection-commands', accessToken, signal, 'POST', body)
+    },
+    collectionColorCommand(
+      accessToken: string,
+      body: CollectionColorCommandRequestV1,
+      signal: AbortSignal,
+    ) {
+      return send('/v1/library/collection-color-commands', accessToken, signal, 'POST', body)
+    },
+    workspace(
+      accessToken: string,
+      query: PersonalLibraryWorkspaceRequestV2,
+      signal: AbortSignal,
+    ) {
+      return send(`/v1/library/workspace?${workspaceQueryString(query)}`, accessToken, signal)
+    },
+    filing(
+      accessToken: string,
+      placeId: string,
+      query: PlaceFilingRequestV2,
+      signal: AbortSignal,
+    ) {
+      return send(
+        `/v1/library/places/${placeId}/filing?${queryString(query)}`,
+        accessToken,
+        signal,
+      )
+    },
+    filingCommand(
+      accessToken: string,
+      body: PlaceFilingCommandRequestV2,
+      signal: AbortSignal,
+    ) {
+      return send('/v1/library/filing-commands', accessToken, signal, 'POST', body)
+    },
     map(accessToken: string, query: LibraryMapQuery, signal: AbortSignal) {
       return send(`/v1/library/map?${mapQueryString(query)}`, accessToken, signal)
     },
@@ -123,6 +237,9 @@ export function createLibraryBackendClient(config: LibraryBackendClientConfig = 
     },
     place(accessToken: string, placeId: string, signal: AbortSignal) {
       return send(`/v1/places/${placeId}`, accessToken, signal)
+    },
+    memberPlace(accessToken: string, placeId: string, signal: AbortSignal) {
+      return send(`/v2/places/${placeId}`, accessToken, signal)
     },
   }
 }

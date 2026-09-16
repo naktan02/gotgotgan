@@ -53,6 +53,21 @@ describe('bounded library query contracts', () => {
     })
     expect(libraryMapQuerySchema.safeParse({
       scope: 'state', west: 127.1, south: 37.5, east: 126.9, north: 37.6, zoom: 12,
+    }).success).toBe(true)
+    expect(libraryMapQuerySchema.parse({
+      scope: 'state', west: 170, south: -20, east: -170, north: 20, zoom: '12.5',
+    }).zoom).toBe(12.5)
+    expect(libraryMapQuerySchema.safeParse({
+      scope: 'state', west: -180, south: -85.051129, east: 180, north: 85.051129, zoom: 0,
+    }).success).toBe(true)
+    expect(libraryMapQuerySchema.safeParse({
+      scope: 'state', west: 10, south: -20, east: 10, north: 20, zoom: 12,
+    }).success).toBe(false)
+    expect(libraryMapQuerySchema.safeParse({
+      scope: 'state', west: 180, south: -20, east: -180, north: 20, zoom: 12,
+    }).success).toBe(false)
+    expect(libraryMapQuerySchema.safeParse({
+      scope: 'state', west: 170, south: -85.05113, east: -170, north: 20, zoom: 12,
     }).success).toBe(false)
     expect(libraryMapQuerySchema.safeParse({
       scope: 'collection', collectionId: placeId, tagIds: placeId,
@@ -66,7 +81,7 @@ describe('bounded library query contracts', () => {
         areaKeys: [], taxonomyKeys: [],
       },
       viewport: {
-        bounds: { west: 126.9, south: 37.5, east: 127.1, north: 37.6 }, zoom: 12,
+        bounds: { west: 126.9, south: 37.5, east: 127.1, north: 37.6 }, zoom: 12.5,
       },
       features: [{
         kind: 'cluster', clusterId: 'z12-x1-y1', count: 3,

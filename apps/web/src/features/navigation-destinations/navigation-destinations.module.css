@@ -1,0 +1,16 @@
+.destination { min-height: 100%; padding: clamp(24px, 5vw, 64px); background: #f8fafd; }
+.destination header { max-width: 720px; }
+.destination header > span { color: #1768e5; font-size: 12px; font-weight: 800; }
+.destination h1 { margin: 8px 0; color: #202733; font-size: clamp(28px, 4vw, 42px); letter-spacing: -.04em; }
+.destination header p { margin: 0; color: #657080; line-height: 1.65; }
+.notice { max-width: 720px; margin-top: 30px; padding: 22px; border: 1px solid #dce4ee; border-radius: 14px; background: #fff; }
+.notice strong { color: #303a48; }
+.notice p { margin: 8px 0 0; color: #717c8b; font-size: 13px; line-height: 1.65; }
+.primaryLink { display: inline-flex; min-height: 42px; align-items: center; margin-top: 18px; padding: 0 15px; border-radius: 9px; background: #1768e5; color: #fff; font-size: 13px; font-weight: 750; text-decoration: none; }
+.settingsGrid { max-width: 840px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 30px; }
+.settingsGrid > * { min-height: 112px; display: grid; align-content: center; gap: 8px; padding: 20px; border: 1px solid #dce4ee; border-radius: 14px; background: #fff; color: inherit; text-decoration: none; }
+.settingsGrid a:hover, .settingsGrid a:focus-visible { border-color: #78a7ec; outline: 3px solid rgb(23 104 229 / 10%); }
+.settingsGrid strong { color: #303946; font-size: 15px; }
+.settingsGrid span { color: #737e8c; font-size: 12px; line-height: 1.5; }
+.settingsGrid [aria-disabled="true"] { background: #f5f7fa; }
+@media (max-width: 620px) { .settingsGrid { grid-template-columns: 1fr; } }

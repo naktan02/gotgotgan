@@ -1,24 +1,50 @@
 # Maps
 
-The renderer is a frontend platform adapter, not the Place search or identity source. The initial
-live candidate is NAVER Web Dynamic Map for Korean usability; CI uses a deterministic fake. MapLibre
-remains a fallback after a reviewed Korean tile/style source exists. No key or origin is present.
+운영 Web 지도 Adapter는 MapLibre GL JS 6.7.0이며 기본 style은 OpenFreeMap의 OSM 기반
+`https://tiles.openfreemap.org/styles/bright`다. 배포 시 공개 style URL은
+`PLACE_MAP_STYLE_URL`에 query/hash 없는 same-origin 경로나 공개 OpenFreeMap URL로 주입한다. 설정은
+Node process instrumentation에서 검증하므로 내부 host, credential, signed query가 브라우저 HTML에
+노출되지 않으며 잘못된 값은 시작을 실패시킨다. OpenFreeMap 공개 서비스에는 SLA가
+없으므로 트래픽과 가용성 요구가 커지면 같은 MapLibre Interface를 유지한 채 style과 tile을 자체
+호스팅한다. Provider credential이나 NAVER·Google·Kakao SDK는 브라우저 지도에 주입하지 않는다.
 
-Stage 5는 실제 좌표와 viewport bounds를 사용하는 `DeterministicPlaceMap`을 구현하지만 tile,
-SDK, key는 연결하지 않는다. list selection과 marker selection은 같은 state이고 map 이동 뒤
-사용자가 명시적으로 “이 영역 검색”을 선택한다. Stage 6 live renderer는 이 interaction과
-Search 계약을 유지한 채 platform 구현만 교체한다.
+MapLibre Adapter는 생성 후 projection을 `globe`로 한 번만 지정한다. 낮은 zoom의 3D 지구본과 높은
+zoom의 Mercator 2D 지도 전환은 MapLibre 내장 전환에 맡기며 zoom에 따라 projection을 수동 교체하지
+않는다. Initial camera는 기본적으로 caller의 bounds를 그대로 사용한다. 빈 Home idle 화면만
+`granted-current-location`을 opt-in하고, 브라우저 권한이 이미 `granted`인 경우에만 현재 위치로
+한 번 이동한다. Search·Library·Browse·Published는 주입된 viewport를 유지한다. Geolocate control은
+사용자 클릭으로만 권한을 요청하고 `prompt`, `denied`, 확인 불가 상태에서 자동 권한 창을
+열지 않는다.
 
-Personal Library map은 Search와 다른 interaction을 사용한다. 현재 목록 page를 marker source로 쓰지
-않고 인증된 `GET /v1/library/map`에 member-owned scope/filter, bounds, zoom을 전달한다. 응답의 point와
-cluster는 현재 viewport의 모든 projected Place를 대표하고, 넓은 영역에서는 feature 수만 최대 500개로
-제한한다. cluster count의 합과 개별 point 수의 합은 `representedPlaceCount`와 같아야 한다. Library는
-Search schema를 join하지 않으며 Search-owned PostGIS reader가 scoped Place ID의 bounds 조회를 수행한다.
-CI의 deterministic renderer는 확대·축소·pan·cluster 확대를 검증하고 live NAVER Adapter는 후속이다.
+Canonical Catalog Home의 목록과 지도는 서로 다른 bounded projection이다. 목록은
+`POST /v2/search/catalog`, 새 지도는 `POST /v3/search/catalog/map`을 사용한다. 기존 v1/v2 계약은 유지한다. 지도 요청은 query,
+제외 token, antimeridian-aware viewport와 zoom을 전달하고 최대 384개의 feature를 받는다. 넓은
+범위에서도 먼 장소를 강제로 한 격자에 묶지 않고 pixel 기준 point와 count-bearing cluster를 함께 반환하므로 전체 장소를
+브라우저에 보내 client clustering하지 않는다. Web BFF는 지도 요청 32KiB, 응답 1MiB를 streaming
+검사하고 압축·초과·비 JSON 응답을 닫는다.
 
-공개 Collection map도 같은 provider-neutral 시각 계약을 사용하지만 인증 Library scope가 아니라 유효한
-publication membership을 기준으로 한다. `GET /v1/public/collections/{publicationId}/map`은 공개 목록
-cursor와 독립된 bounds/zoom query이며, 아직 읽지 않은 목록 page의 Place도 marker/cluster에 포함한다.
-Search, Personal Library, publication feature는 `PlaceMapRenderer` 구현을 직접 선택하지 않고 각 app
-composition에서 주입받는다. 따라서 live 지도를 붙일 때 SDK lifecycle·key·attribution은 새 platform
-Adapter 안에 격리되고 feature query/state는 유지된다.
+지도 v3의 집계·분류·동위치 preview 경계는 `backend/src/platform/map-projection/README.md`에서
+Library와 Catalog 각 구현 및 대량/회원격리 회귀로 이동한다. 지구본의 공개 SDK 표현과 실제 타일
+캡처 방법은 `apps/web/src/platform/maps/README.md`가 소유한다.
+
+Personal Library와 공개 Collection도 목록 page를 marker source로 재사용하지 않고 각 소유 모듈의
+viewport projection을 사용한다. 모든 feature는 provider-neutral `PlaceMapRenderer` Interface만 알고,
+app 조립 계층이 운영 MapLibre Adapter를 주입한다. Canvas source와 같은 feature를 나타내는 MapLibre
+DOM Marker button이 키보드·screen reader 선택 Interface를 제공한다.
+
+길찾기는 곳곳간이 구현하지 않는다. 유효한 좌표를 Google Maps와 Kakao Map 링크로 전달하며, 한국
+좌표의 NAVER는 공식 app route scheme을 사용하고 해외 좌표는 NAVER Web 검색을 사용한다.
+Web CSP는 same-origin과 `tiles.openfreemap.org`, MapLibre의 blob worker만 지도 자원으로 허용한다.
+다른 tile host로 전환할 때는 먼저 same-origin proxy/self-hosting과 CSP 변경을 함께 검토한다.
+React 개발 진단에 필요한 `unsafe-eval`은 `next dev`에서만 허용하며 production build의 CSP에는
+포함하지 않는다.
+CI와 feature 단위 테스트는 `platform/maps/testing`의 결정적 Adapter와 same-origin 빈
+MapLibre style을 사용하므로 OpenFreeMap 네트워크에 의존하지 않는다.
+
+2026-09-05: Next의 worker sibling URL 실패를 정확한 versioned same-origin 자산 배포로 수정했다.
+프로덕션 빌드에서 4개 화면 폭의 실제 공개 타일·worker와 지구본을 별도로 확인했다. 인증·회원 API
+활성화와는 독립적인 증거다. 원인과 회귀 probe는
+[`Map incident`](../incidents/2026-09-05-map-worker-and-viewport.md)에 둔다.
+라이브러리 소개 문구와 MapLibre 브랜드 custom attribution은 제거하되, tile source의 데이터 출처는
+지도 구석의 접이식 정보 control에 유지한다. [OSMF interactive-map 안내](https://osmfoundation.org/wiki/Licence/Attribution_Guidelines#Interactive_maps)와
+[OpenFreeMap 안내](https://openfreemap.org/quick_start/)를 기준으로 최초 표시·사용자 접기 이후 재열기를 보존한다.

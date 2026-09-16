@@ -17,8 +17,16 @@ export {
 } from './application/resolve-place-reference.js'
 export type { CanonicalResolutionStore } from './application/ports/canonical-resolution-store.js'
 export { PostgresCanonicalResolutionStore } from './adapters/persistence/postgres-canonical-resolution-store.js'
+export { PostgresMinimumPlaceCatalog } from './adapters/persistence/postgres-minimum-place-catalog.js'
+export type { MinimumPlaceFacts, MinimumPlacePublication, CurrentMinimumPlace } from './domain/minimum-place-facts.js'
+export type {
+  SharedCatalogContributionPort,
+  SharedCatalogContributionResult,
+} from './application/ports/shared-catalog-contribution.js'
 export {
   createPlaceDetailReader,
+  createMemberPlaceDetailReader,
+  type MemberPlaceDetailReader,
   type PlaceDetailReader,
 } from './application/read-place-detail.js'
 export type {
@@ -27,8 +35,60 @@ export type {
   PlaceDetailPersonalSource,
   PlaceDetailReadResult,
   PlaceDetailVisitSummary,
+  MemberPlaceDetail,
+  MemberPlaceDetailReadResult,
+  SourceObservedPlace,
 } from './domain/place-detail.js'
 export {
   registerPlaceHttpRoutes,
   type PlaceHttpDependencies,
 } from './transport/http/register-place-http.js'
+export {
+  createCanonicalPlaceKnowledge,
+  type CanonicalPlaceKnowledge,
+} from './application/catalog-canonical-place-knowledge.js'
+export type {
+  CanonicalAssertionAppendAttempt,
+  CanonicalAssertionAppendStoreResult,
+  CanonicalPlaceKnowledgeStore,
+  CanonicalProfilePublishAttempt,
+} from './application/ports/catalog-place-knowledge-store.js'
+export { InvalidCanonicalPlaceKnowledgeInputError } from './domain/validate-catalog-place-knowledge.js'
+export type {
+  AreaAssignment,
+  AreaAssignmentRole,
+  CanonicalCurrentProfile,
+  CanonicalFact,
+  CanonicalFactAssertion,
+  CanonicalFactAssertionBatch,
+  CanonicalFactAssertionResult,
+  CanonicalKnowledgeSubject,
+  CanonicalKnowledgeActor,
+  CanonicalKnowledgeWriteContext,
+  CanonicalKnowledgeValidationIssue,
+  CanonicalMediaFactValue,
+  CanonicalMediaReference,
+  CanonicalPlaceProfileContent,
+  CanonicalProfilePublishRejection,
+  CanonicalProfilePublishResult,
+  CanonicalProfileReadResult,
+  CanonicalIdentityState,
+  DayOfWeek,
+  GeographicLocation,
+  LocalizedTextFactValue,
+  MediaAttribution,
+  MediaRightsState,
+  OpeningHoursFactValue,
+  OpeningMoment,
+  OpeningHoursPeriod,
+  OperationalStatus,
+  OperationalStatusFactValue,
+  PhoneFactValue,
+  ProfileAreaAssignment,
+  ProfileTaxonomyAssignment,
+  PublishCanonicalPlaceProfile,
+  SelectedFact,
+  TaxonomyAssignment,
+  TaxonomyAssignmentRole,
+  WebsiteFactValue,
+} from './domain/catalog-place-knowledge.js'

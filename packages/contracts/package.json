@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./catalog": {
+      "types": "./dist/catalog/index.d.ts",
+      "default": "./dist/catalog/index.js"
+    },
     "./connector": {
       "types": "./dist/connector/index.d.ts",
       "default": "./dist/connector/index.js"
@@ -20,6 +24,10 @@
       "types": "./dist/library/index.d.ts",
       "default": "./dist/library/index.js"
     },
+    "./maps": {
+      "types": "./dist/maps/index.d.ts",
+      "default": "./dist/maps/index.js"
+    },
     "./place-reference": {
       "types": "./dist/place-reference/index.d.ts",
       "default": "./dist/place-reference/index.js"
@@ -35,6 +43,10 @@
     "./search": {
       "types": "./dist/search/index.d.ts",
       "default": "./dist/search/index.js"
+    },
+    "./transfers": {
+      "types": "./dist/transfers/index.d.ts",
+      "default": "./dist/transfers/index.js"
     },
     "./visits": {
       "types": "./dist/visits/index.d.ts",

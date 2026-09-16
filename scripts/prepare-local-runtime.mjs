@@ -71,10 +71,16 @@ const webPublishedPort = publicOrigin.port === '' ? 80 : Number(publicOrigin.por
 const backendPublishedPort = Number(
   process.env.PLACE_LOCAL_BACKEND_PUBLISHED_PORT ?? webPublishedPort + 1,
 )
+const adminWebPublishedPort = Number(
+  process.env.PLACE_LOCAL_ADMIN_WEB_PUBLISHED_PORT ?? webPublishedPort + 2,
+)
 if (
   !Number.isInteger(webPublishedPort) || webPublishedPort < 1 || webPublishedPort > 65_535 ||
   !Number.isInteger(backendPublishedPort) || backendPublishedPort < 1 ||
-  backendPublishedPort > 65_535 || backendPublishedPort === webPublishedPort
+  backendPublishedPort > 65_535 ||
+  !Number.isInteger(adminWebPublishedPort) || adminWebPublishedPort < 1 ||
+  adminWebPublishedPort > 65_535 ||
+  new Set([webPublishedPort, backendPublishedPort, adminWebPublishedPort]).size !== 3
 ) throw configurationError('published ports are invalid')
 
 const runtimeRoot = path.resolve(
@@ -134,15 +140,19 @@ const clientId = process.env.PLACE_LOCAL_OIDC_CLIENT_ID
 const composeEnvironment = path.join(runtimeRoot, 'compose.env')
 const databaseEnvironment = path.join(runtimeRoot, 'database.env')
 const databaseValues = {
-  PLACE_WEB_IMAGE: 'place-web-local',
-  PLACE_BACKEND_IMAGE: 'place-backend-local',
+  PLACE_WEB_IMAGE: 'gotgotgan-web-local',
+  PLACE_ADMIN_WEB_IMAGE: 'gotgotgan-admin-web-local',
+  PLACE_BACKEND_IMAGE: 'gotgotgan-backend-local',
   PLACE_WEB_HOST: '0.0.0.0',
   PLACE_WEB_PORT: '3000',
   PLACE_WEB_PUBLISHED_PORT: String(webPublishedPort),
+  PLACE_ADMIN_WEB_HOST: '0.0.0.0',
+  PLACE_ADMIN_WEB_PORT: '3000',
+  PLACE_ADMIN_WEB_PUBLISHED_PORT: String(adminWebPublishedPort),
   PLACE_HTTP_HOST: '0.0.0.0',
   PLACE_HTTP_PORT: '3001',
   PLACE_HTTP_PUBLISHED_PORT: String(backendPublishedPort),
-  PLACE_DATA_NETWORK: 'place-data-local',
+  PLACE_DATA_NETWORK: 'gotgotgan-data-local',
   PLACE_POSTGRES_DATA_VOLUME: 'place-postgres-data-local',
   PLACE_POSTGRES_ADMIN_USER: 'place_admin',
   PLACE_POSTGRES_ADMIN_PASSWORD_FILE: hostPath(files.administratorPassword),

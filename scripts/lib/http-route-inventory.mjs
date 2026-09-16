@@ -64,14 +64,16 @@ function webPath(appRoot, routeFile) {
 }
 
 export async function collectWebHttpRoutes(repositoryRoot) {
-  const appRoot = path.join(repositoryRoot, 'apps/web/src/app')
-  const files = await filesBelow(appRoot, (file) => path.basename(file) === 'route.ts')
   const routes = new Set()
-  for (const file of files) {
-    const pathname = webPath(appRoot, file)
-    const source = await readFile(file, 'utf8')
-    for (const pattern of [webFunctionPattern, webConstantPattern]) {
-      for (const match of source.matchAll(pattern)) routes.add(routeKey(match[1], pathname))
+  for (const application of ['web', 'admin-web']) {
+    const appRoot = path.join(repositoryRoot, `apps/${application}/src/app`)
+    const files = await filesBelow(appRoot, (file) => path.basename(file) === 'route.ts')
+    for (const file of files) {
+      const pathname = webPath(appRoot, file)
+      const source = await readFile(file, 'utf8')
+      for (const pattern of [webFunctionPattern, webConstantPattern]) {
+        for (const match of source.matchAll(pattern)) routes.add(routeKey(match[1], pathname))
+      }
     }
   }
   return routes

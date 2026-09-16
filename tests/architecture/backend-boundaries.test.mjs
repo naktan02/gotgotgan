@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, test } from 'node:test'
@@ -22,6 +22,17 @@ async function fixture(files) {
 afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
 })
+
+async function readTypeScriptTree(root) {
+  const entries = await readdir(root, { withFileTypes: true })
+  const nested = await Promise.all(entries.map(async (entry) => {
+    const target = path.join(root, entry.name)
+    if (entry.isDirectory()) return await readTypeScriptTree(target)
+    if (entry.isFile() && entry.name.endsWith('.ts')) return [await readFile(target, 'utf8')]
+    return []
+  }))
+  return nested.flat()
+}
 
 test('accepts inward dependencies and entrypoint composition through public indexes', async () => {
   const root = await fixture({
@@ -54,4 +65,24 @@ test('rejects outward and cyclic imports', async () => {
   const violations = await inspectBackendArchitecture(root)
   assert.ok(violations.some((value) => value.includes('domain code cannot import')))
   assert.ok(violations.some((value) => value.includes('relative import cycle')))
+})
+
+test('keeps TraceForge detail interpretation in the NAVER Providers adapter', async () => {
+  const repositoryRoot = path.resolve(import.meta.dirname, '../..')
+  const [ingestionSources, naverTraceForgeSource, googleOfficialSource] = await Promise.all([
+    readTypeScriptTree(path.join(repositoryRoot, 'backend/src/modules/ingestion')),
+    readFile(path.join(
+      repositoryRoot,
+      'backend/src/modules/providers/adapters/naver/traceforge-place-detail-source.ts',
+    ), 'utf8'),
+    readFile(path.join(
+      repositoryRoot,
+      'backend/src/modules/providers/adapters/google/official-place-details.ts',
+    ), 'utf8'),
+  ])
+
+  assert.doesNotMatch(ingestionSources.join('\n'), /TraceForge|ForgeRecipeClient/)
+  assert.match(naverTraceForgeSource, /export class NaverTraceForgePlaceDetailSource/)
+  assert.doesNotMatch(naverTraceForgeSource, /modules\/ingestion|ingestion\/(?:index|application)/i)
+  assert.doesNotMatch(googleOfficialSource, /traceforge|provider-place-detail-runtime/i)
 })

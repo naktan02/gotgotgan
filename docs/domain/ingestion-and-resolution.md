@@ -1,5 +1,10 @@
 # Ingestion and resolution
 
+현재 회원 가져오기는 Provider별 목록 제목·ID 조회 → 각 목록의 최소 장소 조회 → snapshot 검토·승인
+→ 개인 Collection 저장이다. 메뉴 등 확장 상세는 별도 상태·Job이며 저장 완료 조건에 포함하지 않는다.
+V3 Transfer 경로는 승인된 snapshot item을 고정해 재시도한다. 아래 legacy ImportBatch의 `enriching`
+용어를 “상세 수집 완료까지 개인 저장을 기다림”으로 해석하지 않는다.
+
 An import run moves through durable discovery, capture, normalization, matching, preview, review,
 apply, and completion states. Raw evidence is immutable for its retention window and references a
 parser version and checksum. Reprocessing creates a new normalized result without rewriting history.

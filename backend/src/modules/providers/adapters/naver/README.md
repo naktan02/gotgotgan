@@ -9,3 +9,8 @@ NAVER의 공식 검색과 향후 connected-account import, structured-web parser
 outbound save 구현을 이 폴더에 둔다. Stage 6에는 Local Search 공식 API만 있으며 안정 ID,
 pagination, 상세, 사진 능력을 추정하지 않는다. Stage 7 자동화는 이 검색 파일을 확장하지 않고
 별도 adapter leaf로 추가한다.
+
+`NaverTraceForgePlaceDetailSource`는 version-pinned NAVER Pack 결과의 bounded DOM output을
+provider-neutral 상세 snapshot으로 해석한다. Ingestion의 Job port는 구조적 타입으로 만족하며 이
+Adapter는 Ingestion 내부를 import하지 않는다. Runner client seam은 composition root가 주입하고
+호출 취소용 `AbortSignal`을 함께 받는다. Google 공식 Details는 이 browser Adapter와 독립적이다.

@@ -2,7 +2,7 @@
 
 - `canonical-place.md`: canonical identity and source observations.
 - `taxonomy.md`: classification and attributes.
-- `personal-library.md`: collections, tags, wanted/saved state, and personal ratings.
+- `personal-library.md`: Collection-first favorites, tags, personal ratings, and import/copy provenance.
 - `visits-and-ratings.md`: repeatable visits and rating history.
 - `notes-and-entries.md`: short/long writing and visibility.
 - `ingestion-and-resolution.md`: import state, normalization, duplicate review, and replay.

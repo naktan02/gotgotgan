@@ -21,6 +21,13 @@ export {
   type SuggestedPlaceEvidence,
 } from './application/record-suggestion-observation.js'
 export { materializeSuggestedPlace } from './application/materialize-suggested-place.js'
+export {
+  materializeVerifiedProviderPlace,
+  materializeSnapshotProviderPlace,
+  type SnapshotProviderPlaceEvidence,
+  VerifiedProviderPlaceMaterializationRejectedError,
+  type VerifiedProviderPlaceMaterialization,
+} from './application/provider-place-materialization/index.js'
 export { requestPlaceImport } from './application/request-place-import.js'
 export type { ImportQueries } from './application/import-queries.js'
 export { reviewImportItem } from './application/review-import-item.js'

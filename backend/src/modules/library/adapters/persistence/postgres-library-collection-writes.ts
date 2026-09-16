@@ -5,6 +5,7 @@ import {
   type LibraryAttempt,
   type LibraryCommand,
 } from '../../domain/model.js'
+import { collectionColorForId } from '../../application/collection-color.js'
 
 type CollectionCommand = Extract<LibraryCommand, Readonly<{
   kind:
@@ -41,7 +42,8 @@ async function touchCollection(
 ): Promise<void> {
   await client.query(
     `UPDATE library.collections
-     SET updated_at = greatest(updated_at, $2::timestamptz)
+     SET revision = revision + 1,
+         updated_at = greatest(updated_at + interval '1 millisecond', $2::timestamptz)
      WHERE id = $1::uuid`,
     [collectionId, occurredAt],
   )
@@ -94,11 +96,11 @@ export async function applyCollectionWrite(
   if (command.kind === 'create-collection') {
     const result = await client.query(
       `INSERT INTO library.collections
-        (id, owner_membership_id, name, description, visibility, publication_id, created_at, updated_at)
-       VALUES ($1::uuid,$2::uuid,$3,$4,'private',NULL,$5::timestamptz,$5::timestamptz)
+        (id, owner_membership_id, name, description, visibility, publication_id, color_token, created_at, updated_at)
+       VALUES ($1::uuid,$2::uuid,$3,$4,'private',NULL,$5,$6::timestamptz,$6::timestamptz)
        ON CONFLICT (id) DO NOTHING`,
       [command.collectionId, attempt.memberId, command.name, command.description ?? null,
-        attempt.occurredAt],
+        collectionColorForId(command.collectionId), attempt.occurredAt],
     )
     return result.rowCount === 1 ? 'applied' : 'forbidden'
   }
@@ -106,7 +108,9 @@ export async function applyCollectionWrite(
   if (command.kind === 'rename-collection') {
     const result = await client.query(
       `UPDATE library.collections
-       SET name = $3, updated_at = greatest(updated_at, $4::timestamptz)
+       SET name = $3,
+           revision = revision + 1,
+           updated_at = greatest(updated_at + interval '1 millisecond', $4::timestamptz)
        WHERE id = $1::uuid AND owner_membership_id = $2::uuid`,
       [command.collectionId, attempt.memberId, command.name, attempt.occurredAt],
     )
@@ -134,8 +138,9 @@ export async function applyCollectionWrite(
            publication_id = CASE
              WHEN $3 = 'private' THEN NULL
              WHEN visibility = 'private' THEN gen_random_uuid()
-             ELSE publication_id
+           ELSE publication_id
            END,
+           revision = revision + 1,
            updated_at = greatest(updated_at + interval '1 millisecond', $4::timestamptz)
        WHERE id = $1::uuid AND owner_membership_id = $2::uuid`,
       [command.collectionId, attempt.memberId, command.visibility, attempt.occurredAt],
@@ -247,9 +252,10 @@ export async function applyCollectionWrite(
   if (source.rows[0] === undefined) return 'not-found'
   await client.query(
     `INSERT INTO library.collections
-      (id, owner_membership_id, name, visibility, created_at, updated_at)
-     VALUES ($1::uuid,$2::uuid,$3,'private',$4::timestamptz,$4::timestamptz)`,
-    [command.targetCollectionId, attempt.memberId, command.targetName, attempt.occurredAt],
+      (id, owner_membership_id, name, visibility, color_token, created_at, updated_at)
+     VALUES ($1::uuid,$2::uuid,$3,'private',$4,$5::timestamptz,$5::timestamptz)`,
+    [command.targetCollectionId, attempt.memberId, command.targetName,
+      collectionColorForId(command.targetCollectionId), attempt.occurredAt],
   )
   await client.query(
     `INSERT INTO library.collection_places (collection_id, canonical_place_id, position, added_at)

@@ -1,0 +1,102 @@
+.panel {
+  min-width: 0;
+  border-right: 1px solid var(--line);
+}
+
+.panel:last-child { border-right: 0; }
+
+.panel > summary {
+  min-height: 42px;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 13px 14px 10px;
+  font-size: 12px;
+  font-weight: 750;
+  list-style-position: inside;
+}
+
+.panel[open] > summary {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.content {
+  display: grid;
+
+  gap: 12px;
+
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  padding: 13px;
+}
+
+.section { display: grid; gap: 8px; }
+.section + .section { border-top: 1px solid var(--line); padding-top: 12px; }
+.heading { display: grid; align-items: start; justify-content: space-between; gap: 10px; }
+.heading h3 { margin: 0; color: var(--ink); font-size: 12px; }
+.heading p, .section > p { margin: 3px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.heading label { display: grid; flex: none; gap: 3px; }
+.heading label span { color: var(--muted); font-size: 12px; }
+.heading select { min-height: 40px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--ink); padding: 0 7px; font-size: 12px; }
+.section > small { color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+.shareRow { display: flex; align-items: center; gap: 6px; }
+.shareRow a, .shareRow button, .more, .error button {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--accent);
+  padding: 0 9px;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.shareRow a { display: inline-flex; align-items: center; }
+
+.placeList { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.placeList li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  min-height: 40px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  padding: 5px 6px;
+}
+.placeList li > span { color: var(--muted); font-size: 12px; text-align: center; }
+.placeList strong { overflow: hidden; color: var(--ink); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.placeList li > small { grid-column: 2 / -1; color: var(--accent); font-size: 12px; }
+.actions { display: flex; grid-column: 2; flex-wrap: wrap; gap: 5px; }
+.actions button {
+  min-width: 30px;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--muted);
+  padding: 0 6px;
+  font-size: 12px;
+}
+.actions .danger { color: #ad4747; }
+.actions button:disabled, .shareRow button:disabled, .more:disabled { cursor: default; opacity: .45; }
+.more { justify-self: start; }
+
+.error { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid #efcccc; border-radius: 7px; background: #fff5f5; padding: 7px; color: #9c4141; font-size: 12px; }
+
+.panel :is(button, select, a):focus-visible, .panel > summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
+}
+
+@media (max-width: 720px) {
+  .panel > summary { min-height: 44px; }
+  .content {  }
+  .heading { display: grid; }
+  .heading label { width: 100%; }
+  .heading select, .shareRow a, .shareRow button, .more, .actions button { min-height: 44px; }
+  .placeList li { grid-template-columns: 24px minmax(0, 1fr); }
+  .actions { grid-column: 2; flex-wrap: wrap; }
+}

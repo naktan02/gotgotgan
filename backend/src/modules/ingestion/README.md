@@ -55,8 +55,24 @@ hit이면 외부 상세 호출 없이 증거와 정책 link decision을 기록�
 수집은 별도 `ProviderPlaceDetailSource`와 `ProviderPlaceDetailJobStore` Interface를 사용한다. Worker는
 지원 Adapter가 있는 Provider만 claim하고, 성공 시 immutable `provider-detail` Source Observation과
 Place Candidate를 기록한 뒤 detail 상태만 `available`로 바꾼다. 이 단계는 Canonical Place를 수정하거나
-동일 장소 판정을 내리지 않는다. 실제 NAVER Adapter는 관측된 계약이 없으므로 endpoint를 추측하지
-않고 비활성 상태로 남긴다.
+동일 장소 판정을 내리지 않는다. Provider별 parsing과 TraceForge 연결은 Providers Adapter가 소유하고
+Ingestion은 그 구현을 알지 않는다. 공개 상세 수집 중 보안 인증이 감지되면 자동 해제하지 않고
+`provider-interaction-required`로 보류한다.
+
+Migration `000043` 이후 상세 Job은 identity당 교체 가능한 한 행이 아니라 append-only 실행 이력이다.
+freshness scheduler는 최신 성공/실패 시각이 cutoff보다 오래되고 active Job이 없는 identity만 bounded
+batch로 새 Job에 넣는다. 성공한 관찰은 직전 정상 관찰과 checksum을 비교해 `initial`, `unchanged`,
+`changed`를 기록한다. 갱신 실패는 기존 `available` projection을 유지하며
+`provider-interaction-required`는 자동 재큐잉하지 않는다. 운영자 재개 명령/UI는 아직 구현되지 않았다.
+
+새 SourceSnapshot의 안정된 Provider identity는 Canonical 매칭 여부와 무관하게 Ingestion 소유 DB 함수가
+상세 상태를 확인한다. 이미 `available` 또는 `unavailable`이면 최초 상세 Job을 추가하지 않는다.
+호출 모듈은 snapshot ID로 대상 identity를 고른 뒤 Provider key와 ID만 전달하고, 함수는 기존 terminal
+상세 상태를 되돌리지 않으며 `pending` identity에 active append-only Job이 없을 때만 멱등 생성한다.
+
+현재 제품 흐름은 목록 제목 조회 → 목록별 최소 장소 조회 → 승인 후 개인 Collection 저장이다.
+메뉴 등 확장 상세는 저장 완료의 선행 조건이 아니다. 상세 실행 방식이 확정될 때까지 Provider detail
+Worker와 freshness scheduler를 실행하지 않는다. 대기 Job 기록만 남기며 TraceForge 개발 코드는 바꾸지 않는다.
 
 ImportItem은 Provider의 `source_list_id`, 목록 순서와 목록 안 순서를 함께 보존한다. Fulfillment와
 명시적 review 모두 이 메타데이터를 Library 공개 port에 전달한다. Ingestion은 원본 폴더를 Taxonomy로

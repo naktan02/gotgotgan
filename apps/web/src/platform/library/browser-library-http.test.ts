@@ -30,6 +30,170 @@ function sessionRuntime() {
 }
 
 describe('browser library HTTP', () => {
+  it('returns source observations through the authenticated v2 boundary only', async () => {
+    const sourceObservedPlace = { name: '회원 개인 별명', address: '서울 성동구', categoryLabel: '원본 라멘',
+      location: { latitude: 37.54, longitude: 127.05 }, capturedAt: '2026-09-06T00:00:00.000Z' }
+    const fetcher = vi.fn(async (url: URL, init: RequestInit) => {
+      expect(url.pathname).toBe(`/v2/places/${placeId}`)
+      expect(new Headers(init.headers).get('authorization')).toBe('Bearer server-access-token')
+      return Response.json({ schemaVersion: 'place-detail.v2', status: 'pending', requestedPlaceId: placeId,
+        placeId, redirectedFrom: [], personalState: { saved: true, wanted: false, personalRating: null,
+          preferencesUpdatedAt: null, visits: { visited: false, count: 0 }, sourceObservedPlace } })
+    })
+    const dependencies = { resolveAuthRuntime: sessionRuntime, backend: backend(fetcher), createCorrelationRef: () => 'test-ref' }
+    const http = createBrowserLibraryHttp(dependencies)
+    const response = await http.memberPlace(new Request(`https://place.example/api/v2/places/${placeId}`), placeId)
+    expect(response.status).toBe(200)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect((await response.json()).personalState.sourceObservedPlace).toEqual(sourceObservedPlace)
+    const anonymous = createBrowserLibraryHttp({ ...dependencies,
+      resolveAuthRuntime: () => ({ bff: { resolveSession: async () => undefined } }) })
+    expect((await anonymous.memberPlace(new Request(`https://place.example/api/v2/places/${placeId}`), placeId)).status).toBe(401)
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+
+  it('forwards Collection-first map text and filters only through the authenticated fixed backend', async () => {
+    const fetcher = vi.fn(async (url: URL, init: RequestInit) => {
+      expect(url.pathname).toBe('/v3/library/workspace/map')
+      expect(url.searchParams.get('collectionId')).toBe(collectionId)
+      expect(url.searchParams.get('placeQuery')).toBe('성수동 라멘')
+      expect(url.searchParams.get('rating')).toBe('rated')
+      expect(url.searchParams.getAll('taxonomyKeys')).toEqual(['food.ramen'])
+      expect(url.searchParams.has('scope')).toBe(false)
+      expect(new Headers(init.headers).get('authorization')).toBe('Bearer server-access-token')
+      return Response.json({
+        schemaVersion: 'personal-library-map.v3',
+        filter: { favoriteScope: { kind: 'collection', collectionId }, ratingFilter: { kind: 'rated' },
+          tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: ['food.ramen'], placeQuery: '성수동 라멘' },
+        viewport: { bounds: { west: -180, south: -85, east: 180, north: 85 }, zoom: 1 },
+        features: [], coverage: { representedPlaceCount: 0, unprojectedPlaceCount: 0, complete: true },
+      })
+    })
+    const http = createBrowserLibraryHttp({ resolveAuthRuntime: sessionRuntime, backend: backend(fetcher), createCorrelationRef: () => 'test-ref' })
+    const query = new URLSearchParams({ collectionId, placeQuery: '성수동 라멘', rating: 'rated', taxonomyKeys: 'food.ramen',
+      west: '-180', south: '-85', east: '180', north: '85', zoom: '1' })
+    const requestUrl = `https://place.example/api/library/workspace/map?${query}`
+    const response = await http.workspaceMapV3(new Request(requestUrl))
+    expect(response.status).toBe(200)
+    expect(await response.text()).not.toContain('server-access-token')
+    for (const extra of ['&memberId=forged', '&placeQuery=duplicate', '&collectionQuery=directory', '&placeCursor=page']) {
+      expect((await http.workspaceMapV3(new Request(requestUrl + extra))).status).toBe(400)
+    }
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+
+  it('forwards repeated v4 Collection selections through the authenticated fixed backend', async () => {
+    const collectionB = '01992d20-0000-7000-8000-000000000006'
+    const fetcher = vi.fn(async (url: URL, init: RequestInit) => {
+      expect(url.pathname).toBe('/v4/library/workspace/map')
+      expect(url.searchParams.get('scope')).toBe('collections')
+      expect(url.searchParams.getAll('collectionIds')).toEqual([collectionId, collectionB])
+      expect(new Headers(init.headers).get('authorization')).toBe('Bearer server-access-token')
+      return Response.json({
+        schemaVersion: 'personal-library-map.v4',
+        selection: { kind: 'collections', collectionIds: [collectionId, collectionB] },
+        filter: { ratingFilter: { kind: 'any' }, tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: [] },
+        selectedCollections: [
+          { collectionId, name: '성수', colorToken: 'fern' },
+          { collectionId: collectionB, name: '을지로', colorToken: 'ocean' },
+        ],
+        viewport: { bounds: { west: 126, south: 37, east: 128, north: 38 }, zoom: 14 },
+        features: [],
+        coverage: { representedPlaceCount: 0, unprojectedPlaceCount: 0, complete: true },
+      })
+    })
+    const http = createBrowserLibraryHttp({ resolveAuthRuntime: sessionRuntime, backend: backend(fetcher), createCorrelationRef: () => 'test-ref' })
+    const requestUrl = `https://place.example/api/v4/library/workspace/map?scope=collections&collectionIds=${collectionId}&collectionIds=${collectionB}&west=126&south=37&east=128&north=38&zoom=14`
+    const response = await http.workspaceMapV4(new Request(requestUrl))
+    expect(response.status).toBe(200)
+    expect((await response.json()).selectedCollections).toHaveLength(2)
+    expect((await http.workspaceMapV4(new Request(`${requestUrl}&memberId=forged`))).status).toBe(400)
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+
+  it('forwards a strict Collection color command without browser authority fields', async () => {
+    const fetcher = vi.fn(async (url: URL, init: RequestInit) => {
+      expect(url.pathname).toBe('/v1/library/collection-color-commands')
+      expect(new Headers(init.headers).get('authorization')).toBe('Bearer server-access-token')
+      expect(JSON.parse(String(init.body))).toEqual({
+        schemaVersion: 'collection-color-command.v1', commandId, collectionId,
+        expectedCollectionRevision: 'opaque-revision', colorToken: 'coral',
+      })
+      return Response.json({
+        schemaVersion: 'collection-color-command-result.v1', outcome: 'accepted',
+        receipt: { commandId, status: 'applied' }, collectionId,
+        collectionRevision: 'next-revision', colorToken: 'coral',
+      }, { status: 201 })
+    })
+    const http = createBrowserLibraryHttp({ resolveAuthRuntime: sessionRuntime, backend: backend(fetcher), createCorrelationRef: () => 'test-ref' })
+    const request = new Request('https://place.example/api/library/collection-color-commands', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ schemaVersion: 'collection-color-command.v1', commandId, collectionId,
+        expectedCollectionRevision: 'opaque-revision', colorToken: 'coral' }),
+    })
+
+    expect((await http.collectionColorCommand(request)).status).toBe(201)
+    expect(fetcher).toHaveBeenCalledOnce()
+  })
+
+  it('preserves the existing strict v2 BFF and rejects v3 selection input there', async () => {
+    const fetcher = vi.fn(async (url: URL) => {
+      expect(url.pathname).toBe('/v2/library/workspace/map')
+      return Response.json({ schemaVersion: 'personal-library-map.v2',
+        filter: { favoriteScope: { kind: 'all' }, ratingFilter: { kind: 'any' }, tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: [] },
+        viewport: { bounds: { west: 126, south: 37, east: 128, north: 38 }, zoom: 12 },
+        features: [], coverage: { representedPlaceCount: 0, unprojectedPlaceCount: 0, complete: true } })
+    })
+    const http = createBrowserLibraryHttp({ resolveAuthRuntime: sessionRuntime, backend: backend(fetcher), createCorrelationRef: () => 'test-ref' })
+    const url = 'https://gotgotgan.test/api/library/workspace/map?west=126&south=37&east=128&north=38&zoom=12'
+    const response = await http.workspaceMap(new Request(url))
+    expect(response.status).toBe(200)
+    expect((await response.json()).schemaVersion).toBe('personal-library-map.v2')
+    expect((await http.workspaceMap(new Request(`${url}&selectedPlaceId=${placeId}`))).status).toBe(400)
+    expect(fetcher).toHaveBeenCalledOnce()
+  })
+
+  it('forwards a revision-checked public Collection copy without browser authority fields', async () => {
+    const observed: unknown[] = []
+    const http = createBrowserLibraryHttp({
+      resolveAuthRuntime: sessionRuntime,
+      backend: backend(async (url, init) => {
+        expect(url.pathname).toBe('/v1/library/publication-copy-commands')
+        expect(new Headers(init.headers).get('authorization')).toBe('Bearer server-access-token')
+        observed.push(JSON.parse(String(init.body)))
+        return Response.json({
+          schemaVersion: 'published-collection-copy-command-result.v2',
+          outcome: 'accepted',
+          receipt: { commandId, status: 'applied' },
+          collectionId,
+          collectionRevision: 'collection-revision.v1.opaque',
+          copiedPlaceCount: 1,
+        }, { status: 201 })
+      }),
+      createCorrelationRef: () => 'unused',
+    })
+
+    const response = await http.publicationCopyCommand(new Request(
+      'https://place.example/api/library/publication-copy-commands',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          schemaVersion: 'published-collection-copy-command.v2',
+          commandId,
+          sourcePublicationId: placeId,
+          expectedPublicationVersion: 'collection-revision.v1.source',
+          target: { collectionId, name: '도쿄 실내 코스' },
+          selection: { kind: 'places', placeIds: [tagA] },
+        }),
+      },
+    ))
+
+    expect(response.status).toBe(201)
+    expect(observed).toHaveLength(1)
+    expect(JSON.stringify(observed[0])).not.toMatch(/memberId|ownerMembershipId/)
+  })
+
   it('requires a server-side session before calling the backend', async () => {
     const fetcher = vi.fn()
     const http = createBrowserLibraryHttp({
@@ -159,7 +323,7 @@ describe('browser library HTTP', () => {
       expect(response.status).toBe(400)
     }
     expect((await http.map(new Request(
-      'https://place.example/api/library/map?scope=state&west=127.1&south=37.5&east=126.9&north=37.6&zoom=12',
+      'https://place.example/api/library/map?scope=state&west=127.1&south=37.5&east=127.1&north=37.6&zoom=12',
     ))).status).toBe(400)
     expect(resolveAuthRuntime).not.toHaveBeenCalled()
   })
@@ -289,5 +453,173 @@ describe('browser library HTTP', () => {
 
     expect(response.status).toBe(400)
     expect(resolveAuthRuntime).not.toHaveBeenCalled()
+  })
+
+  it('forwards the flat browser workspace query as a Collection-first request', async () => {
+    const observed: string[] = []
+    const http = createBrowserLibraryHttp({
+      resolveAuthRuntime: sessionRuntime,
+      backend: backend(async (url) => {
+        observed.push(url.toString())
+        return Response.json({
+          schemaVersion: 'personal-library-workspace.v2',
+          filter: {
+            favoriteScope: { kind: 'collection', collectionId },
+            ratingFilter: { kind: 'rated' },
+            tagIds: [tagA], tagMatch: 'all', areaKeys: [areaKey],
+            taxonomyKeys: ['food.noodle.ramen'],
+          },
+          collections: [], places: [],
+          availableFilters: {
+            coverage: { favoritePlaceCount: 0, sampledPlaceCount: 0, projectedPlaceCount: 0, complete: true },
+            areas: [], taxonomies: [],
+          },
+        })
+      }),
+      createCorrelationRef: () => 'unused',
+    })
+
+    const response = await http.workspace(new Request(
+      `https://place.example/api/library/workspace?collectionId=${collectionId}&rating=rated&tagIds=${tagA}&areaKeys=${areaKey}&taxonomyKeys=food.noodle.ramen&limit=20`,
+    ))
+
+    expect(response.status).toBe(200)
+    expect(observed).toEqual([
+      `https://place-backend.example/v1/library/workspace?rating=rated&tagMatch=all&limit=20&collectionId=${collectionId}&tagIds=${tagA}&areaKeys=${areaKey}&taxonomyKeys=food.noodle.ramen`,
+    ])
+    expect(JSON.stringify(await response.json())).not.toMatch(/saved|wanted/i)
+    const search = new URLSearchParams({ collectionId, collectionQuery: '여행', placeQuery: '성수동 라멘', includeSelectedCollection: 'true' })
+    expect((await http.workspace(new Request(`https://place.example/api/library/workspace?${search}`))).status).toBe(200)
+    const forwarded = new URL(observed[1]!)
+    expect(forwarded.searchParams.get('collectionQuery')).toBe('여행')
+    expect(forwarded.searchParams.get('placeQuery')).toBe('성수동 라멘')
+    expect(forwarded.searchParams.get('includeSelectedCollection')).toBe('true')
+    for (const extra of ['&placeQuery=duplicate', '&includeSelectedCollection=false', '&memberId=forged']) {
+      expect((await http.workspace(new Request(`https://place.example/api/library/workspace?${search}${extra}`))).status).toBe(400)
+    }
+  })
+
+  it.each([
+    { status: 404, code: 'not-found' },
+    { status: 409, code: 'version-conflict' },
+    { status: 422, code: 'invalid-selection' },
+  ])('preserves a typed filing rejection at HTTP $status', async ({ status, code }) => {
+    const http = createBrowserLibraryHttp({
+      resolveAuthRuntime: sessionRuntime,
+      backend: backend(async () => Response.json({
+        schemaVersion: 'place-filing-command-result.v2',
+        outcome: 'rejected',
+        commandId,
+        rejection: { code },
+      }, { status })),
+      createCorrelationRef: () => 'unused',
+    })
+
+    const response = await http.filingCommand(new Request(
+      'https://place.example/api/library/filing-commands',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          schemaVersion: 'place-filing-command.v2',
+          commandId,
+          placeId,
+          changes: [{
+            collectionId,
+            expectedCollectionRevision: 'opaque-revision',
+            desired: 'included',
+          }],
+        }),
+      },
+    ))
+
+    expect(response.status).toBe(status)
+    expect(await response.json()).toMatchObject({
+      outcome: 'rejected', rejection: { code },
+    })
+  })
+
+  it('preserves revision-checked Collection lifecycle conflicts', async () => {
+    const http = createBrowserLibraryHttp({
+      resolveAuthRuntime: sessionRuntime,
+      backend: backend(async (_url, init) => {
+        expect(JSON.parse(String(init.body))).toMatchObject({
+          schemaVersion: 'collection-lifecycle-command.v2',
+          kind: 'update',
+          expectedCollectionRevision: 'opaque-revision',
+        })
+        return Response.json({
+          schemaVersion: 'collection-lifecycle-command-result.v2',
+          outcome: 'rejected',
+          commandId,
+          rejection: { code: 'version-conflict' },
+        }, { status: 409 })
+      }),
+      createCorrelationRef: () => 'unused',
+    })
+
+    const response = await http.collectionCommand(new Request(
+      'https://place.example/api/library/collection-commands',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          schemaVersion: 'collection-lifecycle-command.v2',
+          kind: 'update',
+          commandId,
+          collectionId,
+          expectedCollectionRevision: 'opaque-revision',
+          name: '도쿄 여행',
+        }),
+      },
+    ))
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({
+      outcome: 'rejected', rejection: { code: 'version-conflict' },
+    })
+  })
+
+  it('preserves an applied Collection lifecycle result with HTTP 201', async () => {
+    const http = createBrowserLibraryHttp({
+      resolveAuthRuntime: sessionRuntime,
+      backend: backend(async () => Response.json({
+        schemaVersion: 'collection-lifecycle-command-result.v2',
+        outcome: 'accepted',
+        receipt: { commandId, status: 'applied' },
+        collection: {
+          collectionId,
+          name: '서울 라멘',
+          description: null,
+          visibility: 'private',
+          publicationId: null,
+          placeCount: 0,
+          collectionRevision: 'opaque-revision',
+          updatedAt: '2026-09-03T00:00:00.000Z',
+        },
+      }, { status: 201 })),
+      createCorrelationRef: () => 'unused',
+    })
+
+    const response = await http.collectionCommand(new Request(
+      'https://place.example/api/library/collection-commands',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          schemaVersion: 'collection-lifecycle-command.v2',
+          kind: 'create',
+          commandId,
+          collectionId,
+          name: '서울 라멘',
+          description: null,
+        }),
+      },
+    ))
+
+    expect(response.status).toBe(201)
+    expect(await response.json()).toMatchObject({
+      outcome: 'accepted', receipt: { status: 'applied' },
+    })
   })
 })

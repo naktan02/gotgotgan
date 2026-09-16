@@ -114,3 +114,33 @@ Migration `000029`는 `access.membership_resource_grants` constraint에 `library
 Collection table이나 공개 projection shape는 바꾸지 않으며, Product Authorizer가 공유 기능을 일반
 write와 별도로 판단할 수 있는 최소 권한 seam만 만든다. 활성 share grant를 지우지 않도록 rollback은
 해당 grant가 있으면 fail closed한다.
+
+Migration `000035`는 사용자 Collection membership을 즐겨찾기의 단일 truth로 전환한다. 기존
+`saved`/`wanted` column을 즉시 삭제하지는 않지만 새 Interface에서는 사용하지 않는다. Collection,
+회원 Collection/Tag, Personal Rating에 독립 revision을 추가하고, 응답 유실 재시도에 같은 결과를
+돌려주는 v2 operation receipt를 만든다. Provider Source List binding은 Source List를 key로 삼아 여러
+목록이 같은 Collection을 가리킬 수 있고, 공개 목록 부분 복사는 operation과 원본 순서별 Item
+provenance를 보존한다. 전환 전 미분류 legacy Place가 있으면 자동 `저장됨`/`가고 싶음` Collection을
+만들지 않고 migration을 중단해 사용자가 선택한 분류로 먼저 정리하게 한다.
+
+Migration `000036`은 Provider raw payload를 복사하지 않는 typed assertion ledger와 immutable
+Canonical Place Profile revision을 추가한다. 한 batch는 한 subject와 Source Observation을 공유하고
+field별 confidence를 보존한다. 발행은 expected revision, policy version, rationale, exact selected
+assertion을 요구하며 성공 receipt와 current pointer, bounded catalog change를 한 transaction으로
+전진시킨다. Canonical identity 상태와 현실 영업 상태는 별도 열과 수명주기로 유지한다.
+
+Migration `000037`은 Area를 주소 문자열에서 분리해 stable key와 다국어 계층 version으로 만든다.
+version은 v1부터 predecessor를 빠짐없이 잇고, 최신 active same-country parent만 참조한다. Provider
+category mapping과 Canonical Profile의 Taxonomy·Area assignment는 exact version 및 선택 근거
+assertion을 보존한다.
+
+Migration `000038`은 Provider media URL 대신 opaque Provider media identity 또는 내부 object reference를
+source identity로 보존한다. rights revision은 append-only이며 허용 surface, 근거, 유효 기간과 필수
+attribution을 명시한다. Profile 선택만으로는 공개 권리가 생기지 않고 안전 projection과 delivery
+Adapter가 현재 허용된 media만 URI로 해석한다.
+
+Migration `000043`은 같은 Provider Place Identity의 완료 Job을 보존하면서 freshness 재수집마다 새 Job을
+append한다. partial unique index는 active Job 하나만 허용한다. 각 정상 상세 관찰은 이전 관찰을 참조하고
+payload checksum으로 `initial`, `unchanged`, `changed`를 기록한다. refresh failure는 마지막 정상
+`available` 참조를 지우지 않는다. 완료 Job과 rate limit/provider unavailable 일시 실패만 자동
+재예약하며 parser drift, capture invalid, interaction required는 운영자 확인 전까지 보류한다.

@@ -80,10 +80,16 @@ export type LocalPlaceSearchDocument = Readonly<{
   sourceVersion: number
   name: string
   areaLabel: string | null
+  areaReference?: Readonly<{ key: string; version: number }> | null
   latitude: number
   longitude: number
   primaryTaxonomy: Readonly<{ key: string; label: string }> | null
   taxonomyKeys: readonly string[]
+  taxonomyReferences?: readonly Readonly<{
+    key: string
+    version: number
+    kind: 'category' | 'attribute'
+  }>[]
   evidenceStatus: PlaceSearchResult['evidenceStatus']
   projectedAt: string
 }>
@@ -108,12 +114,33 @@ function validTimestamp(value: string): boolean {
 }
 
 export function assertLocalPlaceSearchDocument(document: LocalPlaceSearchDocument): void {
+  const taxonomyReferences = document.taxonomyReferences ?? []
+  const taxonomyReferenceIdentities = taxonomyReferences.map(({ key, version }) => `${key}\u0000${version}`)
+  const taxonomyReferenceKeys = taxonomyReferences.map(({ key }) => key)
   if (
     document.placeId.length === 0 || !Number.isInteger(document.sourceVersion) ||
     document.sourceVersion < 1 || document.name.trim().length === 0 || document.name.length > 300 ||
     document.latitude < -90 || document.latitude > 90 ||
     document.longitude < -180 || document.longitude > 180 ||
     document.taxonomyKeys.length > 32 || new Set(document.taxonomyKeys).size !== document.taxonomyKeys.length ||
+    (document.areaReference !== undefined && document.areaReference !== null && (
+      document.areaLabel === null ||
+      document.areaReference.key.length < 1 || document.areaReference.key.length > 128 ||
+      !Number.isSafeInteger(document.areaReference.version) || document.areaReference.version < 1
+    )) ||
+    taxonomyReferences.length > 32 ||
+    new Set(taxonomyReferenceIdentities).size !== taxonomyReferenceIdentities.length ||
+    (taxonomyReferences.length > 0 && (
+      taxonomyReferenceKeys.length !== document.taxonomyKeys.length ||
+      taxonomyReferenceKeys.some((key) => !document.taxonomyKeys.includes(key)) ||
+      document.taxonomyKeys.some((key) => !taxonomyReferenceKeys.includes(key)) ||
+      (document.primaryTaxonomy !== null && !taxonomyReferences.some((reference) => (
+        reference.kind === 'category' && reference.key === document.primaryTaxonomy?.key
+      )))
+    )) ||
+    taxonomyReferences.some(({ key, version }) => (
+      key.length < 1 || key.length > 128 || !Number.isSafeInteger(version) || version < 1
+    )) ||
     !validTimestamp(document.projectedAt)
   ) throw new InvalidLocalSearchProjectionError('Local place search projection is invalid.')
 }

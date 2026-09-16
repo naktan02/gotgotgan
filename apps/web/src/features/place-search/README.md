@@ -18,11 +18,9 @@ layout으로 나눈다. `SearchControls.tsx`, `SearchResultListPane.tsx`, `Searc
 `public.ts`만 상위 shell/app의 진입점이다. 내부 component를 다른 feature가 직접 import하지
 않는다. 개인 filter를 추가할 때 browser가 membership ID나 authority를 만들게 하지 않는다.
 
-Stage 6부터 결과 선택은 canonical Place ID가 아니라 source-neutral `resultId`로 동작하고 각
-행은 로컬 색인 또는 공식 provider 출처를 표시한다. 원문 링크가 있으면 새 탭으로 열며,
-`detailsAvailable`인 Google 결과만 선택 시 `/api/search/provider-details`를 호출한다. Provider
-Rating은 Personal Rating과 섞지 않고 사진 작성자 attribution을 상세 영역에 보존한다.
-Provider credential, endpoint, raw response는 feature state나 browser request에 존재하지 않는다.
+이 legacy workspace의 Provider 상세 Browser 호출은 Stage 6에서 제거됐다. 다시 연결하더라도
+interactive 검색·상세 요청에서 Provider를 호출하지 않는다. Provider credential, endpoint,
+raw response도 feature state나 browser request에 존재하지 않는다.
 
 Stage 7.15부터 desktop은 목록·독립 상세·지도를 조정하며 좁은 desktop은 상세이 열리면 지도를
 숨긴다. mobile은 목록·지도·상세 중 하나만 보이고 상세에서 목록으로 돌아올 때 선택 행 focus를

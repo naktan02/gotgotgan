@@ -24,19 +24,51 @@ import {
 import type { LibraryQueries } from '../../application/library-queries.js'
 import { InvalidLibraryCursorError, InvalidLibraryQueryError } from '../../domain/queries.js'
 import { registerLibraryQueryHttpRoutes } from './register-library-query-http.js'
+import { registerLibraryMapV3HttpRoutes } from './register-library-map-v3-http.js'
+import type { PersonalLibraryMapV3 } from '../../application/ports/personal-library-map-v3.js'
+import { registerLibraryMapV4HttpRoutes } from './register-library-map-v4-http.js'
+import type { PersonalLibraryMapV4 } from '../../application/ports/personal-library-map-v4.js'
+import {
+  registerCollectionFirstHttpRoutes,
+  type CollectionFirstHttpDependencies,
+} from './register-collection-first-http.js'
+import {
+  registerPublicCollectionHttpRoutes,
+  type PublicCollectionHttpDependencies,
+} from './register-public-collection-http.js'
 
 export type LibraryHttpDependencies = Readonly<{
   authorizer: ProductAuthorizer
   store: LibraryStore
   queries: LibraryQueries
   now: () => Date
+  mapV3?: PersonalLibraryMapV3 | undefined
+  mapV4?: PersonalLibraryMapV4 | undefined
+  collectionFirst?: Omit<CollectionFirstHttpDependencies, 'authorizer' | 'now'> | undefined
+  publicCollections?: Omit<PublicCollectionHttpDependencies, 'authorizer' | 'now'> | undefined
 }>
 
 export function registerLibraryHttpRoutes(application: FastifyInstance, dependencies: LibraryHttpDependencies): void {
+  if (dependencies.mapV3 !== undefined) registerLibraryMapV3HttpRoutes(application, { authorizer: dependencies.authorizer, map: dependencies.mapV3 })
+  if (dependencies.mapV4 !== undefined) registerLibraryMapV4HttpRoutes(application, { authorizer: dependencies.authorizer, map: dependencies.mapV4 })
   registerLibraryQueryHttpRoutes(application, {
     authorizer: dependencies.authorizer,
     queries: dependencies.queries,
   })
+  if (dependencies.collectionFirst !== undefined) {
+    registerCollectionFirstHttpRoutes(application, {
+      authorizer: dependencies.authorizer,
+      now: dependencies.now,
+      ...dependencies.collectionFirst,
+    })
+  }
+  if (dependencies.publicCollections !== undefined) {
+    registerPublicCollectionHttpRoutes(application, {
+      authorizer: dependencies.authorizer,
+      now: dependencies.now,
+      ...dependencies.publicCollections,
+    })
+  }
   application.post('/v1/library/commands', async (request, reply) => {
     const parsed = libraryCommandRequestSchema.safeParse(request.body)
     if (!parsed.success) return sendProductProblem(request, reply, 400, 'PLACE_LIBRARY_COMMAND_INVALID', 'Library command is invalid')

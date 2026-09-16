@@ -1,350 +1,395 @@
 import { expect, test } from '@playwright/test'
+import type { PlaceFilingCommandRequestV2 } from '@place/contracts/library'
+import type { CatalogPlaceMapResponse, CatalogPlaceSearchResponse } from '@place/contracts/search'
+import { installMemberDetail } from './place-detail/fixture'
 
 const configuredBaseUrl = process.env.PLACE_WEB_E2E_BASE_URL
 if (configuredBaseUrl === undefined) throw new Error('PLACE_WEB_E2E_BASE_URL is required')
 const webUrl = new URL(configuredBaseUrl)
 const backendOrigin = `http://${webUrl.hostname}:${Number(webUrl.port) + 1}`
 
+test.beforeEach(async ({ page }) => {
+  await page.route(/\/api\/v2\/places\/[^/]+$/, (route) => route.fulfill({ status: 401, json: {} }))
+})
+
+test('moves to a country without chips even when Enter precedes autocomplete', async ({ page }) => {
+  await page.goto('/')
+  const input = page.getByRole('combobox', { name: '곳곳간 카탈로그 검색', exact: true })
+  await input.fill('대한민국')
+  await input.press('Enter')
+  await expect(page.getByRole('button', { name: /대한민국.*국가.*지도에서 보기/ })).toBeVisible()
+  await expect(page.locator('[class*="interpretation"] button')).toHaveCount(0)
+  const map = page.getByRole('region', { name: '곳곳간 카탈로그 검색 지도' })
+  await expect.poll(async () => Number(await map.getAttribute('data-place-map-zoom'))).toBeLessThan(7)
+  await expect(input).toHaveValue('대한민국')
+  await page.screenshot({ path: test.info().outputPath('country-search.png') })
+})
+
+test('chooses a named place candidate rather than converting its name into filters', async ({ page }) => {
+  await page.goto('/')
+  const input = page.getByRole('combobox', { name: '곳곳간 카탈로그 검색', exact: true })
+  await input.fill('성수 골목')
+  const option = page.getByRole('option').filter({ hasText: '성수 골목 쇼유라멘' })
+  await expect(option).toBeVisible()
+  await option.click()
+  await expect(page.locator('ol').getByRole('button')).toHaveCount(1)
+  await expect(page.locator('ol')).toContainText('성수 골목 쇼유라멘')
+  await expect(page.locator('[class*="interpretation"] button')).toHaveCount(0)
+  await expect(input).toHaveValue('성수 골목 쇼유라멘')
+  await expect(page.getByRole('navigation', { name: '검색 대상' })
+    .getByRole('button', { name: '즐겨찾기', exact: true })).toBeEnabled()
+})
+
 async function submitSearch(page: import('@playwright/test').Page, query: string) {
-  const input = page.getByLabel('장소 검색어')
+  const input = page.getByRole('combobox', {
+    name: '곳곳간 카탈로그 검색',
+    exact: true,
+  })
   await input.fill(query)
   await input.press('Enter')
 }
 
-test('coordinates search list, map selection, filters, bounds, and cursor pagination', async ({ page }) => {
-  await page.goto('/search')
-  await expect(page.getByRole('heading', { name: '장소 찾기' })).toBeVisible()
-  const results = page.getByRole('list', { name: '장소 검색 결과' }).getByRole('button')
-  await expect(results).toHaveCount(3)
+test('retries a failed map connection without resetting catalog search', async ({ page }) => {
+  let rejectStyle = true
+  await page.route('**/api/maps/style', (route) => rejectStyle
+    ? route.fulfill({ status: 503, contentType: 'application/json', body: '{}' })
+    : route.continue())
+  await page.goto('/')
+  await submitSearch(page, '성수 라멘')
+  await expect(page.locator('ol').getByRole('button')).toHaveCount(2)
+  const retry = page.getByRole('button', { name: '지도 다시 연결' })
+  await expect(retry).toBeVisible()
+  rejectStyle = false
+  await retry.click()
+  await expect(page.getByText('지도를 불러오는 중입니다.', { exact: true })).toBeHidden()
+  await expect(retry).toBeHidden()
+  await expect(page.locator('ol').getByRole('button')).toHaveCount(2)
+  await expect(page.getByRole('combobox', { name: '곳곳간 카탈로그 검색', exact: true })).toHaveValue('성수 라멘')
+})
+
+test('searches only the canonical catalog and keeps list and map selection coordinated', async ({ page, request }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'desktop catalog workspace coverage')
+
+  await page.goto('/')
+  await expect(page.getByText('지역과 장소 유형을 검색해 곳곳간의 통합 카탈로그를 탐색해 보세요.')).toBeVisible()
+  await submitSearch(page, '성수 라멘')
+
+  const results = page.locator('ol').getByRole('button')
+  await expect(results).toHaveCount(2)
+  await expect(results.nth(0)).toContainText('조용한 라멘 연구소')
+  await expect(results.nth(1)).toContainText('성수 골목 쇼유라멘')
+  await expect(page.getByRole('button', { name: /성수.*조건 제거/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /라멘.*조건 제거/ })).toBeVisible()
 
   await results.nth(1).click()
-  if (await page.getByRole('button', { name: '지도', exact: true }).isVisible()) {
-    await page.getByRole('button', { name: '지도', exact: true }).click()
-  }
-  await expect(page.getByRole('button', { name: /긴 이름으로.*지도에서 선택/ })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('button', { name: '성수 골목 쇼유라멘 지도에서 선택' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('region', { name: '선택한 장소', exact: true })).toContainText('성수 골목 쇼유라멘')
+
   await page.getByRole('button', { name: '조용한 라멘 연구소 지도에서 선택' }).click()
+  await expect(page.getByRole('region', { name: '선택한 장소', exact: true })).toContainText('조용한 라멘 연구소')
 
-  if (await page.getByRole('button', { name: '목록', exact: true }).isVisible()) {
-    await page.getByRole('button', { name: '목록', exact: true }).click()
-  }
-  await expect(results.nth(0)).toHaveAttribute('aria-pressed', 'true')
-  await page.getByRole('button', { name: '결과 더 보기' }).click()
-  await expect(results).toHaveCount(6)
-
-  await page.getByLabel('장소 분류').selectOption('food.noodle.ramen')
-  await expect(results).toHaveCount(2)
-  await expect(page.getByText('골목 라멘')).toBeVisible()
-
-  await page.getByLabel('장소 분류').selectOption('')
-  if (await page.getByRole('button', { name: '지도', exact: true }).isVisible()) {
-    await page.getByRole('button', { name: '지도', exact: true }).click()
-  }
-  await page.getByRole('button', { name: '동쪽으로 이동' }).click()
-  await page.getByRole('button', { name: '이 영역 검색' }).click()
-  if (await page.getByRole('button', { name: '목록', exact: true }).isVisible()) {
-    await page.getByRole('button', { name: '목록', exact: true }).click()
-  }
-  await expect(results).toHaveCount(1)
-  await expect(results.first()).toContainText('동쪽 기록 보관소')
-  await expect(page.getByText('지도 영역 적용됨')).toBeVisible()
-})
-
-test('debounces typing and cancels the superseded backend request', async ({ page, request }) => {
-  await page.goto('/search')
-  await expect(page.getByRole('list', { name: '장소 검색 결과' }).getByRole('button')).toHaveCount(3)
-  await submitSearch(page, '느린 검색')
+  await page.getByRole('button', { name: /성수.*조건 제거/ }).click()
+  await expect(results).toHaveCount(3)
+  await expect(page.getByRole('button', { name: /성수.*조건 제거/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /라멘.*조건 제거/ })).toBeVisible()
+  await expect(page.getByText('강남 정통 라멘')).toBeVisible()
 
   await expect.poll(async () => {
-    const response = await request.get(`${backendOrigin}/__test/search-observations`)
-    return (await response.json() as Array<{ query: string }>).some((item) => item.query === '느린 검색')
+    const response = await request.get(`${backendOrigin}/__test/catalog-search-observations`)
+    const observations = await response.json() as Array<{ query: string; excludedTokenIds: string[] }>
+    return observations.some((item) =>
+      item.query === '성수 라멘' &&
+      item.excludedTokenIds.includes('area:area.kr.seoul.seongdong.seongsu@1'))
   }).toBe(true)
 
-  await submitSearch(page, '카페')
-  await expect(page.getByText('작업실 카페')).toBeVisible()
-  await expect(page.getByText('조용한 라멘 연구소')).not.toBeVisible()
-  await expect.poll(async () => {
-    const response = await request.get(`${backendOrigin}/__test/search-observations`)
-    const observations = await response.json() as Array<{ query: string; aborted: boolean }>
-    return observations.findLast((item) => item.query === '느린 검색')?.aborted
-  }).toBe(true)
-})
-
-test('renders partial, empty, error, and retry-safe states without private fields', async ({ page, request }) => {
-  await page.goto('/search')
-  await submitSearch(page, '부분 결과')
-  await expect(page.getByText('일부 검색 소스의 결과가 지연되거나 누락되었습니다.')).toBeVisible()
-
-  await submitSearch(page, '없음')
-  await expect(page.getByText('조건에 맞는 장소가 없습니다.')).toBeVisible()
-
-  await submitSearch(page, '오류')
-  await expect(page.getByRole('alert').filter({ hasText: '검색 결과를 불러오지 못했습니다.' })).toBeVisible()
-  await expect(page.getByRole('button', { name: '다시 시도' })).toBeVisible()
-
-  const response = await request.post('/api/search/places', {
-    data: { schemaVersion: 'place-search.v1', query: '카페' },
-  })
-  expect(response.status()).toBe(200)
-  const body = JSON.stringify(await response.json())
-  expect(body).not.toContain('membershipId')
-  expect(body).not.toContain('personalRating')
-  expect(body).not.toContain('PLACE_BACKEND_ORIGIN')
-})
-
-test('labels official provider results and lazily loads attributed details', async ({ page, request }) => {
-  await page.goto('/search')
-  await submitSearch(page, '공식 결과')
-
-  const result = page.getByRole('list', { name: '장소 검색 결과' }).getByRole('button')
-  await expect(result).toHaveCount(1)
-  await expect(result).toContainText('Google Maps')
-  if (await page.getByRole('button', { name: '목록', exact: true }).isVisible()) {
-    await result.click()
-  }
-  await expect(page.getByRole('link', { name: 'Google Maps에서 열기' })).toHaveAttribute(
-    'href', 'https://maps.example.invalid/place/100',
-  )
-  await expect(page.getByText('평점 4.6 · 120개 평가')).toBeVisible()
-  await expect(page.getByLabel('정보 및 사진 출처')).toContainText('사진 작성자')
-
-  const response = await request.post('/api/search/provider-details', {
+  const apiResponse = await request.post('/api/search/catalog', {
     data: {
-      schemaVersion: 'place-provider-detail.v1',
-      providerKey: 'google', providerPlaceId: 'google-place-100',
+      schemaVersion: 'catalog-place-search.v1',
+      query: '성수 라멘',
+      excludedTokenIds: [],
+      limit: 20,
     },
   })
-  expect(response.status()).toBe(200)
-  expect(JSON.stringify(await response.json())).not.toContain('apiKey')
+  expect(apiResponse.status()).toBe(200)
+  const apiBody = JSON.stringify(await apiResponse.json())
+  expect(apiBody).not.toMatch(/providerPlaceId|Google Maps|NAVER|Kakao/)
+  await results.nth(0).click()
+  await page.getByRole('button', { name: '길찾기', exact: true }).click()
+  await expect(page.getByRole('link', { name: 'Google Maps로 길찾기' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'NAVER로 길찾기' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '카카오맵으로 길찾기' })).toBeVisible()
 })
 
-test('reuses personal Place capabilities only for canonical search results', async ({ page }) => {
-  let canonicalDetailRequests = 0
-  let memberOverlayAvailable = false
-  await page.route(/\/api\/places\/[^/?]+$/, async (route) => {
-    canonicalDetailRequests += 1
-    const selectedPlaceId = new URL(route.request().url()).pathname.split('/').at(-1)!
-    await route.fulfill({
-      contentType: 'application/json',
-      body: JSON.stringify({
-        schemaVersion: 'place-detail.v1',
-        status: 'available',
-        requestedPlaceId: selectedPlaceId,
-        redirectedFrom: [],
-        placeId: selectedPlaceId,
-        name: '조용한 라멘 연구소',
-        areaLabel: '성수',
-        location: { latitude: 37.5445, longitude: 127.056 },
-        primaryTaxonomy: { key: 'food.noodle.ramen', label: '라멘' },
-        taxonomyKeys: ['food.noodle.ramen'],
-        evidence: { status: 'verified', projectedAt: '2026-08-29T00:00:00.000Z' },
-        ...(memberOverlayAvailable
-          ? {
-              personalState: {
-                saved: true,
-                wanted: false,
-                personalRating: 4.3,
-                preferencesUpdatedAt: '2026-08-29T00:00:00.000Z',
-                visits: { visited: false, count: 0 },
-              },
-            }
-          : {}),
-      }),
-    })
-  })
-  await page.route('**/api/library/places/*/organization?*', async (route) => {
-    const selectedPlaceId = new URL(route.request().url()).pathname.split('/').at(-2)!
-    await route.fulfill({
-      contentType: 'application/json',
-      body: JSON.stringify({
-        schemaVersion: 'library-place-organization.v1',
-        placeId: selectedPlaceId,
-        items: [],
-      }),
-    })
-  })
-  await page.route('**/api/places/*/visits?*', async (route) => {
-    const selectedPlaceId = new URL(route.request().url()).pathname.split('/').at(-2)!
-    await route.fulfill({
-      contentType: 'application/json',
-      body: JSON.stringify({
-        schemaVersion: 'visit-history.v1',
-        placeId: selectedPlaceId,
-        items: [],
-      }),
-    })
-  })
-  await page.route('**/api/writing?*', async (route) => {
-    const url = new URL(route.request().url())
-    await route.fulfill({
-      contentType: 'application/json',
-      body: JSON.stringify({
-        schemaVersion: 'writing-list.v2',
-        filter: { kind: 'note', placeId: url.searchParams.get('placeId') },
-        items: [],
-      }),
-    })
-  })
+test('switches between the catalog list and map on mobile without losing selection', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chromium', 'mobile catalog workspace coverage')
 
-  await page.goto('/search')
-  const results = page.getByRole('list', { name: '장소 검색 결과' }).getByRole('button')
-  await expect(results).toHaveCount(3)
-  await results.first().click()
-  await expect(page.getByRole('link', { name: '로그인하고 계속' })).toBeVisible()
-
-  memberOverlayAvailable = true
-  if (await page.getByRole('button', { name: '목록으로' }).isVisible()) {
-    await page.getByRole('button', { name: '목록으로' }).click()
-  }
+  await page.goto('/')
+  await submitSearch(page, '성수 라멘')
+  const results = page.locator('ol').getByRole('button')
+  await expect(results).toHaveCount(2)
   await results.nth(1).click()
 
-  await expect(page.getByRole('heading', { name: '내 상태' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: '내 분류' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: '방문 기록' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: '내 메모' })).toBeVisible()
-  const requestsAfterCanonicalSelection = canonicalDetailRequests
-  expect(requestsAfterCanonicalSelection).toBeGreaterThan(0)
+  await expect(page.getByRole('button', { name: '검색 결과로', exact: false })).toBeVisible()
+  await expect(page.getByRole('region', { name: '곳곳간 카탈로그 검색 지도' })).toBeVisible()
+  await expect(page.getByRole('link', { name: '로그인하고 계속' })).toBeVisible()
+  await expect(page.getByRole('region', { name: '선택한 장소', exact: true })).toContainText('성수 골목 쇼유라멘')
+  await page.getByRole('button', { name: '조용한 라멘 연구소 지도에서 선택' }).click()
 
-  await submitSearch(page, '공식 결과')
-  if (await page.getByRole('button', { name: '목록', exact: true }).isVisible()) {
-    await page.getByRole('button', { name: '목록', exact: true }).click()
-  }
-  await expect(results).toHaveCount(1)
-  await results.first().click()
-  await expect(page.getByRole('link', { name: 'Google Maps에서 열기' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: '내 상태' })).not.toBeVisible()
-  expect(canonicalDetailRequests).toBe(requestsAfterCanonicalSelection)
+  await page.getByRole('button', { name: '검색 결과로', exact: false }).click()
+  await expect(results.nth(0)).toBeVisible()
+  await expect(results.nth(0)).toHaveAttribute('aria-pressed', 'true')
 })
 
-test('uses an independent detail pane and restores the selected mobile row', async ({ page }, testInfo) => {
-  await page.goto('/search')
-  const results = page.getByRole('list', { name: '장소 검색 결과' }).getByRole('button')
-  await expect(results).toHaveCount(3)
-
-  const selectedRow = results.nth(1)
-  await selectedRow.click()
-  await expect(page.getByRole('complementary', { name: '선택한 검색 결과 상세' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: /긴 이름으로/ })).toBeVisible()
-
-  if (testInfo.project.name === 'desktop-chromium') {
-    await expect(page.getByRole('region', { name: '검색 결과 지도' })).toBeVisible()
-    await page.getByRole('button', { name: '검색 결과 상세 닫기' }).click()
-    await expect(page.getByRole('complementary', { name: '선택한 검색 결과 상세' })).not.toBeVisible()
-    await expect(selectedRow).toHaveAttribute('aria-pressed', 'false')
-  } else {
-    await expect(page.getByRole('list', { name: '장소 검색 결과' })).not.toBeVisible()
-    await page.getByRole('button', { name: '목록으로' }).click()
-    await expect(page.getByRole('list', { name: '장소 검색 결과' })).toBeVisible()
-    await expect(selectedRow).toBeFocused()
-    await expect(selectedRow).toHaveAttribute('aria-pressed', 'true')
-  }
-})
-
-test('captures the reviewed search workspace sizes', async ({ page }, testInfo) => {
-  await page.goto('/search')
-  await expect(page.getByRole('list', { name: '장소 검색 결과' }).getByRole('button')).toHaveCount(3)
-
-  const visualFailures: unknown[] = []
-  const capture = async (name: string, maxDiffPixelRatio?: number) => {
-    try {
-      await expect(page).toHaveScreenshot(name, {
-        fullPage: true,
-        ...(maxDiffPixelRatio === undefined ? {} : { maxDiffPixelRatio }),
-      })
-    } catch (error) {
-      visualFailures.push(error)
+test('uses the local MapLibre style and expands a server cluster into accessible markers', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'desktop MapLibre projection coverage')
+  const unexpectedExternalRequests: string[] = []
+  page.on('request', (request) => {
+    const url = new URL(request.url())
+    if ((url.protocol === 'http:' || url.protocol === 'https:') &&
+      (url.hostname !== webUrl.hostname || url.port !== webUrl.port)) {
+      unexpectedExternalRequests.push(request.url())
     }
-  }
-
-  if (testInfo.project.name === 'desktop-chromium') {
-    await expect(page.getByRole('alert').filter({
-      hasText: '내 장소 기능을 불러오지 못했습니다.',
-    })).toBeVisible()
-    await page.setViewportSize({ width: 1440, height: 900 })
-    await capture('place-search-1440x900.png')
-    await page.setViewportSize({ width: 1280, height: 800 })
-    await capture('place-search-1280x800.png')
-
-    await submitSearch(page, '부분 결과')
-    await expect(page.getByText('일부 검색 소스의 결과가 지연되거나 누락되었습니다.')).toBeVisible()
-    await capture('place-search-partial-1280x800.png', 0.01)
-
-    await submitSearch(page, '느린 검색')
-    await expect.poll(async () => page.getByText('검색 중…').isVisible()).toBe(true)
-    await capture('place-search-loading-1280x800.png', 0.01)
-
-    await submitSearch(page, '오류')
-    await expect(page.getByRole('alert').filter({ hasText: '검색 결과를 불러오지 못했습니다.' })).toBeVisible()
-    await capture('place-search-error-1280x800.png', 0.01)
-  } else {
-    await page.setViewportSize({ width: 390, height: 844 })
-    await capture('place-search-390x844.png')
-    await page.setViewportSize({ width: 360, height: 800 })
-    await capture('place-search-360x800.png')
-
-    await submitSearch(page, '없음')
-    await expect(page.getByText('조건에 맞는 장소가 없습니다.')).toBeVisible()
-    await capture('place-search-empty-360x800.png', 0.01)
-
-    await submitSearch(page, '')
-    await expect(page.getByRole('list', { name: '장소 검색 결과' }).getByRole('button')).toHaveCount(3)
-    await page.getByRole('button', { name: '지도', exact: true }).click()
-    await expect(page.getByRole('region', { name: '검색 결과 지도' })).toBeVisible()
-    await capture('place-search-map-360x800.png')
-  }
-
-  if (visualFailures.length > 0) {
-    throw new AggregateError(visualFailures, `${visualFailures.length} visual baselines differ`)
-  }
-})
-
-test('suggests ambiguous places, cancels stale input, and records keyboard selection', async ({ page, request }) => {
-  await page.goto('/search')
-  const input = page.getByLabel('장소 검색어')
-  await input.fill('센')
-  await expect.poll(async () => {
-    const response = await request.get(`${backendOrigin}/__test/suggestion-observations`)
-    const body = await response.json() as { requests: Array<{ query: string }> }
-    return body.requests.some((item) => item.query === '센')
-  }).toBe(true)
-
-  await input.fill('센카이')
-  const options = page.getByRole('option', { name: /센카이 라멘/ })
-  await expect(options).toHaveCount(2)
-  await expect(options.nth(0)).toContainText('후쿠오카 하카타')
-  await expect(options.nth(1)).toContainText('도쿄 신주쿠')
-
-  await input.press('ArrowDown')
-  await input.press('Enter')
-  await expect(input).toHaveValue('센카이 라멘')
-  await expect.poll(async () => {
-    const response = await request.get(`${backendOrigin}/__test/suggestion-observations`)
-    const body = await response.json() as {
-      requests: Array<{ query: string; aborted: boolean }>
-      selections: Array<{ suggestionId: string }>
-    }
-    return {
-      aborted: body.requests.findLast((item) => item.query === '센')?.aborted,
-      selected: body.selections.at(-1)?.suggestionId,
-    }
-  }).toEqual({
-    aborted: true,
-    selected: '01992d20-6000-7000-8000-000000000003',
   })
 
-  const response = await request.post('/api/search/suggestions', {
-    data: { schemaVersion: 'place-suggestions.v1', query: 'senkai' },
+  await page.goto('/')
+  const style = await page.request.get('/api/maps/style')
+  expect(style.status()).toBe(200)
+  expect((await style.json()).sources).toEqual({})
+  // The selected result stays separate in v3; two other places are needed to exercise a cluster.
+  await submitSearch(page, '라멘')
+  await expect(page.locator('ol').getByRole('button')).toHaveCount(3)
+  await expect(page.getByRole('button', { name: '조용한 라멘 연구소 지도에서 선택' })).toBeVisible()
+
+  const zoomOut = page.locator('.maplibregl-ctrl-zoom-out')
+  let projection: CatalogPlaceMapResponse | undefined
+  for (let index = 0; index < 8; index += 1) {
+    const clusterResponse = page.waitForResponse((response) => response.url().endsWith('/api/v3/search/catalog/map'))
+    await zoomOut.click()
+    projection = await (await clusterResponse).json() as CatalogPlaceMapResponse
+    if (projection.features.some((feature) => feature.kind === 'cluster')) break
+  }
+  const mapRegion = page.getByRole('region', { name: '곳곳간 카탈로그 검색 지도' })
+  await expect.poll(async () => Number(await mapRegion.getAttribute('data-place-map-zoom'))).toBeLessThan(12)
+  await expect(page.getByRole('button', { name: '이 지역에서 보기' })).toHaveCount(0)
+  const cluster = page.getByRole('button', { name: '2개 장소 묶음 확대' })
+  await expect(cluster).toBeVisible()
+  expect(projection!.features).toEqual(expect.arrayContaining([
+    expect.objectContaining({ kind: 'place', label: '조용한 라멘 연구소' }),
+    expect.objectContaining({ kind: 'cluster', count: 2 }),
+  ]))
+  const selectedBox = (await page.getByRole('button', { name: '조용한 라멘 연구소 지도에서 선택' }).boundingBox())!
+  const clusterBox = (await cluster.boundingBox())!
+  expect(selectedBox.x + selectedBox.width <= clusterBox.x || clusterBox.x + clusterBox.width <= selectedBox.x ||
+    selectedBox.y + selectedBox.height <= clusterBox.y || clusterBox.y + clusterBox.height <= selectedBox.y).toBe(true)
+  const clusterFeature = projection!.features.find((feature) => feature.kind === 'cluster')!
+  const mapRequest = page.waitForRequest((request) => request.url().endsWith('/api/v3/search/catalog/map'))
+  await cluster.click()
+  await expect(page.locator('ol').getByRole('button')).toHaveCount(3)
+  expect((await mapRequest).postDataJSON().viewport).toEqual(clusterFeature.bounds)
+  await expect(page.getByRole('button', { name: '성수 골목 쇼유라멘 지도에서 선택' })).toBeVisible()
+  expect(unexpectedExternalRequests).toEqual([])
+})
+
+test('keeps global results and the selected place while only map coverage changes', async ({ page }) => {
+  const listRequests: unknown[] = []
+  await page.route('**/api/v2/search/catalog', async (route) => {
+    listRequests.push(route.request().postDataJSON())
+    const response = await route.fetch()
+    const result = await response.json() as CatalogPlaceSearchResponse
+    await route.fulfill({ response, json: { ...result, items: result.items.slice(0, 1) } })
   })
-  expect(response.status()).toBe(200)
-  const body = JSON.stringify(await response.json())
-  expect(body).not.toMatch(/token|apiKey|cookie|profile/i)
-  expect(body).not.toMatch(/membershipId|personalRating/i)
+  await page.goto('/')
+  await submitSearch(page, '성수 라멘')
+  await expect(page.locator('ol').getByRole('button')).toHaveCount(1)
+  await page.getByRole('button', { name: '성수 골목 쇼유라멘 지도에서 선택' }).click()
+  const detail = page.getByRole('region', { name: '선택한 장소', exact: true })
+  await expect(detail).toContainText('성수 골목 쇼유라멘')
+  await expect(detail.getByRole('tab', { name: '개요', exact: true })).toHaveAttribute('aria-selected', 'true')
+  const mapResponse = page.waitForResponse((response) =>
+    response.url().endsWith('/api/v3/search/catalog/map') && response.request().postDataJSON().zoom < 12)
+  await page.locator('.maplibregl-ctrl-zoom-out').click()
+  await mapResponse
+  await expect(detail).toContainText('성수 골목 쇼유라멘')
+  await expect(detail.getByRole('tab', { name: '개요', exact: true })).toHaveAttribute('aria-selected', 'true')
+  expect(listRequests).toHaveLength(1)
+  expect(listRequests[0]).not.toHaveProperty('bounds')
+  await page.getByRole('button', { name: '검색 결과로', exact: false }).click()
+  await expect(page.locator('ol').getByRole('button')).toHaveCount(1)
+})
 
-  await input.fill('부분 후보')
-  await expect(page.getByRole('option', { name: /센카이 라멘/ })).toHaveCount(1)
-  await expect(page.getByText('일부 출처의 후보가 지연되거나 누락됐습니다.')).toBeVisible()
+test('redirects the retired search workspace to Home', async ({ page }) => {
+  await page.goto('/search')
+  await expect(page).toHaveURL(/\/$/)
+  await expect(
+    page.getByRole('combobox', { name: '곳곳간 카탈로그 검색', exact: true }),
+  ).toBeVisible()
+  await expect(page.getByText('장소 찾기', { exact: true })).toHaveCount(0)
+})
 
-  await input.fill('알 수 없는 오타')
-  await expect(page.getByText('일치하는 후보가 없습니다. Enter로 전체 검색해 보세요.')).toBeVisible()
-  await input.press('Enter')
-  await expect(page.getByRole('list', { name: '장소 검색 결과' }).getByRole('button')).toHaveCount(3)
+test('files a Home search result into multiple Collections with one v2 command', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chromium', 'desktop Home filing coverage')
+  await installMemberDetail(page)
+  const ramenCollectionId = '01992d20-7000-7000-8000-000000000301'
+  const tripCollectionId = '01992d20-7000-7000-8000-000000000302'
+  const commands: PlaceFilingCommandRequestV2[] = []
+  const collection = (collectionId: string, name: string) => ({
+    collectionId,
+    name,
+    description: null,
+    visibility: 'private',
+    publicationId: null,
+    placeCount: 0,
+    collectionRevision: `revision.${collectionId}`,
+    updatedAt: '2026-09-03T00:00:00.000Z',
+  })
+  await page.route('**/api/library/workspace?*', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      schemaVersion: 'personal-library-workspace.v2',
+      filter: {
+        favoriteScope: { kind: 'all' }, ratingFilter: { kind: 'any' },
+        tagIds: [], tagMatch: 'all', areaKeys: [], taxonomyKeys: [],
+      },
+      collections: [
+        collection(ramenCollectionId, '서울 라멘'),
+        collection(tripCollectionId, '주말 여행'),
+      ],
+      places: [],
+      availableFilters: {
+        coverage: {
+          favoritePlaceCount: 0, sampledPlaceCount: 0,
+          projectedPlaceCount: 0, complete: true,
+        },
+        areas: [], taxonomies: [],
+      },
+    }),
+  }))
+  await page.route('**/api/library/places/*/filing?*', (route) => {
+    const placeId = new URL(route.request().url()).pathname.split('/').at(-2)!
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        schemaVersion: 'place-filing.v2',
+        placeId,
+        overlay: { isFavorited: false, collectionCount: 0, personalRating: null },
+        collections: [
+          { collectionId: ramenCollectionId, name: '서울 라멘', included: false, collectionRevision: `revision.${ramenCollectionId}` },
+          { collectionId: tripCollectionId, name: '주말 여행', included: false, collectionRevision: `revision.${tripCollectionId}` },
+        ],
+      }),
+    })
+  })
+  await page.route('**/api/library/filing-commands', async (route) => {
+    const command = route.request().postDataJSON() as PlaceFilingCommandRequestV2
+    commands.push(command)
+    return route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        schemaVersion: 'place-filing-command-result.v2',
+        outcome: 'accepted',
+        receipt: { commandId: command.commandId, status: 'applied' },
+        placeId: command.placeId,
+        overlay: { isFavorited: true, collectionCount: 2, personalRating: null },
+        collections: command.changes.map((change) => ({
+          collectionId: change.collectionId,
+          included: true,
+          collectionRevision: `${change.expectedCollectionRevision}.next`,
+        })),
+      }),
+    })
+  })
+
+  await page.goto('/')
+  await submitSearch(page, '성수 라멘')
+  await page.locator('ol').getByRole('button').first().click()
+  await page.getByRole('button', { name: /내 목록에 저장.*변경/ }).click()
+  const filing = page.getByRole('dialog', { name: '내 카테고리', exact: true })
+  await filing.getByLabel(/서울 라멘/).check()
+  await filing.getByLabel(/주말 여행/).check()
+  await filing.getByRole('button', { name: '카테고리 선택 닫기' }).click()
+  const guard = page.getByRole('dialog', { name: '저장하지 않은 변경이 있어요' })
+  for (const leave of [
+    () => page.getByRole('button', { name: '검색 결과로', exact: false }).click(),
+    () => page.getByRole('button', { name: '성수 골목 쇼유라멘 지도에서 선택' }).click(),
+    () => submitSearch(page, '대한민국'),
+  ]) {
+    await leave()
+    await expect(guard).toContainText('목록 선택')
+    await guard.getByRole('button', { name: '계속 작성' }).click()
+    await expect(page.getByRole('region', { name: '선택한 장소', exact: true })).toContainText('조용한 라멘 연구소')
+    expect(commands).toHaveLength(0)
+  }
+  await page.getByRole('button', { name: /내 목록에 저장.*변경/ }).click()
+  await expect(filing.getByLabel(/서울 라멘/)).toBeChecked()
+  await expect(filing.getByLabel(/주말 여행/)).toBeChecked()
+  await filing.getByRole('button', { name: '변경 저장' }).click()
+  await expect(filing.getByRole('status').filter({ hasText: '내 카테고리를 저장했습니다.' })).toBeVisible()
+
+  expect(commands).toHaveLength(1)
+  expect(commands[0]?.schemaVersion).toBe('place-filing-command.v2')
+  expect(commands[0]?.changes).toHaveLength(2)
+})
+
+test('keeps the map full-height and preserves search through same-panel detail and collapse', async ({ page }, testInfo) => {
+  const widths = testInfo.project.name === 'desktop-chromium' ? [1440, 1280] : [390, 360]
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: width > 720 ? 900 : 844 })
+    await page.goto('/')
+    await submitSearch(page, '성수 라멘')
+    const map = page.getByRole('region', { name: '곳곳간 카탈로그 검색 지도' })
+    const panel = page.getByRole('complementary', { name: '카탈로그 탐색 패널' })
+    await expect(page.locator('ol').getByRole('button')).toHaveCount(2)
+    await page.locator('ol').getByRole('button').nth(1).click()
+    await expect(page.getByRole('region', { name: '선택한 장소', exact: true })).toBeVisible()
+    await expect(page.locator('ol')).toHaveCount(0)
+    await page.getByRole('button', { name: '검색 결과로', exact: false }).click()
+    await expect(page.locator('ol').getByRole('button').nth(1)).toBeFocused()
+    await page.screenshot({ path: testInfo.outputPath('home-' + width + '.png') })
+    await page.getByRole('button', { name: '탐색 패널 접기' }).click()
+    await expect(panel).toBeHidden()
+    const bounds = await map.boundingBox()
+    expect(bounds?.height).toBeGreaterThan(650)
+    await page.getByRole('button', { name: '탐색 패널 펼치기' }).click()
+    await expect(panel).toBeVisible()
+    await expect(page.getByRole('combobox', { name: '곳곳간 카탈로그 검색', exact: true })).toHaveValue('성수 라멘')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false)
+  }
+})
+
+test('returns to the original scrolled result after selecting another marker in detail', async ({ page }, testInfo) => {
+  await page.route('**/api/v2/search/catalog', async (route) => {
+    const response = await route.fetch()
+    const result = await response.json() as CatalogPlaceSearchResponse
+    const first = result.items[0]!
+    await route.fulfill({ response, json: { ...result, items: [first, ...Array.from({ length: 18 }, (_, index) => ({
+      ...first,
+      placeId: `01992d20-0000-7000-8000-${String(200 + index).padStart(12, '0')}`,
+      name: `스크롤 검증 라멘 ${index + 1}`,
+    })), result.items[1]!] } })
+  })
+  const widths = testInfo.project.name === 'desktop-chromium' ? [1440, 1280] : [390, 360]
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: width > 720 ? 900 : 844 })
+    await page.goto('/')
+    await submitSearch(page, '성수 라멘')
+    const results = page.locator('ol').getByRole('button')
+    await expect(results).toHaveCount(20)
+    const panel = page.getByRole('complementary', { name: '카탈로그 탐색 패널' })
+    const scroller = panel.locator('[class*="panelBody"]')
+    await results.last().scrollIntoViewIfNeeded()
+    const offset = await scroller.evaluate((element) => element.scrollTop)
+    expect(offset).toBeGreaterThan(500)
+    await results.last().click()
+    const detail = page.getByRole('region', { name: '선택한 장소', exact: true })
+    await expect(detail).toContainText('성수 골목 쇼유라멘')
+    await page.getByRole('button', { name: '조용한 라멘 연구소 지도에서 선택' }).click()
+    await expect(detail).toContainText('조용한 라멘 연구소')
+    await page.getByRole('button', { name: '검색 결과로', exact: false }).click()
+    await expect(results.last()).toBeFocused()
+    await expect.poll(async () => Math.abs(await scroller.evaluate((element) => element.scrollTop) - offset)).toBeLessThanOrEqual(1)
+    await expect(results.first()).toHaveAttribute('aria-pressed', 'true')
+  }
 })

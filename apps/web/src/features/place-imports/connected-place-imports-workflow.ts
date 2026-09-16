@@ -2,10 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import {
-  connectorGrantSchema,
-  type ConnectorExtensionEvent,
-} from '@place/contracts/connector'
+import type { ConnectorExtensionEvent } from '@place/contracts/connector'
 import {
   currentMembershipConsentsSchema,
   membershipOnboardingRequestSchema,
@@ -21,7 +18,7 @@ import {
   type PlaceImportItem,
 } from '@place/contracts/imports'
 
-import { ConnectorPageSession } from '@/platform/imports/connector/connector-page-session'
+import { ConnectorPageSession } from '@/platform/imports/connector/page-session/connector-page-session'
 
 export type ImportBrowserSessionState = 'checking' | 'anonymous' | 'authenticated'
 
@@ -31,7 +28,6 @@ export type ImportAction =
   | Readonly<{ kind: 'skip'; reason?: string }>
 
 type ConnectorReady = Extract<ConnectorExtensionEvent, Readonly<{ kind: 'ready' }>>
-type ConnectorProgress = Extract<ConnectorExtensionEvent, Readonly<{ kind: 'progress' }>>['progress']
 
 const activeStates = new Set(['queued', 'running', 'partial', 'enriching'])
 
@@ -79,7 +75,6 @@ export function useConnectedPlaceImportsWorkflow() {
   const [reviewResults, setReviewResults] = useState<Readonly<Record<string, string>>>({})
   const [connectorChecking, setConnectorChecking] = useState(true)
   const [connectorReady, setConnectorReady] = useState<ConnectorReady>()
-  const [connectorProgress, setConnectorProgress] = useState<ConnectorProgress>()
   const [onboardingRequired, setOnboardingRequired] = useState(false)
   const [onboardingConsents, setOnboardingConsents] = useState<
     ReturnType<typeof currentMembershipConsentsSchema.parse>['consents']
@@ -128,7 +123,7 @@ export function useConnectedPlaceImportsWorkflow() {
           setError(
             consentFailure instanceof Error
               ? consentFailure.message
-              : '현재 Place 이용 동의를 불러오지 못했습니다.',
+              : '현재 곳곳간 이용 동의를 불러오지 못했습니다.',
           )
         }
         return
@@ -183,14 +178,14 @@ export function useConnectedPlaceImportsWorkflow() {
         }),
       )
       if (result.authorityRole !== 'owner') {
-        throw new ImportBrowserProblem('Platform Owner 권한을 Place에 연결하지 못했습니다.', true)
+        throw new ImportBrowserProblem('Platform Owner 권한을 곳곳간에 연결하지 못했습니다.', true)
       }
       setOnboardingRequired(false)
       setOnboardingConsents(undefined)
       setAcceptedConsentKeys(new Set())
       await loadConnections()
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'Place 가입을 완료하지 못했습니다.')
+      setError(failure instanceof Error ? failure.message : '곳곳간 가입을 완료하지 못했습니다.')
     } finally {
       setOnboardingBusy(false)
     }
@@ -216,49 +211,6 @@ export function useConnectedPlaceImportsWorkflow() {
       if (timer !== undefined) window.clearTimeout(timer)
     }
   }, [batch?.batchId, batch?.state])
-
-  async function startConnectorImport() {
-    const session = connectorSession.current
-    if (session === undefined || connectorReady === undefined) return
-    setBusy(true)
-    setError(undefined)
-    setConnectorProgress(undefined)
-    const idempotencyKey = crypto.randomUUID()
-    try {
-      if (!(await session.prepare('naver'))) {
-        throw new ImportBrowserProblem(
-          '새로 열린 Place Connector 권한 탭에서 NAVER 접근을 허용한 뒤 다시 시도해 주세요.',
-          false,
-        )
-      }
-      const grant = connectorGrantSchema.parse(await requestJson('/api/connector/grants', {
-        method: 'POST',
-        body: JSON.stringify({
-          schemaVersion: 'place-connector-grant-request.v1',
-          installationId: connectorReady.installationId,
-          browserKey: connectorReady.browserKey,
-          providerKey: 'naver',
-          operation: 'import-saved-library',
-          idempotencyKey,
-        }),
-      }))
-      const result = await session.start(grant, (event) => setConnectorProgress(event.progress))
-      if (result === undefined) throw new ImportBrowserProblem('확장 프로그램 응답 시간이 초과되었습니다.', true)
-      if (result.code !== 'completed' || result.importBatchId === undefined) {
-        throw new ImportBrowserProblem(
-          result.code === 'reauth-required'
-            ? 'NAVER에서 로그인한 뒤 다시 시도해 주세요.'
-            : `가져오기를 완료하지 못했습니다. (${result.code})`,
-          result.retryable,
-        )
-      }
-      await loadDetail(result.importBatchId)
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : '브라우저 가져오기를 시작하지 못했습니다.')
-    } finally {
-      setBusy(false)
-    }
-  }
 
   async function startServerImport() {
     if (selectedConnectionId === undefined) return
@@ -325,7 +277,6 @@ export function useConnectedPlaceImportsWorkflow() {
     }
   }
 
-  const connectorSupportsNaver = connectorReady?.supportedProviders.includes('naver') ?? false
   const items = detail?.items ?? []
   const batchActive = batch !== undefined && activeStates.has(batch.state)
 
@@ -349,8 +300,6 @@ export function useConnectedPlaceImportsWorkflow() {
     reviewResults,
     connectorChecking,
     connectorReady,
-    connectorProgress,
-    connectorSupportsNaver,
     onboardingRequired,
     onboardingConsents,
     acceptedConsentKeys,
@@ -362,7 +311,6 @@ export function useConnectedPlaceImportsWorkflow() {
     setConsentAccepted,
     completeOnboarding,
     probeConnector,
-    startConnectorImport,
     startServerImport,
     transition,
     review,

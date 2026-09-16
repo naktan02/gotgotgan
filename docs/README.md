@@ -1,10 +1,16 @@
-# Place documentation router
+# 곳곳간 문서 안내
 
-This directory is authoritative for repository-local product, architecture, domain, contracts, data,
-security, testing, and operations. Workspace-wide ownership and cross-project rules remain in
-`../../docs/`.
+이 디렉터리는 저장소 내부의 제품, 아키텍처, 도메인, 계약, 데이터, 보안, 테스트와 운영 문서의
+기준이다. 워크스페이스 전체 소유권과 프로젝트 간 규칙은 `../../docs/`에 둔다.
 
-Read only the routes required by the task, after repository `AGENTS.md` and `README.md`:
+저장소 `AGENTS.md`와 `README.md`를 읽은 뒤 작업에 필요한 경로만 읽는다.
+
+회원 가져오기의 최신 제품 기준은 [`웹 일회성 가져오기 ADR`](adr/0025-web-one-shot-saved-place-imports.md)과
+[`Provider별 가능성 조사`](integrations/saved-place-web-import-feasibility.md)다. NAVER multi-share-link
+batch가 주 경로이고 원격 browser beta는 별도 `integration-gated` source다. 사용자 설치나 로컬 browser
+cookie 재사용을 전제로 하지 않는다. [`회원 로컬 커넥터`](../apps/member-connector/README.md)는 parser와
+수집 제약의 진단 근거이며 제품 다음 단계가 아니다. 최소 snapshot 이후 승인·저장은
+[`Provider transfers`](../backend/src/modules/transfers/README.md)를 재사용한다.
 
 - Product scope, terminology, journeys, UI, or reference work: `product/README.md`.
 - Module placement, dependencies, processes, or failure behavior: `architecture/README.md`.
@@ -16,20 +22,23 @@ Read only the routes required by the task, after repository `AGENTS.md` and `REA
 - Test scope, fixtures, Playwright, or live checks: `testing/README.md`.
 - Local execution, worker lifecycle, deployment, backup, or incidents: `operations/README.md`.
 - A durable decision or supersession: `adr/README.md`.
+- Verified symptoms, causes and recurrence probes: `incidents/README.md`.
 
 Delivery state is **source-only; Stages 6.5, 7.5–7.17, and 11A–11E2B3 complete, with Stages 2, 7, and 11 in progress and Stage 8 paused after 8B**. A Place-owned physical PostGIS runtime is
 implemented and tested in disposable environments but not deployed or active. No provider account, browser profile, map credential, Identity
 client, Gateway route, family composer, or AI connection is active.
 
-Stage 7은 진행 중이다. 연결 메타데이터, durable Import queue, lease/fencing, NAVER 승인 캡처
+Stage 7은 진행 중이다. ADR 0025가 아래 Desktop·extension 기록의 제품 방향을 대체한다. 새 Web source는
+계정 미확인 one-shot provenance와 additive 계약·migration이 구현되기 전까지 활성화하지 않는다.
+연결 메타데이터, durable Import queue, lease/fencing, NAVER 승인 캡처
 parser, 암호화 artifact replay, preview/review API, Web BFF와 반응형 검토 화면, 만료 artifact
 물리 삭제 작업을 source-only로 구현했다. desktop/mobile Playwright와 실제 PostGIS는 검토 재시도,
 민감정보 비노출, DB 삭제 표식과 암호화 파일 삭제를 검증한다. 현재 전용 Chrome profile을 사용하는
 로컬 커넥터의 로그인·취소·종료, 값 없는 네트워크 구조 보고서, current·legacy NAVER schema를 격리한
 전체 폴더·bookmark pagination 수집기는 source-only 진단 CLI다. 평소 로그인 session을 재사용하지
-못하므로 주 회원 흐름으로 사용하지 않는다. ADR 0012는 `apps/member-connector`에 현재 browser profile을
-쓰는 하나의 다중 브라우저·다중 Provider 확장을 두고 NAVER·Kakao·Google을 Adapter로 격리하도록
-결정했다. Versioned Connector 계약, provider-neutral application Interface, browser/upload Adapter와
+못하므로 주 회원 흐름으로 사용하지 않는다. ADR 0024의 Provider parser·획득 전략 분리는 유지하지만
+회원 기기 실행 호스트를 제품 경계로 둔 부분은 ADR 0025가 대체한다.
+Versioned Connector 계약, provider-neutral application Interface, 선택형 browser/upload Adapter와
 Chromium·Firefox Manifest V3 build 검증은 source-only다. Chrome·Edge·Whale은 Chromium 산출물을
 공유하지만 Whale 실설치 evidence는 아직 없다. Provider host permission, 실제 Provider Adapter, 공개
 BFF capture route와 Backend receiver는 NAVER에 대해 source-only로 연결됐다. grant rotation,
@@ -41,10 +50,14 @@ integration-gated이며 완료로 표시하지 않는다. current·legacy parser
 Provider Place ID가 안정된 item은 Source List·Item ID와 함께 `enriching` intent로 기록된다. Provider
 Identity별 공동 materialization job은 기존 Canonical link를 재사용하고, 없으면 가져온 snapshot을
 근거로 create/link한 뒤 회원의 private Collection에 즉시 멱등 저장한다. Provider 상세 상태와 후속
-보강 Job은 이 저장 수명주기와 분리된다. Migration `000021`과 Provider-neutral Worker/PostgreSQL
+보강 Job은 이 저장 수명주기와 분리된다. 새 SourceSnapshot은 같은 transaction에서 최초 상세 작업을
+예약한다. V3 ImportPlan은 최소 snapshot 근거를 고정해 상세 준비 없이 승인·저장을 완료한다.
+상세 상태는 별도 정보이며 Web은 완료 대기나 자동 evidence 갱신을 하지 않는다.
+Migration `000021`과 Provider-neutral Worker/PostgreSQL
 Adapter는 lease·retry·immutable detail Observation/Candidate와 `pending`/`available`/`unavailable`
-전이를 구현했다. 실제 NAVER 상세 경로 관찰과 read-only Adapter 활성화는 선택적 deferred work이며
-관찰 자료가 제공되기 전에는 비활성으로 남지만 Stage 7 완료를 막지 않는다.
+전이를 구현했다. TraceForge Runner 기반 NAVER read-only Adapter가 추가됐고, Migration `000043`은
+오래된 상세를 append-only Job으로 다시 관찰해 `initial`/`unchanged`/`changed`로 연결한다. production
+Runner/Pack 배포와 live 재검증은 아직 configuration-gated다.
 
 Stage 8A는 `resolution` 모듈과 Migration `000022`에서 다국어 원문을 보존하는 Provider Identity별
 comparison representation, bounded PostGIS/`pg_trgm`/전화/website 후보 검색, versioned immutable

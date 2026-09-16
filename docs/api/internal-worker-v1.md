@@ -21,6 +21,15 @@ attempt 종료를 수행한다. 만료 lease를 재획득하면 이전 attempt�
 로그에는 포함하지 않는다. 인증 만료·MFA·CAPTCHA·동의·parser drift는 사용자 조치로, rate limit과
 일시 장애는 상한이 있는 backoff로, checksum 불일치는 영구 실패로 분류한다.
 
+Provider Detail Worker의 현재 실행 계약은 `provider_key`와 `provider_place_id`만 Runner recipe
+입력으로 전달한다. 회원·ImportBatch·Source List·cookie·login 정보는 전달하지 않는다. 성공 응답은
+공개 상세 snapshot으로 검증한 뒤 checksum과 parser version을 포함한 새 Source Observation으로
+기록한다. `challenge-required`는 CAPTCHA를 해결하는 명령이 아니라 중단 상태다.
+
+Worker 시작과 continuous idle 주기는 `PLACE_PROVIDER_DETAIL_FRESHNESS_MILLISECONDS`보다 오래된
+`available` identity를 최대 `PLACE_PROVIDER_DETAIL_REFRESH_BATCH_SIZE`개씩 새 Job으로 예약한다.
+기존 Job과 Observation은 수정하지 않는다. 새 상세 관찰은 이전 정상 관찰 ID와 change kind를 보존한다.
+
 캡처 만료 정리는 Import claim과 별도인 유지보수 명령이다. 만료 메타데이터만 bounded batch로
 선택하고 암호화 artifact를 삭제한 후 `deleted_at`을 기록한다. 개별 실패는 수량으로만 보고하며
 secret/profile/capture reference를 출력하지 않는다. 이 명령은 Provider 브라우저나 profile을 열지

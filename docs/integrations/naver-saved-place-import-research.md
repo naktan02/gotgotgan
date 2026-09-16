@@ -7,9 +7,11 @@
 구현 후보를 찾는 보조 근거로만 사용했다. 개인 계정, 쿠키, 비밀번호, 실제 저장 장소, 비공개
 리스트는 조사에 사용하지 않았다.
 
-후속 실관찰에서 새 Playwright profile은 사용자가 평소 쓰는 browser의 로그인 상태를 재사용하지
-못하는 것으로 확인됐다. 따라서 이 문서의 전용-profile 절차는 진단 방법으로만 남고, 제품 경계는
-ADR 0012의 current-session Place Connector 확장으로 변경됐다.
+이 문서의 설치형 Connector·전용 profile 제안은 후속 제품 결정을 반영하지 않은 역사적 조사 기록이다.
+최신 제품 경계는 [`ADR 0025`](../adr/0025-web-one-shot-saved-place-imports.md)와
+[`Provider별 웹 가져오기 가능성`](saved-place-web-import-feasibility.md)을 따른다. NAVER는 여러 공유
+링크의 일회성 batch가 주 경로이고, 비공개 전체 목록용 격리 원격 browser는 사용자가 다시 로그인하는
+별도 `integration-gated` beta다. 어느 쪽도 회원 PC의 기존 browser cookie를 재사용하지 않는다.
 
 ## 결론
 
@@ -20,17 +22,14 @@ OAuth도 지도 저장 목록 접근 권한을 제공하지 않는다. 따라서
 
 현재 가장 가능성이 높은 경로는 다음 순서다.
 
-1. 사용자가 직접 만든 일부 공개·전체 공개 리스트의 공유 링크를 입력하는 무상태 가져오기를
-   먼저 탐색한다.
-2. 비공개 목록은 사용자가 현재 로그인한 browser profile에 설치한 Place Connector 확장에서
-   first-party 구조화 응답을 읽는다. session 만료 때만 Provider 로그인 탭에서 사용자가 재인증한다.
-3. 인증·페이지네이션·스키마가 fixture로 확인되면 확장의 NAVER `SavedPlaceSource` Adapter가 같은
-   browser session 안에서 제한된 HTTP 수집을 수행하고 일회성 Place grant로 bounded batch를 제출한다.
-4. 구조화 응답을 사용할 수 없거나 일부 필드가 빠질 때만 접근성 트리와 DOM 파서를 보조
-   어댑터로 사용한다.
-5. Playwright UI 조작은 진단, fixture/replay, 확장 E2E, opt-in live smoke와 최후 fallback을 담당한다.
-   Crawlee는 이 추출 순서를 대신하지 않고 서버 소유 상세 보강의 queue·retry·concurrency를 제공하는
-   worker 내부 실행 도구로만 사용한다.
+1. 사용자가 만든 일부 공개·전체 공개 리스트의 공유 링크 여러 개를 Web에서 한 번에 제출하고, 링크별
+   결과를 독립적으로 검토한다. 이는 링크마다 공개된 특정 목록이지 계정 전체나 계정 소유 증거가 아니다.
+2. 비공개 전체 목록이 필요하면 사용자가 명시적으로 선택한 격리 원격 browser beta에서 다시 로그인한다.
+   사용자 PC profile이나 cookie는 복사하지 않고 session 종료 즉시 임시 profile을 폐기한다.
+3. Provider parser와 pagination 제약은 기존 `SavedPlaceSource` 진단 구현에서 재사용하되, shared-link와
+   remote session을 서로 다른 versioned source 계약으로 둔다.
+4. 공식 export 파일이나 권한 위임이 확인되면 Provider별 별도 source로 추가한다. 지원되지 않는 방식을
+   다른 Provider에도 적용된다고 가정하지 않는다.
 
 이 순서는 `providers`의 NAVER 어댑터가 외부 형식을 소유하고, `ingestion`이 ImportBatch,
 ImportItem, Observation, 정규화·중복 검토를 소유하며, worker가 브라우저·queue의 수명주기를

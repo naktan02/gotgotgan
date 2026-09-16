@@ -1,5 +1,10 @@
 # Backend migrations
 
+`000048`은 ImportPlan의 `policy-create`에 원본 snapshot item 근거를 추가한다. 기존 상세
+observation/candidate FK는 유지하고 두 근거 중 정확히 하나만 선택한다. 복합 FK는 계획과 같은
+snapshot의 정확한 source-list/item을 보장하며 승인 뒤 근거 변경을 거부한다. 이 migration은
+상세 Worker를 실행하거나 기존 승인 계획의 근거를 다시 쓰지 않는다.
+
 This directory owns ordered TypeScript schema migrations executed only by the database preparation
 operator command as `place_owner`. Filenames use a zero-padded monotonic prefix. Never edit an
 applied migration; append a new file and keep every schema, grant, index, and rollback explicit.
@@ -142,3 +147,52 @@ immutable Appeal Resolution을 정규화한다. decision당 Appeal 하나와 Han
 기록하고 rejected는 current withheld를 바꾸지 않는다. Profile 삭제 trigger는 pending Appeal을 system
 superseded resolution로 닫는다. runtime은 Notice acknowledgement와 Appeal current status column만
 갱신할 수 있고 resolution UPDATE/DELETE 권한은 없다.
+
+`000035`는 Collection membership을 즐겨찾기의 유일한 truth로 전환하기 위한 additive 기반을 만든다.
+Collection·회원·Rating의 불투명 revision, 결과를 보존하는 v2 operation receipt, 여러 Provider 원본
+목록을 하나의 Collection에 연결할 수 있는 source-list binding, 부분 공개 복사의 항목 provenance를
+추가한다. `saved`/`wanted` legacy column은 rollback 증거로 남기되, 소유 Collection에 속하지 않은 활성
+legacy 행이 하나라도 있으면 특별 카테고리를 임의 생성하지 않고 migration을 중단한다.
+
+`000036`은 한 Source Observation과 subject에 묶인 typed fact assertion 원장, 불변 Canonical Place
+Profile revision, field별 selected evidence, 멱등 발행 receipt와 catalog change feed를 추가한다.
+Profile 현재 pointer는 검증 함수만 전진시키며 identity lifecycle과 현실 영업 상태를 분리한다.
+
+`000037`은 provider-neutral Area identity와 gap 없는 localized hierarchy version, Provider category
+mapping version, Profile별 exact Taxonomy·Area assignment를 추가한다. 부모 Area는 최신 version이
+활성이고 같은 국가여야 하며 assignment는 정확한 source assertion과 node version을 참조한다.
+
+`000038`은 URL이 아닌 stable Place media source identity, append-only rights revision과 attribution,
+Profile media selection을 추가한다. 공개 view는 현재 Profile에 선택되고 현재 권리·surface·유효 기간·
+필수 출처 표기가 모두 충족된 media만 노출한다.
+
+`000043`은 Provider 상세 Job을 한 번 쓰고 교체하는 행이 아니라 identity별 append-only 실행 이력으로
+확장한다. 동시에 active Job은 하나만 허용하고, freshness scheduler는 완료 Job과
+`provider-rate-limited`/`provider-unavailable` 일시 실패만 다시 예약한다. 상세 관찰은 이전 관찰을
+참조하며 payload checksum으로 `initial`, `unchanged`, `changed`를 기록한다. 갱신 실패는 마지막 정상
+상세를 지우지 않고 parser drift, capture invalid, interaction required는 운영자 확인 전까지 보류한다.
+
+`000044`는 v2 Connector manifest와 immutable SourceSnapshot에 실제 획득 방식과 parser version을
+보존한다. 이전 snapshot은 provenance를 추측해 채우지 않고 NULL로 유지하며 자동 Canonical Place 생성의
+근거로 사용하지 않는다. 새 Connector snapshot의 provenance는 manifest digest에 함께 결속된다.
+
+`000045`는 서버가 수집한 `available` Provider detail observation과 정규화 candidate가 있는 미매칭
+항목을 승인된 ImportPlan에서 Canonical Place로 생성하거나 기존 identity에 연결할 수 있게 한다.
+Connector가 선언한 provenance만으로는 전역 Place를 만들지 않는다. 승인 계획은 불변으로 유지하고
+계획 시 선택한 detail observation/candidate를 FK로 고정한다. 실제 Canonical Place ID는 취소 여부를
+종결하기 전에 TransferOperation 항목에 체크포인트한다.
+
+`000046`은 새 SourceSnapshot의 미매칭 Provider identity에 최초 상세 수집을 예약하는 Ingestion 소유
+함수를 추가한다. `pending` identity에 active Job이 없을 때만 append-only Job을 만들고 이미
+`available`/`unavailable`인 identity는 다시 예약하지 않는다. 이 경로는 광범위한 추가 권한 대신 고정
+`search_path`의 최소 `SECURITY DEFINER` 함수만 실행한다. 적용 전에 저장된 snapshot은 자동으로
+backfill하지 않으며, 필요하면 별도의 bounded 운영 작업으로 예약한다.
+
+`000047`은 ImportPlan item의 결정·고정 evidence를 바꾸는 trigger가 부모 plan 상태를 읽을 때 같은
+plan 행을 `FOR UPDATE`로 잠근다. 따라서 draft evidence 갱신, 사용자 결정, 승인 전이가 모두 plan을
+먼저 직렬화하며 승인과 동시에 item이 바뀌는 시간차를 허용하지 않는다. rollback은 기존 draft 상태
+검사 함수로 복원하고 저장된 plan/item/evidence는 변경하지 않는다.
+
+`000054`는 모든 Collection에 제한된 팔레트의 안정된 `color_token`을 추가한다. 기존 행은 Collection
+ID의 digest로 결정적으로 채우며, 새 삽입은 호출 경로가 값을 생략해도 같은 규칙의 trigger가 보완한다.
+DB constraint는 임의 CSS 색상을 거부하고 runtime role에는 이 column의 제한된 UPDATE만 허용한다.

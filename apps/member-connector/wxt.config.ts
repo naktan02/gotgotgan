@@ -8,8 +8,8 @@ export default defineConfig({
   manifest: ({ browser }) => {
     const placeOrigin = new URL(process.env.WXT_PLACE_CONNECTOR_PUBLIC_ORIGIN!).origin
     return {
-    name: 'Place Connector',
-    description: '현재 브라우저 세션으로 개인 장소 목록을 Place에 연결합니다.',
+    name: '곳곳간 커넥터',
+    description: '현재 브라우저 세션으로 개인 장소 목록을 곳곳간에 연결합니다.',
     permissions: ['scripting', 'storage'],
     host_permissions: [`${placeOrigin}/*`],
     optional_host_permissions: ['https://pages.map.naver.com/*'],

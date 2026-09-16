@@ -1,7 +1,7 @@
 'use client'
 
 import { SearchWorkspaceView } from './SearchWorkspaceView'
-import type { PlaceMapRenderer } from '@/platform/maps/place-map-interface'
+import type { PlaceMapRenderer } from '@/platform/maps/public'
 import type { SearchCanonicalPlaceDetailRenderer } from './search-workspace-interface'
 import { usePlaceSearchWorkflow } from './search-workspace-workflow'
 

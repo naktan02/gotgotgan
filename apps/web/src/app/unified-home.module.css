@@ -1,0 +1,4 @@
+.scope { display: flex; gap: 6px; padding: 3px; margin-bottom: 12px; background: var(--canvas); border-radius: 10px; }
+.scope > * { flex: 1; min-height: 36px; padding: 9px; border: 0; border-radius: 8px; background: transparent; color: inherit; text-align: center; font-size: 13px; }
+.scope > [aria-current] { background: var(--surface); color: var(--accent); font-weight: 700; box-shadow: 0 1px 4px rgb(20 40 30 / 14%); }
+.scope button { cursor: pointer; }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  adminSessionSchema,
   browserPrivateNoteCommandRequestSchema,
   currentMembershipConsentsSchema,
   currentMembershipSchema,
@@ -44,6 +45,17 @@ describe('versioned product HTTP results', () => {
     expect(processStatusSchema.parse({
       schemaVersion: 'place-process-status.v1', service: 'place', state: 'ok',
     })).toMatchObject({ state: 'ok' })
+    expect(processStatusSchema.parse({
+      schemaVersion: 'place-process-status.v1', service: 'place-admin-web', state: 'ok',
+    })).toMatchObject({ service: 'place-admin-web' })
+    expect(adminSessionSchema.parse({
+      schemaVersion: 'place-admin-session.v1', authorityRole: 'administrator',
+      userGrade: 'operator', productTier: 'internal',
+    })).toMatchObject({ authorityRole: 'administrator' })
+    expect(adminSessionSchema.safeParse({
+      schemaVersion: 'place-admin-session.v1', authorityRole: 'member',
+      userGrade: 'newcomer', productTier: 'free',
+    }).success).toBe(false)
     expect(currentMembershipSchema.parse({
       schemaVersion: 'place-current-membership.v1', membershipId,
       authorityRole: 'member', userGrade: 'newcomer', productTier: 'free',
@@ -121,6 +133,18 @@ describe('versioned product HTTP results', () => {
     expect(publishedCollectionMapQuerySchema.parse({
       west: '126.9', south: '37.5', east: '127.1', north: '37.6', zoom: '12',
     })).toEqual({ west: 126.9, south: 37.5, east: 127.1, north: 37.6, zoom: 12 })
+    expect(publishedCollectionMapQuerySchema.parse({
+      west: '170', south: '-20', east: '-170', north: '20', zoom: '12.5',
+    })).toEqual({ west: 170, south: -20, east: -170, north: 20, zoom: 12.5 })
+    expect(publishedCollectionMapQuerySchema.safeParse({
+      west: -180, south: -85.051129, east: 180, north: 85.051129, zoom: 0,
+    }).success).toBe(true)
+    expect(publishedCollectionMapQuerySchema.safeParse({
+      west: 10, south: -20, east: 10, north: 20, zoom: 12,
+    }).success).toBe(false)
+    expect(publishedCollectionMapQuerySchema.safeParse({
+      west: 180, south: -20, east: -180, north: 20, zoom: 12,
+    }).success).toBe(false)
     expect(publishedCollectionMapSchema.parse({
       schemaVersion: 'place-published-collection-map.v1', publicationId,
       viewport: {

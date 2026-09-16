@@ -12,6 +12,8 @@ import {
   publicProfileNoticeParamsSchema,
   publicProfileQuerySchema,
   publicProfileRecordSchema,
+  publicProfileReportRequestSchema,
+  publicProfileReportResultSchema,
   setPublicProfileRequestSchema,
 } from '@place/contracts/profiles'
 
@@ -106,6 +108,20 @@ export function createBrowserProfileHttp(dependencies: Dependencies) {
   }
 
   return {
+    async report(handle: string, request: Request) {
+      const params = publicProfileHandleParamsSchema.safeParse({ handle })
+      let body
+      try { body = publicProfileReportRequestSchema.safeParse(await request.json()) } catch { body = undefined }
+      if (!params.success || body === undefined || !body.success) {
+        return problem(400, 'PLACE_PUBLIC_PROFILE_REPORT_INVALID', 'Public Profile report is invalid', dependencies.createCorrelationRef())
+      }
+      return authenticated(
+        request,
+        (token) => dependencies.backend.report(token, params.data.handle, body.data, request.signal),
+        publicProfileReportResultSchema,
+        [200, 201],
+      )
+    },
     current(request: Request) {
       return authenticated(
         request,

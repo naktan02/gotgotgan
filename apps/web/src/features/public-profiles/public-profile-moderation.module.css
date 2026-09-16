@@ -9,7 +9,7 @@
 .noticeHeading { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
 .noticeHeading > div { display: flex; align-items: center; gap: 8px; }
 .notice h3 { margin: 0; color: var(--ink); font-size: 15px; }
-.notice time, .notice > small, .appealStatus span { color: var(--muted); font-size: 11px; }
+.notice time, .notice > small, .appealStatus span { color: var(--muted); font-size: 12px; }
 .notice > p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .unread { border-radius: 999px; background: var(--accent-soft); color: var(--accent); padding: 3px 7px; font-size: 10px; font-weight: 700; }
 .appealStatus { display: grid; gap: 4px; border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 10px 12px; font-size: 12px; }
@@ -18,12 +18,12 @@
 .appealForm select, .appealForm button, .acknowledge, .loadMore, .inbox > button { min-height: 38px; border: 1px solid var(--line-strong); border-radius: var(--radius-control); background: var(--surface); color: var(--ink); padding: 0 12px; font: inherit; }
 .appealForm button { border-color: var(--accent); background: var(--accent); color: white; font-weight: 700; }
 .appealForm button:disabled, .acknowledge:disabled, .loadMore:disabled { cursor: wait; opacity: .55; }
-.appealForm small { grid-column: 1 / -1; color: var(--muted); font-size: 11px; }
+.appealForm small { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
 .acknowledge { justify-self: start; }
 .acknowledged { color: var(--muted); font-size: 12px; }
 .error { margin: 14px 0 0; border-radius: var(--radius-control); background: #fff2f2; color: var(--danger); padding: 11px 13px; font-size: 13px; }
 .loadMore { margin-top: 14px; }
-.inbox > footer { margin-top: 20px; border-top: 1px solid var(--line); color: var(--muted); padding-top: 12px; font-size: 11px; line-height: 1.5; }
+.inbox > footer { margin-top: 20px; border-top: 1px solid var(--line); color: var(--muted); padding-top: 12px; font-size: 12px; line-height: 1.5; }
 
 @media (max-width: 520px) {
   .inbox { width: calc(100% - 20px); margin-bottom: 10px; }

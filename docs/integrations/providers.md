@@ -36,8 +36,9 @@ a proven three-adapter local seam, not yet a cross-project Acquisition Runtime.
 연결 목록 Import의 Materialization Worker는 Provider Adapter를 호출하지 않고 Source Snapshot으로
 Canonical Place와 private Collection을 즉시 반영한다. Provider 상세는 `(provider_key,
 provider_place_id)`별 독립 상태와 후속 Adapter leaf로 분리하며 입력에 회원·목록·사용자 profile을
-포함하지 않는다. NAVER 실제 상세 경로와 서버 profile Adapter는 관찰 전 추측하지 않으며 현재
-integration-gated다.
+포함하지 않는다. 현재 NAVER leaf는 버전·digest가 설정에서 고정된 TraceForge Runner/Pack을 사용한다.
+production 배포와 live 재검증은 아직 configuration-gated다. Pack endpoint·selector·challenge signal은 Place 공통 코드에
+들어오지 않으며, challenge를 자동 해제하거나 우회하지 않는다.
 
 회원 목록 Import의 목표 경계는 NAVER·Kakao·Google을 Adapter로 조립하는 하나의 Place Connector
 확장이다. Provider `SavedPlaceSource`가 endpoint·schema·pagination·auth-expiry를 숨기고 browser

@@ -1,12 +1,11 @@
 import type {
   PlaceSearchResult,
   PlaceSuggestion,
-  ProviderPlaceDetail,
   TaxonomyNode,
 } from '@place/contracts/search'
 import type { ReactNode } from 'react'
 
-import type { PlaceMapBounds, PlaceMapMarker } from '@/platform/maps/place-map-interface'
+import type { PlaceMapBounds, PlaceMapMarker } from '@/platform/maps/public'
 
 export type SearchMobileSurface = 'list' | 'map' | 'detail'
 
@@ -60,8 +59,6 @@ export type SearchResultsInterface = Readonly<{
 
 export type SearchDetailInterface = Readonly<{
   selected?: PlaceSearchResult
-  providerDetail?: ProviderPlaceDetail
-  detailState: 'idle' | 'loading' | 'available' | 'unavailable'
   mobileSurface: SearchMobileSurface
   dismissDetail: () => void
   showList: () => void

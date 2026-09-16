@@ -3,6 +3,7 @@ import { processStatusSchema } from '@place/contracts/http'
 import { readNextOidcRuntime } from '../auth/next-oidc-lifecycle'
 import { readNextMembershipRuntime } from '../membership/next-membership-lifecycle'
 import { readNextImportRuntime } from '../imports/next-import-lifecycle'
+import { readNextConnectorTransferRuntime } from '../imports/connector/runtime/next-connector-lifecycle'
 
 type Environment = Readonly<Record<string, string | undefined>>
 
@@ -13,6 +14,9 @@ type Dependencies = Readonly<{
     | Readonly<{ ready: () => Promise<Response> }>
     | undefined
   resolveImportBackend: () =>
+    | Readonly<{ ready: () => Promise<Response> }>
+    | undefined
+  resolveConnectorBackend: () =>
     | Readonly<{ ready: () => Promise<Response> }>
     | undefined
 }>
@@ -57,13 +61,19 @@ export function createBrowserProcessReadiness(dependencies: Dependencies) {
           dependencies.environment,
           'PLACE_IMPORT_RUNTIME_ENABLED',
         )
+        const connectorRequired = activated(
+          dependencies.environment,
+          'PLACE_CONNECTOR_RUNTIME_ENABLED',
+        )
         const oidcRuntime = dependencies.resolveOidcRuntime()
         const membershipBackend = dependencies.resolveMembershipBackend()
         const importBackend = dependencies.resolveImportBackend()
+        const connectorBackend = dependencies.resolveConnectorBackend()
         if (
           (oidcRequired && oidcRuntime === undefined) ||
           (membershipRequired && membershipBackend === undefined) ||
-          (importRequired && importBackend === undefined)
+          (importRequired && importBackend === undefined) ||
+          (connectorRequired && connectorBackend === undefined)
         ) {
           return response('unavailable')
         }
@@ -83,6 +93,13 @@ export function createBrowserProcessReadiness(dependencies: Dependencies) {
             }),
           )
         }
+        if (connectorRequired) {
+          checks.push(
+            connectorBackend!.ready().then((backendResponse) => {
+              if (!backendResponse.ok) throw new Error('backend unavailable')
+            }),
+          )
+        }
         await Promise.all(checks)
         return response('ok')
       } catch {
@@ -97,4 +114,5 @@ export const browserProcessReadiness = createBrowserProcessReadiness({
   resolveOidcRuntime: readNextOidcRuntime,
   resolveMembershipBackend: readNextMembershipRuntime,
   resolveImportBackend: readNextImportRuntime,
+  resolveConnectorBackend: readNextConnectorTransferRuntime,
 })

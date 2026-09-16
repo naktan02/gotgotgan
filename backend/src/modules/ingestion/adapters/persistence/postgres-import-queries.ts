@@ -29,6 +29,47 @@ function requireLimit(limit: number, maximum: number): void {
 export class PostgresImportQueries implements ImportQueries {
   constructor(private readonly pool: Pool) {}
 
+  /** Member-owned applied legacy facts; never a public or canonical Place projection. */
+  async readAppliedPlaces(memberId: string, placeIds: readonly string[]) {
+    if (placeIds.length === 0) return []
+    requireLimit(placeIds.length, 2_000)
+    const result = await this.pool.query<{
+      canonical_place_id: string
+      display_name: string
+      address: string | null
+      category_label: string | null
+      latitude: number | null
+      longitude: number | null
+      captured_at: Date
+    }>(
+      `SELECT DISTINCT ON (imported.canonical_place_id)
+              imported.canonical_place_id, imported.display_name, imported.address,
+              imported.category_label, ST_Y(imported.location) AS latitude,
+              ST_X(imported.location) AS longitude, capture.created_at AS captured_at
+       FROM ingestion.import_items AS imported
+       JOIN ingestion.import_batches AS batch ON batch.id = imported.batch_id
+       JOIN ingestion.provider_connections AS connection
+         ON connection.id = batch.connection_id AND connection.member_id = batch.member_id
+        AND connection.provider_key = batch.provider_key
+       JOIN ingestion.import_capture_artifacts AS capture
+         ON capture.id = imported.capture_id AND capture.batch_id = batch.id
+       WHERE batch.member_id = $1::uuid AND imported.status = 'applied'
+         AND imported.canonical_place_id = ANY($2::uuid[])
+       ORDER BY imported.canonical_place_id, capture.created_at DESC,
+                imported.source_list_position, imported.source_position, imported.id`,
+      [memberId, [...new Set(placeIds)]],
+    )
+    return result.rows.map((row) => ({
+      placeId: row.canonical_place_id,
+      observedName: row.display_name,
+      observedAddress: row.address,
+      observedCategory: row.category_label,
+      observedLocation: row.latitude === null || row.longitude === null
+        ? null : { latitude: row.latitude, longitude: row.longitude },
+      capturedAt: row.captured_at.toISOString(),
+    }))
+  }
+
   async listBatches(input: Parameters<ImportQueries['listBatches']>[0]) {
     requireLimit(input.limit, 50)
     const cursor = decodeImportBatchCursor(input.cursor, input.state)

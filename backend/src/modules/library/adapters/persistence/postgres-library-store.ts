@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import type { Pool } from 'pg'
 
 import type { LibraryStore } from '../../application/ports/library-store.js'
+import { collectionColorForId } from '../../application/collection-color.js'
 import type {
   ImportedPlaceSaveAttempt,
   ImportedPlaceSaveStore,
@@ -60,12 +61,31 @@ export class PostgresLibraryStore implements LibraryStore, ImportedPlaceSaveStor
          ))`,
         [attempt.source.providerKey, attempt.source.connectionId, attempt.source.listId],
       )
+      await client.query(
+        `INSERT INTO transfers.import_sources (
+           id, owner_membership_id, provider_key, source_kind, connection_id, created_at
+         ) VALUES ($1::uuid,$2::uuid,$3,'legacy-reference',NULL,$4::timestamptz)
+         ON CONFLICT (id) DO NOTHING`,
+        [attempt.source.connectionId, attempt.memberId,
+          attempt.source.providerKey, attempt.occurredAt],
+      )
+      const importSource = (await client.query<{
+        source_kind: 'verified-connection' | 'legacy-reference'
+        connection_id: string | null
+      }>(
+        `SELECT source_kind, connection_id
+         FROM transfers.import_sources
+         WHERE id = $1::uuid AND owner_membership_id = $2::uuid AND provider_key = $3
+           AND source_kind IN ('verified-connection','legacy-reference')`,
+        [attempt.source.connectionId, attempt.memberId, attempt.source.providerKey],
+      )).rows[0]
+      if (importSource === undefined) throw new Error('legacy import source identity is unavailable')
       const mapped = await client.query<{ collection_id: string; owner_membership_id: string }>(
         `SELECT provenance.collection_id, collection.owner_membership_id
          FROM library.collection_import_provenance AS provenance
          JOIN library.collections AS collection ON collection.id = provenance.collection_id
          WHERE provenance.provider_key = $1
-           AND provenance.source_connection_reference = $2::uuid
+           AND provenance.import_source_id = $2::uuid
            AND provenance.source_list_id = $3
          FOR UPDATE OF provenance, collection`,
         [attempt.source.providerKey, attempt.source.connectionId, attempt.source.listId],
@@ -90,20 +110,24 @@ export class PostgresLibraryStore implements LibraryStore, ImportedPlaceSaveStor
         await client.query(
           `INSERT INTO library.collections (
              id, owner_membership_id, name, description, visibility,
-             publication_id, created_at, updated_at
-           ) VALUES ($1::uuid,$2::uuid,$3,NULL,'private',NULL,$4::timestamptz,$4::timestamptz)`,
-          [collectionId, attempt.memberId, attempt.source.collectionName, attempt.occurredAt],
+             publication_id, color_token, created_at, updated_at
+           ) VALUES ($1::uuid,$2::uuid,$3,NULL,'private',NULL,$4,$5::timestamptz,$5::timestamptz)`,
+          [collectionId, attempt.memberId, attempt.source.collectionName,
+            collectionColorForId(collectionId), attempt.occurredAt],
         )
         await client.query(
           `INSERT INTO library.collection_import_provenance (
              collection_id, owner_membership_id, provider_key,
-             source_connection_reference, source_list_id, source_name_snapshot,
-             source_position, first_imported_at, last_imported_at
+             import_source_id, import_source_kind, source_connection_reference,
+             source_list_id, source_name_snapshot, source_position,
+             first_imported_at, last_imported_at
            ) VALUES (
-             $1::uuid,$2::uuid,$3,$4::uuid,$5,$6,$7,$8::timestamptz,$8::timestamptz
+             $1::uuid,$2::uuid,$3,$4::uuid,$5,$6::uuid,$7,$8,$9,
+             $10::timestamptz,$10::timestamptz
            )`,
           [collectionId, attempt.memberId, attempt.source.providerKey,
-            attempt.source.connectionId, attempt.source.listId, attempt.source.listName,
+            attempt.source.connectionId, importSource.source_kind, importSource.connection_id,
+            attempt.source.listId, attempt.source.listName,
             attempt.source.listPosition, attempt.occurredAt],
         )
       } else {
@@ -166,25 +190,29 @@ export class PostgresLibraryStore implements LibraryStore, ImportedPlaceSaveStor
       await client.query(
         `INSERT INTO library.collection_place_import_provenance (
            collection_id, canonical_place_id, provider_key,
-           source_connection_reference, source_list_id, source_item_id,
-           provider_place_id, first_imported_at, last_imported_at
+           import_source_id, import_source_kind, source_connection_reference,
+           owner_membership_id, source_list_id, source_item_id, provider_place_id,
+           first_imported_at, last_imported_at
          ) VALUES (
-           $1::uuid,$2::uuid,$3,$4::uuid,$5,$6,$7,$8::timestamptz,$8::timestamptz
+           $1::uuid,$2::uuid,$3,$4::uuid,$5,$6::uuid,$9::uuid,$7,$8,$10,
+           $11::timestamptz,$11::timestamptz
          )
          ON CONFLICT (
-           provider_key, source_connection_reference, source_list_id, source_item_id
+           provider_key, import_source_id, source_list_id, source_item_id
          ) DO UPDATE
          SET collection_id = EXCLUDED.collection_id,
              canonical_place_id = EXCLUDED.canonical_place_id,
              provider_place_id = EXCLUDED.provider_place_id,
              last_imported_at = EXCLUDED.last_imported_at`,
         [collectionId, attempt.canonicalPlaceId, attempt.source.providerKey,
-          attempt.source.connectionId, attempt.source.listId, attempt.source.itemId,
+          attempt.source.connectionId, importSource.source_kind, importSource.connection_id,
+          attempt.source.listId, attempt.source.itemId, attempt.memberId,
           attempt.source.providerPlaceId, attempt.occurredAt],
       )
       await client.query(
         `UPDATE library.collections
-         SET updated_at = greatest(updated_at, $2::timestamptz)
+         SET revision = revision + 1,
+             updated_at = greatest(updated_at + interval '1 millisecond', $2::timestamptz)
          WHERE id = $1::uuid`,
         [collectionId, attempt.occurredAt],
       )

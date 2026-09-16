@@ -6,11 +6,13 @@
     "releaseRevisionEnvironment": "PLACE_RELEASE_REVISION",
     "imageEnvironments": {
       "web": "PLACE_WEB_IMAGE",
+      "adminWeb": "PLACE_ADMIN_WEB_IMAGE",
       "backend": "PLACE_BACKEND_IMAGE"
     },
     "deployedUnitEnvironments": {
       "releaseRevision": "PLACE_DEPLOYED_RELEASE_REVISION",
       "webImage": "PLACE_DEPLOYED_WEB_IMAGE",
+      "adminWebImage": "PLACE_DEPLOYED_ADMIN_WEB_IMAGE",
       "backendImage": "PLACE_DEPLOYED_BACKEND_IMAGE"
     },
     "immutableDigestRequired": true
@@ -31,6 +33,21 @@
         "database-url",
         "oidc-client-secret",
         "oidc-encryption-keyring"
+      ]
+    },
+    "adminWeb": {
+      "exposure": "restricted-gateway-candidate",
+      "healthPath": "/healthz",
+      "readinessPath": "/readyz",
+      "configurationGroups": [
+        "admin-web-listener",
+        "admin-oidc-client",
+        "admin-backend"
+      ],
+      "secretFileRoles": [
+        "admin-database-url",
+        "admin-oidc-client-secret",
+        "admin-oidc-encryption-keyring"
       ]
     },
     "backend": {
@@ -64,11 +81,25 @@
         "database-url",
         "capture-keyring"
       ]
+    },
+    "transferWorker": {
+      "exposure": "internal",
+      "activation": "active",
+      "configurationGroups": [
+        "worker-database-pool",
+        "approved-transfer-materialization",
+        "connector-import-grant-expiry-sweep",
+        "transfer-receipt-retention-sweep"
+      ],
+      "secretFileRoles": [
+        "database-url"
+      ]
     }
   },
   "connections": {
     "browserToBackend": "forbidden",
     "webToBackend": "server-to-server",
+    "adminWebToBackend": "server-to-server",
     "crossProjectDatabase": "forbidden"
   },
   "rollback": {
@@ -80,6 +111,7 @@
     "immutable-artifact",
     "database-migration-and-restore",
     "identity-client-provisioning",
+    "admin-identity-client-provisioning",
     "gateway-route-and-rollback",
     "public-browser-e2e"
   ]

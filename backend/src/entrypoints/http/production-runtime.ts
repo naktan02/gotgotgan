@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 
 import { Pool } from 'pg'
 
@@ -15,13 +15,19 @@ import {
 } from '../../modules/access/index.js'
 import {
   InvalidLibraryCursorError,
+  PostgresCollectionLifecycle,
+  PostgresCollectionTransferReader,
+  PostgresCollectionOrder,
   PostgresLibraryQueries,
   PostgresLibraryStore,
+  PostgresPersonalLibraryWorkspace,
+  PostgresPlaceFiling,
+  PostgresPublicCollectionDiscovery,
+  PostgresPublishedCollectionExchange,
   saveImportedPlace,
 } from '../../modules/library/index.js'
 import {
   materializeSuggestedPlace,
-  createConnectorImportReceiver,
   EncryptedFileCaptureArtifactStore,
   PostgresConnectorImports,
   PostgresImportManagement,
@@ -31,25 +37,14 @@ import {
   PostgresIngestionStore,
   recordSuggestionObservation,
   type CanonicalPlaceMaterializationPort,
-  type ConnectorCaptureParser,
 } from '../../modules/ingestion/index.js'
 import {
   applyCanonicalResolution,
   createPlaceDetailReader,
+  createMemberPlaceDetailReader,
   PostgresCanonicalResolutionStore,
+  PostgresMinimumPlaceCatalog,
 } from '../../modules/places/index.js'
-import {
-  createProviderPlaceDetailReader,
-  GoogleOfficialPlaceDetails,
-  GoogleOfficialPlaceSearch,
-  KakaoOfficialPlaceSearch,
-  NaverOfficialPlaceSearch,
-  OfficialProviderHttpClient,
-  parseNaverSavedPlaceCapture,
-  type ProviderPlaceDetails,
-  type ProviderPlaceSearch,
-  type ProviderPlaceSuggestions,
-} from '../../modules/providers/index.js'
 import {
   InvalidPublicProfileCursorError,
   PostgresPublicProfileAppealStore,
@@ -57,20 +52,38 @@ import {
   PostgresPublicProfileStore,
 } from '../../modules/profiles/index.js'
 import {
+  createCatalogPlaceMapSearch,
+  createCatalogPlaceMapSearchV3,
+  createCatalogExploration,
+  createCatalogExplorationV2,
+  createCatalogPlaceSearch,
   createPlaceSearch,
   createPlaceSuggestionMaterialization,
   createPlaceSuggestionSelection,
   createPlaceSuggestions,
+  PostgresCatalogMapSearch,
+  PostgresCatalogMapSearchV3,
   PostgresLocalSearch,
   PostgresPlaceSuggestions,
   projectLocalPlace,
 } from '../../modules/search/index.js'
+import { PostgresAreaCatalog, searchGeographicCatalog, searchLegacyGeographicCatalog } from '../../modules/areas/index.js'
 import { PostgresTaxonomyStore } from '../../modules/taxonomy/index.js'
+import {
+  PostgresConnectorCaptures,
+  PostgresMemberImportedPlaces,
+  PostgresOutboundExecutions,
+  PostgresProviderTransfers,
+  PostgresTransferOperations,
+  PostgresWebImportAcquisitions,
+  WebImportAcquisitions,
+} from '../../modules/transfers/index.js'
 import { PostgresVisitQueries, PostgresVisitStore } from '../../modules/visits/index.js'
 import { PostgresWritingQueries, PostgresWritingStore } from '../../modules/writing/index.js'
 import type { ProductAuthorizer } from '../../platform/http/product-authorization.js'
 import { buildHttpApplication } from './app.js'
 import type { ProductionHttpConfig } from './config.js'
+import { createCanonicalLibrarySummaryReader } from '../catalog/library-place-summaries.js'
 
 type ProductionRuntimeDependencies = Readonly<{
   createPrincipalVerifier?: (config: OidcPrincipalVerifierConfig) => PrincipalVerifier
@@ -141,6 +154,9 @@ export async function createProductionHttpRuntime(
     const writingStore = new PostgresWritingStore(pool)
     const writingQueries = new PostgresWritingQueries(pool)
     const localSearch = new PostgresLocalSearch(pool)
+    const minimumCatalog = new PostgresMinimumPlaceCatalog(pool)
+    const taxonomyStore = new PostgresTaxonomyStore(pool)
+    const readCanonicalLibrarySummaries = createCanonicalLibrarySummaryReader(minimumCatalog, localSearch, taxonomyStore)
     const toLibraryPlaceSummary = (document: Awaited<ReturnType<typeof localSearch.getPlaceDocuments>>[number]) => ({
       placeId: document.placeId,
       name: document.name,
@@ -164,6 +180,50 @@ export async function createProductionHttpRuntime(
         }
       },
     )
+    const memberImportedPlaces = new PostgresMemberImportedPlaces(pool)
+    const importQueries = new PostgresImportQueries(pool)
+    const readMemberImportedPlaces = async (memberId: string, placeIds: readonly string[]) => {
+      const [legacy, current] = await Promise.all([
+        importQueries.readAppliedPlaces(memberId, placeIds),
+        memberImportedPlaces.read(memberId, placeIds),
+      ])
+      // Both readers enforce their own member provenance. Newer observations win without
+      // publishing personal names or making provider classification a canonical taxonomy.
+      return [...new Map([...legacy, ...current]
+        .sort((left, right) => left.capturedAt.localeCompare(right.capturedAt))
+        .map((item) => [item.placeId, item])).values()]
+    }
+    const personalLibraryWorkspace = new PostgresPersonalLibraryWorkspace(
+      pool,
+      readCanonicalLibrarySummaries,
+      async (memberId, placeIds) => (await readMemberImportedPlaces(memberId, placeIds)).map((item) => ({
+        summary: {
+          placeId: item.placeId,
+          name: item.observedName,
+          areaLabel: null,
+          location: item.observedLocation,
+          primaryTaxonomy: null,
+          taxonomyKeys: [],
+          evidence: { status: 'unverified' as const, projectedAt: item.capturedAt },
+        },
+        sourceObservedSearchText: [item.observedAddress, item.observedCategory].filter(Boolean).join(' '),
+      })),
+      async () => (await taxonomyStore.listCurrent()).filter((node) => node.active),
+    )
+    const publicCollectionDiscovery = new PostgresPublicCollectionDiscovery(
+      pool,
+      async (placeIds) => (await localSearch.getCatalogPlaceDocuments(placeIds)).map((document) => ({
+        placeId: document.placeId,
+        name: document.name,
+        areaLabel: document.area?.label ?? null,
+        location: document.location,
+        primaryTaxonomy: document.primaryTaxonomy === null
+          ? null
+          : { key: document.primaryTaxonomy.key, label: document.primaryTaxonomy.label },
+        taxonomyKeys: document.taxonomyReferences.map((reference) => reference.key),
+        evidence: { status: document.evidenceStatus, projectedAt: document.projectedAt },
+      })),
+    )
     const publicProfileStore = new PostgresPublicProfileStore(pool)
     const publicProfileSafetyStore = new PostgresPublicProfileSafetyStore(pool)
     const publicProfileAppealStore = new PostgresPublicProfileAppealStore(pool)
@@ -172,25 +232,21 @@ export async function createProductionHttpRuntime(
     const connectorImports = new PostgresConnectorImports(pool)
     const importQueue = new PostgresImportQueue(pool)
     const importManagement = new PostgresImportManagement(pool)
-    const importQueries = new PostgresImportQueries(pool)
     const importReview = new PostgresImportReview(pool)
     const canonicalStore = new PostgresCanonicalResolutionStore(pool)
     const readPlaceDetail = createPlaceDetailReader({
       canonical: canonicalStore,
       readDocument: async (placeId) => {
-        const document = await localSearch.getPlaceDocument(placeId)
+        const document = (await readCanonicalLibrarySummaries([placeId]))[0]
         return document === undefined ? undefined : {
           placeId: document.placeId,
           name: document.name,
           areaLabel: document.areaLabel,
-          location: {
-            latitude: document.latitude,
-            longitude: document.longitude,
-          },
+          location: document.location,
           primaryTaxonomy: document.primaryTaxonomy,
           taxonomyKeys: document.taxonomyKeys,
-          evidenceStatus: document.evidenceStatus,
-          projectedAt: document.projectedAt,
+          evidenceStatus: document.evidence.status,
+          projectedAt: document.evidence.projectedAt,
         }
       },
       readPersonal: async (memberId, placeId) => {
@@ -204,34 +260,23 @@ export async function createProductionHttpRuntime(
         }
       },
     })
+    const readMemberPlaceDetail = createMemberPlaceDetailReader({
+      read: readPlaceDetail,
+      readSourceObservedPlace: async (memberId, placeId) => {
+        const item = (await readMemberImportedPlaces(memberId, [placeId]))[0]
+        return item === undefined ? undefined : {
+          name: item.observedName, address: item.observedAddress,
+          categoryLabel: item.observedCategory, location: item.observedLocation,
+          capturedAt: item.capturedAt,
+        }
+      },
+    })
     const canonicalMaterialization: CanonicalPlaceMaterializationPort = {
       resolveProviderIdentity: (identity) => canonicalStore.resolveProviderIdentity(identity),
       apply: (attempt) => applyCanonicalResolution({ ...attempt, store: canonicalStore }),
     }
-    const providerHttp = new OfficialProviderHttpClient()
-    const providerSearchSources: ProviderPlaceSearch[] = []
-    const providerSuggestionSources: ProviderPlaceSuggestions[] = []
-    const providerDetailReaders: ProviderPlaceDetails[] = []
-    if (config.providers?.naver !== undefined) {
-      const naver = new NaverOfficialPlaceSearch(config.providers.naver, providerHttp, now)
-      providerSearchSources.push(naver)
-      providerSuggestionSources.push(naver)
-    }
-    if (config.providers?.kakao !== undefined) {
-      const kakao = new KakaoOfficialPlaceSearch(config.providers.kakao, providerHttp, now)
-      providerSearchSources.push(kakao)
-      providerSuggestionSources.push(kakao)
-    }
-    if (config.providers?.google !== undefined) {
-      const google = new GoogleOfficialPlaceSearch(config.providers.google, providerHttp, now)
-      providerSearchSources.push(google)
-      providerSuggestionSources.push(google)
-      providerDetailReaders.push(
-        new GoogleOfficialPlaceDetails(config.providers.google, providerHttp, now),
-      )
-    }
     const suggest = createPlaceSuggestions({
-      sources: [placeSuggestions, ...providerSuggestionSources],
+      sources: [placeSuggestions],
       store: placeSuggestions,
       nextId: randomUUID,
       now,
@@ -269,29 +314,52 @@ export async function createProductionHttpRuntime(
         return result
       },
     })
-    const taxonomyStore = new PostgresTaxonomyStore(pool)
-    const connector = config.connector === undefined
+    const areaCatalog = new PostgresAreaCatalog(pool)
+    const catalogVocabulary = {
+      listAreas: () => areaCatalog.listCurrent(),
+      listTaxonomies: async () => (await taxonomyStore.listCurrent())
+        .filter((node) => node.active)
+        .map(({ key, version, parentKey, label, kind }) => ({
+          key, version, parentKey, label, kind,
+        })),
+    }
+    const providerTransfers = new PostgresProviderTransfers({
+      pool,
+      collections: new PostgresCollectionTransferReader(pool),
+      // Provider-specific transfer adapters are configured independently. An empty map keeps
+      // production capability responses truthful until an approved integration is composed.
+      enabledConnectionAuthMethods: {},
+      sources: [],
+      targets: [],
+      now,
+    })
+    const importAcquisitions = config.importAcquisitions === undefined
       ? undefined
-      : createConnectorImportReceiver({
-          store: connectorImports,
+      : new WebImportAcquisitions({
+          store: new PostgresWebImportAcquisitions(pool, now),
           artifacts: new EncryptedFileCaptureArtifactStore({
-            ...config.connector.artifacts,
+            ...config.importAcquisitions.artifacts,
             now,
           }),
-          parsers: [{
-            providerKey: 'naver',
-            parserVersion: 'naver-saved-place.v1',
-            acquisitionKind: 'browser-network',
-            parse: (input) => {
-              const parsed = parseNaverSavedPlaceCapture(input)
-              return parsed.kind === 'page' ? parsed : { kind: 'rejected' as const }
-            },
-          } satisfies ConnectorCaptureParser],
-          config: config.connector,
-          nextId: randomUUID,
-          nextToken: () => randomBytes(32).toString('base64url'),
+          artifactRetentionMilliseconds:
+            config.importAcquisitions.artifactRetentionMilliseconds,
+          remoteBrowserEnabled: config.importAcquisitions.remoteBrowserEnabled,
           now,
         })
+    const transferOperations = new PostgresTransferOperations(pool, now)
+    const connectorTransfers = new PostgresConnectorCaptures(pool, {
+      grantTtlMilliseconds: 5 * 60 * 1_000,
+      maximumChunkBytes: 4 * 1_024 * 1_024,
+      now,
+    })
+    const outboundExecution = new PostgresOutboundExecutions(pool, transferOperations, {
+      grantTtlMilliseconds: 5 * 60 * 1_000,
+      receiptTtlMilliseconds: 60 * 60 * 1_000,
+      reconciliationTtlMilliseconds: 24 * 60 * 60 * 1_000,
+      maximumBytes: 128 * 1_024 * 1_024,
+      maximumBatches: 1_000,
+      now,
+    })
     const application = buildHttpApplication({
       access: {
         principalVerifier,
@@ -310,18 +378,22 @@ export async function createProductionHttpRuntime(
       },
       library: {
         authorizer: productAuthorizer,
+        mapV3: personalLibraryWorkspace,
+        mapV4: personalLibraryWorkspace,
         store: libraryStore,
         queries: libraryQueries,
         now,
-      },
-      ...(connector === undefined ? {} : {
-        connector: {
-          authorizer: productAuthorizer,
-          receiver: connector,
-          maximumCaptureRequestBytes:
-            config.connector!.limits.maximumBatchBytes * 2 + 65_536,
+        collectionFirst: {
+          workspace: personalLibraryWorkspace,
+          filing: new PostgresPlaceFiling(pool),
+          order: new PostgresCollectionOrder(pool),
+          lifecycle: new PostgresCollectionLifecycle(pool),
         },
-      }),
+        publicCollections: {
+          discovery: publicCollectionDiscovery,
+          exchange: new PostgresPublishedCollectionExchange(pool),
+        },
+      },
       imports: {
         authorizer: productAuthorizer,
         requestStore: importQueue,
@@ -340,15 +412,10 @@ export async function createProductionHttpRuntime(
           },
         },
       },
-      ...(providerDetailReaders.length === 0 ? {} : {
-        providers: {
-          getDetail: createProviderPlaceDetailReader(providerDetailReaders),
-          supportedProviders: providerDetailReaders.map((reader) => reader.providerKey),
-        },
-      }),
       places: {
         authorizer: productAuthorizer,
         read: readPlaceDetail,
+        readMember: readMemberPlaceDetail,
       },
       profiles: {
         authorizer: productAuthorizer,
@@ -369,7 +436,21 @@ export async function createProductionHttpRuntime(
       },
       search: {
         authorizer: productAuthorizer,
-        search: createPlaceSearch({ sources: [localSearch, ...providerSearchSources] }),
+        explore: createCatalogExploration({ source: localSearch, vocabulary: catalogVocabulary, destinations: searchLegacyGeographicCatalog }),
+        exploreV2: createCatalogExplorationV2({ source: localSearch, vocabulary: catalogVocabulary, destinations: searchGeographicCatalog }),
+        search: createPlaceSearch({ sources: [localSearch] }),
+        catalog: createCatalogPlaceSearch({
+          source: localSearch,
+          vocabulary: catalogVocabulary,
+        }),
+        catalogMap: createCatalogPlaceMapSearch({
+          source: new PostgresCatalogMapSearch(pool),
+          vocabulary: catalogVocabulary,
+        }),
+        catalogMapV3: createCatalogPlaceMapSearchV3({
+          source: new PostgresCatalogMapSearchV3(pool), vocabulary: catalogVocabulary,
+          readTaxonomy: async () => (await taxonomyStore.listCurrent()).filter((node) => node.active),
+        }),
         suggestions: {
           suggest,
           select: selectSuggestion,
@@ -377,6 +458,28 @@ export async function createProductionHttpRuntime(
         },
       },
       taxonomy: { store: taxonomyStore },
+      transfers: {
+        authorizer: productAuthorizer,
+        transfers: providerTransfers,
+      },
+      importAcquisitions: {
+        authorizer: productAuthorizer,
+        ...(importAcquisitions === undefined ? {} : { acquisitions: importAcquisitions }),
+        remoteBrowserEnabled: config.importAcquisitions?.remoteBrowserEnabled ?? false,
+      },
+      transferOperations: {
+        authorizer: productAuthorizer,
+        operations: transferOperations,
+      },
+      connectorTransfers: {
+        authorizer: productAuthorizer,
+        receiver: connectorTransfers,
+        maximumCaptureRequestBytes: 4 * 1_024 * 1_024 + 65_536,
+      },
+      outboundExecution: {
+        authorizer: productAuthorizer,
+        control: outboundExecution,
+      },
       visits: {
         authorizer: productAuthorizer,
         store: visitStore,

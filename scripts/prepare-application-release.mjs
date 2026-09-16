@@ -5,7 +5,7 @@ import process from 'node:process'
 import { isDeepStrictEqual } from 'node:util'
 import { fileURLToPath } from 'node:url'
 
-const repository = 'naktan02/place'
+const repository = 'naktan02/gotgotgan'
 const releaseId = 'place'
 const declarationPath = 'deploy/release-source.v1.json'
 const workflowPath = '.github/workflows/release-application.yml'
@@ -29,10 +29,16 @@ const artifacts = [
     workloadRoles: ['web'],
   },
   {
+    artifactId: 'place-admin-web',
+    image: 'ghcr.io/naktan02/place-admin-web',
+    repository: 'naktan02/place-admin-web',
+    workloadRoles: ['admin-web'],
+  },
+  {
     artifactId: 'place-backend',
     image: 'ghcr.io/naktan02/place-backend',
     repository: 'naktan02/place-backend',
-    workloadRoles: ['backend', 'worker', 'migration'],
+    workloadRoles: ['backend', 'transfer-worker', 'worker', 'migration'],
   },
 ]
 
@@ -54,6 +60,17 @@ const expectedReleaseSource = {
       workload_roles: ['web'],
     },
     {
+      artifact_id: 'place-admin-web',
+      kind: 'container-image',
+      build: {
+        context_path: '.',
+        dockerfile_path: 'Dockerfile',
+        target: 'admin-web-runtime',
+        platforms: ['linux/amd64'],
+      },
+      workload_roles: ['admin-web'],
+    },
+    {
       artifact_id: 'place-backend',
       kind: 'container-image',
       build: {
@@ -62,7 +79,7 @@ const expectedReleaseSource = {
         target: 'backend-runtime',
         platforms: ['linux/amd64'],
       },
-      workload_roles: ['backend', 'worker', 'migration'],
+      workload_roles: ['backend', 'transfer-worker', 'worker', 'migration'],
     },
   ],
   deployment: { state: 'source-only' },
@@ -76,6 +93,13 @@ const expectedReleaseSource = {
         readiness: { protocol: 'http', port: 3000, path: '/readyz' },
       },
       {
+        role_id: 'admin-web',
+        artifact_id: 'place-admin-web',
+        classification: 'restricted',
+        health: { protocol: 'http', port: 3000, path: '/healthz' },
+        readiness: { protocol: 'http', port: 3000, path: '/readyz' },
+      },
+      {
         role_id: 'backend',
         artifact_id: 'place-backend',
         classification: 'internal',
@@ -83,6 +107,7 @@ const expectedReleaseSource = {
         readiness: { protocol: 'http', port: 8080, path: '/readyz' },
       },
       { role_id: 'worker', artifact_id: 'place-backend', classification: 'worker' },
+      { role_id: 'transfer-worker', artifact_id: 'place-backend', classification: 'worker' },
       { role_id: 'migration', artifact_id: 'place-backend', classification: 'batch' },
     ],
     migration: {
@@ -96,6 +121,23 @@ const expectedReleaseSource = {
     },
   },
   required_configuration_names: [
+    'PLACE_ADMIN_BACKEND_TIMEOUT_MILLISECONDS',
+    'PLACE_ADMIN_OIDC_CALLBACK_URL',
+    'PLACE_ADMIN_OIDC_CLEANUP_BATCH_SIZE',
+    'PLACE_ADMIN_OIDC_CLEANUP_INTERVAL_SECONDS',
+    'PLACE_ADMIN_OIDC_CLIENT_ID',
+    'PLACE_ADMIN_OIDC_DATABASE_CONNECTION_TIMEOUT_MILLISECONDS',
+    'PLACE_ADMIN_OIDC_DATABASE_IDLE_TIMEOUT_MILLISECONDS',
+    'PLACE_ADMIN_OIDC_DATABASE_MAX_CONNECTIONS',
+    'PLACE_ADMIN_OIDC_ISSUER',
+    'PLACE_ADMIN_OIDC_POST_LOGIN_PATH',
+    'PLACE_ADMIN_OIDC_SCOPES',
+    'PLACE_ADMIN_OIDC_SESSION_TTL_SECONDS',
+    'PLACE_ADMIN_OIDC_STARTUP_RETRY_ATTEMPTS',
+    'PLACE_ADMIN_OIDC_STARTUP_RETRY_DELAY_MILLISECONDS',
+    'PLACE_ADMIN_OIDC_TRANSACTION_TTL_SECONDS',
+    'PLACE_ADMIN_WEB_HOST',
+    'PLACE_ADMIN_WEB_PORT',
     'PLACE_AUTH_MODE',
     'PLACE_BACKEND_ORIGIN',
     'PLACE_DATABASE_CONNECTION_TIMEOUT_MILLISECONDS',
@@ -140,6 +182,9 @@ const expectedReleaseSource = {
     'PLACE_WEB_PORT',
   ],
   required_secret_roles: [
+    'admin-database-url',
+    'admin-oidc-client-secret',
+    'admin-oidc-encryption-keyring',
     'database-url',
     'capture-keyring',
     'oidc-client-secret',

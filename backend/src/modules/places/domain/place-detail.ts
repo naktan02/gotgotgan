@@ -2,7 +2,7 @@ export type PlaceDetailDocument = Readonly<{
   placeId: string
   name: string
   areaLabel: string | null
-  location: Readonly<{ latitude: number; longitude: number }>
+  location: Readonly<{ latitude: number; longitude: number }> | null
   primaryTaxonomy: Readonly<{ key: string; label: string }> | null
   taxonomyKeys: readonly string[]
   evidenceStatus: 'verified' | 'unverified' | 'conflicted' | 'stale'
@@ -47,7 +47,7 @@ type AvailablePlaceDetail = PlaceDetailIdentity & Readonly<{
   status: 'available' | 'redirected'
   name: string
   areaLabel: string | null
-  location: Readonly<{ latitude: number; longitude: number }>
+  location: Readonly<{ latitude: number; longitude: number }> | null
   primaryTaxonomy: Readonly<{ key: string; label: string }> | null
   taxonomyKeys: readonly string[]
   evidence: Readonly<{
@@ -63,6 +63,27 @@ type PendingPlaceDetail = PlaceDetailIdentity & Readonly<{
 }>
 
 export type PlaceDetail = AvailablePlaceDetail | PendingPlaceDetail
+
+export type SourceObservedPlace = Readonly<{
+  name: string
+  address: string | null
+  categoryLabel: string | null
+  location: Readonly<{ latitude: number; longitude: number }> | null
+  capturedAt: string
+}>
+
+type MemberDetailState = Readonly<{
+  schemaVersion: 'place-detail.v2'
+  personalState: PlaceDetailPersonalState & Readonly<{ sourceObservedPlace?: SourceObservedPlace }>
+}>
+
+export type MemberPlaceDetail =
+  | (Omit<AvailablePlaceDetail, 'schemaVersion' | 'personalState'> & MemberDetailState)
+  | (Omit<PendingPlaceDetail, 'schemaVersion' | 'personalState'> & MemberDetailState)
+
+export type MemberPlaceDetailReadResult =
+  | Readonly<{ status: 'found'; detail: MemberPlaceDetail }>
+  | Exclude<PlaceDetailReadResult, { status: 'found' }>
 
 export type PlaceDetailReadResult =
   | Readonly<{ status: 'found'; detail: PlaceDetail }>

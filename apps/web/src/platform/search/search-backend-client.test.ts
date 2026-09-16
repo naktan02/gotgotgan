@@ -2,8 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   SearchBackendProblem,
-  getProviderPlaceDetail,
   getSearchTaxonomy,
+  searchCatalogMap,
+  searchCatalogPlaces,
   selectPlaceSuggestion,
   searchPlaces,
   suggestPlaces,
@@ -47,6 +48,77 @@ describe('search backend client', () => {
     expect(JSON.parse(String(observed[0]?.init.body))).not.toHaveProperty('memberId')
   })
 
+  it('uses the dedicated bounded catalog map path', async () => {
+    const observed: URL[] = []
+    const fetcher: BackendFetcher = vi.fn(async (input) => {
+      observed.push(input)
+      return Response.json({
+        schemaVersion: 'catalog-place-map.v1',
+        interpretation: { normalizedQuery: '라멘', tokens: [] },
+        viewport: { west: 126, south: 37, east: 128, north: 38 }, zoom: 5,
+        mode: 'clusters',
+        features: [{
+          kind: 'cluster', featureId: 'grid:5:1:1',
+          location: { latitude: 37.5, longitude: 127 },
+          bounds: { west: 126, south: 37, east: 128, north: 38 }, placeCount: 3,
+        }],
+        coverage: { matchingPlaceCount: 3, representedPlaceCount: 3, complete: true },
+      })
+    })
+    await expect(searchCatalogMap({
+      schemaVersion: 'catalog-place-map.v1', query: '라멘', excludedTokenIds: [],
+      viewport: { west: 126, south: 37, east: 128, north: 38 }, zoom: 5,
+    }, { PLACE_BACKEND_ORIGIN: 'http://backend.test:4010' }, fetcher)).resolves.toMatchObject({
+      mode: 'clusters',
+    })
+    expect(observed[0]?.pathname).toBe('/v1/search/catalog/map')
+  })
+
+  it('fails closed on oversized or compressed catalog map responses', async () => {
+    const mapRequest = {
+      schemaVersion: 'catalog-place-map.v1' as const,
+      query: '라멘', excludedTokenIds: [],
+      viewport: { west: 126, south: 37, east: 128, north: 38 }, zoom: 5,
+    }
+    const oversized: BackendFetcher = vi.fn(async () => new Response('{}', {
+      headers: {
+        'content-type': 'application/json',
+        'content-length': String(1_024 * 1_024 + 1),
+      },
+    }))
+    const compressed: BackendFetcher = vi.fn(async () => new Response('{}', {
+      headers: { 'content-type': 'application/json', 'content-encoding': 'gzip' },
+    }))
+    await expect(searchCatalogMap(
+      mapRequest, { PLACE_BACKEND_ORIGIN: 'http://backend.test:4010' }, oversized,
+    )).rejects.toThrow('Search JSON')
+    await expect(searchCatalogMap(
+      mapRequest, { PLACE_BACKEND_ORIGIN: 'http://backend.test:4010' }, compressed,
+    )).rejects.toThrow('Search JSON')
+  })
+
+  it('fails closed on oversized or compressed catalog list responses', async () => {
+    const catalogRequest = {
+      schemaVersion: 'catalog-place-search.v1' as const,
+      query: '라멘', excludedTokenIds: [], limit: 20,
+    }
+    const oversized: BackendFetcher = vi.fn(async () => new Response('{}', {
+      headers: {
+        'content-type': 'application/json',
+        'content-length': String(1_024 * 1_024 + 1),
+      },
+    }))
+    const compressed: BackendFetcher = vi.fn(async () => new Response('{}', {
+      headers: { 'content-type': 'application/json', 'content-encoding': 'gzip' },
+    }))
+    await expect(searchCatalogPlaces(
+      catalogRequest, { PLACE_BACKEND_ORIGIN: 'http://backend.test:4010' }, oversized,
+    )).rejects.toThrow('Search JSON')
+    await expect(searchCatalogPlaces(
+      catalogRequest, { PLACE_BACKEND_ORIGIN: 'http://backend.test:4010' }, compressed,
+    )).rejects.toThrow('Search JSON')
+  })
+
   it('returns only a bounded safe problem from backend failures', async () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({
       type: 'urn:place:error:search-unavailable', title: 'Search unavailable',
@@ -65,32 +137,6 @@ describe('search backend client', () => {
       status: 200, headers: { 'content-type': 'application/json' },
     }))
     await expect(getSearchTaxonomy({ PLACE_BACKEND_ORIGIN: 'http://backend.test:4010' }, fetcher)).resolves.toEqual(taxonomy)
-  })
-
-  it('loads provider details through the fixed backend without forwarding credentials', async () => {
-    const detail = {
-      schemaVersion: 'place-provider-detail.v1' as const,
-      providerKey: 'google' as const,
-      providerPlaceId: 'google-place-100',
-      name: '성수 라멘 연구소', address: null, location: null, categoryLabel: null,
-      photos: [], attributions: [{ label: 'Google Maps' }],
-      observedAt: '2026-08-26T10:00:00.000Z',
-    }
-    const observed: Array<{ input: URL; init: RequestInit }> = []
-    const fetcher: BackendFetcher = vi.fn(async (input, init) => {
-      observed.push({ input, init })
-      return Response.json(detail)
-    })
-
-    await expect(getProviderPlaceDetail({
-      schemaVersion: 'place-provider-detail.v1',
-      providerKey: 'google', providerPlaceId: 'google-place-100',
-    }, { PLACE_BACKEND_ORIGIN: 'http://backend.test:4010' }, fetcher)).resolves.toEqual(detail)
-    expect(observed[0]?.input).toEqual(new URL('http://backend.test:4010/v1/providers/place-details'))
-    expect(JSON.parse(String(observed[0]?.init.body))).toEqual({
-      schemaVersion: 'place-provider-detail.v1',
-      providerKey: 'google', providerPlaceId: 'google-place-100',
-    })
   })
 
   it('forwards only the provider-neutral suggestion session and validates selection', async () => {

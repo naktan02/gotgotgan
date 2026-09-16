@@ -1,0 +1,164 @@
+import {
+  AuthenticatedJsonClientError,
+  type AuthenticatedJsonClient,
+} from '../../../../application/ports/authenticated-json-client.js'
+import type { ProviderSession } from '../../../../application/ports/provider-session.js'
+import type {
+  SavedPlaceCapturePayload,
+  SavedPlaceSource,
+} from '../../../../application/ports/saved-place-source.js'
+import { SavedPlaceSourceError } from '../../../../application/ports/saved-place-source.js'
+import {
+  NaverSavedPlaceCollector, isNaverSavedFolderResponse,
+} from './saved-place-collector.js'
+
+import { naverSavedPlaceApiBaseUrl as apiBaseUrl } from './request-policy.js'
+
+function compactText(value: string, maximum: number): string {
+  return [...value].slice(0, maximum).join('')
+}
+
+function optionalCompactText(value: string | undefined, maximum: number): string | undefined {
+  if (value === undefined || value.length === 0) return undefined
+  return compactText(value, maximum)
+}
+
+function mappedError(error: unknown): SavedPlaceSourceError {
+  if (error instanceof SavedPlaceSourceError) return error
+  if (error instanceof AuthenticatedJsonClientError) {
+    if (error.code === 'permission-denied') {
+      return new SavedPlaceSourceError('permission-denied', false, error.message)
+    }
+    if (error.code === 'response-too-large') {
+      return new SavedPlaceSourceError('provider-drift', false, error.message)
+    }
+    return new SavedPlaceSourceError('provider-unavailable', true, error.message)
+  }
+  const message = error instanceof Error ? error.message : ''
+  if (message.includes('requires user action')) {
+    return new SavedPlaceSourceError('reauth-required', false, message)
+  }
+  if (message.includes('temporarily unavailable')) {
+    return new SavedPlaceSourceError('provider-unavailable', true, message)
+  }
+  if (message.includes('schema changed')) {
+    return new SavedPlaceSourceError('provider-drift', false, message)
+  }
+  return new SavedPlaceSourceError('provider-unavailable', true, 'NAVER collection failed.')
+}
+
+export class NaverProviderSession implements ProviderSession {
+  readonly providerKey = 'naver' as const
+
+  constructor(private readonly client: AuthenticatedJsonClient) {}
+
+  async probe(input: Readonly<{ signal: AbortSignal }>) {
+    const url = new URL('folders', apiBaseUrl)
+    url.search = new URLSearchParams({
+      start: '0', limit: '1', sort: 'lastUseTime', folderType: 'all',
+    }).toString()
+    try {
+      const response = await this.client.get({
+        url,
+        maximumBytes: 1_048_576,
+        signal: input.signal,
+      })
+      if (new Set([0, 301, 302, 303, 307, 308, 401, 403, 405]).has(response.status)) {
+        return 'reauth-required' as const
+      }
+      if (
+        response.status >= 200 && response.status < 300 &&
+        response.contentType.toLowerCase().includes('text/html')
+      ) return 'reauth-required' as const
+      if (response.status === 429 || response.status >= 500) return 'unavailable' as const
+      if (
+        response.status >= 200 && response.status < 300 &&
+        response.contentType.toLowerCase().includes('json')
+        && isNaverSavedFolderResponse(response.body)
+      ) return 'active' as const
+      throw new SavedPlaceSourceError('provider-drift', false, 'NAVER session response schema changed.')
+    } catch (error) {
+      throw mappedError(error)
+    }
+  }
+}
+
+export class NaverApiSavedPlaceSource implements SavedPlaceSource {
+  readonly providerKey = 'naver' as const
+
+  constructor(
+    private readonly collector: NaverSavedPlaceCollector,
+    private readonly client: AuthenticatedJsonClient,
+    private readonly maximumBatchItems = 500,
+  ) {}
+
+  async *collect(input: Readonly<{ signal: AbortSignal }>): AsyncIterable<SavedPlaceCapturePayload> {
+    let collected
+    try {
+      collected = await this.collector.collectAll({ client: this.client, signal: input.signal })
+    } catch (error) {
+      throw mappedError(error)
+    }
+    if (collected.lists.length === 0) {
+      yield {
+        acquisitionKind: 'browser-network',
+        itemCount: 0,
+        payload: JSON.stringify({
+          schemaVersion: 'place-naver-saved-capture.v1',
+          kind: 'page',
+          lists: [],
+          nextCursor: null,
+        }),
+      }
+      return
+    }
+    for (const [listPosition, list] of collected.lists.entries()) {
+      const pageCount = Math.max(1, Math.ceil(list.bookmarks.length / this.maximumBatchItems))
+      for (let page = 0; page < pageCount; page += 1) {
+        const start = page * this.maximumBatchItems
+        const bookmarks = list.bookmarks.slice(start, start + this.maximumBatchItems)
+        const payload = JSON.stringify({
+          schemaVersion: 'place-naver-saved-capture.v1',
+          kind: 'page',
+          lists: [{
+            listId: list.listId,
+            name: compactText(list.name, 200),
+            position: listPosition,
+            bookmarks: bookmarks.map((bookmark, index) => {
+              const displayName = optionalCompactText(bookmark.displayName, 300)
+              const address = optionalCompactText(bookmark.address, 500)
+              const category = optionalCompactText(bookmark.categoryLabel, 300)
+              return {
+                bookmarkId: bookmark.bookmarkId,
+                ...(bookmark.providerPlaceId === undefined
+                  ? {}
+                  : { placeId: bookmark.providerPlaceId }),
+                name: displayName ?? compactText(bookmark.name, 300),
+                position: start + index,
+                ...(address === undefined ? {} : { address }),
+                ...(category === undefined ? {} : { category }),
+                ...(bookmark.latitude === undefined || bookmark.longitude === undefined
+                  ? {}
+                  : { latitude: bookmark.latitude, longitude: bookmark.longitude }),
+              }
+            }),
+          }],
+          nextCursor: null,
+        })
+        yield { acquisitionKind: 'browser-network', itemCount: bookmarks.length, payload }
+      }
+    }
+  }
+}
+
+export function createNaverSavedPlaceCollector(): NaverSavedPlaceCollector {
+  return new NaverSavedPlaceCollector({
+    apiBaseUrl,
+    folderPageSize: 20,
+    bookmarkPageSize: 100,
+    maximumLists: 500,
+    maximumBookmarks: 100_000,
+    maximumResponseBytes: 4_194_304,
+    delayMilliseconds: 150,
+  })
+}

@@ -1,9 +1,16 @@
 # UI shell
 
-The Place shell owns its top bar, product navigation, responsive side panel, and screen composition.
-Place feature pages appear above a separator; family destinations appear below it from an injected
-`family-navigation.v1` manifest.
+곳곳간 shell은 상단, 제품 메뉴, 반응형 패널과 화면 조합을 소유한다. 패밀리 목적지는 주입한
+`family-navigation.v1` manifest에 있는 항목만 표시한다. 전역 manifest 조합의 운영 소유자는 아직
+확정되지 않았으므로 유효한 active manifest가 없으면 준비 상태를 표시하고 목적지를 하드코딩하지
+않는다. 공개 공유 페이지도 같은 shell을 쓰되 데이터는 익명 공개 범위로 제한한다.
 
-The global family manifest composer has no selected owner. The shell therefore renders an explicit
-empty state unless a valid active manifest is injected, with no hard-coded service destinations.
-Public shared maps may later use a reduced shell that does not expose authenticated controls.
+2026-09-05 승인된 상단 기준은 Finance 사용자 Web의 제목/인사와 오른쪽 작업/테마/계정 배치다.
+검색은 각 작업 패널에 둔다. 회원 메뉴는 아이콘 아래 작은 이름을 표시하고 아래쪽에 3×3 패밀리
+버튼을 둔다. 모바일은 하단 메뉴를 항상 유지한다. Admin은 별도 앱이며 패밀리 버튼이나 미지원
+목적지 활성화를 추가하지 않는다.
+
+상세 열기는 새 열을 추가하지 않고 하나의 작업 패널을 교체한다. 내 곳곳간은 Collection 목록부터
+시작하며 전체 저장장소 검색은 명시적 대안이다. Collection 이름, 장소·음식 분류, 개인 태그, 메모,
+평점과 방문은 별개다. 현재 기준은 [DESIGN.md](../../apps/web/DESIGN.md), 구현 경계는
+[shell README](../../apps/web/src/shells/place-workspace/README.md)를 따른다.

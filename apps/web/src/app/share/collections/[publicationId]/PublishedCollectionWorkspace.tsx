@@ -3,7 +3,7 @@
 import type { PublishedCollection } from '@place/contracts/http'
 
 import { PublishedCollectionExperience } from '@/features/publications/public'
-import { DeterministicPlaceMap } from '@/platform/maps/DeterministicPlaceMap'
+import { MapLibrePlaceMap } from '@/platform/maps/public'
 
 export function PublishedCollectionWorkspace({
   collection,
@@ -11,7 +11,7 @@ export function PublishedCollectionWorkspace({
   return (
     <PublishedCollectionExperience
       initialCollection={collection}
-      mapRenderer={DeterministicPlaceMap}
+      mapRenderer={MapLibrePlaceMap}
     />
   )
 }

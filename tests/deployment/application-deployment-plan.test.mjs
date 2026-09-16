@@ -17,7 +17,8 @@ test('deployment planner accepts only one source-bound immutable application uni
       PLACE_DEPLOYMENT_OPERATION: 'activate',
       PLACE_RELEASE_REVISION: `place@${'a'.repeat(40)}`,
       PLACE_WEB_IMAGE: `ghcr.io/naktan02/place-web@sha256:${'b'.repeat(64)}`,
-      PLACE_BACKEND_IMAGE: `ghcr.io/naktan02/place-backend@sha256:${'c'.repeat(64)}`,
+      PLACE_ADMIN_WEB_IMAGE: `ghcr.io/naktan02/place-admin-web@sha256:${'c'.repeat(64)}`,
+      PLACE_BACKEND_IMAGE: `ghcr.io/naktan02/place-backend@sha256:${'d'.repeat(64)}`,
     },
   })
 
@@ -29,7 +30,8 @@ test('deployment planner accepts only one source-bound immutable application uni
     releaseRevision: `place@${'a'.repeat(40)}`,
     images: {
       web: `ghcr.io/naktan02/place-web@sha256:${'b'.repeat(64)}`,
-      backend: `ghcr.io/naktan02/place-backend@sha256:${'c'.repeat(64)}`,
+      adminWeb: `ghcr.io/naktan02/place-admin-web@sha256:${'c'.repeat(64)}`,
+      backend: `ghcr.io/naktan02/place-backend@sha256:${'d'.repeat(64)}`,
     },
     publicProcess: 'web',
     database: {
@@ -46,6 +48,7 @@ test('deployment planner accepts only one source-bound immutable application uni
         PLACE_DEPLOYMENT_OPERATION: 'activate',
         PLACE_RELEASE_REVISION: `place@${'a'.repeat(40)}`,
         PLACE_WEB_IMAGE: 'registry.example/place/web:latest',
+        PLACE_ADMIN_WEB_IMAGE: `registry.example/place/admin-web@sha256:${'b'.repeat(64)}`,
         PLACE_BACKEND_IMAGE: `registry.example/place/backend@sha256:${'c'.repeat(64)}`,
       },
     }),
@@ -62,6 +65,22 @@ test('deployment planner accepts only one source-bound immutable application uni
         PLACE_DEPLOYMENT_OPERATION: 'activate',
         PLACE_RELEASE_REVISION: `place@${'a'.repeat(40)}`,
         PLACE_WEB_IMAGE: `../place-web@sha256:${'b'.repeat(64)}`,
+        PLACE_ADMIN_WEB_IMAGE: `registry.example/place/admin-web@sha256:${'d'.repeat(64)}`,
+        PLACE_BACKEND_IMAGE: `registry.example/place/backend@sha256:${'c'.repeat(64)}`,
+      },
+    }),
+    (error) => error?.stderr === 'Application deployment input is invalid\n',
+  )
+
+  await assert.rejects(
+    execFileAsync(process.execPath, [planner], {
+      cwd: repositoryRoot,
+      env: {
+        ...process.env,
+        PLACE_DEPLOYMENT_OPERATION: 'activate',
+        PLACE_RELEASE_REVISION: `place@${'a'.repeat(40)}`,
+        PLACE_WEB_IMAGE: `registry.example/place/web@sha256:${'b'.repeat(64)}`,
+        PLACE_ADMIN_WEB_IMAGE: '',
         PLACE_BACKEND_IMAGE: `registry.example/place/backend@sha256:${'c'.repeat(64)}`,
       },
     }),
@@ -69,7 +88,7 @@ test('deployment planner accepts only one source-bound immutable application uni
   )
 })
 
-test('rollback plan binds both the deployed unit and the immutable target unit', async () => {
+test('rollback plan binds all three deployed and target images as one unit', async () => {
   const { stdout, stderr } = await execFileAsync(process.execPath, [planner], {
     cwd: repositoryRoot,
     env: {
@@ -77,10 +96,12 @@ test('rollback plan binds both the deployed unit and the immutable target unit',
       PLACE_DEPLOYMENT_OPERATION: 'rollback',
       PLACE_RELEASE_REVISION: `place@${'1'.repeat(40)}`,
       PLACE_WEB_IMAGE: `registry.example/place/web@sha256:${'2'.repeat(64)}`,
-      PLACE_BACKEND_IMAGE: `registry.example/place/backend@sha256:${'3'.repeat(64)}`,
-      PLACE_DEPLOYED_RELEASE_REVISION: `place@${'4'.repeat(40)}`,
-      PLACE_DEPLOYED_WEB_IMAGE: `registry.example/place/web@sha256:${'5'.repeat(64)}`,
-      PLACE_DEPLOYED_BACKEND_IMAGE: `registry.example/place/backend@sha256:${'6'.repeat(64)}`,
+      PLACE_ADMIN_WEB_IMAGE: `registry.example/place/admin-web@sha256:${'3'.repeat(64)}`,
+      PLACE_BACKEND_IMAGE: `registry.example/place/backend@sha256:${'4'.repeat(64)}`,
+      PLACE_DEPLOYED_RELEASE_REVISION: `place@${'5'.repeat(40)}`,
+      PLACE_DEPLOYED_WEB_IMAGE: `registry.example/place/web@sha256:${'6'.repeat(64)}`,
+      PLACE_DEPLOYED_ADMIN_WEB_IMAGE: `registry.example/place/admin-web@sha256:${'7'.repeat(64)}`,
+      PLACE_DEPLOYED_BACKEND_IMAGE: `registry.example/place/backend@sha256:${'8'.repeat(64)}`,
     },
   })
 
@@ -88,23 +109,26 @@ test('rollback plan binds both the deployed unit and the immutable target unit',
   const document = JSON.parse(stdout)
   assert.equal(document.operation, 'rollback')
   assert.deepEqual(document.replaces, {
-    releaseRevision: `place@${'4'.repeat(40)}`,
+    releaseRevision: `place@${'5'.repeat(40)}`,
     images: {
-      web: `registry.example/place/web@sha256:${'5'.repeat(64)}`,
-      backend: `registry.example/place/backend@sha256:${'6'.repeat(64)}`,
+      web: `registry.example/place/web@sha256:${'6'.repeat(64)}`,
+      adminWeb: `registry.example/place/admin-web@sha256:${'7'.repeat(64)}`,
+      backend: `registry.example/place/backend@sha256:${'8'.repeat(64)}`,
     },
   })
   assert.equal(document.database.rollback, 'application-only')
 })
 
 test('production composition consumes immutable images while local composition owns builds', async () => {
-  const [baseCompose, localCompose, localIntegrationCompose, productionCompose, runtimeDocument,
-    localIdentityManifest, dockerfile] =
+  const [baseCompose, localCompose, localIntegrationCompose, productionCompose,
+    adminProductionCompose, runtimeDocument, localIdentityManifest, adminIdentityManifest,
+    dockerfile] =
     await Promise.all([
       readFile(path.join(repositoryRoot, 'deploy', 'compose.yml'), 'utf8'),
       readFile(path.join(repositoryRoot, 'deploy', 'compose.local.yml'), 'utf8'),
       readFile(path.join(repositoryRoot, 'deploy', 'compose.local.integration.yml'), 'utf8'),
       readFile(path.join(repositoryRoot, 'deploy', 'compose.production.yml'), 'utf8'),
+      readFile(path.join(repositoryRoot, 'deploy', 'compose.admin.production.yml'), 'utf8'),
       readFile(path.join(repositoryRoot, 'deploy', 'application-runtime.json'), 'utf8'),
       readFile(path.join(
         repositoryRoot,
@@ -112,6 +136,12 @@ test('production composition consumes immutable images while local composition o
         'identity',
         'local',
         'oidc-client.json',
+      ), 'utf8'),
+      readFile(path.join(
+        repositoryRoot,
+        'deploy',
+        'identity',
+        'admin-oidc-client.json',
       ), 'utf8'),
       readFile(path.join(repositoryRoot, 'Dockerfile'), 'utf8'),
     ])
@@ -122,18 +152,31 @@ test('production composition consumes immutable images while local composition o
   )
   assert.match(
     baseCompose,
+    /image: \$\{PLACE_ADMIN_WEB_IMAGE:\?PLACE_ADMIN_WEB_IMAGE is required\}/,
+  )
+  assert.match(
+    baseCompose,
     /image: \$\{PLACE_BACKEND_IMAGE:\?PLACE_BACKEND_IMAGE is required\}/,
   )
   assert.doesNotMatch(baseCompose, /^\s+build:/m)
   assert.match(localCompose, /target: web-runtime/)
+  assert.match(localCompose, /target: admin-web-runtime/)
   assert.match(localCompose, /target: backend-runtime/)
+  assert.match(baseCompose, /admin-web:\s+profiles: \[admin\]/)
+  assert.match(baseCompose, /admin-web:[\s\S]*?\/healthz/)
   assert.match(localIntegrationCompose, /PLACE_OIDC_ALLOW_INSECURE_LOCAL_HTTP: "true"/)
   assert.match(localIntegrationCompose, /identity\.localhost:host-gateway/)
   assert.match(localIntegrationCompose, /database-prepare:/)
   assert.match(localIntegrationCompose, /profiles: \[local-lifecycle\]/)
+  assert.match(baseCompose, /PLACE_MAP_STYLE_URL: \$\{PLACE_MAP_STYLE_URL:-\}/)
   assert.equal(JSON.parse(localIdentityManifest).serviceId, 'place-local')
   assert.equal(JSON.parse(localIdentityManifest).devMode, true)
+  assert.equal(JSON.parse(adminIdentityManifest).serviceId, 'place-admin')
+  assert.equal(JSON.parse(adminIdentityManifest).devMode, false)
   assert.match(dockerfile, /COPY \.tools \.\/\.tools\s+RUN npm ci/)
+  assert.match(dockerfile, /RUN npm ci --workspace @place\/web --workspace @place\/admin-web --workspace @place\/backend/)
+  assert.doesNotMatch(dockerfile, /RUN npm ci[^\n]*--workspace @place\/member-connector/)
+  assert.equal((dockerfile.match(/COPY vendor \.\/vendor/g) ?? []).length, 2)
   assert.match(dockerfile, /COPY --chown=node:node backend\/migrations \.\/backend\/migrations/)
   assert.match(
     dockerfile,
@@ -145,14 +188,27 @@ test('production composition consumes immutable images while local composition o
   )
   assert.doesNotMatch(productionCompose, /^\s+build:/m)
   assert.doesNotMatch(productionCompose, /^\s+ports:/m)
+  assert.doesNotMatch(adminProductionCompose, /^\s+build:/m)
+  assert.doesNotMatch(adminProductionCompose, /^\s+ports:/m)
+  assert.match(adminProductionCompose, /PLACE_ADMIN_OIDC_RUNTIME_ENABLED: "true"/)
+  assert.match(adminProductionCompose, /PLACE_ADMIN_DATABASE_URL_FILE: \/run\/secrets\/place_admin_database_url/)
+  assert.match(adminProductionCompose, /PLACE_ADMIN_OIDC_CLIENT_SECRET_FILE: \/run\/secrets\/place_admin_oidc_client_secret/)
+  assert.match(adminProductionCompose, /PLACE_ADMIN_OIDC_ENCRYPTION_KEYRING_FILE: \/run\/secrets\/place_admin_oidc_encryption_keyring/)
+  assert.match(adminProductionCompose, /- default\s+- place-data/)
+  assert.match(adminProductionCompose, /admin-web:[\s\S]*?\/readyz/)
   assert.match(baseCompose, /worker-capture-sweep:/)
+  assert.match(baseCompose, /worker-transfer-materialization:/)
+  assert.match(baseCompose, /entrypoints\/transfer-materialization-main\.js/)
   assert.match(baseCompose, /profiles: \[maintenance\]/)
   assert.match(
     baseCompose,
     /main\.js", "--sweep-expired-captures"/,
   )
   assert.match(productionCompose, /PLACE_IMPORT_RUNTIME_ENABLED: "true"/)
-  assert.match(productionCompose, /PLACE_CONNECTOR_RUNTIME_ENABLED: "true"/)
+  assert.equal(
+    (productionCompose.match(/PLACE_CONNECTOR_RUNTIME_ENABLED: \$\{PLACE_CONNECTOR_RUNTIME_ENABLED:-false\}/g) ?? []).length,
+    2,
+  )
   assert.match(productionCompose, /PLACE_CONNECTOR_PUBLIC_ORIGIN:/)
   assert.match(productionCompose, /PLACE_CAPTURE_KEYRING_FILE: \/run\/secrets\/place_capture_keyring/)
   assert.match(productionCompose, /PLACE_CAPTURE_ROOT: \/var\/lib\/place\/captures/)
@@ -167,11 +223,13 @@ test('production composition consumes immutable images while local composition o
     releaseRevisionEnvironment: 'PLACE_RELEASE_REVISION',
     imageEnvironments: {
       web: 'PLACE_WEB_IMAGE',
+      adminWeb: 'PLACE_ADMIN_WEB_IMAGE',
       backend: 'PLACE_BACKEND_IMAGE',
     },
     deployedUnitEnvironments: {
       releaseRevision: 'PLACE_DEPLOYED_RELEASE_REVISION',
       webImage: 'PLACE_DEPLOYED_WEB_IMAGE',
+      adminWebImage: 'PLACE_DEPLOYED_ADMIN_WEB_IMAGE',
       backendImage: 'PLACE_DEPLOYED_BACKEND_IMAGE',
     },
     immutableDigestRequired: true,
@@ -193,7 +251,24 @@ test('production composition consumes immutable images while local composition o
     ],
     secretFileRoles: ['database-url', 'capture-keyring'],
   })
+  assert.deepEqual(applicationRuntime.processes.transferWorker, {
+    exposure: 'internal',
+    activation: 'active',
+    configurationGroups: [
+      'worker-database-pool',
+      'approved-transfer-materialization',
+      'connector-import-grant-expiry-sweep',
+      'transfer-receipt-retention-sweep',
+    ],
+    secretFileRoles: ['database-url'],
+  })
   assert.deepEqual(applicationRuntime.processes.backend.secretFileRoles, [
     'database-url', 'capture-keyring',
   ])
+  assert.deepEqual(applicationRuntime.processes.adminWeb.secretFileRoles, [
+    'admin-database-url',
+    'admin-oidc-client-secret',
+    'admin-oidc-encryption-keyring',
+  ])
+  assert.equal(applicationRuntime.connections.adminWebToBackend, 'server-to-server')
 })

@@ -1,0 +1,10 @@
+:root { font-family: "Segoe UI", "Malgun Gothic", sans-serif; color: #202522; background: #f6f7f5; font-size: 15px; }
+body { margin: 0; }
+main { max-width: 620px; padding: 28px; margin: auto; }
+h1 { font-size: 24px; margin: 0 0 20px; }
+p, li { line-height: 1.6; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 24px; }
+button { font: inherit; padding: 10px 14px; border: 1px solid #68716c; border-radius: 6px; background: white; cursor: pointer; }
+button:focus-visible { outline: 3px solid #18745f; outline-offset: 3px; }
+#status { min-height: 48px; border-left: 3px solid #18745f; padding-left: 12px; }
+aside { border-top: 1px solid #cdd2ce; padding-top: 16px; color: #48544c; font-size: 14px; }

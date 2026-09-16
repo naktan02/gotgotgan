@@ -2,6 +2,7 @@ import type {
   PublicProfileAppealRequest,
   PublicProfileModerationNoticeQuery,
   PublicProfileQuery,
+  PublicProfileReportRequest,
   SetPublicProfileRequest,
 } from '@place/contracts/profiles'
 import { publicProfileProjectionSchema } from '@place/contracts/profiles'
@@ -46,6 +47,20 @@ export function createProfileBackendClient(config: Config = {}) {
   }
 
   return {
+    report(
+      accessToken: string,
+      handle: string,
+      body: PublicProfileReportRequest,
+      signal: AbortSignal,
+    ) {
+      return authenticated(
+        `/v1/public/profiles/${encodeURIComponent(handle)}/reports`,
+        accessToken,
+        signal,
+        'POST',
+        body,
+      )
+    },
     current(accessToken: string, signal: AbortSignal) {
       return authenticated('/v1/profiles/current', accessToken, signal)
     },

@@ -3,7 +3,10 @@
 기계 판독 계약은 `../../packages/contracts`에 있고, 이 디렉터리는 의미와 변경 규칙을 설명한다.
 
 - `public-http-v1.md`: browser/public HTTP 소유권과 활성화 상태.
-- `connector-v1.md`: Place page·회원 브라우저 확장·공개 BFF 사이의 Connector 계약.
+- `connector-v1.md`: 폐기된 v1 확장 capture 실행 경로의 참고 계약.
+- [`회원 로컬 커넥터`](../../apps/member-connector/README.md)와
+  [`Provider transfers`](../../backend/src/modules/transfers/README.md): 현행 host-neutral v2
+  snapshot 제출, 계정 연결, V3 ImportPlan 승인·저장 및 아직 연결되지 않은 Desktop transport.
 - `internal-worker-v1.md`: HTTP와 Worker process 사이의 durable job 동작.
 - `events-v1.md`: event 배포 규칙.
 - `tool-adapter-v1.md`: 향후 AI Tool 노출 경계.

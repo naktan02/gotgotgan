@@ -1,5 +1,6 @@
 import { z, type ZodType } from 'zod'
 
+
 import {
   connectorCaptureBatchSchema,
   connectorCaptureReceiptSchema,
@@ -9,6 +10,7 @@ import {
 } from '../connector/index.js'
 
 import {
+  adminSessionSchema,
   authorityRoleChangeRequestSchema,
   authorityRoleChangeResultSchema,
   currentMembershipConsentsSchema,
@@ -62,6 +64,13 @@ import {
   providerConnectionListSchema,
 } from '../imports/index.js'
 import {
+  collectionColorCommandRequestV1Schema,
+  collectionColorCommandResultV1Schema,
+  collectionLifecycleCommandRequestV2Schema,
+  collectionLifecycleCommandResultV2Schema,
+  collectionOrderCommandRequestV2Schema,
+  collectionOrderCommandResultV2Schema,
+  discoverableCollectionResponseV2Schema,
   libraryCommandResultSchema,
   libraryCollectionDetailResponseSchema,
   libraryCollectionListResponseSchema,
@@ -71,9 +80,24 @@ import {
   libraryPlaceOrganizationResponseSchema,
   libraryPlaceListResponseSchema,
   libraryTagListResponseSchema,
+  personalLibraryWorkspaceResponseV2Schema,
+  personalLibraryMapResponseV2Schema,
+  personalLibraryMapRequestV3Schema,
+  personalLibraryMapHttpQueryV3Schema,
+  personalLibraryMapResponseV3Schema,
+  personalLibraryMapHttpQueryV4Schema,
+  personalLibraryMapRequestV4Schema,
+  personalLibraryMapResponseV4Schema,
+  placeFilingCommandRequestV2Schema,
+  placeFilingCommandResultV2Schema,
+  placeFilingResponseV2Schema,
+  publicCollectionDirectoryResponseV2Schema,
+  publishedCollectionCopyCommandRequestV2Schema,
+  publishedCollectionCopyCommandResultV2Schema,
 } from '../library/index.js'
 import {
   placeDetailResponseSchema,
+  memberPlaceDetailResponseV2Schema,
   publicPlaceDetailResponseSchema,
 } from '../places/index.js'
 import {
@@ -106,6 +130,20 @@ import {
   writingListResponseSchema,
 } from '../writing/index.js'
 import {
+  catalogPlaceMapRequestSchema,
+  catalogExplorationRequestSchema,
+  catalogExplorationResponseSchema,
+  catalogExplorationRequestV2Schema,
+  catalogExplorationResponseV2Schema,
+  catalogPlaceSearchRequestV2Schema,
+  catalogPlaceSearchResponseV2Schema,
+  catalogPlaceMapRequestV2Schema,
+  catalogPlaceMapResponseV2Schema,
+  catalogPlaceMapRequestV3Schema,
+  catalogPlaceMapResponseV3Schema,
+  catalogPlaceMapResponseSchema,
+  catalogPlaceSearchRequestSchema,
+  catalogPlaceSearchResponseSchema,
   placeSearchRequestSchema,
   placeSearchResponseSchema,
   placeSuggestionMaterializationRequestSchema,
@@ -118,1142 +156,87 @@ import {
   providerPlaceDetailSchema,
   taxonomyProjectionSchema,
 } from '../search/index.js'
-import { processStatusSchema } from './system.js'
+import {
+  accountErasureReviewCommandRequestV2Schema,
+  accountErasureReviewCommandResultV2Schema,
+  connectorCaptureChunkReceiptV2Schema,
+  connectorCaptureChunkV2Schema,
+  connectorCaptureCompleteRequestV2Schema,
+  connectorCaptureCompleteResultV2Schema,
+  connectorCaptureManifestStatusV2Schema,
+  connectorImportGrantRequestV2Schema,
+  connectorImportGrantResultV2Schema,
+  importAcquisitionCommandResultV1Schema,
+  importAcquisitionCommandV1Schema,
+  importAcquisitionV1Schema,
+  importPlanCommandRequestV2Schema,
+  importPlanCommandResultV2Schema,
+  importPlanCommandRequestV3Schema,
+  importPlanCommandResultV3Schema,
+  importPlanCommandRequestV4Schema,
+  importPlanCommandResultV4Schema,
+  importPlanV2Schema,
+  importPlanV3Schema,
+  importPlanV4Schema,
+  outboundTransferCommandRequestV2Schema,
+  outboundTransferCommandResultV2Schema,
+  outboundTransferV2Schema,
+  outboundExecutionAttemptReceiptV2Schema,
+  outboundExecutionAttemptIntentReceiptV2Schema,
+  outboundExecutionAttemptIntentV2Schema,
+  outboundExecutionAttemptV2Schema,
+  outboundExecutionAuthorizationReceiptV2Schema,
+  outboundExecutionConsumeRequestV2Schema,
+  outboundExecutionGrantRequestV2Schema,
+  outboundExecutionGrantResultV2Schema,
+  outboundExecutionReconciliationReceiptV2Schema,
+  outboundExecutionReconciliationV2Schema,
+  providerCapabilityListV2Schema,
+  providerConnectionCommandRequestV2Schema,
+  providerConnectionCommandResultV2Schema,
+  providerConnectionListV2Schema,
+  providerTargetListProjectionV2Schema,
+  sourceSnapshotDetailV2Schema,
+  sourceSnapshotDetailV3Schema,
+  sourceSnapshotListV2Schema,
+  sourceSnapshotListV3Schema,
+  startImportAcquisitionV1Schema,
+  startImportAcquisitionV2Schema,
+  startImportAcquisitionResultV2Schema,
+  importAcquisitionCapabilitiesV2Schema,
+  transferOperationCommandRequestV2Schema,
+  transferOperationCommandResultV2Schema,
+  transferOperationItemPageV2Schema,
+  transferOperationListV2Schema,
+  transferOperationSummaryV2Schema,
+  transferOperationV2Schema,
+} from '../transfers/index.js'
+import { browserMapSourceSchema, browserMapStyleSchema, processStatusSchema } from './system.js'
 
-const anonymous: readonly unknown[] = []
-const bearer = [{ placeBearer: [] }]
-const browserSession = [{ placeBrowserSession: [] }]
-const connectorGrant = [{ placeConnector: [] }]
-const optionalBearer = [{ placeBearer: [] }, {}]
-
-const ref = (section: 'responses' | 'schemas', name: string) => ({
-  $ref: `#/components/${section}/${name}`,
-})
-const described = (description: string, schemaName?: string) => ({
-  description,
-  ...(schemaName === undefined ? {} : {
-    content: { 'application/json': { schema: ref('schemas', schemaName) } },
-  }),
-})
-
-function requestBody(schemaName: string) {
-  return {
-    required: true,
-    content: { 'application/json': { schema: ref('schemas', schemaName) } },
-  }
-}
-
-function operation(
-  operationId: string,
-  responses: Readonly<Record<string, unknown>>,
-  options: Readonly<{
-    parameters?: readonly unknown[]
-    security?: readonly unknown[]
-    requestSchema?: string
-    summary?: string
-  }> = {},
-) {
-  return {
-    operationId,
-    summary: options.summary ?? operationId,
-    ...(options.security === undefined ? {} : { security: options.security }),
-    ...(options.parameters === undefined ? {} : { parameters: options.parameters }),
-    ...(options.requestSchema === undefined ? {} : {
-      requestBody: requestBody(options.requestSchema),
-    }),
-    responses,
-  }
-}
-
-const pathParameters = {
-  membershipId: {
-    name: 'membershipId', in: 'path', required: true,
-    schema: { type: 'string', format: 'uuid' },
-  },
-  placeId: {
-    name: 'placeId', in: 'path', required: true,
-    schema: { type: 'string', format: 'uuid' },
-  },
-  publicationId: {
-    name: 'publicationId', in: 'path', required: true,
-    schema: { type: 'string', format: 'uuid' },
-  },
-  documentId: {
-    name: 'documentId', in: 'path', required: true,
-    schema: { type: 'string', format: 'uuid' },
-  },
-  batchId: {
-    name: 'batchId', in: 'path', required: true,
-    schema: { type: 'string', format: 'uuid' },
-  },
-  collectionId: {
-    name: 'collectionId', in: 'path', required: true,
-    schema: { type: 'string', format: 'uuid' },
-  },
-  handle: {
-    name: 'handle', in: 'path', required: true,
-    schema: { type: 'string', pattern: '^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$', minLength: 3, maxLength: 30 },
-  },
-  noticeId: {
-    name: 'noticeId', in: 'path', required: true,
-    schema: { type: 'string', format: 'uuid' },
-  },
-  appealId: {
-    name: 'appealId', in: 'path', required: true,
-    schema: { type: 'string', format: 'uuid' },
-  },
-}
-
-const connectorOriginHeader = {
-  name: 'x-place-public-origin',
-  in: 'header',
-  required: true,
-  schema: ref('schemas', 'ConnectorPublicOrigin'),
-}
-
-const boundedCursorParameter = {
-  name: 'cursor', in: 'query', required: false,
-  schema: { type: 'string', minLength: 1, maxLength: 2_048 },
-}
-
-const boundedLimitParameter = {
-  name: 'limit', in: 'query', required: false,
-  schema: { type: 'integer', minimum: 1, maximum: 50, default: 20 },
-}
-
-const publishedCollectionLimitParameter = {
-  name: 'limit', in: 'query', required: false,
-  schema: { type: 'integer', minimum: 1, maximum: 50, default: 50 },
-}
-
-const libraryPlaceStateParameter = {
-  name: 'state', in: 'query', required: false,
-  schema: { type: 'string', enum: ['saved', 'wanted', 'rated'], default: 'saved' },
-}
-
-const libraryTagIdsParameter = {
-  name: 'tagIds', in: 'query', required: false, style: 'form', explode: true,
-  schema: {
-    type: 'array', maxItems: 20, uniqueItems: true,
-    items: { type: 'string', format: 'uuid' },
-  },
-}
-
-const libraryTagMatchParameter = {
-  name: 'tagMatch', in: 'query', required: false,
-  schema: { type: 'string', enum: ['all', 'any'], default: 'all' },
-}
-
-const libraryAreaKeysParameter = {
-  name: 'areaKeys', in: 'query', required: false, style: 'form', explode: true,
-  schema: {
-    type: 'array', maxItems: 10, uniqueItems: true,
-    items: { type: 'string', pattern: '^area_[A-Za-z0-9_-]{22}$' },
-  },
-}
-
-const libraryTaxonomyKeysParameter = {
-  name: 'taxonomyKeys', in: 'query', required: false, style: 'form', explode: true,
-  schema: {
-    type: 'array', maxItems: 10, uniqueItems: true,
-    items: { type: 'string', minLength: 1, maxLength: 128 },
-  },
-}
-
-const libraryMapScopeParameter = {
-  name: 'scope', in: 'query', required: true,
-  schema: { type: 'string', enum: ['state', 'collection'] },
-}
-
-const libraryMapCollectionIdParameter = {
-  name: 'collectionId', in: 'query', required: false,
-  schema: { type: 'string', format: 'uuid' },
-}
-
-const libraryMapViewportParameters = [
-  { name: 'west', in: 'query', required: true, schema: { type: 'number', minimum: -180, maximum: 180 } },
-  { name: 'south', in: 'query', required: true, schema: { type: 'number', minimum: -90, maximum: 90 } },
-  { name: 'east', in: 'query', required: true, schema: { type: 'number', minimum: -180, maximum: 180 } },
-  { name: 'north', in: 'query', required: true, schema: { type: 'number', minimum: -90, maximum: 90 } },
-  { name: 'zoom', in: 'query', required: true, schema: { type: 'integer', minimum: 0, maximum: 22 } },
-] as const
-
-const writingKindParameter = {
-  name: 'kind', in: 'query', required: false,
-  schema: { type: 'string', enum: ['all', 'note', 'entry'], default: 'all' },
-}
-
-const writingPlaceIdParameter = {
-  name: 'placeId', in: 'query', required: false,
-  schema: { type: 'string', format: 'uuid' },
-}
-
-const importBatchStateParameter = {
-  name: 'state', in: 'query', required: false,
-  schema: {
-    type: 'string',
-    enum: [
-      'all', 'queued', 'running', 'partial', 'enriching', 'needs-user-action',
-      'needs-review', 'completed', 'failed', 'cancelled',
-    ],
-    default: 'all',
-  },
-}
-
-const importItemLimitParameter = {
-  name: 'limit', in: 'query', required: false,
-  schema: { type: 'integer', minimum: 1, maximum: 200, default: 200 },
-}
+import { ref } from './openapi/model.js'
+import { accessAndCommunityPaths } from './openapi/paths/access-and-community.js'
+import { importPaths } from './openapi/paths/imports.js'
+import { libraryPaths } from './openapi/paths/library.js'
+import { placeContentPaths } from './openapi/paths/place-content.js'
+import { searchPaths } from './openapi/paths/search.js'
+import { systemAndBrowserPaths } from './openapi/paths/system-and-browser.js'
+import { transferOpenApiPaths } from './openapi/paths/transfers.js'
 
 const paths = {
-  '/healthz': { get: operation('getPlaceHealth', {
-    '200': described('Process is alive', 'ProcessStatus'),
-  }) },
-  '/readyz': { get: operation('getPlaceReadiness', {
-    '200': described('Process can accept traffic', 'ProcessStatus'),
-    '503': described('One or more required process dependencies are unavailable', 'ProcessStatus'),
-  }) },
-  '/api/auth/oidc/start': { get: operation('startPlaceBrowserLogin', {
-    '302': described('Redirect to the configured Identity authorization endpoint'),
-    '503': ref('responses', 'BrowserAuthUnavailable'),
-  }) },
-  '/api/auth/oidc/callback': { get: operation('completePlaceBrowserLogin', {
-    '303': described('Create an opaque browser session and redirect locally'),
-    '400': ref('responses', 'BrowserAuthRejected'),
-    '503': ref('responses', 'BrowserAuthUnavailable'),
-  }) },
-  '/api/auth/logout': { post: operation('endPlaceBrowserSession', {
-    '303': described('Delete the server-side session and redirect locally'),
-    '503': ref('responses', 'BrowserAuthUnavailable'),
-  }) },
-  '/api/connector/grants': { post: operation('issuePlaceConnectorGrantForBrowser', {
-    '200': described('Replay the operation with a rotated connector token', 'ConnectorGrant'),
-    '201': described('Create an origin-bound connector operation', 'ConnectorGrant'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '403': ref('responses', 'AccessDenied'),
-    '409': ref('responses', 'ProductConflict'),
-    '503': ref('responses', 'BrowserBackendUnavailable'),
-  }, {
-    security: browserSession,
-    requestSchema: 'ConnectorGrantRequest',
-  }) },
-  '/api/connector/captures': { post: operation('submitPlaceConnectorCaptureForBrowser', {
-    '200': described('Replay an already committed capture', 'ConnectorCaptureReceipt'),
-    '202': described('Accept and durably commit a capture', 'ConnectorCaptureReceipt'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '401': ref('responses', 'ConnectorGrantInvalid'),
-    '403': ref('responses', 'AccessDenied'),
-    '409': ref('responses', 'ProductConflict'),
-    '503': ref('responses', 'BrowserBackendUnavailable'),
-  }, {
-    security: connectorGrant,
-    requestSchema: 'ConnectorCaptureBatch',
-  }) },
-  '/api/membership-consents/current': { get: operation(
-    'getCurrentPlaceMembershipConsentsForBrowser',
-    {
-      '200': described('Return current consent versions', 'CurrentMembershipConsents'),
-      '503': ref('responses', 'BrowserMembershipUnavailable'),
-    },
-    { security: anonymous },
-  ) },
-  '/api/memberships/onboarding': { post: operation(
-    'completePlaceBrowserMembershipOnboarding',
-    {
-      '200': described('Return the existing membership', 'MembershipOnboardingResult'),
-      '201': described('Create a non-elevated membership', 'MembershipOnboardingResult'),
-      '400': ref('responses', 'OnboardingRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '409': ref('responses', 'MembershipConsentRequired'),
-      '503': ref('responses', 'BrowserMembershipUnavailable'),
-    },
-    { security: anonymous, requestSchema: 'MembershipOnboardingRequest' },
-  ) },
-  '/api/places/{placeId}': {
-    parameters: [pathParameters.placeId],
-    get: operation('getPlaceDetailForBrowser', {
-      '200': described('Return Place detail with the requesting member personal state', 'PlaceDetailResponse'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '503': ref('responses', 'BrowserBackendUnavailable'),
-    }, { security: browserSession }),
-  },
-  '/api/public/places/{placeId}': {
-    parameters: [pathParameters.placeId],
-    get: operation('getPublicPlaceDetailForBrowser', {
-      '200': described('Return allowlisted anonymous Place detail', 'PublicPlaceDetailResponse'),
-      '404': ref('responses', 'ProductNotFound'),
-      '410': ref('responses', 'PlaceRetired'),
-      '503': ref('responses', 'BrowserBackendUnavailable'),
-    }, { security: anonymous }),
-  },
-  '/api/places/{placeId}/visits': {
-    parameters: [pathParameters.placeId],
-    get: operation('listCurrentMemberPlaceVisitsForBrowser', {
-      '200': described('Return a bounded current-member Visit history', 'VisitHistoryResponse'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '503': ref('responses', 'BrowserBackendUnavailable'),
-    }, {
-      security: browserSession,
-      parameters: [boundedCursorParameter, boundedLimitParameter],
-    }),
-  },
-  '/api/visits': { post: operation('recordPlaceVisitForBrowser', {
-    '201': described('Record or replay an immutable Visit occurrence', 'VisitRecordResult'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '403': ref('responses', 'AccessDenied'),
-    '409': ref('responses', 'ProductConflict'),
-    '503': ref('responses', 'BrowserBackendUnavailable'),
-  }, { security: browserSession, requestSchema: 'BrowserVisitRecordRequest' }) },
-  '/api/writing': {
-    get: operation('listCurrentMemberPlaceWritingForBrowser', {
-      '200': described('Return bounded current-member Writing summaries', 'WritingListResponse'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '503': ref('responses', 'BrowserBackendUnavailable'),
-    }, {
-      security: browserSession,
-      parameters: [writingKindParameter, writingPlaceIdParameter, boundedCursorParameter, boundedLimitParameter],
-    }),
-  },
-  '/api/writing/{documentId}': {
-    parameters: [pathParameters.documentId],
-    get: operation('getCurrentMemberPlaceWritingForBrowser', {
-      '200': described('Return current-member Writing detail', 'WritingDetailResponse'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '503': ref('responses', 'BrowserBackendUnavailable'),
-    }, { security: browserSession }),
-  },
-  '/api/writing/commands': { post: operation('applyPrivateNoteCommandForBrowser', {
-    '200': described('Return an idempotently replayed private Note command', 'WritingCommandResult'),
-    '201': described('Return an applied private Note command', 'WritingCommandResult'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '403': ref('responses', 'AccessDenied'),
-    '404': ref('responses', 'ProductNotFound'),
-    '409': ref('responses', 'ProductConflict'),
-    '503': ref('responses', 'BrowserBackendUnavailable'),
-  }, { security: browserSession, requestSchema: 'BrowserPrivateNoteCommandRequest' }) },
-  '/api/library/places': { get: operation('listPlaceLibraryPlacesForBrowser', {
-    '200': described('Return a bounded member Place preference page', 'LibraryPlaceListResponse'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '403': ref('responses', 'AccessDenied'),
-    '503': ref('responses', 'BrowserBackendUnavailable'),
-  }, {
-    security: browserSession,
-    parameters: [
-      libraryPlaceStateParameter,
-      libraryTagIdsParameter,
-      libraryTagMatchParameter,
-      libraryAreaKeysParameter,
-      libraryTaxonomyKeysParameter,
-      boundedCursorParameter,
-      boundedLimitParameter,
-    ],
-  }) },
-  '/api/library/map': { get: operation('getPlaceLibraryMapForBrowser', {
-    '200': described('Represent every projected member Place in the current viewport as a point or cluster', 'LibraryMapResponse'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '403': ref('responses', 'AccessDenied'),
-    '404': ref('responses', 'ProductNotFound'),
-    '503': ref('responses', 'BrowserBackendUnavailable'),
-  }, {
-    security: browserSession,
-    parameters: [
-      libraryMapScopeParameter,
-      libraryMapCollectionIdParameter,
-      libraryPlaceStateParameter,
-      libraryTagIdsParameter,
-      libraryTagMatchParameter,
-      libraryAreaKeysParameter,
-      libraryTaxonomyKeysParameter,
-      ...libraryMapViewportParameters,
-    ],
-  }) },
-  '/api/library/place-facets': { get: operation('getPlaceLibraryFacetsForBrowser', {
-    '200': described('Return bounded area and taxonomy facets from the member saved Places', 'LibraryPlaceFacetsResponse'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '403': ref('responses', 'AccessDenied'),
-    '503': ref('responses', 'BrowserBackendUnavailable'),
-  }, { security: browserSession }) },
-  '/api/library/places/{placeId}/organization': {
-    parameters: [pathParameters.placeId],
-    get: operation('getPlaceLibraryOrganizationForBrowser', {
-      '200': described(
-        'Return bounded current-member Collection and Tag choices with selection state for one Place',
-        'LibraryPlaceOrganizationResponse',
-      ),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '503': ref('responses', 'BrowserBackendUnavailable'),
-    }, {
-      security: browserSession,
-      parameters: [boundedCursorParameter, boundedLimitParameter],
-    }),
-  },
-  '/api/library/collections': { get: operation('listPlaceLibraryCollectionsForBrowser', {
-    '200': described('Return a bounded member Collection page', 'LibraryCollectionListResponse'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '403': ref('responses', 'AccessDenied'),
-    '503': ref('responses', 'BrowserBackendUnavailable'),
-  }, {
-    security: browserSession,
-    parameters: [boundedCursorParameter, boundedLimitParameter],
-  }) },
-  '/api/library/collections/{collectionId}': {
-    parameters: [pathParameters.collectionId],
-    get: operation('getPlaceLibraryCollectionForBrowser', {
-      '200': described('Return Collection metadata and a bounded Place page', 'LibraryCollectionDetailResponse'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '503': ref('responses', 'BrowserBackendUnavailable'),
-    }, {
-      security: browserSession,
-      parameters: [boundedCursorParameter, boundedLimitParameter],
-    }),
-  },
-  '/api/library/tags': { get: operation('listPlaceLibraryTagsForBrowser', {
-    '200': described('Return a bounded member Tag page', 'LibraryTagListResponse'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '403': ref('responses', 'AccessDenied'),
-    '503': ref('responses', 'BrowserBackendUnavailable'),
-  }, {
-    security: browserSession,
-    parameters: [boundedCursorParameter, boundedLimitParameter],
-  }) },
-  '/api/library/commands': { post: operation('applyPlaceLibraryCommandForBrowser', {
-    '200': described('Return an idempotently replayed command result', 'LibraryCommandResult'),
-    '201': described('Return an applied command result', 'LibraryCommandResult'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '403': ref('responses', 'AccessDenied'),
-    '404': ref('responses', 'ProductNotFound'),
-    '409': ref('responses', 'ProductConflict'),
-    '503': ref('responses', 'BrowserBackendUnavailable'),
-  }, { security: browserSession, requestSchema: 'BrowserLibraryCommandRequest' }) },
-  '/api/imports/connections': { get: operation('listPlaceProviderConnectionsForBrowser', {
-    '200': described('Return sanitized provider connection metadata', 'ProviderConnectionList'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '503': ref('responses', 'BrowserBackendUnavailable'),
-  }, { security: browserSession }) },
-  '/api/imports': { post: operation('requestPlaceImportForBrowser', {
-    '200': described('Return an idempotently replayed import batch', 'PlaceImportBatch'),
-    '202': described('Queue a connected-account import', 'PlaceImportBatch'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '403': ref('responses', 'AccessDenied'),
-    '409': ref('responses', 'ProductConflict'),
-    '503': ref('responses', 'BrowserBackendUnavailable'),
-  }, { security: browserSession, requestSchema: 'PlaceImportRequest' }) },
-  '/api/imports/{batchId}': {
-    parameters: [pathParameters.batchId],
-    get: operation('getPlaceImportForBrowser', {
-      '200': described('Return a bounded import preview and progress', 'PlaceImportBatchDetail'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '503': ref('responses', 'BrowserBackendUnavailable'),
-    }, {
-      security: browserSession,
-      parameters: [boundedCursorParameter, importItemLimitParameter],
-    }),
-  },
-  '/api/imports/{batchId}/cancel': {
-    parameters: [pathParameters.batchId],
-    post: operation('cancelPlaceImportForBrowser', {
-      '200': described('Return the cancelled import batch', 'PlaceImportBatch'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '503': ref('responses', 'BrowserBackendUnavailable'),
-    }, { security: browserSession, requestSchema: 'PlaceImportCancelRequest' }),
-  },
-  '/api/imports/{batchId}/resume': {
-    parameters: [pathParameters.batchId],
-    post: operation('resumePlaceImportForBrowser', {
-      '200': described('Return the resumed import batch', 'PlaceImportBatch'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '503': ref('responses', 'BrowserBackendUnavailable'),
-    }, { security: browserSession, requestSchema: 'PlaceImportResumeRequest' }),
-  },
-  '/api/import-reviews': { post: operation('reviewPlaceImportItemForBrowser', {
-    '200': described('Return an idempotent import review receipt', 'PlaceImportReviewResult'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '403': ref('responses', 'AccessDenied'),
-    '404': ref('responses', 'ProductNotFound'),
-    '409': ref('responses', 'ProductConflict'),
-    '503': ref('responses', 'BrowserBackendUnavailable'),
-  }, { security: browserSession, requestSchema: 'PlaceImportReviewRequest' }) },
-  '/v1/me': { get: operation('getCurrentPlaceMembership', {
-    '200': described('Return the safe current membership', 'CurrentMembership'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '403': ref('responses', 'AccessDenied'),
-  }, { security: bearer }) },
-  '/v1/memberships/onboarding': { post: operation(
-    'completePlaceMembershipOnboarding',
-    {
-      '200': described('Return an existing membership', 'MembershipOnboardingResult'),
-      '201': described('Create a non-elevated membership', 'MembershipOnboardingResult'),
-      '400': ref('responses', 'OnboardingRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '409': ref('responses', 'MembershipConsentRequired'),
-      '503': ref('responses', 'MembershipOnboardingUnavailable'),
-    },
-    { security: bearer, requestSchema: 'MembershipOnboardingRequest' },
-  ) },
-  '/v1/membership-consents/current': { get: operation(
-    'getCurrentPlaceMembershipConsents',
-    {
-      '200': described('Return current consent versions', 'CurrentMembershipConsents'),
-      '503': ref('responses', 'MembershipOnboardingUnavailable'),
-    },
-    { security: anonymous },
-  ) },
-  '/v1/administration/memberships/{membershipId}/authority-role': {
-    parameters: [pathParameters.membershipId],
-    patch: operation('changePlaceMembershipAuthorityRole', {
-      '200': described('Return the audited authority mutation', 'AuthorityRoleChangeResult'),
-      '400': ref('responses', 'AuthorityRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'MembershipNotFound'),
-      '409': ref('responses', 'AuthorityChangeRejected'),
-      '503': ref('responses', 'AuthorityChangeUnavailable'),
-    }, { security: bearer, requestSchema: 'AuthorityRoleChangeRequest' }),
-  },
-  '/api/public/collections/{publicationId}': {
-    parameters: [pathParameters.publicationId],
-    get: operation('getPublishedPlaceCollectionForBrowser', {
-      '200': described('Return a validated public collection', 'PublishedCollection'),
-      '404': ref('responses', 'ProductNotFound'),
-      '503': ref('responses', 'BrowserBackendUnavailable'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-    }, {
-      security: anonymous,
-      parameters: [boundedCursorParameter, publishedCollectionLimitParameter],
-    }),
-  },
-  '/api/public/collections/{publicationId}/map': {
-    parameters: [pathParameters.publicationId],
-    get: operation('getPublishedPlaceCollectionMapForBrowser', {
-      '200': described('Return a validated public collection map projection', 'PublishedCollectionMap'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '404': ref('responses', 'ProductNotFound'),
-      '503': ref('responses', 'BrowserBackendUnavailable'),
-    }, { security: anonymous, parameters: [...libraryMapViewportParameters] }),
-  },
-  '/api/public/writing/{publicationId}': {
-    parameters: [pathParameters.publicationId],
-    get: operation('getPublishedPlaceWritingForBrowser', {
-      '200': described('Return validated public writing', 'PublishedWriting'),
-      '404': ref('responses', 'ProductNotFound'),
-      '503': ref('responses', 'BrowserBackendUnavailable'),
-    }, { security: anonymous }),
-  },
-  '/api/profile': {
-    get: operation('getCurrentPublicProfileForBrowser', {
-      '200': described('Return the current member public profile settings', 'PublicProfileRecord'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '503': ref('responses', 'BrowserBackendUnavailable'),
-    }, { security: browserSession }),
-    put: operation('setCurrentPublicProfileForBrowser', {
-      '200': described('Replay a public profile command', 'PublicProfileCommandResult'),
-      '201': described('Apply a public profile command', 'PublicProfileCommandResult'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '409': ref('responses', 'ProductConflict'),
-      '503': ref('responses', 'BrowserBackendUnavailable'),
-    }, { security: browserSession, requestSchema: 'SetPublicProfileRequest' }),
-  },
-  '/api/profile/moderation-notices': {
-    get: operation('listCurrentPublicProfileModerationNoticesForBrowser', {
-      '200': described('Return validated owner-scoped moderation notices', 'PublicProfileModerationNotices'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '503': ref('responses', 'BrowserBackendUnavailable'),
-    }, {
-      security: browserSession,
-      parameters: [boundedCursorParameter, boundedLimitParameter],
-    }),
-  },
-  '/api/profile/moderation-notices/{noticeId}/acknowledgement': {
-    parameters: [pathParameters.noticeId],
-    put: operation('acknowledgeCurrentPublicProfileModerationNoticeForBrowser', {
-      '200': described('Return an existing moderation-notice acknowledgement', 'PublicProfileNoticeAcknowledgementResult'),
-      '201': described('Acknowledge an owner moderation notice', 'PublicProfileNoticeAcknowledgementResult'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '503': ref('responses', 'BrowserBackendUnavailable'),
-    }, { security: browserSession }),
-  },
-  '/api/profile/moderation-appeals': {
-    post: operation('submitCurrentPublicProfileAppealForBrowser', {
-      '200': described('Return an existing Public Profile appeal outcome', 'PublicProfileAppealResult'),
-      '201': described('Record a structured Public Profile appeal', 'PublicProfileAppealResult'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '409': ref('responses', 'ProductConflict'),
-      '503': ref('responses', 'BrowserBackendUnavailable'),
-    }, { security: browserSession, requestSchema: 'PublicProfileAppealRequest' }),
-  },
-  '/api/public/profiles/{handle}': {
-    parameters: [pathParameters.handle],
-    get: operation('getPublicProfileForBrowser', {
-      '200': described('Return a published profile and only its public Collections', 'PublicProfileProjection'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '404': ref('responses', 'ProductNotFound'),
-      '503': ref('responses', 'BrowserBackendUnavailable'),
-    }, {
-      security: anonymous,
-      parameters: [boundedCursorParameter, boundedLimitParameter],
-    }),
-  },
-  '/v1/library/commands': { post: operation('applyPlaceLibraryCommand', {
-    '200': described('Return an idempotently replayed command result', 'LibraryCommandResult'),
-    '201': described('Return an applied command result', 'LibraryCommandResult'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '403': ref('responses', 'AccessDenied'),
-    '404': ref('responses', 'ProductNotFound'),
-    '409': ref('responses', 'ProductConflict'),
-  }, { security: bearer, requestSchema: 'LibraryCommandRequest' }) },
-  '/v1/profiles/current': {
-    get: operation('getCurrentPublicProfile', {
-      '200': described('Return the current member public profile settings', 'PublicProfileRecord'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '503': ref('responses', 'ProductUnavailable'),
-    }, { security: bearer }),
-    put: operation('setCurrentPublicProfile', {
-      '200': described('Replay a public profile command', 'PublicProfileCommandResult'),
-      '201': described('Apply a public profile command', 'PublicProfileCommandResult'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '409': ref('responses', 'ProductConflict'),
-      '503': ref('responses', 'ProductUnavailable'),
-    }, { security: bearer, requestSchema: 'SetPublicProfileRequest' }),
-  },
-  '/v1/public/profiles/{handle}': {
-    parameters: [pathParameters.handle],
-    get: operation('getPublicProfile', {
-      '200': described('Return a published profile and only its public Collections', 'PublicProfileProjection'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '404': ref('responses', 'ProductNotFound'),
-      '503': ref('responses', 'ProductUnavailable'),
-    }, {
-      security: anonymous,
-      parameters: [boundedCursorParameter, boundedLimitParameter],
-    }),
-  },
-  '/v1/public/profiles/{handle}/reports': {
-    parameters: [pathParameters.handle],
-    post: operation('reportPublicProfile', {
-      '200': described('Return an existing Public Profile report outcome', 'PublicProfileReportResult'),
-      '201': described('Record a categorized Public Profile report', 'PublicProfileReportResult'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '409': ref('responses', 'ProductConflict'),
-      '503': ref('responses', 'ProductUnavailable'),
-    }, { security: bearer, requestSchema: 'PublicProfileReportRequest' }),
-  },
-  '/v1/administration/public-profile-reports': {
-    get: operation('listPendingPublicProfileReports', {
-      '200': described('Return a bounded reporter-redacted moderation queue', 'PublicProfileReportQueue'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '503': ref('responses', 'ProductUnavailable'),
-    }, {
-      security: bearer,
-      parameters: [boundedCursorParameter, boundedLimitParameter],
-    }),
-  },
-  '/v1/administration/public-profiles/{handle}/moderation': {
-    parameters: [pathParameters.handle],
-    get: operation('getPublicProfileModeration', {
-      '200': described('Return current Public Profile moderation state', 'PublicProfileModerationRecord'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '503': ref('responses', 'ProductUnavailable'),
-    }, { security: bearer }),
-    put: operation('moderatePublicProfile', {
-      '200': described('Replay a Public Profile moderation decision', 'PublicProfileModerationResult'),
-      '201': described('Apply a Public Profile moderation decision', 'PublicProfileModerationResult'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '409': ref('responses', 'ProductConflict'),
-      '503': ref('responses', 'ProductUnavailable'),
-    }, { security: bearer, requestSchema: 'PublicProfileModerationRequest' }),
-  },
-  '/v1/profiles/current/moderation-notices': {
-    get: operation('listCurrentPublicProfileModerationNotices', {
-      '200': described('Return bounded owner-scoped moderation notices', 'PublicProfileModerationNotices'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '503': ref('responses', 'ProductUnavailable'),
-    }, {
-      security: bearer,
-      parameters: [boundedCursorParameter, boundedLimitParameter],
-    }),
-  },
-  '/v1/profiles/current/moderation-notices/{noticeId}/acknowledgement': {
-    parameters: [pathParameters.noticeId],
-    put: operation('acknowledgeCurrentPublicProfileModerationNotice', {
-      '200': described('Return an existing moderation-notice acknowledgement', 'PublicProfileNoticeAcknowledgementResult'),
-      '201': described('Acknowledge an owner moderation notice', 'PublicProfileNoticeAcknowledgementResult'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '503': ref('responses', 'ProductUnavailable'),
-    }, { security: bearer }),
-  },
-  '/v1/profiles/current/moderation-appeals': {
-    post: operation('submitCurrentPublicProfileAppeal', {
-      '200': described('Return an existing Public Profile appeal outcome', 'PublicProfileAppealResult'),
-      '201': described('Record a structured Public Profile appeal', 'PublicProfileAppealResult'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '409': ref('responses', 'ProductConflict'),
-      '503': ref('responses', 'ProductUnavailable'),
-    }, { security: bearer, requestSchema: 'PublicProfileAppealRequest' }),
-  },
-  '/v1/administration/public-profile-appeals': {
-    get: operation('listPendingPublicProfileAppeals', {
-      '200': described('Return a bounded owner-redacted appeal queue', 'PublicProfileAppealQueue'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '503': ref('responses', 'ProductUnavailable'),
-    }, {
-      security: bearer,
-      parameters: [boundedCursorParameter, boundedLimitParameter],
-    }),
-  },
-  '/v1/administration/public-profile-appeals/{appealId}': {
-    parameters: [pathParameters.appealId],
-    put: operation('resolvePublicProfileAppeal', {
-      '200': described('Replay a Public Profile appeal resolution', 'PublicProfileAppealResolutionResult'),
-      '201': described('Resolve a Public Profile appeal', 'PublicProfileAppealResolutionResult'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '409': ref('responses', 'ProductConflict'),
-      '503': ref('responses', 'ProductUnavailable'),
-    }, { security: bearer, requestSchema: 'PublicProfileAppealResolutionRequest' }),
-  },
-  '/v1/provider-connections': { get: operation('listPlaceProviderConnections', {
-    '200': described('Return sanitized provider connection metadata', 'ProviderConnectionList'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '403': ref('responses', 'AccessDenied'),
-  }, { security: bearer }) },
-  '/v1/connector-grants': { post: operation('issuePlaceConnectorGrant', {
-    '200': described('Replay the operation with a rotated connector token', 'ConnectorGrant'),
-    '201': described('Create an origin-bound connector operation', 'ConnectorGrant'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '403': ref('responses', 'AccessDenied'),
-    '409': ref('responses', 'ProductConflict'),
-  }, {
-    security: bearer,
-    requestSchema: 'ConnectorGrantRequest',
-    parameters: [connectorOriginHeader],
-  }) },
-  '/v1/connector-captures': { post: operation('submitPlaceConnectorCapture', {
-    '200': described('Replay an already committed capture', 'ConnectorCaptureReceipt'),
-    '202': described('Accept and durably commit a capture', 'ConnectorCaptureReceipt'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '401': ref('responses', 'ConnectorGrantInvalid'),
-    '403': ref('responses', 'AccessDenied'),
-    '409': ref('responses', 'ProductConflict'),
-  }, {
-    security: connectorGrant,
-    requestSchema: 'ConnectorCaptureBatch',
-    parameters: [connectorOriginHeader],
-  }) },
-  '/v1/imports': {
-    get: operation('listCurrentMemberPlaceImports', {
-      '200': described('Return a bounded current-member ImportBatch history', 'PlaceImportBatchList'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '503': ref('responses', 'ImportQueryUnavailable'),
-    }, {
-      security: bearer,
-      parameters: [importBatchStateParameter, boundedCursorParameter, boundedLimitParameter],
-    }),
-    post: operation('requestPlaceImport', {
-      '200': described('Return an idempotently replayed import batch', 'PlaceImportBatch'),
-      '202': described('Queue a connected-account import', 'PlaceImportBatch'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '409': ref('responses', 'ProductConflict'),
-    }, { security: bearer, requestSchema: 'PlaceImportRequest' }),
-  },
-  '/v1/imports/{batchId}': {
-    parameters: [pathParameters.batchId],
-    get: operation('getPlaceImport', {
-      '200': described('Return an import preview and progress', 'PlaceImportBatchDetail'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '503': ref('responses', 'ImportQueryUnavailable'),
-    }, {
-      security: bearer,
-      parameters: [boundedCursorParameter, importItemLimitParameter],
-    }),
-  },
-  '/v1/imports/{batchId}/cancel': {
-    parameters: [pathParameters.batchId],
-    post: operation('cancelPlaceImport', {
-      '200': described('Return the cancelled import batch', 'PlaceImportBatch'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-    }, { security: bearer, requestSchema: 'PlaceImportCancelRequest' }),
-  },
-  '/v1/imports/{batchId}/resume': {
-    parameters: [pathParameters.batchId],
-    post: operation('resumePlaceImport', {
-      '200': described('Return the resumed import batch', 'PlaceImportBatch'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-    }, { security: bearer, requestSchema: 'PlaceImportResumeRequest' }),
-  },
-  '/v1/import-reviews': { post: operation('reviewPlaceImportItem', {
-    '200': described('Return an idempotent import review receipt', 'PlaceImportReviewResult'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '403': ref('responses', 'AccessDenied'),
-    '404': ref('responses', 'ProductNotFound'),
-    '409': ref('responses', 'ProductConflict'),
-  }, { security: bearer, requestSchema: 'PlaceImportReviewRequest' }) },
-  '/v1/library/places/{placeId}': {
-    parameters: [pathParameters.placeId],
-    get: operation('getPlacePreferences', {
-      '200': described('Return current-member Place preferences', 'LibraryPlacePreferences'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-    }, { security: bearer }),
-  },
-  '/v1/library/places': {
-    get: operation('listLibraryPlaces', {
-      '200': described('Return one bounded page of authoritative member Place preferences', 'LibraryPlaceListResponse'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '503': ref('responses', 'LibraryQueryUnavailable'),
-    }, {
-      security: bearer,
-      parameters: [
-        libraryPlaceStateParameter,
-        libraryTagIdsParameter,
-        libraryTagMatchParameter,
-        libraryAreaKeysParameter,
-        libraryTaxonomyKeysParameter,
-        boundedCursorParameter,
-        boundedLimitParameter,
-      ],
-    }),
-  },
-  '/v1/library/map': {
-    get: operation('getLibraryMap', {
-      '200': described('Represent every projected member Place in the current viewport as a point or cluster', 'LibraryMapResponse'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '503': ref('responses', 'LibraryQueryUnavailable'),
-    }, {
-      security: bearer,
-      parameters: [
-        libraryMapScopeParameter,
-        libraryMapCollectionIdParameter,
-        libraryPlaceStateParameter,
-        libraryTagIdsParameter,
-        libraryTagMatchParameter,
-        libraryAreaKeysParameter,
-        libraryTaxonomyKeysParameter,
-        ...libraryMapViewportParameters,
-      ],
-    }),
-  },
-  '/v1/library/place-facets': {
-    get: operation('getLibraryPlaceFacets', {
-      '200': described('Return bounded area and taxonomy facets derived only from current-member saved Places', 'LibraryPlaceFacetsResponse'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '503': ref('responses', 'LibraryQueryUnavailable'),
-    }, { security: bearer }),
-  },
-  '/v1/library/places/{placeId}/organization': {
-    parameters: [pathParameters.placeId],
-    get: operation('getLibraryPlaceOrganization', {
-      '200': described(
-        'Return bounded current-member Collection and Tag choices with selection state for one Place',
-        'LibraryPlaceOrganizationResponse',
-      ),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '503': ref('responses', 'LibraryQueryUnavailable'),
-    }, {
-      security: bearer,
-      parameters: [boundedCursorParameter, boundedLimitParameter],
-    }),
-  },
-  '/v1/library/collections': {
-    get: operation('listLibraryCollections', {
-      '200': described('Return one bounded page of member Collection summaries', 'LibraryCollectionListResponse'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '503': ref('responses', 'LibraryQueryUnavailable'),
-    }, {
-      security: bearer,
-      parameters: [boundedCursorParameter, boundedLimitParameter],
-    }),
-  },
-  '/v1/library/collections/{collectionId}': {
-    parameters: [{
-      name: 'collectionId', in: 'path', required: true,
-      schema: { type: 'string', format: 'uuid' },
-    }],
-    get: operation('getLibraryCollection', {
-      '200': described('Return Collection metadata and one bounded Place page', 'LibraryCollectionDetailResponse'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '503': ref('responses', 'LibraryQueryUnavailable'),
-    }, {
-      security: bearer,
-      parameters: [boundedCursorParameter, boundedLimitParameter],
-    }),
-  },
-  '/v1/library/tags': {
-    get: operation('listLibraryTags', {
-      '200': described('Return one bounded page of member Tag summaries', 'LibraryTagListResponse'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '503': ref('responses', 'LibraryQueryUnavailable'),
-    }, {
-      security: bearer,
-      parameters: [boundedCursorParameter, boundedLimitParameter],
-    }),
-  },
-  '/v1/public/collections/{publicationId}': {
-    parameters: [pathParameters.publicationId],
-    get: operation('getPublishedPlaceCollection', {
-      '200': described('Return an allowlisted public collection', 'PublishedCollection'),
-      '404': ref('responses', 'ProductNotFound'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-    }, {
-      security: anonymous,
-      parameters: [boundedCursorParameter, publishedCollectionLimitParameter],
-    }),
-  },
-  '/v1/public/collections/{publicationId}/map': {
-    parameters: [pathParameters.publicationId],
-    get: operation('getPublishedPlaceCollectionMap', {
-      '200': described('Return an allowlisted public collection map projection', 'PublishedCollectionMap'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '404': ref('responses', 'ProductNotFound'),
-    }, { security: anonymous, parameters: [...libraryMapViewportParameters] }),
-  },
-  '/v1/visits': { post: operation('recordPlaceVisit', {
-    '201': described('Record an immutable visit occurrence', 'VisitRecordResult'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '403': ref('responses', 'AccessDenied'),
-    '409': ref('responses', 'ProductConflict'),
-  }, { security: bearer, requestSchema: 'VisitRecordRequest' }) },
-  '/v1/places/{placeId}': {
-    parameters: [pathParameters.placeId],
-    get: operation('getPlaceDetail', {
-      '200': described('Return canonical public facts with an optional personal overlay', 'PlaceDetail'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '410': ref('responses', 'PlaceRetired'),
-      '503': ref('responses', 'PlaceDetailUnavailable'),
-    }, { security: optionalBearer }),
-  },
-  '/v1/places/{placeId}/visit-summary': {
-    parameters: [pathParameters.placeId],
-    get: operation('getPlaceVisitSummary', {
-      '200': described('Return the current-member Visit summary', 'VisitSummaryResponse'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-    }, { security: bearer }),
-  },
-  '/v1/places/{placeId}/visits': {
-    parameters: [pathParameters.placeId],
-    get: operation('listCurrentMemberPlaceVisits', {
-      '200': described('Return a bounded current-member Visit history', 'VisitHistoryResponse'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '503': ref('responses', 'VisitQueryUnavailable'),
-    }, { security: bearer, parameters: [boundedCursorParameter, boundedLimitParameter] }),
-  },
-  '/v1/writing': {
-    get: operation('listCurrentMemberPlaceWriting', {
-      '200': described('Return bounded current-member Writing summaries', 'WritingListResponse'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '503': ref('responses', 'WritingQueryUnavailable'),
-    }, {
-      security: bearer,
-      parameters: [writingKindParameter, writingPlaceIdParameter, boundedCursorParameter, boundedLimitParameter],
-    }),
-  },
-  '/v1/writing/{documentId}': {
-    parameters: [pathParameters.documentId],
-    get: operation('getCurrentMemberPlaceWriting', {
-      '200': described('Return current-member Writing detail', 'WritingDetailResponse'),
-      '400': ref('responses', 'ProductRequestInvalid'),
-      '401': ref('responses', 'AuthenticationRequired'),
-      '403': ref('responses', 'AccessDenied'),
-      '404': ref('responses', 'ProductNotFound'),
-      '503': ref('responses', 'WritingQueryUnavailable'),
-    }, { security: bearer }),
-  },
-  '/v1/writing/commands': { post: operation('applyPlaceWritingCommand', {
-    '200': described('Return an idempotently replayed command result', 'WritingCommandResult'),
-    '201': described('Return an applied command result', 'WritingCommandResult'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '403': ref('responses', 'AccessDenied'),
-    '404': ref('responses', 'ProductNotFound'),
-    '409': ref('responses', 'ProductConflict'),
-  }, { security: bearer, requestSchema: 'WritingCommandRequest' }) },
-  '/v1/public/writing/{publicationId}': {
-    parameters: [pathParameters.publicationId],
-    get: operation('getPublishedPlaceWriting', {
-      '200': described('Return allowlisted public writing', 'PublishedWriting'),
-      '404': ref('responses', 'ProductNotFound'),
-    }, { security: anonymous }),
-  },
-  '/api/search/places': { post: operation('searchPlacesForBrowser', {
-    '200': described('Return validated provider-neutral search results', 'PlaceSearchResponse'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '503': ref('responses', 'BrowserBackendUnavailable'),
-  }, { security: anonymous, requestSchema: 'PlaceSearchRequest' }) },
-  '/api/search/suggestions': { post: operation('suggestPlacesForBrowser', {
-    '200': described('Return provider-neutral query-as-you-type candidates', 'PlaceSuggestionsResponse'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '503': ref('responses', 'BrowserBackendUnavailable'),
-  }, { security: anonymous, requestSchema: 'PlaceSuggestionsRequest' }) },
-  '/api/search/suggestion-selections': { post: operation('selectPlaceSuggestionForBrowser', {
-    '200': described('Record an idempotent explicit suggestion selection', 'PlaceSuggestionSelectionResponse'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '404': ref('responses', 'ProductNotFound'),
-    '503': ref('responses', 'BrowserBackendUnavailable'),
-  }, { security: anonymous, requestSchema: 'PlaceSuggestionSelectionRequest' }) },
-  '/api/search/provider-details': { post: operation('getProviderPlaceDetailsForBrowser', {
-    '200': described('Return a validated provider detail projection', 'ProviderPlaceDetail'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '503': ref('responses', 'BrowserBackendUnavailable'),
-  }, { security: anonymous, requestSchema: 'ProviderPlaceDetailRequest' }) },
-  '/api/search/taxonomy': { get: operation('listPlaceTaxonomyNodesForBrowser', {
-    '200': described('Return the current provider-neutral taxonomy', 'TaxonomyProjection'),
-    '503': ref('responses', 'BrowserBackendUnavailable'),
-  }, { security: anonymous }) },
-  '/v1/search/places': { post: operation('searchPlaces', {
-    '200': described('Return provider-neutral local and official provider results', 'PlaceSearchResponse'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '403': ref('responses', 'AccessDenied'),
-    '503': ref('responses', 'ProductUnavailable'),
-  }, { security: optionalBearer, requestSchema: 'PlaceSearchRequest' }) },
-  '/v1/search/suggestions': { post: operation('suggestPlaces', {
-    '200': described('Return bounded local and provider-backed suggestions', 'PlaceSuggestionsResponse'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '503': ref('responses', 'ProductUnavailable'),
-  }, { security: anonymous, requestSchema: 'PlaceSuggestionsRequest' }) },
-  '/v1/search/suggestion-selections': { post: operation('selectPlaceSuggestion', {
-    '200': described('Record explicit selection evidence exactly once', 'PlaceSuggestionSelectionResponse'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '404': ref('responses', 'ProductNotFound'),
-    '503': ref('responses', 'ProductUnavailable'),
-  }, { security: anonymous, requestSchema: 'PlaceSuggestionSelectionRequest' }) },
-  '/v1/search/suggestion-materializations': { post: operation('materializePlaceSuggestion', {
-    '200': described('Create or link a Canonical Place through evidence and resolution', 'PlaceSuggestionMaterializationResponse'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '401': ref('responses', 'AuthenticationRequired'),
-    '403': ref('responses', 'AccessDenied'),
-    '404': ref('responses', 'ProductNotFound'),
-    '503': ref('responses', 'ProductUnavailable'),
-  }, { security: bearer, requestSchema: 'PlaceSuggestionMaterializationRequest' }) },
-  '/v1/providers/place-details': { post: operation('getProviderPlaceDetails', {
-    '200': described('Return a bounded provider detail projection', 'ProviderPlaceDetail'),
-    '400': ref('responses', 'ProductRequestInvalid'),
-    '503': ref('responses', 'ProductUnavailable'),
-  }, { security: anonymous, requestSchema: 'ProviderPlaceDetailRequest' }) },
-  '/v1/taxonomy/nodes': { get: operation('listPlaceTaxonomyNodes', {
-    '200': described('Return the current provider-neutral taxonomy', 'TaxonomyProjection'),
-    '503': ref('responses', 'ProductUnavailable'),
-  }, { security: anonymous }) },
+  ...systemAndBrowserPaths,
+  ...accessAndCommunityPaths,
+  ...importPaths,
+  ...libraryPaths,
+  ...placeContentPaths,
+  ...searchPaths,
+  ...transferOpenApiPaths,
 }
 
 const schemas: Readonly<Record<string, ZodType>> = {
+  BrowserMapStyle: browserMapStyleSchema,
+  BrowserMapSource: browserMapSourceSchema,
   ProcessStatus: processStatusSchema,
+  AdminSession: adminSessionSchema,
   ConnectorPublicOrigin: connectorPublicOriginSchema,
   ConnectorGrantRequest: connectorGrantRequestSchema,
   ConnectorGrant: connectorGrantSchema,
@@ -1317,6 +300,27 @@ const schemas: Readonly<Record<string, ZodType>> = {
   LibraryCollectionListResponse: libraryCollectionListResponseSchema,
   LibraryCollectionDetailResponse: libraryCollectionDetailResponseSchema,
   LibraryTagListResponse: libraryTagListResponseSchema,
+  PersonalLibraryWorkspaceV2: personalLibraryWorkspaceResponseV2Schema,
+  PersonalLibraryMapV2: personalLibraryMapResponseV2Schema,
+  PersonalLibraryMapRequestV3: personalLibraryMapRequestV3Schema,
+  PersonalLibraryMapHttpQueryV3: personalLibraryMapHttpQueryV3Schema,
+  PersonalLibraryMapV3: personalLibraryMapResponseV3Schema,
+  PersonalLibraryMapRequestV4: personalLibraryMapRequestV4Schema,
+  PersonalLibraryMapHttpQueryV4: personalLibraryMapHttpQueryV4Schema,
+  PersonalLibraryMapV4: personalLibraryMapResponseV4Schema,
+  CollectionColorCommandRequestV1: collectionColorCommandRequestV1Schema,
+  CollectionColorCommandResultV1: collectionColorCommandResultV1Schema,
+  PlaceFilingV2: placeFilingResponseV2Schema,
+  PlaceFilingCommandRequestV2: placeFilingCommandRequestV2Schema,
+  PlaceFilingCommandResultV2: placeFilingCommandResultV2Schema,
+  CollectionOrderCommandRequestV2: collectionOrderCommandRequestV2Schema,
+  CollectionOrderCommandResultV2: collectionOrderCommandResultV2Schema,
+  CollectionLifecycleCommandRequestV2: collectionLifecycleCommandRequestV2Schema,
+  CollectionLifecycleCommandResultV2: collectionLifecycleCommandResultV2Schema,
+  PublicCollectionDirectoryV2: publicCollectionDirectoryResponseV2Schema,
+  DiscoverableCollectionV2: discoverableCollectionResponseV2Schema,
+  PublishedCollectionCopyCommandRequestV2: publishedCollectionCopyCommandRequestV2Schema,
+  PublishedCollectionCopyCommandResultV2: publishedCollectionCopyCommandResultV2Schema,
   VisitHistoryResponse: visitHistoryResponseSchema,
   WritingListResponse: writingListResponseSchema,
   WritingDetailResponse: writingDetailResponseSchema,
@@ -1341,6 +345,21 @@ const schemas: Readonly<Record<string, ZodType>> = {
   PublicProfileAppealResolutionResult: publicProfileAppealResolutionResultSchema,
   PlaceSearchRequest: placeSearchRequestSchema,
   PlaceSearchResponse: placeSearchResponseSchema,
+  CatalogPlaceSearchRequest: catalogPlaceSearchRequestSchema,
+  MemberPlaceDetailResponseV2: memberPlaceDetailResponseV2Schema,
+  CatalogExplorationRequest: catalogExplorationRequestSchema,
+  CatalogExplorationResponse: catalogExplorationResponseSchema,
+  CatalogExplorationRequestV2: catalogExplorationRequestV2Schema,
+  CatalogExplorationResponseV2: catalogExplorationResponseV2Schema,
+  CatalogPlaceSearchRequestV2: catalogPlaceSearchRequestV2Schema,
+  CatalogPlaceSearchResponseV2: catalogPlaceSearchResponseV2Schema,
+  CatalogPlaceMapRequestV2: catalogPlaceMapRequestV2Schema,
+  CatalogPlaceMapResponseV2: catalogPlaceMapResponseV2Schema,
+  CatalogPlaceMapRequestV3: catalogPlaceMapRequestV3Schema,
+  CatalogPlaceMapResponseV3: catalogPlaceMapResponseV3Schema,
+  CatalogPlaceSearchResponse: catalogPlaceSearchResponseSchema,
+  CatalogPlaceMapRequest: catalogPlaceMapRequestSchema,
+  CatalogPlaceMapResponse: catalogPlaceMapResponseSchema,
   PlaceSuggestionsRequest: placeSuggestionsRequestSchema,
   PlaceSuggestionsResponse: placeSuggestionsResponseSchema,
   PlaceSuggestionSelectionRequest: placeSuggestionSelectionRequestSchema,
@@ -1349,9 +368,63 @@ const schemas: Readonly<Record<string, ZodType>> = {
   PlaceSuggestionMaterializationResponse: placeSuggestionMaterializationResponseSchema,
   ProviderPlaceDetailRequest: providerPlaceDetailRequestSchema,
   ProviderPlaceDetail: providerPlaceDetailSchema,
+  ProviderCapabilityListV2: providerCapabilityListV2Schema,
+  ProviderConnectionListV2: providerConnectionListV2Schema,
+  ProviderConnectionCommandRequestV2: providerConnectionCommandRequestV2Schema,
+  ProviderConnectionCommandResultV2: providerConnectionCommandResultV2Schema,
+  ProviderTargetListProjectionV2: providerTargetListProjectionV2Schema,
+  StartImportAcquisitionV1: startImportAcquisitionV1Schema,
+  StartImportAcquisitionV2: startImportAcquisitionV2Schema,
+  StartImportAcquisitionResultV2: startImportAcquisitionResultV2Schema,
+  ImportAcquisitionCapabilitiesV2: importAcquisitionCapabilitiesV2Schema,
+  ImportAcquisitionV1: importAcquisitionV1Schema,
+  ImportAcquisitionCommandRequestV1: importAcquisitionCommandV1Schema,
+  ImportAcquisitionCommandResultV1: importAcquisitionCommandResultV1Schema,
+  SourceSnapshotListV2: sourceSnapshotListV2Schema,
+  SourceSnapshotDetailV2: sourceSnapshotDetailV2Schema,
+  SourceSnapshotListV3: sourceSnapshotListV3Schema,
+  SourceSnapshotDetailV3: sourceSnapshotDetailV3Schema,
+  ImportPlanCommandRequestV2: importPlanCommandRequestV2Schema,
+  ImportPlanCommandResultV2: importPlanCommandResultV2Schema,
+  ImportPlanV2: importPlanV2Schema,
+  ImportPlanCommandRequestV3: importPlanCommandRequestV3Schema,
+  ImportPlanCommandResultV3: importPlanCommandResultV3Schema,
+  ImportPlanV3: importPlanV3Schema,
+  ImportPlanCommandRequestV4: importPlanCommandRequestV4Schema,
+  ImportPlanCommandResultV4: importPlanCommandResultV4Schema,
+  ImportPlanV4: importPlanV4Schema,
+  OutboundTransferCommandRequestV2: outboundTransferCommandRequestV2Schema,
+  OutboundTransferCommandResultV2: outboundTransferCommandResultV2Schema,
+  OutboundTransferV2: outboundTransferV2Schema,
+  TransferOperationV2: transferOperationV2Schema,
+  TransferOperationListV2: transferOperationListV2Schema,
+  TransferOperationSummaryV2: transferOperationSummaryV2Schema,
+  TransferOperationItemPageV2: transferOperationItemPageV2Schema,
+  TransferOperationCommandRequestV2: transferOperationCommandRequestV2Schema,
+  TransferOperationCommandResultV2: transferOperationCommandResultV2Schema,
+  AccountErasureReviewCommandRequestV2: accountErasureReviewCommandRequestV2Schema,
+  AccountErasureReviewCommandResultV2: accountErasureReviewCommandResultV2Schema,
+  ConnectorImportGrantRequestV2: connectorImportGrantRequestV2Schema,
+  ConnectorImportGrantResultV2: connectorImportGrantResultV2Schema,
+  ConnectorCaptureChunkV2: connectorCaptureChunkV2Schema,
+  ConnectorCaptureChunkReceiptV2: connectorCaptureChunkReceiptV2Schema,
+  ConnectorCaptureManifestStatusV2: connectorCaptureManifestStatusV2Schema,
+  ConnectorCaptureCompleteRequestV2: connectorCaptureCompleteRequestV2Schema,
+  ConnectorCaptureCompleteResultV2: connectorCaptureCompleteResultV2Schema,
+  OutboundExecutionGrantRequestV2: outboundExecutionGrantRequestV2Schema,
+  OutboundExecutionGrantResultV2: outboundExecutionGrantResultV2Schema,
+  OutboundExecutionConsumeRequestV2: outboundExecutionConsumeRequestV2Schema,
+  OutboundExecutionAuthorizationReceiptV2: outboundExecutionAuthorizationReceiptV2Schema,
+  OutboundExecutionAttemptIntentV2: outboundExecutionAttemptIntentV2Schema,
+  OutboundExecutionAttemptIntentReceiptV2: outboundExecutionAttemptIntentReceiptV2Schema,
+  OutboundExecutionAttemptV2: outboundExecutionAttemptV2Schema,
+  OutboundExecutionAttemptReceiptV2: outboundExecutionAttemptReceiptV2Schema,
+  OutboundExecutionReconciliationV2: outboundExecutionReconciliationV2Schema,
+  OutboundExecutionReconciliationReceiptV2: outboundExecutionReconciliationReceiptV2Schema,
   TaxonomyProjection: taxonomyProjectionSchema,
   Problem: problemSchema,
 }
+
 
 function openApiSchema(schema: ZodType): Record<string, unknown> {
   const generated = z.toJSONSchema(schema, { target: 'draft-2020-12', io: 'input' })
@@ -1378,6 +451,7 @@ export function buildOpenApiDocument() {
       securitySchemes: {
         placeBearer: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
         placeBrowserSession: { type: 'apiKey', in: 'cookie', name: '__Host-place_session' },
+        placeAdminBrowserSession: { type: 'apiKey', in: 'cookie', name: '__Host-place_admin_session' },
         placeConnector: { type: 'http', scheme: 'PlaceConnector' },
       },
       schemas: Object.fromEntries(

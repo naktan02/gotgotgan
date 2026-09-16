@@ -11,6 +11,8 @@ export type ProductPermission =
   | 'search.read'
   | 'imports.read'
   | 'imports.write'
+  | 'transfers.read'
+  | 'transfers.write'
   | 'profiles.report'
   | 'profiles.appeal'
   | 'profiles.moderate'

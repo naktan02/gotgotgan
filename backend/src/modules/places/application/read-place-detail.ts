@@ -1,6 +1,8 @@
 import type {
   PlaceDetailPersonalSource,
   PlaceDetailReadResult,
+  MemberPlaceDetailReadResult,
+  SourceObservedPlace,
 } from '../domain/place-detail.js'
 import type { CanonicalResolutionStore } from './ports/canonical-resolution-store.js'
 import type {
@@ -12,6 +14,32 @@ export type PlaceDetailReader = (input: Readonly<{
   requestedPlaceId: string
   memberId?: string
 }>) => Promise<PlaceDetailReadResult>
+
+export type MemberPlaceDetailReader = (input: Readonly<{
+  requestedPlaceId: string
+  memberId: string
+}>) => Promise<MemberPlaceDetailReadResult>
+
+export function createMemberPlaceDetailReader(dependencies: Readonly<{
+  read: PlaceDetailReader
+  readSourceObservedPlace: (memberId: string, placeId: string) => Promise<SourceObservedPlace | undefined>
+}>): MemberPlaceDetailReader {
+  return async (input) => {
+    const result = await dependencies.read(input)
+    if (result.status !== 'found') return result
+    const { detail } = result
+    if (detail.personalState === undefined) return { status: 'unavailable', placeId: detail.placeId }
+    const sourceObservedPlace = await dependencies.readSourceObservedPlace(input.memberId, detail.placeId)
+    return { status: 'found', detail: {
+      ...detail,
+      schemaVersion: 'place-detail.v2',
+      personalState: {
+        ...detail.personalState,
+        ...(sourceObservedPlace === undefined ? {} : { sourceObservedPlace }),
+      },
+    } }
+  }
+}
 
 function projectPersonalState(personal: PlaceDetailPersonalSource) {
   return {

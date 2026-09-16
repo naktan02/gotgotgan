@@ -12,14 +12,108 @@ export {
 } from './domain/model.js'
 export { applyLibraryCommand } from './application/apply-library-command.js'
 export type { LibraryQueries } from './application/library-queries.js'
+export type { PersonalLibraryMapV3, PersonalLibraryMapQueryV3, PersonalLibraryMapViewV3 } from './application/ports/personal-library-map-v3.js'
+export type {
+  PersonalLibraryMapCollectionV4,
+  PersonalLibraryMapFeatureV4,
+  PersonalLibraryMapQueryV4,
+  PersonalLibraryMapSelectionV4,
+  PersonalLibraryMapV4,
+  PersonalLibraryMapViewV4,
+} from './application/ports/personal-library-map-v4.js'
+export {
+  collectionColorForId,
+  collectionColorTokens,
+  type CollectionColorToken,
+} from './application/collection-color.js'
 export { saveImportedPlace } from './application/save-imported-place.js'
 export type {
   ImportedPlaceSaveAttempt,
   ImportedPlaceSaveStore,
 } from './application/ports/imported-place-save-store.js'
 export type { LibraryStore } from './application/ports/library-store.js'
+export type {
+  CollectionLifecycle,
+  CollectionOrder,
+  ImportedCollectionMaterializer,
+  PersonalLibraryWorkspace,
+  PersonalRatingLedger,
+  PlaceFiling,
+  PublishedCollectionExchange,
+} from './application/ports/collection-first.js'
+export type { PublicCollectionDiscovery } from './application/ports/public-collection-discovery.js'
+export {
+  InvalidCollectionFirstInputError,
+  type CollectionFavoritePlace,
+  type CollectionLifecycleCommand,
+  type CollectionLifecycleReceipt,
+  type CollectionOrderMove,
+  type CollectionOrderReceipt,
+  type CollectionPublicationChange,
+  type CollectionPublicationReceipt,
+  type CollectionVisibility,
+  type CollectionWorkspaceSummary,
+  type ImportedCollectionMaterialization,
+  type ImportedCollectionReceipt,
+  type LibraryWriteRejection,
+  type LibraryWriteResult,
+  type OpaqueVersion,
+  type PersonalLibraryWorkspaceQuery,
+  type PersonalLibraryWorkspaceView,
+  type PersonalLibraryMapQuery,
+  type PersonalLibraryMapView,
+  type PersonalRating,
+  type PersonalRatingChange,
+  type PersonalRatingReceipt,
+  type PlaceFilingChange,
+  type PlaceFilingMutation,
+  type PlaceFilingQuery,
+  type PlaceFilingReceipt,
+  type PlaceFilingView,
+  type Placement,
+  type PublishedCollectionCopy,
+  type PublishedCollectionCopyReceipt,
+  type WriteContext,
+} from './domain/collection-first.js'
+export {
+  asOpaqueVersion,
+  normalizeCollectionOrderMove,
+  normalizeCollectionLifecycleCommand,
+  normalizeCollectionPublicationChange,
+  normalizeImportedCollectionMaterialization,
+  normalizePersonalLibraryWorkspaceQuery,
+  normalizePersonalRatingChange,
+  normalizePlaceFilingMutation,
+  normalizePlacement,
+  normalizePublishedCollectionCopy,
+  normalizeWriteContext,
+} from './application/validate-collection-first.js'
 export { PostgresLibraryStore } from './adapters/persistence/postgres-library-store.js'
 export { PostgresLibraryQueries } from './adapters/persistence/postgres-library-queries.js'
+export {
+  PostgresCollectionLifecycle,
+  PostgresCollectionOrder,
+  PostgresPersonalLibraryWorkspace,
+  PostgresPlaceFiling,
+} from './adapters/persistence/collection-first/index.js'
+export { PostgresPublicCollectionDiscovery } from './adapters/persistence/postgres-public-collection-discovery.js'
+export { PostgresPublishedCollectionExchange } from './adapters/persistence/postgres-published-collection-exchange.js'
+export { PostgresImportedCollectionMaterializer } from './adapters/persistence/postgres-imported-collection-materializer.js'
+export {
+  PostgresCollectionTransferReader,
+  type CollectionTransferSnapshot,
+} from './adapters/persistence/postgres-collection-transfer-reader.js'
+export type {
+  DiscoverableCollection,
+  DiscoverableCollectionQuery,
+  PublicCollectionDiscoveryPage,
+  PublicCollectionDiscoveryQuery,
+  PublicCollectionDiscoverySort,
+  PublicCollectionDiscoverySummary,
+  PublicCollectionOwner,
+  PublicCollectionPlace,
+  PublicCollectionTopic,
+} from './domain/public-collection-discovery.js'
 export {
   InvalidLibraryCursorError,
   InvalidLibraryQueryError,
@@ -46,3 +140,11 @@ export {
   registerLibraryHttpRoutes,
   type LibraryHttpDependencies,
 } from './transport/http/register-library-http.js'
+export {
+  registerCollectionFirstHttpRoutes,
+  type CollectionFirstHttpDependencies,
+} from './transport/http/register-collection-first-http.js'
+export {
+  registerPublicCollectionHttpRoutes,
+  type PublicCollectionHttpDependencies,
+} from './transport/http/register-public-collection-http.js'

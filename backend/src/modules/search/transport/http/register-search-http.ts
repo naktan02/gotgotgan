@@ -1,18 +1,23 @@
 import {
+  catalogPlaceMapRequestSchema,
+  catalogPlaceMapResponseSchema,
+  catalogPlaceSearchRequestSchema,
+  catalogPlaceSearchResponseSchema,
   placeSearchRequestSchema,
   placeSearchResponseSchema,
 } from '@place/contracts/search'
 import type { FastifyInstance } from 'fastify'
+import { registerCatalogInteractionsHttp } from './register-catalog-interactions-http.js'
+import type { SearchHttpDependencies } from './search-http-dependencies.js'
+export type { SearchHttpDependencies } from './search-http-dependencies.js'
 
-import { InvalidSearchCursorError, type PlaceSearchPage, type PlaceSearchQuery } from '../../domain/model.js'
+import { InvalidSearchCursorError, type PlaceSearchQuery } from '../../domain/model.js'
 import {
   resolveOptionalProductMember,
   sendProductProblem,
-  type ProductAuthorizer,
 } from '../../../../platform/http/product-authorization.js'
 import {
   registerSuggestionHttpRoutes,
-  type SuggestionHttpDependencies,
 } from './register-suggestion-http.js'
 
 function usesPersonalFilters(query: PlaceSearchQuery): boolean {
@@ -20,18 +25,85 @@ function usesPersonalFilters(query: PlaceSearchQuery): boolean {
     query.filters.visited !== undefined || query.filters.minimumPersonalRating !== undefined
 }
 
-export type SearchHttpDependencies = Readonly<{
-  search: (query: PlaceSearchQuery) => Promise<PlaceSearchPage>
-  authorizer?: ProductAuthorizer
-  suggestions?: SuggestionHttpDependencies
-}>
-
 export function registerSearchHttpRoutes(
   application: FastifyInstance,
   dependencies: SearchHttpDependencies,
 ): void {
+  registerCatalogInteractionsHttp(application, dependencies)
   if (dependencies.suggestions !== undefined) {
     registerSuggestionHttpRoutes(application, dependencies.suggestions, dependencies.authorizer)
+  }
+  if (dependencies.catalog !== undefined) {
+    application.post('/v1/search/catalog', async (request, reply) => {
+      const parsed = catalogPlaceSearchRequestSchema.safeParse(request.body)
+      if (!parsed.success) {
+        return sendProductProblem(
+          request,
+          reply,
+          400,
+          'PLACE_CATALOG_SEARCH_REQUEST_INVALID',
+          'Catalog search request is invalid',
+        )
+      }
+      try {
+        const result = await dependencies.catalog!({
+          query: parsed.data.query,
+          excludedTokenIds: parsed.data.excludedTokenIds,
+          limit: parsed.data.limit,
+          ...(parsed.data.bounds === undefined ? {} : { bounds: parsed.data.bounds }),
+          ...(parsed.data.cursor === undefined ? {} : { cursor: parsed.data.cursor }),
+        })
+        const response = catalogPlaceSearchResponseSchema.parse(result)
+        return reply.header('cache-control', 'no-store').status(200).send(response)
+      } catch (error) {
+        if (error instanceof InvalidSearchCursorError) {
+          return sendProductProblem(
+            request,
+            reply,
+            400,
+            'PLACE_CATALOG_SEARCH_CURSOR_INVALID',
+            'Catalog search cursor is invalid',
+          )
+        }
+        return sendProductProblem(
+          request,
+          reply,
+          503,
+          'PLACE_CATALOG_SEARCH_UNAVAILABLE',
+          'Catalog search is temporarily unavailable',
+          true,
+        )
+      }
+    })
+  }
+  if (dependencies.catalogMap !== undefined) {
+    application.post('/v1/search/catalog/map', async (request, reply) => {
+      const parsed = catalogPlaceMapRequestSchema.safeParse(request.body)
+      if (!parsed.success) {
+        return sendProductProblem(
+          request,
+          reply,
+          400,
+          'PLACE_CATALOG_MAP_REQUEST_INVALID',
+          'Catalog map request is invalid',
+        )
+      }
+      try {
+        const response = catalogPlaceMapResponseSchema.parse(
+          await dependencies.catalogMap!(parsed.data),
+        )
+        return reply.header('cache-control', 'no-store').status(200).send(response)
+      } catch {
+        return sendProductProblem(
+          request,
+          reply,
+          503,
+          'PLACE_CATALOG_MAP_UNAVAILABLE',
+          'Catalog map is temporarily unavailable',
+          true,
+        )
+      }
+    })
   }
   application.post('/v1/search/places', async (request, reply) => {
     const parsed = placeSearchRequestSchema.safeParse(request.body)

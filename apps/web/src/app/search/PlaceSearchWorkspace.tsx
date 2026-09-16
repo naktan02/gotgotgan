@@ -1,7 +1,7 @@
 'use client'
 
 import { PersonalPlaceDetail } from '@/features/personal-library/public'
-import { DeterministicPlaceMap } from '@/platform/maps/DeterministicPlaceMap'
+import { MapLibrePlaceMap } from '@/platform/maps/public'
 import {
   SearchWorkspace,
   type SearchCanonicalPlaceDetailRenderer,
@@ -14,7 +14,7 @@ const renderCanonicalPlaceDetail: SearchCanonicalPlaceDetailRenderer = ({ placeI
 export function PlaceSearchWorkspace() {
   return (
     <SearchWorkspace
-      mapRenderer={DeterministicPlaceMap}
+      mapRenderer={MapLibrePlaceMap}
       renderCanonicalPlaceDetail={renderCanonicalPlaceDetail}
     />
   )

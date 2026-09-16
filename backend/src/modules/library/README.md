@@ -1,8 +1,70 @@
 # Library 모듈
 
-Library는 회원의 저장·가고 싶음 상태, 현재 Personal Rating, 평점 변경 이력, Collection,
-Tag, 복사 provenance를 소유한다. Visit은 소유하지 않으며 `visited` 상태를 별도 flag로
-저장하지 않는다.
+곳곳간의 즐겨찾기 truth는 회원 소유 Collection membership이다. Library는 Collection과 순서,
+Tag, 현재 Personal Rating, 평점 변경 이력, import·copy provenance를 소유한다. Rating과 Tag는
+Collection membership과 독립이며 마지막 membership 제거로 삭제하지 않는다. Visit과 Writing은
+각 소유 Module에 남고 Library가 상태를 복제하거나 schema를 직접 join하지 않는다.
+
+새 Collection-first Seam은 `PersonalLibraryWorkspace`, `PlaceFiling`, `CollectionOrder`를 흔한 사용자
+흐름에 제공하고, `ImportedCollectionMaterializer`, `PublishedCollectionExchange`,
+`PersonalRatingLedger`를 특수 흐름에 제공한다. 호출자는 불투명 version과 `first`/`last`/
+`before`/`after` anchor만 사용하며 database 정수 position을 알지 못한다. 같은 operation ID와 정규화된
+요청은 원래 결과를 replay하고, 타인 소유와 미존재 resource는 같은 `not-found` 경계로 축약한다.
+
+아래 `LibraryCommand`, `LibraryQueries`, `saved`/`wanted` 설명은 기존 source-only v1 소비자를 위한
+Compatibility Adapter의 현재 구현이다. 새 기능을 이 경계에 추가하지 않으며 Web·Import·Search를
+Collection-first Interface로 전환한 뒤 제거한다. `000035` migration은 이 전환에 필요한 revision,
+v2 operation receipt, N:1 source-list binding과 부분 복사 provenance를 additive하게 준비한다.
+
+현재 `PersonalLibraryWorkspace`는 공개 장소 summary가 없는 항목에 한해 별도 회원 전용 reader로
+성공한 가져오기의 최소 이름·좌표를 표시한다. Transfers 공개 Interface를 조립 계층이 주입하며 Library가
+Transfers table을 직접 join하지 않는다. 이 값은 `unverified`이고 지역·Taxonomy를 추측하지 않는다.
+공개 summary가 있으면 그것을 우선하며, 공개 Collection·다른 회원·legacy v1 reader에는 이 보강을
+주입하지 않는다. 개인 즐겨찾기 별명이 공개 장소 정보로 발행되는 경로도 만들지 않는다. 회원 reader의
+원본 주소·분류 보조 검색은 공개 summary 유무와 무관하게 소유권이 확인된 원본만 읽는다.
+`application/ports/library-place-summary-reader.ts`의 내부 record는 표시 summary와 검색 text를
+분리하며, 응답·지역/Taxonomy facet은 summary만 받는다. 원본 분류를 canonical key로 추측하지 않는다.
+
+## Collection-first 검색과 지도
+
+`personal-library-workspace.v2`의 선택 입력 `collectionQuery`와 `placeQuery`는 각각 최대 160자다.
+입력을 생략한 기존 요청·응답은 바뀌지 않는다. 새 소비자는 새 Backend와 함께 배포하며, 구버전
+서버에 검색이 지원된다고 가정하지 않는다. Collection 이름 검색은 회원 소유 directory 전체를 SQL로
+검색한 후 page한다. 장소 검색은 NFKC·공백·대소문자를 정규화하고 모든 공백 구분 단어가 이름,
+지역 표시명, 현재 primary 분류 표시명 또는 해당 회원의 Tag 이름에 포함되는지 검사한다. 자연어
+지역 해석이나 미등록 음식 세부 분류를 추론하지 않으며, 메모·다른 회원 Tag·공개 publication은 읽지 않는다.
+개인 가져오기 주소·원문 분류의 검색 보조 및 회원 격리는
+`backend/tests/integration/imported-place-fulfillment.test.mjs`에서 실제 소유 provenance와 목록·지도
+동일 조건으로 검증한다. 이 원문은 공개 지역/분류가 없는 항목의 필터 선택지를 만들어내지 않는다.
+
+지역·분류 또는 검색어가 있는 장소 page는 요청당 최대 500개 membership 후보를 검사한다.
+일치 결과가 없는 page라도 남은 후보가 있으면 `placeNextCursor`가 있으므로 소비자는 이어 읽기를
+종료하면 안 된다. Collection과 장소 cursor는 회원·scope·필터·검색어에 묶이고 다른 조건에 재사용할
+수 없다. 결과 총수를 현재 page 수로 꾸미지 않는다. `availableFilters`는 선택 Collection 또는 전체
+membership의 최대 2,000개 표본과 축별 상위 50개이며, 선택한 Tag·Rating·검색어의 전체 집계가 아니다.
+sample/projected coverage와 `complete`를 함께 표시해야 하며 미투영은 분류 부재의 증거가 아니다.
+
+선택 Collection은 사용자가 정한 순서로 page하므로 cursor가 같은 Collection revision에도 묶여야 한다.
+재배치 전 cursor나 조회 도중 변경된 revision은 거절하고 목록을 처음부터 다시 연다. 순서·회원 전용
+별칭 검색·중복 membership·페이지 사이 및 조회 도중 재배치 회귀는 아래 `workspace-search-map` 테스트에서 확인한다.
+
+선택 목록이 directory 첫 page 밖에 있어도 이름·revision이 사라지지 않도록 새 UI는
+`includeSelectedCollection=true`로 현행 `selectedCollection` summary를 명시적으로 요청한다.
+이 metadata는 별도 소유권 확인을 거치고 directory 검색어와 독립적이다. 입력 생략 또는 전체 scope는
+해당 필드를 생략하므로 기존 strict v2 응답 소비자를 변경하지 않는다.
+
+새 `GET /v2/library/workspace/map` (`personal-library-map.v2`)는 frozen legacy map v1과 분리한다.
+동일 회원 membership·Rating·Tag·지역·분류·`placeQuery` 조건을 목록과 공유하고, 목록 cursor 없이
+500개씩 모든 후보를 읽는다. public/member summary port와 같은 텍스트 predicate를 재사용하며
+grid cell별 누적값만 메모리에 보존해 모든 좌표를 최대 500개 point/cluster로 표현한다. 알려진 위치가
+없는 일치 장소와 아직 검색 일치 여부조차 판단할 수 없는 미투영 후보는 `unprojectedPlaceCount`로
+드러낸다. 요청 종료·5초 deadline을 batch 경계에서 검사하며, 끝까지 읽지 못하면 503으로 실패하고
+부분 결과를 `complete`로 보내지 않는다. 내부 SQL·summary 호출 하나의 즉시 강제 취소는 제공하지 않는다.
+
+회귀 근거는 `backend/tests/integration/library-queries/workspace-search-map.test.mjs`다. 실제 임시
+PostGIS에서 500개 이후 일치 결과, 회원·Tag 격리, query-bound cursor, directory 전체 검색,
+목록과 별개인 전체 지도 집계와 batch 경계 취소를 검증한다. 실제 서비스 활성화나 외부 지도 공급자
+연동 성공을 의미하지 않는다.
 
 application interface는 멱등 domain command를 받는다. persistence는 table별 repository가
 아니라 하나의 깊은 adapter로 제공한다. 공개 Collection 조회는 owner ID, Tag, Rating,
@@ -63,6 +125,19 @@ scope에 좌표 projection이 없는 Place 수는 `unprojectedPlaceCount`로 드
 Place ID scope로 만들고 같은 주입 reader와 clustering policy를 사용해 요청 bounds/zoom의 point 또는
 cluster를 반환한다. private/revoked publication은 목록과 지도 모두 같은 not-found 의미이며, 공개
 지도에도 membership, Rating, Tag, Visit, Writing, provenance를 투영하지 않는다.
+
+`PublicCollectionDiscovery` v2는 링크 공유용 unlisted read와 분리된다. `public` Collection이면서
+작성자 Profile도 `public`이고 moderation 상태가 `allowed`일 때만 디렉터리·상세·복사에 나타난다.
+검색, 지역, Taxonomy, 공개 주제와 정렬은 filter-bound opaque keyset cursor를 사용하고, 상세 cursor는
+Collection revision에서 만든 `publicationVersion`에 묶인다. 상세 read는 repeatable-read snapshot에서
+metadata와 순서를 읽으며, 변경 후 이전 cursor는 거절한다.
+
+v2 공개 목록 복사는 새 private Collection만 만든다. source Collection row와 공개 Profile row를 같은
+transaction에서 잠그고 `expectedPublicationVersion`을 검증한 뒤 Canonical Place ID와 공개 상대 순서만
+옮긴다. 부분 선택은 source membership을 전부 검증하며, operation receipt와 원본 position provenance도
+같이 commit한다. 이 Adapter에는 Rating, Tag, Visit, Writing, 개인 사진 table을 읽는 의존성이 없다.
+따라서 공개 상태가 취소되거나 Profile이 숨김·withheld된 경우 상세와 복사는 모두 일반화된 not-found로
+끝나며, 응답 유실 재시도는 같은 결과만 replay한다.
 
 facet 집계도 같은 public Place summary reader만 사용한다. 최근 saved Place 최대 2,000개와 지역·
 primary Taxonomy 상위 50개씩으로 제한하고 saved/sample/projected coverage를 반환한다. facet-filtered

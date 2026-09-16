@@ -1,318 +1,85 @@
-# Place
+# 곳곳간
 
-Shared domain terminology is defined in [`CONTEXT.md`](CONTEXT.md). Detailed documentation starts at
-[`docs/README.md`](docs/README.md).
+곳곳간은 개인 장소를 저장하고 정리하는 서비스다.
+장소 검색, 개인 목록, 방문 기록, 메모, 가져오기와 공유를 맡는다.
 
-Place is an independent personal place platform for provider-neutral place identity, source
-evidence, personal libraries, visits, writing, imports, sharing, and future Tool access.
+제품 이름은 `곳곳간`, 저장소 이름은 `gotgotgan`이다.
+코드 안의 기존 계약 이름은 호환성을 위해 `place`를 유지한다.
 
-Current delivery state: **source-only; Stages 6.5, 7.5–7.17, and 11A–11E2B3 complete, Stages 2, 7, and 11 in progress, and Stage 8 paused after 8B**. Independent web/backend composition
-roots, Place access policy/OIDC adapters, contracts, architecture checks, deterministic shell tests,
-a source-only physical PostGIS declaration, a tested database preparation/migration command, and
-access-owned membership/consent plus encrypted browser-auth PostgreSQL persistence exist. Protected
-Web OIDC secret-file loading, fail-closed Next startup installation, periodic bounded expiry cleanup,
-signal-owned pool closure, and reviewed fail-closed browser auth handlers also exist as source-only
-platform interfaces. Strict backend transports publish current consents, consent-gated onboarding,
-and audited authority-role administration. The Web BFF owns browser consent/onboarding routes and a
-fixed server-to-server backend client so access tokens remain outside browser payloads. These routes
-fail closed or remain unregistered until their process dependencies are explicitly supplied. A
-source-only production backend composition now loads protected database/policy configuration,
-installs OIDC verification and PostgreSQL access adapters, owns readiness and shutdown, and registers
-all reviewed access transports. Web readiness aggregates only explicitly activated OIDC and Backend
-dependencies. A disposable two-runtime recovery rehearsal now proves database-level backup,
-isolated restore, rotated database credentials, PostGIS/index restoration, runtime DDL denial, and
-matching browser-session key recovery. Production Compose consumes only injected digest image
-references; local Compose alone owns builds, and a source-only planner validates activation and
-application-only rollback units. A manual producer-owned release workflow now gates on successful
-same-commit CI, publishes separate immutable Web and Backend GHCR images, validates their BuildKit
-SBOM/provenance, smokes only the published platform digests, and emits one `release-record.v1`.
-The workflow supports fail-closed recovery from either partial or completed commit-tag publication,
-but no successful remote release run or deployment is claimed yet. There is no active application environment, provider account, map credential,
-Identity client, Gateway route, or AI Tool connection.
+공통 용어는 [CONTEXT](CONTEXT.md)에서 확인한다.
 
-The Stage 3 canonical foundation now records immutable Source Observations, normalized Place
-Candidates, and evidence-backed Resolution Decisions separately from canonical mutation. Canonical
-create/link/merge/split/retire commands are fingerprint-idempotent, preserve provider identity links,
-redirects, and lineage, and are verified against real PostGIS with least-privilege runtime denial.
-No HTTP or Worker transport exposes these internal module interfaces yet.
+## 현재 상태
 
-Stage 4 개인 콘텐츠 기반은 각자 schema와 PostgreSQL adapter를 소유하는 `library`, `visits`,
-`writing` 모듈로 구성된다. 저장·가고 싶음 preference와 소수 단위 Personal Rating은 서로
-분리하고, Rating 변경과 Writing revision은 비공개 이력으로 보존한다. 방문 여부는 변경
-불가능하고 반복 가능한 Visit에서만 파생한다. 인증된 제품 command는 검증된 bearer
-evidence에서 membership을 구하며, public·unlisted Collection/Writing 조회는 Web 서버를
-통해 별도의 허용 목록 projection을 사용한다. `place-reference.v1`은 database 접근 없이
-`available`, `unavailable`, `redacted` cross-service 결과를 제공한다.
+코드와 로컬 기능은 많이 구현돼 있지만
+운영 서비스 연결이 모두 끝난 상태는 아니다.
 
-Stage 5 로컬 검색은 data-defined Taxonomy, Search 소유 read projection, `pg_trgm` text·PostGIS
-bounds·taxonomy·회원 signal filter, 불투명 cursor와 source별 partial 결과를 제공한다. Search는
-다른 모듈 schema를 join하지 않고 versioned projection command로 전달된 최소 사실만 조회한다.
-Web은 debounce·교체 요청 취소·목록/지도 선택·명시적 영역 재검색·pagination·mobile 전환과
-loading/partial/empty/error 상태를 구현했다. 현재 지도는 실제 좌표 interaction을 검증하는
-결정적 renderer이며 live tile 연결과 live provider traffic은 아직 활성화하지 않는다.
+현재 구현된 주요 기능:
 
-Stage 6 공식 검색은 별도 Providers 모듈에서 NAVER Local, Kakao Local, Google Places API
-(New)를 구현한다. endpoint와 credential은 deployment/secret-file 주입만 허용하고, 공통 HTTP
-runner는 redirect 거부, 응답 크기, timeout, bounded retry와 안전한 오류만 소유한다. 각 공급자
-parser, pagination, 좌표와 누락 필드는 공급자 폴더 안에 남는다. 외부 결과는 canonical Place로
-가장하지 않으며 Google만 선택 시 Details/Photo를 지연 조회해 provider rating과 attribution을
-표시한다. 이는 fixture-tested source-only capability이며 live provider나 live tile map 활성화가
-아니다.
+- Web과 Backend 기본 구조
+- PostgreSQL/PostGIS 사용 구조
+- 개인 장소 목록
+- 검색과 지도
+- 외부 장소 정보 읽기
+- 가져오기
+- 공개 Collection과 Profile
 
-Stage 6.5는 기존 `place-search.v1`을 바꾸지 않고 입력 중 후보용 `place-suggestions.v1`을
-추가했다. Search가 짧은 suggestion session, impression, 재구축 가능한 Discovery Projection을
-소유하고 로컬 canonical/Discovery 후보와 독립 공급자 adapter 결과를 공정하게 합친다. 후보 표시는
-공용 Place나 별칭을 만들지 않으며, 명시적 선택만 Ingestion observation을 기록한다. 개인 기능에
-안정된 ID가 필요할 때는 Candidate와 ResolutionDecision을 거쳐 Places command로 멱등 승격한다.
-Web은 교체 요청 취소, 키보드·모바일 선택, 동명 지점 구분, 부분 장애와 전체 검색 fallback을
-지원한다. 이 기능도 source-only이며 live credential, 선수집 corpus, browser automation을
-활성화하지 않는다.
+Gateway, Identity, 외부 장소 서비스, AI 기능은
+각각 실제 환경에서 연결 검증이 더 필요하다.
 
-Stage 7은 연결 목록의 안정된 Provider Place ID와 Source List·Item ID를 보존하고, 가져온 snapshot을
-Provider Identity별 공동 작업에서 Canonical Place와 회원의 private Collection에 즉시 멱등 반영한다.
-상세 보강은 개인 저장과 독립된 `pending`/`available`/`unavailable` 상태로 관리하며 `available`은 정규화된 관찰을
-반드시 참조한다. Migration `000021`과 별도 Provider Detail Job은 claim/lease/retry, immutable
-Observation/Candidate, 최종 상태 전이를 소유하며 실제 PostGIS에서 검증됐다. 실제 NAVER 상세 경로
-관찰과 read-only Adapter 활성화는 아직 integration-gated다. 가져온 장소는
-상세 대기 중에도 NAVER·Google Maps·카카오맵에서 열 수 있다.
-회원 PC용 `apps/member-connector`는 현재 로그인된 browser profile을 재사용하는 하나의 다중
-브라우저·다중 Provider 확장으로 진행한다. NAVER·Kakao·Google은 Provider Adapter로 격리하고
-일회성 grant로만 캡처를 제출한다. Versioned handshake/grant/batch/receipt 계약, provider-neutral
-수집 application Interface, WebExtensions Adapter, 고정 공개-origin upload Adapter와 Chromium·Firefox
-Manifest V3 build 검증은 source-only로 구현했다. Chrome·Edge·Whale은 Chromium 산출물 하나를
-공유하지만 실제 Whale 설치는 아직 검증하지 않았다. 실제 Provider Adapter·host permission·공개 BFF
-route와 Backend grant/capture receiver·ImportBatch 연결은 NAVER에 대해 source-only로 구현했다. grant
-token digest, origin·sequence·상한·checksum, 암호화 원본, 정규화 Item과 Fulfillment intent를 실제
-PostGIS로 검증했다. 실제 Whale 설치와 로그인된 NAVER session smoke는 아직 남아 있다. 기존 전용
-Chrome profile 로그인, 비식별 관찰과 NAVER 전체 pagination 수집은 진단·fixture/replay·E2E·fallback으로만 남긴다.
+현재 작업 순서는 Workspace의
+`plans/place-platform-service-implementation.md`가 관리한다.
+README에는 단계별 과거 기록을 쌓지 않는다.
 
-Stage 8A는 Backend 내부 `resolution` 모듈과 Migration `000022`를 추가한다. Provider Place Identity별
-최신 관찰을 다국어 원문 보존 comparison representation으로 투영하고, PostGIS 거리·`pg_trgm`
-이름/주소·전화·website host로 후보를 제한한다. script가 다른 이름은 불일치가 아니라 미확정으로
-두며 거리, 전화, branch/floor, 관찰 시점 등을 독립 feature로 평가한다. 결과는 변경 불가능한
-policy-versioned Match Assessment와 review hint일 뿐 Canonical Place를 생성·연결·병합하지 않는다.
-단위 테스트와 disposable PostGIS 수직 테스트는 다국어 비교, 먼 동명 장소, replay, least-privilege
-거부를 검증한다. Stage 8B는 Migration `000023`으로 Place Cluster Proposal·member·assessment 관계를
-정규화하고, 모든 구성원 쌍이 `likely-same`일 때만 합치는 AI 없는 shadow cluster proposer를 추가한다.
-결과의 Provider cell은 동적 read projection이며 고정 Provider column이나 Canonical mutation이 없다.
-실제 cross-provider 정확도와 AI 검증은 두 번째 연결 계정 Provider의 실제 관찰 흐름이 생긴 뒤에만
-진행한다.
-
-Stage 7.5의 첫 수직 조각은 `GET /v1/places/{placeId}`를 제공한다. 익명 요청에는 Canonical Place의
-이름·지역·좌표·Taxonomy·evidence freshness만 반환하고, 검증된 optional bearer 요청에는 Library의
-저장/가고 싶음/개인 평점과 Visits의 반복 방문 요약을 추가한다. redirect는 active Canonical Place로
-해석하고 retired는 `410`이다. 아직 공개 검색 문서가 투영되지 않은 Place는 익명 요청에 retryable
-`503`을 유지하지만, 인증된 회원 요청에는 공개 사실을 꾸미지 않는 `pending`과 권위 있는 개인 상태를
-반환해 저장·분류·방문·메모를 계속 사용할 수 있다. 이
-조립은 module Interface에서만 이뤄지고 Product Tier나 token은 feature module로 전달되지 않는다.
-두 번째 조각은 `GET /v1/library/places`, `/collections`, `/collections/{collectionId}`, `/tags`로
-회원 Library를 bounded cursor page로 제공한다. saved/wanted/rated 상태는 권위 있는 Library row에서
-읽고 목록 카드용 공개 Place summary는 배치 주입한다. Library Adapter는 Search schema를 join하지
-않으며 projection이 늦은 저장 기록도 `place: null`로 보존한다.
-세 번째 조각은 `GET /v1/places/{placeId}/visits`, `GET /v1/writing`,
-`GET /v1/writing/{documentId}`를 bounded owner projection으로 교체한다. Visit history는 내부
-fingerprint/evidence를 숨기고, Writing list는 kind별 최대 50개와 280자 preview만 반환하며 전체 본문은
-소유자 단건 detail에서만 읽는다. 각 query Adapter는 자기 schema만 읽고 기존 immutable Visit,
-optimistic Writing revision, private/public visibility 규칙은 command/publication 경계에 남긴다.
-네 번째 조각은 `GET /v1/imports`와 paginated `GET /v1/imports/{batchId}`다. 이력은 상태별 최대
-50개, 상세는 Provider 원본 목록·항목 순서대로 최대 200개를 반환하며 cursor를 filter/batch에 묶는다.
-조회, cancel/resume, review transaction은 각각 `PostgresImportQueries`,
-`PostgresImportManagement`, `PostgresImportReview`로 분리했다. Migration `000026`과 disposable
-PostGIS 검증이 회원 격리, cursor 오용 거부, 내부 참조 비노출, 대량 행 index 선택을 확인한다.
-마지막 7.5 조각은 Backend와 Web의 실제 route를 생성 OpenAPI와 자동 대조한다. 모든 JSON 성공
-응답은 owner가 작성한 versioned schema를 사용하고, 모든 공개 오류는 공통 Problem 계약을 사용한다.
-장소·검색의 optional-member 해석과 필수 회원 인증은 공통 Product Authorizer 경계로 모였으며,
-중단·등급 거부·인증 서비스 장애를 feature module 수정 없이 판정할 수 있다. 사용되지 않던 unbounded
-`GET /v1/library` HTTP route는 제거됐고 내부 Library Interface만 유지한다. Import Web BFF는 batch
-detail cursor/limit와 `nextCursor`를 보존한다. Google/Kakao 연결 수집, Provider 상세, AI 검증은 이
-완료 조건에 포함되지 않는다.
-
-Stage 7.6은 Personal Library의 수동 조직 기능을 완성한다. `library-place-list.v3`는 saved/wanted/rated
-목록에 최대 20개의 Tag ID를 `all`/`any`로 결합하고, 저장 장소에서 파생한 지역·Taxonomy key를
-각각 최대 10개까지 더해 cursor를 전체 filter에 묶는다. Collection은
-순서가 있는 목록으로 이름 변경·Place 추가/이동/제거·삭제를, Tag는 다대다 분류로 이름 변경·부착/
-해제·삭제를 같은 멱등 command 경계에서 제공한다. Migration `000027`은 Tag-first index, transaction
-내 순서 재배치, owner-scoped 삭제와 Import provenance 정리를 지원한다. 이 기능은 Google/Kakao,
-Provider 상세, AI 자동 분류나 프론트 화면 없이 독립적으로 동작한다.
-
-Stage 7.8 후속 조각은 `library-place-facets.v1`을 추가한다. 전역 카테고리 master가 아니라 현재 회원의
-saved Place ID를 최대 2,000개까지 public Place summary와 조합해 지역·provider-neutral primary
-Taxonomy별 count를 만든다. 응답은 표본·projection coverage와 완전 여부를 명시하며 Library와 Search
-schema를 직접 join하지 않는다. 지역명 표기가 서로 다른 경우를 임의로 합치거나 AI로 분류하지 않는다.
-
-Stage 7.9는 선택한 Place의 저장·가고 싶음·Personal Rating을 Web에서 직접 수정한다. 기존
-`set-place-preferences` command는 세 값의 최종 목표 상태와 `expectedUpdatedAt`을 함께 요구하며,
-같은 `commandId` 재전송은 한 번만 적용한다. PostgreSQL Adapter는 회원·Place별 write를 직렬화하고
-`updated_at`을 단조 증가시켜 다른 기기의 변경을 409로 보고할 뿐 덮어쓰지 않는다. 이 경로도
-`library.write` 권한 뒤에 있고 Provider, AI, 전역 지역 identity를 요구하지 않는다.
-
-Stage 7.10은 Personal Library에 탐색과 분리된 `목록·태그 관리` 모드를 추가한다. 회원은 비공개
-Collection과 Tag를 만들고 이름을 바꾸거나 삭제하며, Collection 안 Place를 이웃 위치 기준으로
-재정렬하거나 목록에서 제거할 수 있다. 응답 유실은 동일 command ID와 payload로 재시도하고,
-Collection·Tag·재시도 구현은 하나의 관리 Interface 뒤의 내부 seam으로 분리한다. 이 작업은 Place
-소유 데이터만 변경하며 NAVER·Google·Kakao의 원본 저장 목록이나 즐겨찾기를 수정하지 않는다.
-
-Stage 7.11은 선택한 Place 상세에 반복 가능한 불변 Visit 기록과 bounded history를 연결한다. 과거 또는
-현재의 방문 시각을 새 occurrence로 추가하며 같은 장소의 이전 방문을 수정하거나 덮어쓰지 않는다.
-응답 결과를 잃으면 같은 Visit ID와 payload로만 재시도한다. 브라우저 계약은 `id`, `placeId`,
-`visitedAt`만 허용하고 내부 수집용 evidence나 member ID는 받지 않는다. same-origin Visits Adapter와
-내부 workflow가 인증, 재시도, pagination을 숨기며 Provider, AI, Product Tier 분기는 추가하지 않는다.
-
-Stage 7.12는 선택한 Place의 짧은 private Note를 만들고 optimistic version으로 편집한다. Writing 목록은
-optional `placeId` filter와 filter-bound cursor를 지원하고 Migration `000028`은 정규화된 Place link의
-역방향 조회 index를 추가한다. 브라우저는 Entry, visibility, publication ID를 command에 넣을 수 없고
-서버 Adapter가 private을 고정한다. 응답 유실은 동일 command로 재시도하며 version conflict에서는
-사용자 초안을 보존한 채 명시적으로 최신 내용을 불러온다.
-
-Stage 7.13은 일반 메모의 서버 작성일과 마지막 수정일을 목록·선택 패널에서 구분한다. 기존 Writing
-table과 revision 이력을 그대로 사용하므로 새 migration이나 미디어 저장소는 없다. 일반 메모에는
-제목·사진 첨부·블로그형 편집기를 추가하지 않는다.
-
-Stage 7.14는 Personal Library의 기존 상태·Collection·Tag filter, preference, Visit, Note를 목록,
-독립 상세, 결정적 지도 한 흐름으로 조립한다. desktop은 목록·상세·지도를 조정하고 mobile은 목록과
-지도를 명시적으로 전환한 뒤 Place 선택 시 전체 폭 상세로 이동한다. 선택과 filter를 보존하고 목록
-복귀 시 선택 행으로 초점을 돌린다. 지도 platform Interface는 최소 marker projection만 받아 Search와
-Library 계약에서 분리됐으며 live SDK나 Provider traffic은 활성화하지 않는다.
-
-Stage 7.15는 같은 panel grammar를 로컬 Search에 적용한다. 기존 query draft/submission, suggestion
-session, Taxonomy filter, bounds 재검색, pagination, source partial 상태와 선택 시 Provider 상세 지연
-조회는 그대로 유지한다. desktop은 결과 목록·독립 상세·지도를 조정하고 좁은 desktop은 상세이 열린
-동안 지도를 숨긴다. mobile은 목록·지도·상세 중 한 surface만 보여주며 상세에서 돌아오면 선택 행으로
-초점을 복원한다. Provider attribution과 원문 링크는 상세 pane에 남고 live SDK나 Provider traffic은
-활성화하지 않는다.
-
-Stage 7.16은 canonical Search 선택과 Personal Library가 하나의 `PersonalPlaceDetail` Interface를
-공유하게 한다. 이 깊은 module이 Place detail, 로그인/등급/재시도와 저장·가고 싶음·개인 평점,
-Collection/Tag, Visit, body-only private Note를 조립한다. 앱 계층이 Search의 canonical renderer seam에
-이를 주입하므로 두 feature는 서로의 내부를 알지 않는다. Provider 검색 결과는 materialization 전까지
-이 seam을 사용하지 않고 evidence와 원문 링크만 유지한다.
-
-Stage 7.17은 Personal Library 목록 pagination과 지도 projection을 분리한다. 목록은 계속 bounded
-cursor page이고 지도는 `scope/filter + bounds + zoom`으로 현재 viewport의 회원 소유 장소를 별도
-조회한다. 응답의 최대 500개 시각 feature는 개별 Place 또는 count-bearing cluster이며, feature가
-나타내는 장소 수를 보존하므로 임의의 Place row limit으로 마커를 누락하지 않는다. Search-owned
-좌표 projection이 없는 scope Place 수는 명시적으로 반환한다. Library PostgreSQL Adapter는 Search
-schema를 join하지 않고 주입된 map Place reader만 사용하며 live 지도 SDK는 여전히 비활성이다.
-
-Stage 11A는 Provider 추가·outbound sync와 독립적인 Collection 공유 수직 조각을 먼저 완성한다.
-소유자는 optimistic `updatedAt`으로 private/unlisted/public을 전환하고 공유를 해제한다. 첫 공유 ID는
-서버가 만들고 unlisted/public 전환에는 유지하며, 해제 뒤 재공개에는 새 ID를 사용한다. 이 command는
-별도 `library.share` Product Authorizer seam을 통과하므로 향후 tier 정책이 Library나 Web에 스며들지
-않는다. 공개 viewer는 정렬된 Place reference만 자기 private Collection으로 멱등 복사하고 source
-publication provenance를 남긴다. 개인 평점·Tag·Visit·Writing·ownership은 공개하거나 복사하지 않는다.
-Migration `000029`, 실제 PostGIS, Web 단위 테스트와 desktop/mobile Playwright가 전환·해제·복사를
-검증하며 public profile/map discovery와 cross-product PlaceReference 소비자는 아직 후속이다.
-
-Stage 11B는 공개 Collection의 정렬된 Place reference에 `place-published-collection.v2`의
-허용 목록 Place summary를 결합한다. Library query는 Search table을 직접 join하지 않고 이미 조립된
-`LibraryPlaceSummaryReader` Interface를 한 번 호출하며, Search projection이 늦은 Place는 순서를
-잃지 않고 `place: null`로 남긴다. 공개 화면은 이름·지역·primary Taxonomy를 표시하되 UUID나
-Personal Rating, Tag, Visit, Writing, ownership을 표시하지 않는다.
-
-Stage 11C는 현재 공개 Collection 계약을 `place-published-collection.v3`으로 확장한다. 정렬 목록은
-기본·최대 50개와 publication·수정 버전에 묶인 opaque cursor, 전체 `placeCount`를 반환하고 Web은
-접근 가능한 더 보기와 자동 이어 읽기를 제공한다. 별도 `GET /v1/public/collections/{publicationId}/map`
-조회는 publication membership과 `bounds + zoom`으로 point 또는 count-bearing cluster를 만들며 목록
-page를 marker 원천으로 사용하지 않는다. 공개 화면의 지도는 아직 읽지 않은 다음 목록 page의 Place도
-표현하고 projection 지연 수를 명시한다. Search·Personal Library·공개 Collection은 모두 앱 조립
-계층에서 주입되는 하나의 provider-neutral renderer Interface만 의존하므로 향후 NAVER·Google·Kakao
-지도 Adapter 교체가 feature 내부 변경을 요구하지 않는다. live 지도 SDK와 credential은 비활성이다.
-
-Stage 11D는 공개 Collection의 목록 제목이나 marker를 선택할 때만 Canonical Place의 공개 상세를
-불러온다. Web의 익명 `GET /api/public/places/{placeId}`는 기존 Backend
-`GET /v1/places/{placeId}`를 bearer 없이 호출하고 `PublicPlaceDetailResponse`로 다시 검증한다.
-이 좁은 계약은 이름·지역·좌표·Taxonomy·공개 evidence와 redirect identity만 허용하므로 Backend가
-실수로 Personal Rating, 저장 상태, Visit 같은 `personalState`를 포함하면 전체 응답을 거부한다.
-공개 상세 feature는 개인용 `PersonalPlaceDetail`을 재사용하지 않아 로그인·분류·방문·메모 workflow가
-익명 화면에 섞이지 않는다.
-
-Stage 11E1은 전역 사람 검색이나 외부 검색엔진 노출 없이 소유자 공개 프로필의 최소 경계를 추가한다.
-회원은 `library.share` 권한으로 소문자 영문·숫자·하이픈의 고정 Public Handle, 표시 이름, hidden/public
-상태를 관리한다. 익명 프로필은 owner/member ID를 반환하지 않고 그 소유자의 `public` Collection만
-최대 50개 opaque cursor page로 보여준다. `unlisted` Collection은 기존 불투명 공유 링크로만 접근하며
-프로필에 나타나지 않는다. `/people/{handle}`과 기존 `/share/...` 공개 HTML은 robots noindex/nofollow,
-공개 프로필 Backend/BFF 응답은 `X-Robots-Tag`를 사용한다. 내부 discovery index, 팔로우·댓글·신고,
-tier별 제한은 구체적 정책이 정해질 때까지 추가하지 않는다.
-
-Stage 11E2A는 Public Handle namespace를 Profile row와 분리한다. Profile이나 Membership이 삭제되면
-공개 projection과 회원 연결은 없어지지만 Handle 예약은 retired 상태로 남아 다른 회원이 과거 공개
-URL을 가져갈 수 없다. retired Handle은 unknown과 같은 404이며 self-service rename/recovery는 아직
-없다. 외부 색인 금지와 내부 사람 discovery 보류 정책은 그대로다.
-
-Stage 11E2B1은 직접 링크 프로필을 증폭하지 않은 채 안전 기반만 추가한다. 인증 회원은 자유 서술 없이
-정해진 사유로 신고하고, 같은 회원·Handle 신고는 180일 보존 기간 동안 하나로 제한된다. 신고 자체는
-공개를 중단하지 않는다. `reviewer` 이상만 owner의 hidden/public과 독립된 allowed/withheld 판정을
-내리며, immutable decision 이력을 남긴다. 익명 응답과 검토 대기열에는 신고자 ID가 없고 withheld는
-unknown과 같은 404다. owner 알림·appeal은 Stage 11E2B2에서 이어지며 내부 사람 discovery는 계속
-운영 gate 뒤에 남는다.
-
-Stage 11E2B2는 withheld/restored 판정을 소유자 전용 영속 조회함에 투영하고 특정 withheld 판정당 한 번의
-구조화된 appeal을 제공한다. 같은 Handle에는 pending appeal 하나만 허용하며 일반 moderation은 이를
-우회하지 못한다. reviewer 이상이 기각하면 withheld를 유지하고, 수락하면 immutable appeal resolution,
-`appeal-accepted` moderation decision, allowed 상태, owner notice를 한 transaction으로 기록한다. 이
-Backend 기능은 이메일·푸시 delivery를 의미하지 않는다.
-
-Stage 11E2B3는 현재 회원의 프로필 설정과 독립된 소유자용 검토 알림 Web module을 추가한다. 브라우저는
-같은 origin BFF만 호출하고 member·role·operator·token을 제출하지 않는다. withheld 알림의 정해진 사유
-이의제기와 acknowledge만 제공하며, 모호한 실패 뒤에는 같은 appeal UUID와 payload를 재전송한다.
-운영자 검토 화면, 자유 서술, 첨부, 이메일·푸시, 내부 사람 discovery와 외부 색인은 실제 운영 담당자와
-절차가 정해질 때까지 계속 비활성이다.
-
-## Repository boundaries
+## 폴더 구성
 
 ```text
-apps/web/                  Next.js product surface
-apps/member-connector/     cross-browser multi-provider extension source plus diagnostic CLI
-backend/                   TypeScript HTTP/worker/module boundary
-packages/contracts/        owner-controlled machine-readable contracts
-tests/                     repository-wide architecture, contract, integration, and E2E tests
-docs/                      routed product, architecture, domain, API, data, security, and operations docs
-deploy/                    source-only deployment declarations; no active public route
+apps/web/              사용자 웹 화면
+apps/member-connector/ 장소 가져오기 실험·진단 도구
+backend/               API, Worker, 장소 처리 규칙
+packages/contracts/    프로젝트 사이에서 쓰는 계약
+tests/                 구조·계약·통합 시험
+docs/                  제품·아키텍처·운영 문서
+deploy/                배포 설정
 ```
 
-Read [`docs/README.md`](docs/README.md) before working. In the assembled workspace, the handoff plan
-is `../plans/place-platform-service-implementation.md`; it is intentionally not a repository-local
-link because a standalone Place checkout must remain self-contained.
+곳곳간은 다른 프로젝트의 DB나 내부 소스를 직접 사용하지 않는다.
+다른 프로젝트가 장소 정보가 필요하면 정해진 API나 계약을 사용한다.
 
-## Validation
+외부 장소 서비스에서 받은 정보는 바로 최종 장소 정보가 되지 않는다.
+출처를 남긴 뒤 확인 절차를 거쳐 곳곳간의 장소 정보에 반영한다.
 
-After dependencies are installed and locks are current:
+개인 별점, 방문 기록, 메모는 외부 장소 정보와 구분해서 보관한다.
+
+## 장소 가져오기
+
+현재 기본 방향은 별도 프로그램 설치 없이 웹에서 가져오는 방식이다.
+NAVER 공유 목록 링크를 여러 개 넣는 방식이 주요 경로다.
+
+로그인이 필요한 원격 브라우저 방식은 별도 실험 기능으로 둔다.
+
+자세한 내용:
+
+- [웹 가져오기 결정](docs/adr/0025-web-one-shot-saved-place-imports.md)
+- [외부 서비스별 가능성 조사](docs/integrations/saved-place-web-import-feasibility.md)
+- [가져오기 처리](backend/src/modules/transfers/README.md)
+
+`apps/member-connector`는 현재 제품 기본 설치 경로가 아니다.
+가져오기 방식과 parser를 시험하는 용도로 유지한다.
+
+## 검증
+
+의존성을 설치한 뒤 저장소 루트에서 실행한다.
 
 ```powershell
 npm run check
 ```
 
-Narrow commands:
+DB나 브라우저가 필요한 세부 시험은
+[문서 인덱스](docs/README.md)에서 해당 기능의 실행 방법을 확인한다.
 
-```powershell
-npm run check:web
-npm run check:backend
-npm run check:member-connector
-npm run check:contracts
-npm run test:deployment
-npm run test:database
-npm run test:canonical-resolution
-npm run test:personal-content
-npm run test:local-search
-npm run test:place-detail
-npm run test:library-queries
-npm run test:visit-writing-queries
-npm run test:import-queries
-npm run test:place-suggestions
-npm run test:provider-place-details
-npm run test:place-identity-resolution
-npm run test:place-cluster-proposals
-npm run test:database-recovery
-npm run test:e2e
-```
+## 문서
 
-`test:database` requires Docker plus an injected `PLACE_DATABASE_TEST_HOST` and runs the broad
-runtime suite and focused canonical-resolution, personal-content, local-search, place-detail, library-query,
-Visit/Writing-query, Import-query, provider-detail, and
-cross-provider identity-resolution suites serially in disposable, randomly credentialed PostGIS
-containers. `test:canonical-resolution` and `test:place-identity-resolution` are narrow iteration commands. The database tests
-remain separate from the default source check while Docker-enabled CI owns them.
-`test:database-recovery` uses the same injected host and two
-disposable runtimes; it leaves no dump, credential file, volume, or container behind.
+작업을 시작할 때 [문서 인덱스](docs/README.md)를 먼저 본다.
+구조, API, 데이터, 보안, 운영 내용은 각 문서가 따로 관리한다.
 
-The repository does not require sibling repositories at runtime or test time.
+이 저장소는 다른 Workspace 저장소가 없어도 독립적으로 build/test 가능해야 한다.

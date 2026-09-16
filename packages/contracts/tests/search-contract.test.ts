@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  catalogPlaceMapRequestSchema,
+  catalogPlaceMapResponseSchema,
+  catalogPlaceSearchRequestSchema,
+  catalogPlaceSearchResponseSchema,
+  catalogPlaceSearchRequestV2Schema,
+  catalogPlaceMapRequestV2Schema,
+  catalogExplorationRequestSchema,
+  placeSearchRequestSchema,
   placeSuggestionMaterializationResponseSchema,
   placeSuggestionSelectionResponseSchema,
   placeSuggestionsResponseSchema,
@@ -9,6 +17,157 @@ import {
 } from '../src/search/index.js'
 
 describe('provider-neutral search contracts', () => {
+  it('keeps name proximity and keyed taxonomy selection in the versioned catalog boundary', () => {
+    const near = { latitude: 37.5, longitude: 127 }
+    const request = catalogPlaceSearchRequestV2Schema.parse({
+      schemaVersion: 'catalog-place-search.v2', query: '가게', intent: 'name', near, taxonomyKey: 'food.ramen',
+    })
+    expect(request.near).toEqual(near)
+    expect(request.taxonomyKey).toBe('food.ramen')
+    expect(request).not.toHaveProperty('bounds')
+    expect(catalogPlaceSearchRequestSchema.safeParse({ ...request, schemaVersion: 'catalog-place-search.v1' }).success).toBe(false)
+    for (const invalid of [{ latitude: 91, longitude: 0 }, { latitude: 0, longitude: 181 }, { latitude: 0, longitude: 0, radius: 1 }]) {
+      expect(catalogPlaceSearchRequestV2Schema.safeParse({ ...request, near: invalid }).success).toBe(false)
+      expect(catalogExplorationRequestSchema.safeParse({ schemaVersion: 'catalog-exploration.v1', query: '가게', near: invalid }).success).toBe(false)
+    }
+    expect(catalogPlaceSearchRequestV2Schema.safeParse({ ...request, taxonomyKey: '' }).success).toBe(false)
+    const map = { schemaVersion: 'catalog-place-map.v2', query: '', taxonomyKey: 'food.ramen',
+      viewport: { west: 126, south: 37, east: 128, north: 38 }, zoom: 14 }
+    expect(catalogPlaceMapRequestV2Schema.safeParse(map).success).toBe(true)
+    expect(catalogPlaceMapRequestV2Schema.safeParse({ ...map, taxonomyKey: '' }).success).toBe(false)
+    expect(catalogPlaceMapRequestSchema.safeParse({ ...map, schemaVersion: 'catalog-place-map.v1' }).success).toBe(false)
+  })
+  it('bounds map features while preserving exact antimeridian viewport coverage', () => {
+    const request = catalogPlaceMapRequestSchema.parse({
+      schemaVersion: 'catalog-place-map.v1',
+      query: '도쿄 관광지',
+      viewport: { west: 170, south: -20, east: -170, north: 20 },
+      zoom: 4.5,
+    })
+    expect(request.maxFeatures).toBe(384)
+    expect(catalogPlaceMapRequestSchema.safeParse({
+      ...request,
+      viewport: { west: -180, south: -85.051129, east: 180, north: 85.051129 },
+    }).success).toBe(true)
+    expect(catalogPlaceMapRequestSchema.safeParse({
+      ...request,
+      viewport: { west: 10, south: -20, east: 10, north: 20 },
+    }).success).toBe(false)
+    expect(catalogPlaceMapRequestSchema.safeParse({
+      ...request,
+      viewport: { west: 170, south: -85.05113, east: -170, north: 20 },
+    }).success).toBe(false)
+    expect(catalogPlaceMapRequestSchema.safeParse({
+      ...request,
+      viewport: { west: 180, south: -20, east: -180, north: 20 },
+    }).success).toBe(false)
+    expect(catalogPlaceMapRequestSchema.safeParse({
+      ...request,
+      maxFeatures: 385,
+    }).success).toBe(false)
+
+    const response = catalogPlaceMapResponseSchema.parse({
+      schemaVersion: 'catalog-place-map.v1',
+      interpretation: { normalizedQuery: '', tokens: [] },
+      viewport: request.viewport,
+      zoom: request.zoom,
+      mode: 'clusters',
+      features: [{
+        kind: 'cluster',
+        featureId: 'cluster:4:0:0',
+        location: { latitude: 1, longitude: 179 },
+        bounds: { west: 170, south: -20, east: -170, north: 20 },
+        placeCount: 12,
+      }],
+      coverage: {
+        matchingPlaceCount: 12,
+        representedPlaceCount: 12,
+        complete: true,
+      },
+    })
+    expect(response.coverage.complete).toBe(true)
+    expect(catalogPlaceMapResponseSchema.safeParse({
+      ...response,
+      coverage: { ...response.coverage, matchingPlaceCount: 13 },
+    }).success).toBe(false)
+  })
+
+  it('keeps home catalog search canonical-only and version-pins interpreted meaning', () => {
+    const request = catalogPlaceSearchRequestSchema.parse({
+      schemaVersion: 'catalog-place-search.v1',
+      query: '성수 조용한 라멘',
+      excludedTokenIds: ['attribute:bW9vZC5xdWlldA:2'],
+      bounds: { west: 170, south: -20, east: -170, north: 20 },
+    })
+    expect(request.bounds).toEqual({ west: 170, south: -20, east: -170, north: 20 })
+    expect(catalogPlaceSearchRequestSchema.safeParse({
+      ...request,
+      bounds: { west: -180, south: -85.051129, east: 180, north: 85.051129 },
+    }).success).toBe(true)
+    expect(catalogPlaceSearchRequestSchema.safeParse({
+      ...request,
+      bounds: { west: 180, south: -20, east: -180, north: 20 },
+    }).success).toBe(false)
+    expect(catalogPlaceSearchRequestSchema.safeParse({
+      ...request,
+      bounds: { west: 10, south: -20, east: 10, north: 20 },
+    }).success).toBe(false)
+    expect(catalogPlaceSearchRequestSchema.safeParse({
+      ...request,
+      bounds: { west: 170, south: -85.05113, east: -170, north: 20 },
+    }).success).toBe(false)
+    expect(placeSearchRequestSchema.safeParse({
+      schemaVersion: 'place-search.v1', query: '',
+      bounds: { west: 170, south: -20, east: -170, north: 20 },
+    }).success).toBe(false)
+    const response = catalogPlaceSearchResponseSchema.parse({
+      schemaVersion: 'catalog-place-search.v1',
+      interpretation: {
+        normalizedQuery: '',
+        tokens: [
+          { tokenId: 'area:c2VvdWwuY2hpbGQuMQ:3', kind: 'area', key: 'seoul.child.1', version: 3, label: '성수' },
+          { tokenId: 'place-type:Zm9vZC5ub29kbGUucmFtZW4:4', kind: 'place-type', key: 'food.noodle.ramen', version: 4, label: '라멘' },
+        ],
+      },
+      items: [{
+        placeId: '01992d20-0000-7000-8000-000000000101',
+        name: '조용한 라멘 연구소',
+        area: {
+          label: '성수',
+          reference: { key: 'seoul.child.1', version: 3 },
+        },
+        location: { latitude: 37.5445, longitude: 127.056 },
+        primaryTaxonomy: { key: 'food.noodle.ramen', version: 4, label: '라멘' },
+        taxonomyReferences: [
+          { key: 'food.noodle.ramen', version: 4, kind: 'category' },
+          { key: 'mood.quiet', version: 2, kind: 'attribute' },
+        ],
+        evidenceStatus: 'verified',
+        projectedAt: '2026-08-26T10:00:00.000Z',
+      }, {
+        placeId: '01992d20-0000-7000-8000-000000000102',
+        name: '좌표 검수 중인 장소',
+        area: null,
+        location: null,
+        primaryTaxonomy: null,
+        taxonomyReferences: [],
+        evidenceStatus: 'unverified',
+        projectedAt: '2026-08-26T10:00:00.000Z',
+      }],
+      mapBounds: { west: 127.0555, south: 37.544, east: 127.0565, north: 37.545 },
+    })
+
+    expect(request.excludedTokenIds).toHaveLength(1)
+    expect(response.items[0]).not.toHaveProperty('identity')
+    expect(response.items[0]).not.toHaveProperty('source')
+    expect(response.items[0]).not.toHaveProperty('saved')
+    expect(response.items[0]).not.toHaveProperty('wanted')
+    expect(response.items[1]?.location).toBeNull()
+    expect(response.interpretation.tokens[0]).toMatchObject({
+      kind: 'area', key: 'seoul.child.1', version: 3,
+    })
+  })
+
   it('keeps external observations distinct from canonical places', () => {
     const parsed = placeSearchResponseSchema.parse({
       schemaVersion: 'place-search.v1',

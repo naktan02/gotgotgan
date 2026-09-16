@@ -27,12 +27,17 @@ function plan(environment) {
     'PLACE_WEB_IMAGE',
     immutableImagePattern,
   )
+  const adminWebImage = required(
+    environment,
+    'PLACE_ADMIN_WEB_IMAGE',
+    immutableImagePattern,
+  )
   const backendImage = required(
     environment,
     'PLACE_BACKEND_IMAGE',
     immutableImagePattern,
   )
-  if (webImage === backendImage) {
+  if (new Set([webImage, adminWebImage, backendImage]).size !== 3) {
     throw new Error('Application deployment input is invalid')
   }
 
@@ -48,6 +53,11 @@ function plan(environment) {
       'PLACE_DEPLOYED_WEB_IMAGE',
       immutableImagePattern,
     )
+    const deployedAdminWebImage = required(
+      environment,
+      'PLACE_DEPLOYED_ADMIN_WEB_IMAGE',
+      immutableImagePattern,
+    )
     const deployedBackendImage = required(
       environment,
       'PLACE_DEPLOYED_BACKEND_IMAGE',
@@ -55,13 +65,24 @@ function plan(environment) {
     )
     if (
       deployedReleaseRevision === releaseRevision ||
-      (deployedWebImage === webImage && deployedBackendImage === backendImage)
+      new Set([
+        deployedWebImage,
+        deployedAdminWebImage,
+        deployedBackendImage,
+      ]).size !== 3 ||
+      (deployedWebImage === webImage &&
+        deployedAdminWebImage === adminWebImage &&
+        deployedBackendImage === backendImage)
     ) {
       throw new Error('Application deployment input is invalid')
     }
     replaces = {
       releaseRevision: deployedReleaseRevision,
-      images: { web: deployedWebImage, backend: deployedBackendImage },
+      images: {
+        web: deployedWebImage,
+        adminWeb: deployedAdminWebImage,
+        backend: deployedBackendImage,
+      },
     }
   }
 
@@ -70,7 +91,7 @@ function plan(environment) {
     deliveryState: 'source-only',
     operation,
     releaseRevision,
-    images: { web: webImage, backend: backendImage },
+    images: { web: webImage, adminWeb: adminWebImage, backend: backendImage },
     ...(replaces === undefined ? {} : { replaces }),
     publicProcess: 'web',
     database: {

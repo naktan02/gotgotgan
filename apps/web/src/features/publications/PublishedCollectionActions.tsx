@@ -36,13 +36,13 @@ export function PublishedCollectionActions({
   }
 
   return (
-    <section aria-label="내 Library로 복사" className={styles.actions}>
+    <section aria-label="내 곳곳간으로 복사" className={styles.actions}>
       <p>장소와 순서만 내 비공개 컬렉션으로 복사합니다. 원본 소유권과 개인 기록은 따라오지 않습니다.</p>
       {state.kind === 'copied' ? (
-        <a href="/library">내 Library에서 보기</a>
+        <a href="/library">내 곳곳간에서 보기</a>
       ) : (
         <button disabled={state.kind === 'saving'} onClick={() => void copy()} type="button">
-          {state.kind === 'saving' ? '복사하는 중…' : '내 Library로 복사'}
+          {state.kind === 'saving' ? '복사하는 중…' : '내 곳곳간으로 복사'}
         </button>
       )}
       {state.kind === 'authentication-required' && (

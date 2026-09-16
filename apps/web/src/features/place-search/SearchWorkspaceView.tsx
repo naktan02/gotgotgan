@@ -1,6 +1,6 @@
 'use client'
 
-import type { PlaceMapRenderer } from '@/platform/maps/place-map-interface'
+import type { PlaceMapRenderer } from '@/platform/maps/public'
 
 import { SearchControls } from './SearchControls'
 import { SearchResultDetailPane } from './SearchResultDetailPane'

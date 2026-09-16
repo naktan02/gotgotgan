@@ -1,9 +1,14 @@
 # Browser authentication platform
 
-This folder owns the confidential browser OIDC boundary for the Place Web process.
+이 폴더는 사용자 Web의 앱별 조립 Adapter와 기존 import 호환 facade만 소유한다. confidential OIDC
+Browser-BFF 구현은 React/Next.js에 의존하지 않는 `@place/browser-auth` workspace Module이 소유한다.
+사용자 Web은 기존 `PLACE_*` 환경변수, `__Host-place_oidc_tx`, `__Host-place_session`,
+`place.web.oidc.lifecycle`을 유지한다.
 
-- `oidc-bff.ts` defines the small server-side login, callback, session-resolution, and logout
-  interface. Browser cookies contain opaque identifiers only.
+- `place-browser-auth-application.ts`는 사용자 Web 고유 storage namespace, 환경변수 prefix, cookie와
+  global lifecycle key를 검증하고 shared Module을 한 번 조립한다.
+- 기존 파일 이름은 다른 Web platform Module과 recovery 검증이 사용하는 안정된 import 경로를 위해
+  유지하며 shared package Interface로 위임한다. Browser cookie에는 opaque identifier만 들어간다.
 - `openid-client-provider.ts` adapts the external Identity OIDC protocol.
 - `postgres-oidc-store.ts` persists one-time login transactions and browser sessions through a
   caller-owned PostgreSQL pool. Sensitive payloads are authenticated and encrypted before storage;

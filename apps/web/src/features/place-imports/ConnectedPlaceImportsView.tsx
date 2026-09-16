@@ -7,7 +7,7 @@ import type {
   PlaceImportItem,
 } from '@place/contracts/imports'
 
-import { buildProviderOpenLinks } from '@/platform/maps/provider-open-links'
+import { buildProviderOpenLinks } from '../../platform/maps/public'
 
 import styles from './connected-place-imports.module.css'
 import type {
@@ -149,8 +149,6 @@ export function ConnectedPlaceImportsView({
     reviewResults,
     connectorChecking,
     connectorReady,
-    connectorProgress,
-    connectorSupportsNaver,
     onboardingRequired,
     onboardingConsents,
     acceptedConsentKeys,
@@ -162,7 +160,6 @@ export function ConnectedPlaceImportsView({
     setConsentAccepted,
     completeOnboarding,
     probeConnector,
-    startConnectorImport,
     startServerImport,
     transition,
     review,
@@ -185,10 +182,10 @@ export function ConnectedPlaceImportsView({
       {onboardingRequired && (
         <section aria-labelledby="place-onboarding-title" className={styles.onboarding}>
           <p className={styles.eyebrow}>첫 서비스 연결</p>
-          <h2 id="place-onboarding-title">Place 이용 동의 후 Owner로 연결합니다</h2>
+          <h2 id="place-onboarding-title">곳곳간 이용 동의 후 Owner로 연결합니다</h2>
           <p>
             중앙 플랫폼 Owner 권한은 확인되었습니다. 아래 현재 문서에 동의하면 이 계정을
-            Place의 유일한 Owner로 자동 연결합니다.
+            곳곳간의 유일한 Owner로 자동 연결합니다.
           </p>
           {onboardingConsents === undefined ? (
             <p className={styles.muted}>현재 동의 문서를 불러오는 중입니다.</p>
@@ -237,31 +234,18 @@ export function ConnectedPlaceImportsView({
             </div>
             {connectorReady === undefined ? (
               <p className={styles.muted}>
-                Place Connector를 설치한 뒤 다시 확인하세요. 아이디·비밀번호는 Place로 전송하지 않습니다.
+                곳곳간 커넥터를 설치한 뒤 다시 확인하세요. 아이디·비밀번호는 곳곳간으로 전송하지 않습니다.
               </p>
             ) : (
               <p className={styles.muted}>
-                확장 프로그램 연결됨 · NAVER {connectorSupportsNaver ? '사용 가능' : '미지원'}
+                확장 프로그램 연결됨 · 안전한 실행 경계 검증 전까지 가져오기는 비활성화됩니다.
               </p>
             )}
             <div className={styles.batchActions}>
               <button disabled={busy || connectorChecking} onClick={() => void probeConnector()} type="button">
                 확장 다시 확인
               </button>
-              <button
-                className={styles.primaryButton}
-                disabled={busy || !connectorSupportsNaver || batch !== undefined}
-                onClick={() => void startConnectorImport()}
-                type="button"
-              >
-                이 브라우저에서 NAVER 가져오기
-              </button>
             </div>
-            {connectorProgress !== undefined && (
-              <p className={styles.stateMessage} aria-live="polite">
-                {connectorProgress.phase} · {connectorProgress.submittedItems}/{connectorProgress.discoveredItems}개 전송
-              </p>
-            )}
           </section>
 
           {connections.length > 0 && (

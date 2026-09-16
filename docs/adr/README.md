@@ -4,13 +4,16 @@ ADRs record durable repository-local decisions. Copy `template.md`, assign the n
 status and date, link evidence, name consequences and supersession conditions, and update routed docs.
 
 현재 최신 결정은
-[`0019-bind-profile-appeals-to-withheld-decisions.md`](0019-bind-profile-appeals-to-withheld-decisions.md)이며,
-owner appeal을 특정 withheld 판정에 한 번만 결합하고 수락과 moderation 복구를 원자적으로 처리한다.
+[`0026-share-eligible-provider-place-facts.md`](0026-share-eligible-provider-place-facts.md)이며,
+회원 가져오기에서 Provider가 직접 제공한 적격 장소 기본정보와 개인 별칭·기록을 분리해 전자만
+공통 카탈로그에 필드별로 기여한다.
 
 Stage 7 결정은 `0011-connected-import-pipeline-and-provider-isolation.md`에 기록한다. 연결 계정
 작업, Provider parser 격리, 암호화 캡처, 명시적 검토와 Library 반영 경계를 정의한다.
 회원 PC의 session 경계와 다중 브라우저·다중 Provider 확장 구조는
-`0012-cross-browser-member-connector.md`에 기록한다.
+`0012-cross-browser-member-connector.md`에 기록했으며, 확장을 필수 주 경계로 둔 결정은 ADR 0024가
+대체했다. ADR 0025는 다시 회원 기기 Connector를 제품 경계로 둔 부분을 대체하고, Provider parser와
+공통 snapshot 분리만 보존한다.
 
 - `0001-typescript-web-server-worker.md`: selected runtime and process shape.
 - `0002-logical-postgis-with-physical-fallback.md`: conditional database topology.
@@ -45,3 +48,17 @@ Stage 7 결정은 `0011-connected-import-pipeline-and-provider-isolation.md`에 
   180일 보존, owner visibility와 독립된 allowed/withheld 상태를 정의한다.
 - `0019-bind-profile-appeals-to-withheld-decisions.md`: owner Notice와 structured appeal, reviewer의
   immutable resolution, accepted appeal과 allowed 복구의 원자성을 정의한다.
+- `0020-separate-product-brand-from-place-service-identity.md`: 사용자 표시명 `곳곳간`과 저장소
+  slug `gotgotgan`을 채택하고 호환성이 필요한 내부 `place` 식별자를 유지한다.
+- `0021-make-collection-membership-the-favorite-truth.md`: 사용자 소유 Collection membership을
+  즐겨찾기의 유일한 기준으로 삼고 Collection-first Interface와 v1 전환 게이트를 정의한다.
+- `0022-publish-canonical-place-profiles-from-evidence.md`: 정규화 assertion 원장, 불변 Profile,
+  Area·Taxonomy exact version과 fail-closed Media 권리를 하나의 발행 경계로 정의한다.
+- `0023-use-canonical-catalog-for-interactive-home-search.md`: 내부 Canonical Catalog만 대화형 홈에서
+  검색하고 Provider 계정 가져오기·관리자 수집을 별도 workflow로 격리한다.
+- `0024-make-member-acquisition-host-neutral.md`: Provider별 API·DOM·명시적 캡처 전략과 실행 호스트를
+  분리하고 확장 프로그램을 필수 설치물로 두지 않는다.
+- `0025-web-one-shot-saved-place-imports.md`: NAVER multi-share-link batch를 주 경로로 두고 계정 미확인
+  일회성 source와 검증된 connection, 선택형 원격 browser beta를 분리한다.
+- `0026-share-eligible-provider-place-facts.md`: 적격한 Provider 장소 기본정보의 공통 기여와 개인 정보
+  제외, 필드별 선택, 역사 데이터의 보수적 복구 경계를 정의한다.

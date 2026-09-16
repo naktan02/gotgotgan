@@ -6,7 +6,7 @@ import {
   libraryAreaFacetKey,
   matchesLibraryPlaceFacets,
 } from '../application/library-place-facets.js'
-import { listPostgresLibraryPlaces } from '../adapters/persistence/postgres-library-place-queries.js'
+import { listPostgresLibraryPlaces } from '../adapters/persistence/queries/index.js'
 import type { LibraryPlaceSummary } from '../domain/queries.js'
 
 const summary = (

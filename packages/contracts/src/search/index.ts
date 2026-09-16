@@ -1,6 +1,12 @@
 import { z } from 'zod'
+import { mapFeatureV3Schema } from '../maps/index.js'
 
-import { uuidSchema } from '../primitives.js'
+import {
+  mapLocationSchema,
+  mapViewportSchema,
+  mapZoomSchema,
+  uuidSchema,
+} from '../primitives.js'
 import { providerKeySchema } from '../providers/index.js'
 
 export { providerKeySchema } from '../providers/index.js'
@@ -19,6 +25,11 @@ export const searchBoundsSchema = z.object({
 }).strict().refine((bounds) => bounds.west < bounds.east && bounds.south < bounds.north, {
   message: 'Search bounds must describe a non-empty viewport.',
 })
+
+// Catalog browsing is driven by MapLibre viewports, so it shares the map seam's Web Mercator
+// latitude and antimeridian semantics. Provider-backed search keeps the narrower legacy bounds
+// contract above because those integrations do not all accept wrapped viewports.
+export const catalogSearchBoundsSchema = mapViewportSchema
 
 export const placeSearchRequestSchema = z.object({
   schemaVersion: z.literal('place-search.v1'),
@@ -214,6 +225,239 @@ export const placeSearchResponseSchema = z.object({
   sources: z.array(searchSourceOutcomeSchema).min(1).max(16),
 }).strict()
 
+const catalogSearchTokenIdSchema = z.string().min(1).max(512)
+const catalogVersionedReferenceSchema = z.object({
+  key: z.string().min(1).max(128),
+  version: z.number().int().positive(),
+}).strict()
+
+export const catalogSearchInterpretationTokenSchema = z.discriminatedUnion('kind', [
+  catalogVersionedReferenceSchema.extend({
+    tokenId: catalogSearchTokenIdSchema,
+    kind: z.literal('area'),
+    label: z.string().min(1).max(160),
+  }).strict(),
+  catalogVersionedReferenceSchema.extend({
+    tokenId: catalogSearchTokenIdSchema,
+    kind: z.literal('place-type'),
+    label: z.string().min(1).max(160),
+  }).strict(),
+  catalogVersionedReferenceSchema.extend({
+    tokenId: catalogSearchTokenIdSchema,
+    kind: z.literal('attribute'),
+    label: z.string().min(1).max(160),
+  }).strict(),
+  z.object({
+    tokenId: catalogSearchTokenIdSchema,
+    kind: z.literal('query'),
+    label: z.string().min(1).max(200),
+    normalizedQuery: z.string().min(1).max(200),
+  }).strict(),
+])
+
+export const catalogPlaceSearchRequestSchema = z.object({
+  schemaVersion: z.literal('catalog-place-search.v1'),
+  query: z.string().trim().max(200),
+  excludedTokenIds: z.array(catalogSearchTokenIdSchema).max(32).default([])
+    .refine((values) => new Set(values).size === values.length, {
+      message: 'Excluded interpretation tokens must be unique.',
+    }),
+  bounds: catalogSearchBoundsSchema.optional(),
+  cursor: z.string().min(1).max(2_048).optional(),
+  limit: z.number().int().min(1).max(50).default(20),
+}).strict()
+
+export const catalogPlaceSummarySchema = z.object({
+  placeId: uuidSchema,
+  name: z.string().min(1).max(300),
+  area: z.object({
+    label: z.string().min(1).max(300),
+    reference: catalogVersionedReferenceSchema.nullable(),
+  }).strict().nullable(),
+  location: z.object({
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+  }).strict().nullable(),
+  primaryTaxonomy: z.object({
+    key: z.string().min(1).max(128),
+    version: z.number().int().positive().nullable(),
+    label: z.string().min(1).max(160),
+  }).strict().nullable(),
+  taxonomyReferences: z.array(catalogVersionedReferenceSchema.extend({
+    kind: z.enum(['category', 'attribute']),
+  }).strict()).max(32),
+  evidenceStatus: z.enum(['verified', 'unverified', 'conflicted', 'stale']),
+  projectedAt: z.iso.datetime({ offset: true }),
+}).strict()
+
+export const catalogPlaceSearchResponseSchema = z.object({
+  schemaVersion: z.literal('catalog-place-search.v1'),
+  interpretation: z.object({
+    normalizedQuery: z.string().max(200),
+    tokens: z.array(catalogSearchInterpretationTokenSchema).max(32),
+  }).strict(),
+  items: z.array(catalogPlaceSummarySchema).max(50),
+  mapBounds: catalogSearchBoundsSchema.nullable(),
+  nextCursor: z.string().min(1).max(2_048).optional(),
+}).strict()
+
+export const catalogMapViewportSchema = mapViewportSchema
+
+export const catalogPlaceMapRequestSchema = z.object({
+  schemaVersion: z.literal('catalog-place-map.v1'),
+  query: z.string().trim().max(200),
+  excludedTokenIds: z.array(catalogSearchTokenIdSchema).max(32).default([])
+    .refine((values) => new Set(values).size === values.length, {
+      message: 'Excluded interpretation tokens must be unique.',
+    }),
+  viewport: catalogMapViewportSchema,
+  zoom: mapZoomSchema,
+  maxFeatures: z.number().int().min(1).max(384).default(384),
+}).strict()
+
+export const catalogPlaceMapFeatureSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('place'),
+    featureId: z.string().min(1).max(256),
+    placeId: uuidSchema,
+    name: z.string().min(1).max(300),
+    location: mapLocationSchema,
+    areaLabel: z.string().min(1).max(300).nullable(),
+    primaryTaxonomy: z.object({
+      key: z.string().min(1).max(128),
+      label: z.string().min(1).max(160),
+    }).strict().nullable(),
+    placeCount: z.literal(1),
+  }).strict(),
+  z.object({
+    kind: z.literal('cluster'),
+    featureId: z.string().min(1).max(256),
+    location: mapLocationSchema,
+    bounds: catalogMapViewportSchema,
+    placeCount: z.number().int().positive(),
+  }).strict(),
+])
+
+export const catalogPlaceMapResponseSchema = z.object({
+  schemaVersion: z.literal('catalog-place-map.v1'),
+  interpretation: z.object({
+    normalizedQuery: z.string().max(200),
+    tokens: z.array(catalogSearchInterpretationTokenSchema).max(32),
+  }).strict(),
+  viewport: catalogMapViewportSchema,
+  zoom: mapZoomSchema,
+  mode: z.enum(['places', 'clusters']),
+  features: z.array(catalogPlaceMapFeatureSchema).max(384),
+  coverage: z.object({
+    matchingPlaceCount: z.number().int().nonnegative(),
+    representedPlaceCount: z.number().int().nonnegative(),
+    complete: z.literal(true),
+  }).strict(),
+}).strict().superRefine((response, context) => {
+  const represented = response.features.reduce((sum, feature) => sum + feature.placeCount, 0)
+  if (
+    represented !== response.coverage.representedPlaceCount ||
+    response.coverage.representedPlaceCount !== response.coverage.matchingPlaceCount
+  ) {
+    context.addIssue({
+      code: 'custom',
+      path: ['coverage'],
+      message: 'Complete catalog map coverage must exactly match represented feature counts.',
+    })
+  }
+  if (response.features.some((feature) => feature.kind !== (
+    response.mode === 'places' ? 'place' : 'cluster'
+  ))) {
+    context.addIssue({
+      code: 'custom',
+      path: ['features'],
+      message: 'Catalog map mode must match every feature kind.',
+    })
+  }
+  if (new Set(response.features.map((feature) => feature.featureId)).size !== response.features.length) {
+    context.addIssue({
+      code: 'custom',
+      path: ['features'],
+      message: 'Catalog map feature identifiers must be unique.',
+    })
+  }
+})
+
+// v1 remains frozen; explicit name matching must not be interpreted as a taxonomy filter.
+export const catalogSearchIntentSchema = z.enum(['auto', 'name', 'conditions'])
+export const catalogPlaceSearchRequestV2Schema = catalogPlaceSearchRequestSchema.extend({
+  schemaVersion: z.literal('catalog-place-search.v2'), intent: catalogSearchIntentSchema.default('auto'),
+  near: mapLocationSchema.optional(),
+  taxonomyKey: z.string().trim().min(1).max(128).optional(),
+}).strict()
+export const catalogPlaceSearchResponseV2Schema = catalogPlaceSearchResponseSchema.extend({
+  schemaVersion: z.literal('catalog-place-search.v2'),
+}).strict()
+export const catalogPlaceMapRequestV2Schema = catalogPlaceMapRequestSchema.extend({
+  schemaVersion: z.literal('catalog-place-map.v2'), intent: catalogSearchIntentSchema.default('auto'),
+  taxonomyKey: z.string().trim().min(1).max(128).optional(),
+}).strict()
+export const catalogPlaceMapResponseV2Schema = z.object({
+  ...catalogPlaceMapResponseSchema.shape, schemaVersion: z.literal('catalog-place-map.v2'),
+}).strict().superRefine((response, context) => {
+  const legacy = catalogPlaceMapResponseSchema.safeParse({ ...response, schemaVersion: 'catalog-place-map.v1' })
+  if (!legacy.success) for (const issue of legacy.error.issues) context.addIssue({ code: 'custom', path: issue.path, message: issue.message })
+})
+export const catalogPlaceMapRequestV3Schema = catalogPlaceMapRequestV2Schema.extend({
+  schemaVersion: z.literal('catalog-place-map.v3'), selectedPlaceId: uuidSchema.optional(),
+})
+export const catalogPlaceMapResponseV3Schema = z.object({
+  ...catalogPlaceMapResponseV2Schema.shape,
+  schemaVersion: z.literal('catalog-place-map.v3'), mode: z.literal('mixed'),
+  features: z.array(mapFeatureV3Schema).max(384),
+}).strict().superRefine((response, context) => {
+  const represented = response.features.reduce((sum, feature) => sum + (feature.kind === 'place' ? 1 : feature.count), 0)
+  const ids = response.features.map((feature) => feature.kind === 'place' ? feature.placeId : feature.clusterId)
+  if (represented !== response.coverage.representedPlaceCount || represented !== response.coverage.matchingPlaceCount ||
+      !response.coverage.complete || new Set(ids).size !== ids.length) {
+    context.addIssue({ code: 'custom', message: 'mixed map must have exact, unique coverage' })
+  }
+})
+export type CatalogPlaceMapRequestV3 = z.infer<typeof catalogPlaceMapRequestV3Schema>
+export type CatalogPlaceMapResponseV3 = z.infer<typeof catalogPlaceMapResponseV3Schema>
+
+export const catalogExplorationRequestSchema = z.object({
+  schemaVersion: z.literal('catalog-exploration.v1'), query: z.string().trim().min(1).max(200),
+  near: mapLocationSchema.optional(),
+}).strict()
+export const catalogExplorationResponseSchema = z.object({
+  schemaVersion: z.literal('catalog-exploration.v1'),
+  intent: catalogSearchIntentSchema,
+  destinations: z.array(z.object({
+    key: z.string().min(1).max(128), kind: z.enum(['country', 'city']), name: z.string().min(1).max(160),
+    countryCode: z.string().max(8), location: mapLocationSchema, bounds: mapViewportSchema.nullable(),
+    exact: z.boolean(),
+  }).strict()).max(8),
+  places: z.array(catalogPlaceSummarySchema).max(8),
+  conditions: z.array(catalogSearchInterpretationTokenSchema).max(32),
+  unrecognizedText: z.string().max(200),
+}).strict()
+export type CatalogSearchIntent = z.infer<typeof catalogSearchIntentSchema>
+export type CatalogExplorationRequest = z.infer<typeof catalogExplorationRequestSchema>
+export type CatalogExplorationResponse = z.infer<typeof catalogExplorationResponseSchema>
+// Regional navigation is additive: the country/city-only v1 response stays frozen.
+export const catalogExplorationRequestV2Schema = catalogExplorationRequestSchema.extend({
+  schemaVersion: z.literal('catalog-exploration.v2'),
+}).strict()
+export const catalogExplorationResponseV2Schema = catalogExplorationResponseSchema.extend({
+  schemaVersion: z.literal('catalog-exploration.v2'),
+  destinations: z.array(catalogExplorationResponseSchema.shape.destinations.element.extend({
+    kind: z.enum(['country', 'city', 'administrative-area', 'locality', 'neighborhood']),
+    contextLabel: z.string().max(240).optional(),
+  }).strict()).max(8),
+}).strict()
+export type CatalogExplorationRequestV2 = z.infer<typeof catalogExplorationRequestV2Schema>
+export type CatalogExplorationResponseV2 = z.infer<typeof catalogExplorationResponseV2Schema>
+export type CatalogPlaceSearchRequestV2 = z.infer<typeof catalogPlaceSearchRequestV2Schema>
+export type CatalogPlaceMapRequestV2 = z.infer<typeof catalogPlaceMapRequestV2Schema>
+export type CatalogPlaceSearchResponseV2 = z.infer<typeof catalogPlaceSearchResponseV2Schema>
+export type CatalogPlaceMapResponseV2 = z.infer<typeof catalogPlaceMapResponseV2Schema>
+
 export type ProviderKey = z.infer<typeof providerKeySchema>
 export type SearchBounds = z.infer<typeof searchBoundsSchema>
 export type PlaceSearchRequestInput = z.input<typeof placeSearchRequestSchema>
@@ -232,6 +476,16 @@ export type PlaceSuggestionSelectionResponse = z.infer<typeof placeSuggestionSel
 export type PlaceSuggestionMaterializationRequest = z.infer<typeof placeSuggestionMaterializationRequestSchema>
 export type PlaceSuggestionMaterializationResponse = z.infer<typeof placeSuggestionMaterializationResponseSchema>
 export type PlaceSearchResponse = z.infer<typeof placeSearchResponseSchema>
+export type CatalogSearchInterpretationToken = z.infer<typeof catalogSearchInterpretationTokenSchema>
+export type CatalogPlaceSearchRequestInput = z.input<typeof catalogPlaceSearchRequestSchema>
+export type CatalogPlaceSearchRequest = z.infer<typeof catalogPlaceSearchRequestSchema>
+export type CatalogPlaceSummary = z.infer<typeof catalogPlaceSummarySchema>
+export type CatalogPlaceSearchResponse = z.infer<typeof catalogPlaceSearchResponseSchema>
+export type CatalogMapViewport = z.infer<typeof catalogMapViewportSchema>
+export type CatalogPlaceMapRequestInput = z.input<typeof catalogPlaceMapRequestSchema>
+export type CatalogPlaceMapRequest = z.infer<typeof catalogPlaceMapRequestSchema>
+export type CatalogPlaceMapFeature = z.infer<typeof catalogPlaceMapFeatureSchema>
+export type CatalogPlaceMapResponse = z.infer<typeof catalogPlaceMapResponseSchema>
 export type ProviderPlaceDetailRequest = z.infer<typeof providerPlaceDetailRequestSchema>
 export type ProviderPlaceDetail = z.infer<typeof providerPlaceDetailSchema>
 export type TaxonomyNode = z.infer<typeof taxonomyNodeSchema>

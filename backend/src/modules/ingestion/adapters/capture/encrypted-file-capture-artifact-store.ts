@@ -1,6 +1,6 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto'
-import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
-import { isAbsolute, join } from 'node:path'
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from 'node:crypto'
+import { link, mkdir, open, readFile, readdir, rename, unlink } from 'node:fs/promises'
+import { basename, isAbsolute, join } from 'node:path'
 
 import { z } from 'zod'
 
@@ -43,6 +43,10 @@ function artifactError(): Error {
   return new Error('Capture artifact is invalid')
 }
 
+function hasCode(error: unknown, code: string): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === code
+}
+
 export class EncryptedFileCaptureArtifactStore implements CaptureArtifactReplayStore {
   private readonly keys: ReadonlyMap<string, Buffer>
 
@@ -68,6 +72,11 @@ export class EncryptedFileCaptureArtifactStore implements CaptureArtifactReplayS
     if (!this.keys.has(config.activeKeyId)) throw artifactError()
   }
 
+  reference(artifactId: string): string {
+    if (!artifactIdPattern.test(artifactId)) throw artifactError()
+    return `capture:${artifactId}`
+  }
+
   async put(input: Parameters<CaptureArtifactReplayStore['put']>[0]) {
     if (
       !artifactIdPattern.test(input.artifactId) ||
@@ -77,8 +86,10 @@ export class EncryptedFileCaptureArtifactStore implements CaptureArtifactReplayS
       new Date(input.retentionUntil).getTime() <= this.config.now().getTime()
     ) throw artifactError()
     await mkdir(this.config.root, { recursive: true, mode: 0o700 })
-    const reference = `capture:${input.artifactId}`
-    const target = this.path(input.artifactId)
+    const reference = this.reference(input.artifactId)
+    const target = this.boundPath(
+      input.artifactId, input.batchId, input.providerKey, this.config.activeKeyId,
+    )
     const nonce = randomBytes(12)
     const header = {
       schemaVersion: 'place-capture-envelope.v1' as const,
@@ -98,45 +109,144 @@ export class EncryptedFileCaptureArtifactStore implements CaptureArtifactReplayS
       ciphertext: ciphertext.toString('base64url'),
       tag: cipher.getAuthTag().toString('base64url'),
     }
-    try {
-      await writeFile(target, `${JSON.stringify(envelope)}\n`, {
-        encoding: 'utf8',
-        flag: 'wx',
-        mode: 0o600,
-      })
-    } catch (error) {
-      if (!(typeof error === 'object' && error !== null && 'code' in error && error.code === 'EEXIST')) {
-        throw error
-      }
-      const prior = await this.get({
-        reference,
-        batchId: input.batchId,
-        providerKey: input.providerKey,
-      })
-      if (prior === undefined || createHash('sha256').update(prior).digest('hex') !== input.checksum) {
+    for (const candidate of [...this.boundPaths(
+      input.artifactId, input.batchId, input.providerKey,
+    ), this.legacyPath(input.artifactId)]) {
+      const prior = await this.readEnvelope(candidate)
+      if (prior.kind === 'missing' || prior.kind === 'invalid') continue
+      const body = this.decrypt(prior.envelope, input)
+      if (body === undefined || createHash('sha256').update(body).digest('hex') !== input.checksum) {
         throw artifactError()
       }
+      return { reference, checksum: input.checksum }
     }
+    await this.publish(target, `${JSON.stringify(envelope)}\n`, input)
     return { reference, checksum: input.checksum }
   }
 
   async get(input: Parameters<CaptureArtifactReplayStore['get']>[0]): Promise<Uint8Array | undefined> {
     const matched = referencePattern.exec(input.reference)
     if (matched === null) return undefined
+    for (const candidate of [...this.boundPaths(
+      matched[1]!, input.batchId, input.providerKey,
+    ), this.legacyPath(matched[1]!)]) {
+      const stored = await this.readEnvelope(candidate)
+      if (stored.kind === 'missing') continue
+      if (stored.kind === 'invalid') throw artifactError()
+      return this.decrypt(stored.envelope, input)
+    }
+    return undefined
+  }
+
+  async delete(input: Parameters<CaptureArtifactReplayStore['delete']>[0]): Promise<'deleted' | 'missing'> {
+    return this.remove(input, true)
+  }
+
+  /** Deletes a bound artifact after its consumer has durably completed or cancelled it. */
+  async discard(input: Parameters<CaptureArtifactReplayStore['delete']>[0]): Promise<'deleted' | 'missing'> {
+    return this.remove(input, false)
+  }
+
+  private async remove(
+    input: Parameters<CaptureArtifactReplayStore['delete']>[0],
+    requireExpiry: boolean,
+  ): Promise<'deleted' | 'missing'> {
+    const matched = referencePattern.exec(input.reference)
+    if (matched === null) return 'missing'
+    let deleted = false
+    for (const candidate of this.boundPaths(matched[1]!, input.batchId, input.providerKey)) {
+      const stored = await this.readEnvelope(candidate)
+      if (stored.kind === 'missing') continue
+      if (stored.kind === 'envelope') {
+        if (stored.envelope.batchId !== input.batchId ||
+          stored.envelope.providerKey !== input.providerKey) throw artifactError()
+        if (requireExpiry &&
+          new Date(stored.envelope.retentionUntil).getTime() > this.config.now().getTime()) {
+          throw new Error('Capture artifact is not expired')
+        }
+      }
+      deleted = await this.unlink(candidate) || deleted
+    }
+    const legacy = await this.readEnvelope(this.legacyPath(matched[1]!))
+    if (legacy.kind === 'envelope') {
+      if (legacy.envelope.batchId !== input.batchId ||
+        legacy.envelope.providerKey !== input.providerKey) throw artifactError()
+      if (requireExpiry &&
+        new Date(legacy.envelope.retentionUntil).getTime() > this.config.now().getTime()) {
+        throw new Error('Capture artifact is not expired')
+      }
+      deleted = await this.unlink(this.legacyPath(matched[1]!)) || deleted
+    } else if (legacy.kind === 'invalid') {
+      throw artifactError()
+    }
+    deleted = await this.removeTemporaryFiles(
+      matched[1]!, input.batchId, input.providerKey,
+    ) || deleted
+    return deleted ? 'deleted' : 'missing'
+  }
+
+  private legacyPath(artifactId: string): string {
+    return join(this.config.root, `${artifactId}.capture`)
+  }
+
+  private bindingToken(
+    artifactId: string,
+    batchId: string,
+    providerKey: 'naver' | 'kakao' | 'google',
+    keyId: string,
+  ): string {
+    const key = this.keys.get(keyId)!
+    const bindingKey = createHash('sha256')
+      .update('place-capture-path-binding.v1\0').update(key).digest()
+    return createHmac('sha256', bindingKey)
+      .update(`${artifactId}\0${batchId}\0${providerKey}`, 'utf8').digest('hex').slice(0, 32)
+  }
+
+  private boundPath(
+    artifactId: string,
+    batchId: string,
+    providerKey: 'naver' | 'kakao' | 'google',
+    keyId: string,
+  ): string {
+    return join(this.config.root, `${artifactId}.${this.bindingToken(
+      artifactId, batchId, providerKey, keyId,
+    )}.capture`)
+  }
+
+  private boundPaths(
+    artifactId: string,
+    batchId: string,
+    providerKey: 'naver' | 'kakao' | 'google',
+  ): readonly string[] {
+    const keyIds = [this.config.activeKeyId, ...this.keys.keys()]
+    return [...new Set(keyIds)].map((keyId) =>
+      this.boundPath(artifactId, batchId, providerKey, keyId))
+  }
+
+  private async readEnvelope(path: string): Promise<
+    | Readonly<{ kind: 'missing' }>
+    | Readonly<{ kind: 'invalid' }>
+    | Readonly<{ kind: 'envelope'; envelope: Envelope }>
+  > {
     let decoded: unknown
     try {
-      decoded = JSON.parse(await readFile(this.path(matched[1]!), 'utf8'))
-    } catch {
-      return undefined
+      decoded = JSON.parse(await readFile(path, 'utf8'))
+    } catch (error) {
+      return hasCode(error, 'ENOENT') ? { kind: 'missing' } : { kind: 'invalid' }
     }
     const parsed = envelopeSchema.safeParse(decoded)
-    if (!parsed.success) throw artifactError()
-    const envelope = parsed.data
-    if (
-      envelope.batchId !== input.batchId ||
-      envelope.providerKey !== input.providerKey ||
-      new Date(envelope.retentionUntil).getTime() <= this.config.now().getTime()
-    ) return undefined
+    return parsed.success ? { kind: 'envelope', envelope: parsed.data } : { kind: 'invalid' }
+  }
+
+  private decrypt(
+    envelope: Envelope,
+    input: Readonly<{
+      batchId: string
+      providerKey: 'naver' | 'kakao' | 'google'
+    }>,
+  ): Uint8Array | undefined {
+    if (envelope.batchId !== input.batchId || envelope.providerKey !== input.providerKey ||
+      new Date(envelope.retentionUntil).getTime() <= this.config.now().getTime()) return undefined
     const key = this.keys.get(envelope.keyId)
     if (key === undefined) throw artifactError()
     try {
@@ -149,46 +259,79 @@ export class EncryptedFileCaptureArtifactStore implements CaptureArtifactReplayS
         decipher.update(Buffer.from(envelope.ciphertext, 'base64url')),
         decipher.final(),
       ])
-      if (createHash('sha256').update(body).digest('hex') !== envelope.checksum) throw artifactError()
+      if (createHash('sha256').update(body).digest('hex') !== envelope.checksum) {
+        throw artifactError()
+      }
       return new Uint8Array(body)
     } catch {
       throw artifactError()
     }
   }
 
-  async delete(input: Parameters<CaptureArtifactReplayStore['delete']>[0]): Promise<'deleted' | 'missing'> {
-    const matched = referencePattern.exec(input.reference)
-    if (matched === null) return 'missing'
-    let decoded: unknown
+  private async publish(
+    target: string,
+    body: string,
+    input: Parameters<CaptureArtifactReplayStore['put']>[0],
+  ): Promise<void> {
+    const temporary = join(this.config.root, `.${basename(target)}.${randomBytes(8).toString('hex')}.tmp`)
+    const handle = await open(temporary, 'wx', 0o600)
     try {
-      decoded = JSON.parse(await readFile(this.path(matched[1]!), 'utf8'))
-    } catch (error) {
-      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT') {
-        return 'missing'
-      }
-      throw artifactError()
-    }
-    const parsed = envelopeSchema.safeParse(decoded)
-    if (!parsed.success) throw artifactError()
-    const envelope = parsed.data
-    if (envelope.batchId !== input.batchId || envelope.providerKey !== input.providerKey) {
-      throw artifactError()
-    }
-    if (new Date(envelope.retentionUntil).getTime() > this.config.now().getTime()) {
-      throw new Error('Capture artifact is not expired')
+      await handle.writeFile(body, { encoding: 'utf8' })
+      await handle.sync()
+    } finally {
+      await handle.close()
     }
     try {
-      await unlink(this.path(matched[1]!))
-      return 'deleted'
-    } catch (error) {
-      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT') {
-        return 'missing'
+      try {
+        await link(temporary, target)
+      } catch (error) {
+        if (!hasCode(error, 'EEXIST')) throw error
+        const stored = await this.readEnvelope(target)
+        if (stored.kind === 'invalid') {
+          await rename(temporary, target)
+          return
+        }
+        if (stored.kind === 'missing') throw error
+        const prior = this.decrypt(stored.envelope, input)
+        if (prior === undefined ||
+          createHash('sha256').update(prior).digest('hex') !== input.checksum) {
+          throw artifactError()
+        }
       }
-      throw error
+    } finally {
+      await this.unlink(temporary)
     }
   }
 
-  private path(artifactId: string): string {
-    return join(this.config.root, `${artifactId}.capture`)
+  private async removeTemporaryFiles(
+    artifactId: string,
+    batchId: string,
+    providerKey: 'naver' | 'kakao' | 'google',
+  ): Promise<boolean> {
+    let names: readonly string[]
+    try {
+      names = await readdir(this.config.root)
+    } catch (error) {
+      if (hasCode(error, 'ENOENT')) return false
+      throw error
+    }
+    const prefixes = this.boundPaths(artifactId, batchId, providerKey)
+      .map((path) => `.${basename(path)}.`)
+    let deleted = false
+    for (const name of names) {
+      if (!name.endsWith('.tmp') || !prefixes.some((prefix) => name.startsWith(prefix))) continue
+      deleted = await this.unlink(join(this.config.root, name)) || deleted
+    }
+    return deleted
+  }
+
+  private async unlink(path: string): Promise<boolean> {
+    try {
+      await unlink(path)
+      return true
+    } catch (error) {
+      if (hasCode(error, 'ENOENT')) return false
+      throw error
+    }
   }
 }
