@@ -10,6 +10,7 @@ import test from 'node:test'
 import { Client, Pool } from 'pg'
 
 import databaseRuntime from '../../../deploy/database-runtime.json' with { type: 'json' }
+import { databaseResourceLabels } from '../../../ci/database-resources.mjs'
 
 const execFileAsync = promisify(execFile)
 const repositoryRoot = path.resolve(import.meta.dirname, '../../..')
@@ -96,6 +97,7 @@ test('database preparation confines runtime authority and persists Place access 
     await writeFile(administratorPasswordFile, administratorPassword, { mode: 0o600 })
     await run('docker', [
       'run',
+      ...databaseResourceLabels(),
       '--detach',
       '--rm',
       '--name',

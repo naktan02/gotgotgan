@@ -9,6 +9,7 @@ import { promisify } from 'node:util'
 import { Client } from 'pg'
 
 import databaseRuntime from '../deploy/database-runtime.json' with { type: 'json' }
+import { databaseResourceLabels } from '../ci/database-resources.mjs'
 
 const execFileAsync = promisify(execFile)
 const repositoryRoot = path.resolve(import.meta.dirname, '..')
@@ -46,6 +47,7 @@ async function waitUntilReady(containerName) {
 async function startDatabase(containerName, passwordFile, host) {
   await run('docker', [
     'run',
+    ...databaseResourceLabels(),
     '--detach',
     '--rm',
     '--name',
