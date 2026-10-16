@@ -54,14 +54,6 @@ def main():
             raise ValueError('Dependency/tool inputs changed; rebuild the CI image')
         shutil.copytree('/tools/npm-cache', os.environ['NPM_CONFIG_CACHE'])
         npm('ci', '--ignore-scripts', '--offline')
-        shutil.rmtree(os.environ['NPM_CONFIG_CACHE'])
-        # The two standalone Next builds exceed /work's 1 GiB bound; reuse the released cache space.
-        admin_build = Path(tempfile.gettempdir()) / 'gotgotgan-admin-build'
-        admin_build.mkdir()
-        (admin_build / 'node_modules').symlink_to(Path('node_modules').resolve(), target_is_directory=True)
-        admin_output = admin_build / '.next'
-        admin_output.mkdir()
-        Path('apps/admin-web/.next').symlink_to(admin_output, target_is_directory=True)
         os.environ.update(PLAYWRIGHT_BROWSERS_PATH='/tools/browsers', PLACE_WEB_E2E_BASE_URL='http://127.0.0.1:4177')
         npm('run', 'check')
 

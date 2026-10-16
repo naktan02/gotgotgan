@@ -2,7 +2,7 @@
   "schema": "delivery-project.v2",
   "checks": [
     {
-      "name": "linux-application-quality", "os": "linux", "backend": "container", "resource_class": "light",
+      "name": "linux-application-quality", "os": "linux", "backend": "container", "resource_class": "heavy",
       "capabilities": [], "tool": "gotgotgan-ci", "command": ["python", "ci/check.py", "linux"],
       "timeout_seconds": 2400, "versions": ["python", "node", "npm", "git"]
     },
