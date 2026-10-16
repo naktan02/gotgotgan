@@ -4,6 +4,7 @@
 - `contracts.md`: schema and compatibility checks.
 - `integration.md`: real PostgreSQL/PostGIS and process tests.
 - `e2e-playwright.md`: browser-owned critical journeys and screenshots.
+- [Jenkins 검사](../../ci/README.md): 고정 도구의 OS별 검사 범위와 이미지·DB 복원 인수 경계를 확인한다.
 
 Blocking tests are deterministic. The PostGIS suite covers empty-catalog discovery, repeat-local-hit,
 selection and canonical-materialization replay, connected Import review, and encrypted capture expiry
