@@ -1,0 +1,184 @@
+{
+  "schema": "delivery-tools.v1",
+  "tools": {
+    "gotgotgan-ci": {
+      "backend": "container",
+      "image": "ghcr.io/naktan02/gotgotgan-ci@sha256:4c8f21ae24242235764d543e4c0578ce82373ee03a41e7443da1353323f544fd",
+      "versions": [
+        {
+          "name": "python",
+          "command": [
+            "python",
+            "-c",
+            "import platform; print(platform.python_version())"
+          ],
+          "source": {
+            "path": ".python-version"
+          }
+        },
+        {
+          "name": "node",
+          "command": [
+            "node",
+            "-p",
+            "process.versions.node"
+          ],
+          "source": {
+            "path": ".node-version"
+          }
+        },
+        {
+          "name": "npm",
+          "command": [
+            "npm",
+            "--version"
+          ],
+          "source": {
+            "path": ".npm-version"
+          }
+        },
+        {
+          "name": "git",
+          "command": [
+            "python",
+            "-c",
+            "import subprocess; print(subprocess.check_output([\"git\",\"--version\"],text=True).split()[2])"
+          ],
+          "source": {
+            "path": ".git-version"
+          }
+        }
+      ]
+    },
+    "gotgotgan-windows": {
+      "setup": [],
+      "versions": [
+        {
+          "name": "python",
+          "command": [
+            "python",
+            "-c",
+            "import platform; print(platform.python_version())"
+          ],
+          "source": {
+            "path": "ci/native-tool-versions.json",
+            "key": [
+              "python"
+            ]
+          }
+        },
+        {
+          "name": "node",
+          "command": [
+            "node",
+            "-p",
+            "process.versions.node"
+          ],
+          "source": {
+            "path": ".node-version"
+          }
+        },
+        {
+          "name": "npm",
+          "command": [
+            "cmd.exe",
+            "/d",
+            "/s",
+            "/c",
+            "npm.cmd --version"
+          ],
+          "source": {
+            "path": ".npm-version"
+          }
+        },
+        {
+          "name": "git",
+          "command": [
+            "python",
+            "-c",
+            "import subprocess; print(subprocess.check_output([\"git\",\"--version\"],text=True).split()[2])"
+          ],
+          "source": {
+            "path": "ci/native-tool-versions.json",
+            "key": [
+              "git"
+            ]
+          }
+        }
+      ],
+      "profile": "gotgotgan-windows"
+    },
+    "gotgotgan-image-builder": {
+      "setup": [],
+      "versions": [
+        {
+          "name": "python",
+          "command": [
+            "python",
+            "-c",
+            "import platform; print(platform.python_version())"
+          ],
+          "source": {
+            "path": "ci/native-tool-versions.json",
+            "key": [
+              "python"
+            ]
+          }
+        },
+        {
+          "name": "node",
+          "command": [
+            "node",
+            "-p",
+            "process.versions.node"
+          ],
+          "source": {
+            "path": ".node-version"
+          }
+        },
+        {
+          "name": "npm",
+          "command": [
+            "cmd.exe",
+            "/d",
+            "/s",
+            "/c",
+            "npm.cmd --version"
+          ],
+          "source": {
+            "path": ".npm-version"
+          }
+        },
+        {
+          "name": "git",
+          "command": [
+            "python",
+            "-c",
+            "import subprocess; print(subprocess.check_output([\"git\",\"--version\"],text=True).split()[2])"
+          ],
+          "source": {
+            "path": "ci/native-tool-versions.json",
+            "key": [
+              "git"
+            ]
+          }
+        },
+        {
+          "name": "docker",
+          "command": [
+            "python",
+            "-c",
+            "import subprocess; print(subprocess.check_output([\"docker\",\"--version\"],text=True).split()[2].rstrip(\",\"))"
+          ],
+          "source": {
+            "path": "ci/native-tool-versions.json",
+            "key": [
+              "docker"
+            ]
+          }
+        }
+      ],
+      "profile": "gotgotgan-image-builder"
+    }
+  }
+}

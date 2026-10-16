@@ -12,6 +12,8 @@
 
 검사 범위와 도구 버전은 [실행 선언](execution.json), 준비 방법은
 [도구 이미지](Dockerfile)와 [검사 진입점](check.py)에서 확인한다.
+[도구 선언](tools.json)의 registry digest를 Agent 호스트에 내려받고 Windows profile의 설치
+경로를 연결해 커밋을 등록한다. heavy Agent의 실제 자원 한도는 호스트 관리자가 배정한다.
 Linux 기본 검사는 네트워크 없는 컨테이너에서 기존 루트 `npm run check`를 실행한다.
 Windows 검사는 진단 Connector의 해당 OS 동작을 확인하며, 일반 사용자용 설치 제품이나
 실제 NAVER 로그인·수집 완료를 뜻하지 않는다. 제품 상태는
