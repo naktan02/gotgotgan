@@ -45,6 +45,7 @@ def main():
     os.environ.update(NPM_CONFIG_CACHE=str(Path(tempfile.gettempdir()) / 'gotgotgan-npm-cache'),
                       NPM_CONFIG_AUDIT='false', NPM_CONFIG_FUND='false', NEXT_TELEMETRY_DISABLED='1', CI='true')
     run('node', '--test', 'ci/database-resources.test.mjs')
+    run('node', '--test', 'scripts/run-e2e.test.mjs')
     if os.name == 'nt':
         npm('ci', '--ignore-scripts')
         for check in ('check:docs', 'check:contracts', 'test:deployment', 'check:browser-auth', 'check:member-connector'):
@@ -54,7 +55,10 @@ def main():
             raise ValueError('Dependency/tool inputs changed; rebuild the CI image')
         shutil.copytree('/tools/npm-cache', os.environ['NPM_CONFIG_CACHE'])
         npm('ci', '--ignore-scripts', '--offline')
-        os.environ.update(PLAYWRIGHT_BROWSERS_PATH='/tools/browsers', PLACE_WEB_E2E_BASE_URL='http://127.0.0.1:4177')
+        # 설치가 끝나면 RAM에 복사한 패키지 아카이브는 더 이상 사용하지 않는다.
+        shutil.rmtree(os.environ['NPM_CONFIG_CACHE'])
+        os.environ.update(PLAYWRIGHT_BROWSERS_PATH='/tools/browsers', PLACE_WEB_E2E_BASE_URL='http://127.0.0.1:4177',
+                          PLACE_E2E_DISPOSABLE_WORKSPACE='true')
         npm('run', 'check')
 
 

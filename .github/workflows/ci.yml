@@ -29,7 +29,7 @@ jobs:
           docker run --rm --init --read-only --network none \
             --user "$(id -u):$(id -g)" \
             --cap-drop ALL --security-opt no-new-privileges:true \
-            --cpus 2 --memory 4g --pids-limit 512 --shm-size 256m \
+            --cpus 2 --memory 6g --memory-swap 6g --pids-limit 512 --shm-size 256m \
             --tmpfs /tmp:rw,exec,nosuid,nodev,size=1g,mode=1777 \
             --tmpfs /work:rw,exec,nosuid,nodev,size=3g,mode=1777 \
             --mount "type=bind,source=$REPORTS,target=/reports" \
@@ -42,6 +42,7 @@ jobs:
           path: |
             ${{ runner.temp }}/place-check-reports/playwright-report
             ${{ runner.temp }}/place-check-reports/test-results
+            ${{ runner.temp }}/place-check-reports/resource-usage.json
           if-no-files-found: warn
           compression-level: 0
           overwrite: false

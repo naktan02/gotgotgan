@@ -6,6 +6,17 @@ shell, and own reviewed Windows and Linux screenshot baselines. CI retains Playw
 actual images, diffs, and traces on failure. Each user-visible milestone adds success, denial, loading, empty, error, and recovery paths
 that it actually introduces.
 
+Linux 전체 CI는 [검사 진입점](../../ci/check.py)이 소유하는 격리 작업 공간에서 먼저 두 운영 빌드를
+검증한 다음, [E2E 실행기](../../scripts/run-e2e.mjs)가 사용이 끝난 `.next` 출력만 정리하고 개발 서버를
+시작한다. 개발 전용 미리보기까지 검사하므로 운영 서버로 대체하지 않는다. 이 정리는 CI 소유 표시가
+있는 작업 공간에만 적용하며 일반 개발 실행은 기존 빌드를 보존한다. 시험 Web 서버가 조기 종료되면
+브라우저 검사도 실패로 중단하고 종료 코드·신호를 기록한다.
+
+고정 Next 16.3의 Webpack은 [instrumentation](../../apps/web/src/instrumentation.ts)의 조기 반환 뒤에
+남은 Node 전용 import도 Edge 번들로 탐색했다. 명시적인 Node 런타임 조건문 안에 import를 두어
+DB 모듈이 Edge로 들어가지 않게 한다. [Next의 런타임별 import 안내](https://nextjs.org/docs/app/guides/instrumentation)도
+이 조건문 형태를 사용한다. E2E 시작 시 실제 서버의 상태 확인이 이 컴파일 경계를 검증한다.
+
 ## 현재 프론트엔드 완료 기준 (2026-09-05)
 
 현재 지도 중심 화면 구조는 아래 과거 단계의 패널 설명과 테스트 개수보다 우선한다.
