@@ -8,6 +8,7 @@ import { promisify } from 'node:util'
 import { Client, Pool } from 'pg'
 
 import databaseRuntime from '../../../../deploy/database-runtime.json' with { type: 'json' }
+import { databaseResourceLabels } from '../../../../ci/database-resources.mjs'
 
 const execFileAsync = promisify(execFile)
 const repositoryRoot = path.resolve(import.meta.dirname, '../../../..')
@@ -71,6 +72,7 @@ export async function startPreparedPlaceDatabase(prefix) {
     await writeFile(administratorPasswordFile, administratorPassword, { mode: 0o600 })
     await run('docker', [
       'run', '--detach', '--rm', '--name', containerName,
+      ...databaseResourceLabels(),
       '--publish', `${databaseTestHost}::5432`,
       '--env', `POSTGRES_DB=${databaseRuntime.database}`,
       '--env', `POSTGRES_USER=${databaseRuntime.roles.administrator}`,

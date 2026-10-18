@@ -1,10 +1,11 @@
 import { spawn } from 'node:child_process'
-import { readFile } from 'node:fs/promises'
+import { readFile, realpath, rm } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { setTimeout as delay } from 'node:timers/promises'
 
 const configuredBaseUrl = process.env.PLACE_WEB_E2E_BASE_URL
+const disposableWorkspace = process.env.PLACE_E2E_DISPOSABLE_WORKSPACE === 'true'
 if (!configuredBaseUrl) {
   throw new Error('PLACE_WEB_E2E_BASE_URL is required; test environments own their address.')
 }
@@ -16,6 +17,27 @@ if (!/^[a-zA-Z0-9.-]+$/.test(baseUrl.hostname) || !/^\d+$/.test(baseUrl.port)) {
 const backendPort = Number(baseUrl.port) + 1
 if (backendPort > 65535) throw new Error('PLACE_WEB_E2E_BASE_URL leaves no port for the test Backend.')
 const backendOrigin = `http://${baseUrl.hostname}:${backendPort}`
+
+// 전체 빌드를 검증한 격리 CI에서만 사용이 끝난 생성물의 RAM을 돌려준다.
+if (disposableWorkspace) {
+  const root = await realpath(process.cwd())
+  for (const directory of ['apps/web/.next', 'apps/admin-web/.next']) {
+    const expected = path.resolve(root, directory)
+    let target
+    try {
+      target = await realpath(expected)
+    } catch (error) {
+      if (error.code === 'ENOENT') continue
+      throw error
+    }
+    if (!target.startsWith(`${root}${path.sep}`)) {
+      throw new Error('CI build output leaves the disposable workspace')
+    }
+    if (target !== expected) throw new Error('CI build output path is redirected')
+    await rm(expected, { recursive: true })
+    console.log(`Discarded validated CI build output: ${directory}`)
+  }
+}
 
 const nextCli = path.resolve('node_modules/next/dist/bin/next')
 const playwrightCli = path.resolve('node_modules/@playwright/test/cli.js')
@@ -29,6 +51,10 @@ const testEnvironment = {
   ...process.env,
   PLACE_FAMILY_NAVIGATION_MANIFEST: familyNavigationManifest,
   PLACE_BACKEND_ORIGIN: backendOrigin,
+}
+const serverEnvironment = { ...testEnvironment }
+if (disposableWorkspace) {
+  serverEnvironment.NODE_OPTIONS = `${serverEnvironment.NODE_OPTIONS ?? ''} --max-old-space-size=3072`.trim()
 }
 const backend = spawn(
   process.execPath,
@@ -45,14 +71,20 @@ const backend = spawn(
 )
 const server = spawn(
   process.execPath,
-  [nextCli, 'dev', '--hostname', baseUrl.hostname, '--port', baseUrl.port],
-  { cwd: path.resolve('apps/web'), env: testEnvironment, stdio: 'inherit' },
+  [nextCli, 'dev', ...(disposableWorkspace ? ['--webpack'] : []), '--hostname', baseUrl.hostname, '--port', baseUrl.port],
+  { cwd: path.resolve('apps/web'), env: serverEnvironment, stdio: 'inherit' },
 )
 
 let serverExit
+let runner
+let stopping = false
 const serverExited = new Promise((resolve) => {
   server.once('exit', (code, signal) => {
     serverExit = { code, signal }
+    if (!stopping) {
+      console.error('E2E Web server exited before the browser suite completed:', serverExit)
+      if (runner?.exitCode === null) runner.kill('SIGTERM')
+    }
     resolve(serverExit)
   })
 })
@@ -98,7 +130,8 @@ async function stopBackend() {
 let exitCode = 1
 try {
   await waitUntilReady()
-  const runner = spawn(
+  if (serverExit) throw new Error(`Next.js exited before the browser suite: ${JSON.stringify(serverExit)}`)
+  runner = spawn(
     process.execPath,
     [playwrightCli, 'test', ...process.argv.slice(2)],
     { cwd: process.cwd(), env: testEnvironment, stdio: 'inherit' },
@@ -107,7 +140,9 @@ try {
     runner.once('error', reject)
     runner.once('exit', (code) => resolve(code ?? 1))
   })
+  if (serverExit) exitCode = 1
 } finally {
+  stopping = true
   await stopServer()
   await stopBackend()
 }
