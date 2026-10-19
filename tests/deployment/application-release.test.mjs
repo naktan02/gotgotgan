@@ -17,6 +17,7 @@ const smokeScript = path.join(
   'smoke-published-application-images.mjs',
 )
 const digest = (character) => `sha256:${character.repeat(64)}`
+const { inspectEvidence } = await import(pathToFileURL(releaseCli))
 
 async function releaseFixture(platformCharacter = 'b') {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'place-release-test-'))
@@ -140,6 +141,34 @@ test('release source fixes three images, six process roles, and source-only depl
     ['web', 'admin-web', 'backend', 'worker', 'transfer-worker', 'migration'],
   )
   assert.deepEqual(source.deployment, { state: 'source-only' })
+})
+
+test('BuildKit SPDX DESCRIBES relationships must name a package in the same document', async () => {
+  for (const variant of ['valid', 'unknown-package', 'foreign-document', 'missing', 'malformed']) {
+    const fixture = await releaseFixture()
+    const envelope = JSON.parse(await readFile(fixture.sbomPath, 'utf8'))
+    delete envelope.SPDX.documentDescribes
+    envelope.SPDX.relationships = [{
+      spdxElementId: variant === 'foreign-document' ? 'SPDXRef-Other' : 'SPDXRef-DOCUMENT',
+      relationshipType: 'DESCRIBES',
+      relatedSpdxElement: variant === 'unknown-package' ? 'SPDXRef-Missing' : 'SPDXRef-Package-place',
+    }]
+    if (variant === 'missing') envelope.SPDX.relationships = []
+    if (variant === 'malformed') envelope.SPDX.relationships = {}
+    await writeFile(fixture.sbomPath, JSON.stringify(envelope))
+    const inspect = () => inspectEvidence({
+      artifactId: 'place-web', image: 'ghcr.io/naktan02/place-web',
+      indexManifest: fixture.indexPath, expectedIndexDigest: fixture.indexDigest,
+      provenancePath: fixture.provenancePath, sbomPath: fixture.sbomPath,
+      outputDirectory: path.join(fixture.directory, 'evidence'),
+    })
+    if (variant === 'valid') {
+      const result = await inspect()
+      assert.equal(result.platform_digest, fixture.platformDigest)
+    } else {
+      await assert.rejects(inspect(), /SBOM/)
+    }
+  }
 })
 
 test('release evidence binds one linux/amd64 subject to both SBOM and provenance', async () => {

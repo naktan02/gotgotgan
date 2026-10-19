@@ -41,6 +41,13 @@ DB 검사는 기존 migration·권한·암호화 세션·덤프 복원 경계를
 수집한 OCI bytes를 기존 GHCR 대상으로 게시한다. 빌더에 registry 자격 증명은 전달하지 않는다.
 게시와 소비 증거 인수 전까지 기존 수동 release Actions는 유지한다.
 
+2026-10-19 실제 BuildKit OCI의 SPDX 2.3 문서는 패키지 303개와 문서의 `DESCRIBES` 관계를
+포함했지만 `documentDescribes` 속성이 없어 기존 증거 검사에서 거부됐다. 제품 검증기는
+[SPDX 관계 정의](https://spdx.github.io/spdx-spec/v2.3/relationships-between-SPDX-elements/)의
+동등한 표현을 인정하며, 같은 문서에 존재하는 패키지를 가리켜야 한다는 조건은 유지한다.
+[릴리스 회귀](../tests/deployment/application-release.test.mjs)는 유효한 관계와 다른 문서·없는 패키지·
+관계 누락을 구분한다. 실패한 OCI bytes를 재사용해 검증기만 재확인하며 전체 main 인수는 별도다.
+
 전체 검사와 실패 보고서는 Jenkins가 소유한다. [진단 수집기](diagnostics.py)는 Playwright 결과와
 메모리 사용 기록을 제한된 ZIP으로 보관하며, 진단 수집 실패가 원래 검사 실패를 가리지 않도록 한다.
 Windows 개발용 진입점은 유지한다. 수동 이미지 release Actions는 게시 전환 완료까지 별도로 유지한다.
