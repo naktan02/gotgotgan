@@ -2,10 +2,10 @@
   "schema": "delivery-artifacts.v1",
   "builds": [
     {
-      "name": "runtime-images-and-database", "os": "windows", "backend": "native", "resource_class": "light",
-      "capabilities": ["docker-build"], "tool": "gotgotgan-image-builder",
-      "command": ["python", "ci/build-images.py"], "timeout_seconds": 3600,
-      "versions": ["python", "node", "npm", "docker"], "docker_resources": true,
+      "name": "runtime-images-and-database", "os": "linux", "backend": "native", "resource_class": "light",
+      "capabilities": ["docker-build"], "tool": "gotgotgan-linux-image-builder",
+      "command": ["python", "ci/build-images-linux.py"], "timeout_seconds": 3600,
+      "versions": ["python", "docker"], "docker_resources": true,
       "artifacts": [
         {"name": "gotgotgan-web-image.tar", "kind": "docker-image"},
         {"name": "gotgotgan-admin-web-image.tar", "kind": "docker-image"},
