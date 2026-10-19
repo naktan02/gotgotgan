@@ -1,0 +1,11 @@
+{
+  "schema": "delivery-publication-policy.v1",
+  "repository": "naktan02/gotgotgan",
+  "refs": ["main"],
+  "mode": "registry",
+  "images": {
+    "runtime-images-and-database/gotgotgan-web-image.tar": "ghcr.io/naktan02/place-web",
+    "runtime-images-and-database/gotgotgan-admin-web-image.tar": "ghcr.io/naktan02/place-admin-web",
+    "runtime-images-and-database/gotgotgan-backend-image.tar": "ghcr.io/naktan02/place-backend"
+  }
+}

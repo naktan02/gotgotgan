@@ -30,27 +30,30 @@ DB 검사는 기존 migration·권한·암호화 세션·덤프 복원 경계를
 사용해 기존 검사를 호출한다. 이 도구 컨테이너만 별도 빌드 daemon의 소켓과 loopback을 사용하며,
 중첩 fixture 경로를 동일하게 연결한다. 제품 검사 컨테이너의 네트워크·소켓 제한은 유지한다.
 
-기존 Actions는 실제 Jenkins 검사·상태 보고·산출물 다운로드·실패 복구를 인수할 때까지 유지한다.
-이 후보는 원본 작업 트리의 진행 중인 데이터 수집 변경과 별도로 검증하며, 통합은 별도 확인 대상이다.
+기존 Actions는 실제 Jenkins 검사·상태 보고·산출물 다운로드·게시 소비를 인수한 뒤 제거했다.
 운영 Identity·Gateway 연결과 게시·활성화 조건은 [배포 선언 안내](../deploy/README.md)를 따른다.
 
-이미지 게시 전환 후보는 같은 세 이미지를 provenance·SBOM이 포함된 OCI로 보관한다.
+이미지 게시 경로는 같은 세 이미지를 provenance·SBOM이 포함된 OCI로 보관한다.
 [OCI 경로](oci.py)는 source label과 attestation subject를 확인한 뒤 기존
 [제품 증거 검증기](../scripts/prepare-application-release.mjs)를 호출한다.
 같은 config digest를 Docker로 읽어 위의 실행·DB 검사를 수행하며, 관리 호스트의 공통 게시기가
 수집한 OCI bytes를 기존 GHCR 대상으로 게시한다. 빌더에 registry 자격 증명은 전달하지 않는다.
-게시와 소비 증거 인수 전까지 기존 수동 release Actions는 유지한다.
+관리자는 [게시 정책](publication-policy.json)을 검토하고 Delivery 0.26 이상의
+`python -m infra_ci.publication --help`에 따라 수집 bundle·collector SHA256·policy·depot을 전달한다.
+게시 후 각 platform digest를 pull하고 [제품 소비 검사](../scripts/smoke-published-application-images.mjs)로
+Web·Admin Web·Backend·Worker를 확인한다. source-only 소비는 실제 Identity 로그인이나 운영 적용을 뜻하지 않는다.
+수집본의 Delivery 기록과 게시 영수증이 새 출처이며, 과거 Actions 실행 ID를 새 기록에 넣지 않는다.
 
 2026-10-19 실제 BuildKit OCI의 SPDX 2.3 문서는 패키지 303개와 문서의 `DESCRIBES` 관계를
 포함했지만 `documentDescribes` 속성이 없어 기존 증거 검사에서 거부됐다. 제품 검증기는
 [SPDX 관계 정의](https://spdx.github.io/spdx-spec/v2.3/relationships-between-SPDX-elements/)의
 동등한 표현을 인정하며, 같은 문서에 존재하는 패키지를 가리켜야 한다는 조건은 유지한다.
 [릴리스 회귀](../tests/deployment/application-release.test.mjs)는 유효한 관계와 다른 문서·없는 패키지·
-관계 누락을 구분한다. 실패한 OCI bytes를 재사용해 검증기만 재확인하며 전체 main 인수는 별도다.
+관계 누락을 구분한다. 실패한 OCI bytes를 재사용해 검증기를 확인한 뒤 실제 main 수집과 게시 소비도 인수했다.
 
 전체 검사와 실패 보고서는 Jenkins가 소유한다. [진단 수집기](diagnostics.py)는 Playwright 결과와
 메모리 사용 기록을 제한된 ZIP으로 보관하며, 진단 수집 실패가 원래 검사 실패를 가리지 않도록 한다.
-Windows 개발용 진입점은 유지한다. 수동 이미지 release Actions는 게시 전환 완료까지 별도로 유지한다.
+Windows 개발용 진입점은 유지한다.
 
 ## 환경 실패를 구분할 때
 
