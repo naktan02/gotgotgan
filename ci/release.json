@@ -7,10 +7,11 @@
       "command": ["python", "ci/build-images-linux.py"], "timeout_seconds": 3600,
       "versions": ["python", "docker"], "docker_resources": true,
       "artifacts": [
-        {"name": "gotgotgan-web-image.tar", "kind": "docker-image"},
-        {"name": "gotgotgan-admin-web-image.tar", "kind": "docker-image"},
-        {"name": "gotgotgan-backend-image.tar", "kind": "docker-image"},
-        {"name": "gotgotgan-image-verification.json", "kind": "file"}
+        {"name": "gotgotgan-web-image.tar", "kind": "oci-image"},
+        {"name": "gotgotgan-admin-web-image.tar", "kind": "oci-image"},
+        {"name": "gotgotgan-backend-image.tar", "kind": "oci-image"},
+        {"name": "gotgotgan-image-verification.json", "kind": "file"},
+        {"name": "gotgotgan-release-evidence.tar", "kind": "file"}
       ]
     }
   ]

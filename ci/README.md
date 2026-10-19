@@ -34,10 +34,16 @@ DB 검사는 기존 migration·권한·암호화 세션·덤프 복원 경계를
 이 후보는 원본 작업 트리의 진행 중인 데이터 수집 변경과 별도로 검증하며, 통합은 별도 확인 대상이다.
 운영 Identity·Gateway 연결과 게시·활성화 조건은 [배포 선언 안내](../deploy/README.md)를 따른다.
 
-Actions의 전체 검사도 같은 [도구 이미지 정의](Dockerfile)를 로컬 빌드해 사용한다.
-[Actions 진입점](actions-check.py)은 이미지에 포함된 소스를 격리된 작업 영역으로 복사하고
-기존 Linux 검사를 실행한다. 실패 자료만 호스트로 내보내며 registry 게시나 비공개 이미지 읽기 권한은
-필요하지 않다. 실제 Jenkins 상태 보고를 인수하기 전까지 Actions 검사 자체는 유지한다.
+이미지 게시 전환 후보는 같은 세 이미지를 provenance·SBOM이 포함된 OCI로 보관한다.
+[OCI 경로](oci.py)는 source label과 attestation subject를 확인한 뒤 기존
+[제품 증거 검증기](../scripts/prepare-application-release.mjs)를 호출한다.
+같은 config digest를 Docker로 읽어 위의 실행·DB 검사를 수행하며, 관리 호스트의 공통 게시기가
+수집한 OCI bytes를 기존 GHCR 대상으로 게시한다. 빌더에 registry 자격 증명은 전달하지 않는다.
+게시와 소비 증거 인수 전까지 기존 수동 release Actions는 유지한다.
+
+전체 검사와 실패 보고서는 Jenkins가 소유한다. [진단 수집기](diagnostics.py)는 Playwright 결과와
+메모리 사용 기록을 제한된 ZIP으로 보관하며, 진단 수집 실패가 원래 검사 실패를 가리지 않도록 한다.
+Windows 개발용 진입점은 유지한다. 수동 이미지 release Actions는 게시 전환 완료까지 별도로 유지한다.
 
 ## 환경 실패를 구분할 때
 
@@ -83,7 +89,7 @@ RAM 작업 공간에 이미 검증한 두 운영 빌드도 남아 있어
 메모리 6 GiB와 RAM 작업 공간 3 GiB이며 Actions도 같은 한도를 사용한다.
 [삭제 경계 회귀](../scripts/run-e2e.test.mjs)는
 일반 개발 출력 보존과 작업 공간 내부·외부로 재지정된 디렉터리의 삭제 거부를 확인한다.
-Web 서버 종료는 즉시 브라우저 검사 실패로 전파하며 [Actions 진입점](actions-check.py)이 메모리
+Web 서버 종료는 즉시 브라우저 검사 실패로 전파하며 [진단 수집기](diagnostics.py)가 메모리
 한도·최대 사용량·부족 종료 카운터를 실패 보고서에 보존한다. 재발 확인은 swap 없는 6 GiB
 조건에서 전체 검사 통과와 `oom_kill` 증가 없음이며, GitHub에서의 최종 확인은 새 PR 검사로 구분한다.
 
