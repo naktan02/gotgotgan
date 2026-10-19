@@ -11,6 +11,11 @@ import tempfile
 from diagnostics import reports
 
 
+
+
+def stage(name):
+    print('@@delivery-stage-v1 ' + json.dumps({'event': 'start', 'name': name}), flush=True)
+
 def run(*command, **kwargs):
     subprocess.run([str(value) for value in command], check=True, **kwargs)
 
@@ -41,27 +46,33 @@ def main():
     expected = 'windows-connector' if os.name == 'nt' else 'linux'
     if sys.argv[1:] != [expected]:
         raise ValueError('Select the declared operating-system check')
+    stage('Test CI contracts')
     run(sys.executable, '-m', 'unittest', 'discover', '-s', 'ci', '-p', 'test_*.py', '-v')
     for name in tuple(os.environ):
         if name.lower() == 'npm_config_cache':
             del os.environ[name]
     os.environ.update(NPM_CONFIG_CACHE=str(Path(tempfile.gettempdir()) / 'gotgotgan-npm-cache'),
                       NPM_CONFIG_AUDIT='false', NPM_CONFIG_FUND='false', NEXT_TELEMETRY_DISABLED='1', CI='true')
+    stage('Test database and browser harness')
     run('node', '--test', 'ci/database-resources.test.mjs')
     run('node', '--test', 'scripts/run-e2e.test.mjs')
     if os.name == 'nt':
+        stage('Prepare dependencies')
         npm('ci', '--ignore-scripts')
+        stage('Validate Windows connector contracts')
         for check in ('check:docs', 'check:contracts', 'test:deployment', 'check:browser-auth', 'check:member-connector'):
             npm('run', check)
     else:
         if input_digest() != Path('/tools/input.sha256').read_text().strip():
             raise ValueError('Dependency/tool inputs changed; rebuild the CI image')
         shutil.copytree('/tools/npm-cache', os.environ['NPM_CONFIG_CACHE'])
+        stage('Prepare dependencies')
         npm('ci', '--ignore-scripts', '--offline')
         # 설치가 끝나면 RAM에 복사한 패키지 아카이브는 더 이상 사용하지 않는다.
         shutil.rmtree(os.environ['NPM_CONFIG_CACHE'])
         os.environ.update(PLAYWRIGHT_BROWSERS_PATH='/tools/browsers', PLACE_WEB_E2E_BASE_URL='http://127.0.0.1:4177',
                           PLACE_E2E_DISPOSABLE_WORKSPACE='true')
+        stage('Application quality, tests and build')
         npm('run', 'check')
 
 
