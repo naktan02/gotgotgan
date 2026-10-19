@@ -345,11 +345,16 @@ function validateSbom(value) {
     }
     packageIds.add(package_.SPDXID)
   }
-  if (
-    !Array.isArray(sbom.documentDescribes) ||
-    sbom.documentDescribes.length === 0 ||
-    !sbom.documentDescribes.every((identifier) => packageIds.has(identifier))
-  ) {
+  const described = sbom.documentDescribes ?? []
+  const relationships = sbom.relationships ?? []
+  if (!Array.isArray(described) || !Array.isArray(relationships)) {
+    throw new Error('SBOM document relationships are invalid')
+  }
+  const relationshipTargets = relationships
+    .filter((entry) => entry?.spdxElementId === 'SPDXRef-DOCUMENT' && entry?.relationshipType === 'DESCRIBES')
+    .map((entry) => entry.relatedSpdxElement)
+  const targets = [...described, ...relationshipTargets]
+  if (targets.length === 0 || !targets.every((identifier) => packageIds.has(identifier))) {
     throw new Error('SBOM does not describe an image package')
   }
   return sbom
