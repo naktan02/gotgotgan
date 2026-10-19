@@ -4,7 +4,7 @@
 
 ```text
 고정 소스 ─┬─ Linux 전체 검사 → 두 웹 앱·Backend·Connector·브라우저 회귀
-           └─ 기존 Windows Actions → 계약·배포 선언·Connector 진단과 확장 빌드
+           └─ Windows 로컬 검사 → 계약·배포 선언·Connector 진단과 확장 빌드
 고정 소스 ─── 세 운영 이미지 → source-only 실행·Worker → 시험 DB·복원 → 같은 이미지 ID 보관
                                   ↓
                     산출물·복원 검증 → Controller 인수 → 전환
@@ -13,8 +13,11 @@
 검사 범위와 도구 버전은 [실행 선언](execution.json), 준비 방법은
 [도구 이미지](Dockerfile)와 [검사 진입점](check.py)에서 확인한다.
 [도구 선언](tools.json)의 registry digest와 Linux `docker-builder` profile을 연결해 커밋을 등록한다.
-Windows 검사는 기존 Actions에서 계속 실행한다. heavy Agent의 실제 자원 한도는 호스트 관리자가 배정한다.
+Windows 검사 진입점은 로컬 검사용으로 유지한다. 현재 Actions에 Windows job은 없다.
+heavy Agent의 실제 자원 한도는 호스트 관리자가 배정한다.
 Linux 기본 검사는 네트워크 없는 컨테이너에서 기존 루트 `npm run check`를 실행한다.
+[진단 수집](diagnostics.py)은 Playwright 결과와 cgroup 메모리 관측을 Jenkins 진단 채널에 보존한다.
+보관 한도로 빠진 파일은 ZIP 안의 목록에서 확인하며, 수집 오류가 검사 실패를 가리지 않는다.
 Windows 검사는 진단 Connector의 해당 OS 동작을 확인하며, 일반 사용자용 설치 제품이나
 실제 NAVER 로그인·수집 완료를 뜻하지 않는다. 제품 상태는
 [Connector 안내](../apps/member-connector/README.md)가 소유한다.

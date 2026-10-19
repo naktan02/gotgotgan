@@ -8,6 +8,8 @@ import subprocess
 import sys
 import tempfile
 
+from diagnostics import reports
+
 
 def run(*command, **kwargs):
     subprocess.run([str(value) for value in command], check=True, **kwargs)
@@ -39,6 +41,7 @@ def main():
     expected = 'windows-connector' if os.name == 'nt' else 'linux'
     if sys.argv[1:] != [expected]:
         raise ValueError('Select the declared operating-system check')
+    run(sys.executable, '-m', 'unittest', 'discover', '-s', 'ci', '-p', 'test_*.py', '-v')
     for name in tuple(os.environ):
         if name.lower() == 'npm_config_cache':
             del os.environ[name]
@@ -63,4 +66,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    with reports():
+        main()
