@@ -4,12 +4,7 @@
     {
       "name": "linux-application-quality", "os": "linux", "backend": "container", "resource_class": "heavy",
       "capabilities": [], "tool": "gotgotgan-ci", "command": ["python", "ci/check.py", "linux"],
-      "timeout_seconds": 2400, "versions": ["python", "node", "npm", "git"]
-    },
-    {
-      "name": "windows-connector-quality", "os": "windows", "backend": "native", "resource_class": "light",
-      "capabilities": ["windows-native-host"], "tool": "gotgotgan-windows", "command": ["python", "ci/check.py", "windows-connector"],
-      "timeout_seconds": 1800, "versions": ["python", "node", "npm", "git"]
+      "diagnostics": true, "timeout_seconds": 2400, "versions": ["python", "node", "npm", "git"]
     }
   ]
 }

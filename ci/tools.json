@@ -179,6 +179,40 @@
         }
       ],
       "profile": "gotgotgan-image-builder"
+    },
+    "gotgotgan-linux-image-builder": {
+      "setup": [],
+      "versions": [
+        {
+          "name": "python",
+          "command": [
+            "python",
+            "-c",
+            "import platform; print(platform.python_version())"
+          ],
+          "source": {
+            "path": "ci/native-tool-versions.json",
+            "key": [
+              "python"
+            ]
+          }
+        },
+        {
+          "name": "docker",
+          "command": [
+            "python",
+            "-c",
+            "import subprocess; print(subprocess.check_output([\"docker\",\"--version\"],text=True).split()[2].rstrip(\",\"))"
+          ],
+          "source": {
+            "path": "ci/native-tool-versions.json",
+            "key": [
+              "docker"
+            ]
+          }
+        }
+      ],
+      "profile": "docker-builder"
     }
   }
 }

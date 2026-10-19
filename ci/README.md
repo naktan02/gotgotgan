@@ -4,7 +4,7 @@
 
 ```text
 고정 소스 ─┬─ Linux 전체 검사 → 두 웹 앱·Backend·Connector·브라우저 회귀
-           └─ Windows 검사 → 계약·배포 선언·Connector 진단과 확장 빌드
+           └─ Windows 로컬 검사 → 계약·배포 선언·Connector 진단과 확장 빌드
 고정 소스 ─── 세 운영 이미지 → source-only 실행·Worker → 시험 DB·복원 → 같은 이미지 ID 보관
                                   ↓
                     산출물·복원 검증 → Controller 인수 → 전환
@@ -12,9 +12,12 @@
 
 검사 범위와 도구 버전은 [실행 선언](execution.json), 준비 방법은
 [도구 이미지](Dockerfile)와 [검사 진입점](check.py)에서 확인한다.
-[도구 선언](tools.json)의 registry digest를 Agent 호스트에 내려받고 Windows profile의 설치
-경로를 연결해 커밋을 등록한다. heavy Agent의 실제 자원 한도는 호스트 관리자가 배정한다.
+[도구 선언](tools.json)의 registry digest와 Linux `docker-builder` profile을 연결해 커밋을 등록한다.
+Windows 검사 진입점은 로컬 검사용으로 유지한다. 현재 Actions에 Windows job은 없다.
+heavy Agent의 실제 자원 한도는 호스트 관리자가 배정한다.
 Linux 기본 검사는 네트워크 없는 컨테이너에서 기존 루트 `npm run check`를 실행한다.
+[진단 수집](diagnostics.py)은 Playwright 결과와 cgroup 메모리 관측을 Jenkins 진단 채널에 보존한다.
+보관 한도로 빠진 파일은 ZIP 안의 목록에서 확인하며, 수집 오류가 검사 실패를 가리지 않는다.
 Windows 검사는 진단 Connector의 해당 OS 동작을 확인하며, 일반 사용자용 설치 제품이나
 실제 NAVER 로그인·수집 완료를 뜻하지 않는다. 제품 상태는
 [Connector 안내](../apps/member-connector/README.md)가 소유한다.
@@ -23,6 +26,9 @@ Windows 검사는 진단 Connector의 해당 OS 동작을 확인하며, 일반 �
 그대로 사용한다. source-only 상태 확인은 실제 Identity 로그인을 증명하지 않는다.
 DB 검사는 기존 migration·권한·암호화 세션·덤프 복원 경계를 시험 데이터로 확인한다.
 같은 호스트 복원이며 독립 백업 저장소나 운영 데이터로 실행하지 않는다.
+[Linux 이미지 진입점](build-images-linux.py)은 [전용 빌드 도구](Dockerfile.builder)의 고정 Python·Node·npm을
+사용해 기존 검사를 호출한다. 이 도구 컨테이너만 별도 빌드 daemon의 소켓과 loopback을 사용하며,
+중첩 fixture 경로를 동일하게 연결한다. 제품 검사 컨테이너의 네트워크·소켓 제한은 유지한다.
 
 기존 Actions는 실제 Jenkins 검사·상태 보고·산출물 다운로드·실패 복구를 인수할 때까지 유지한다.
 이 후보는 원본 작업 트리의 진행 중인 데이터 수집 변경과 별도로 검증하며, 통합은 별도 확인 대상이다.
