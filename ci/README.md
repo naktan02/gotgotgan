@@ -34,6 +34,13 @@ DB 검사는 기존 migration·권한·암호화 세션·덤프 복원 경계를
 이 후보는 원본 작업 트리의 진행 중인 데이터 수집 변경과 별도로 검증하며, 통합은 별도 확인 대상이다.
 운영 Identity·Gateway 연결과 게시·활성화 조건은 [배포 선언 안내](../deploy/README.md)를 따른다.
 
+이미지 게시 전환 후보는 같은 세 이미지를 provenance·SBOM이 포함된 OCI로 보관한다.
+[OCI 경로](oci.py)는 source label과 attestation subject를 확인한 뒤 기존
+[제품 증거 검증기](../scripts/prepare-application-release.mjs)를 호출한다.
+같은 config digest를 Docker로 읽어 위의 실행·DB 검사를 수행하며, 관리 호스트의 공통 게시기가
+수집한 OCI bytes를 기존 GHCR 대상으로 게시한다. 빌더에 registry 자격 증명은 전달하지 않는다.
+게시와 소비 증거 인수 전까지 기존 수동 release Actions는 유지한다.
+
 Actions의 전체 검사도 같은 [도구 이미지 정의](Dockerfile)를 로컬 빌드해 사용한다.
 [Actions 진입점](actions-check.py)은 이미지에 포함된 소스를 격리된 작업 영역으로 복사하고
 기존 Linux 검사를 실행한다. 실패 자료만 호스트로 내보내며 registry 게시나 비공개 이미지 읽기 권한은
