@@ -357,24 +357,19 @@ test('published-image smoke accepts only all three Place platform digests', asyn
   )
 })
 
-test('manual release workflow gates on same-commit CI and has no deployment authority', async () => {
-  const workflow = await readFile(
-    path.join(repositoryRoot, '.github', 'workflows', 'release-application.yml'),
-    'utf8',
-  )
-  const triggerBlock = workflow.slice(workflow.indexOf('\non:\n'), workflow.indexOf('\npermissions:'))
-  assert.match(workflow, /workflow_dispatch:/)
-  assert.doesNotMatch(triggerBlock, /^  push:/m)
-  assert.match(workflow, /actions\/workflows\/ci\.yml\/runs/)
-  assert.match(workflow, /head_sha=\$GITHUB_SHA/)
-  assert.equal(workflow.match(/provenance: mode=max,version=v1/g)?.length, 3)
-  assert.equal(workflow.match(/sbom: true/g)?.length, 3)
-  assert.match(workflow, /ADMIN_WEB_IMAGE: ghcr\.io\/naktan02\/place-admin-web/)
-  assert.match(workflow, /target: admin-web-runtime/)
-  assert.match(workflow, /--admin-web-image/)
-  assert.match(workflow, /place-admin-web-sbom-/)
-  assert.match(workflow, /place-admin-web-provenance-/)
-  assert.match(workflow, /artifact_id: "place-admin-web"/)
-  assert.match(workflow, /smoke-published-application-images\.mjs/)
-  assert.doesNotMatch(workflow, /kubeconfig|kubectl|argocd|promotion-request/i)
+test('manual publisher accepts only the three collected OCI images from main', async () => {
+  const readJson = async (name) => JSON.parse(await readFile(path.join(repositoryRoot, 'ci', name), 'utf8'))
+  const policy = await readJson('publication-policy.json')
+  const release = await readJson('release.json')
+  assert.equal(policy.schema, 'delivery-publication-policy.v1')
+  assert.equal(policy.repository, 'naktan02/gotgotgan')
+  assert.equal(policy.mode, 'registry')
+  assert.deepEqual(policy.refs, ['main'])
+  const images = release.builds.flatMap((build) => build.artifacts
+    .filter((artifact) => artifact.kind === 'oci-image')
+    .map((artifact) => `${build.name}/${artifact.name}`))
+  assert.deepEqual(Object.keys(policy.images).sort(), images.sort())
+  assert.deepEqual(Object.values(policy.images).sort(), [
+    'ghcr.io/naktan02/place-admin-web', 'ghcr.io/naktan02/place-backend', 'ghcr.io/naktan02/place-web',
+  ])
 })

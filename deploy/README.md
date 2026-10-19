@@ -43,16 +43,16 @@ entrypoints. Its deployment state remains
 `source-only`; it does not claim a Kustomize/Helm package, Gateway route, Identity client, or active
 environment.
 
-`.github/workflows/release-application.yml` is manual-only. It accepts only the current clean `main`
-commit after the matching push CI succeeds, publishes `sha-<full-commit>` tags, resolves the
-registry index back to exact `linux/amd64` platform digests, validates separate SBOM/provenance
-evidence for all three images, and runs the Web, Admin Web, Backend, and Worker checks from those
-published digests.
-It then creates one checksum-bound `release-record.v1`; it has no GitOps, cluster, Gateway, or
-deployment credential. A rerun never replaces a tag. If one image was published before a later
-step failed, the workflow verifies that existing image's source/revision labels, publishes only the
-missing checkpoint, and rebuilds all evidence. An unreadable tag state, foreign label, malformed
-attestation, mutable reference, or mismatched digest fails closed.
+```text
+trusted main checks → collected OCI graph + Delivery record → manual host publisher
+                                                               ↓
+                               registry digest / SBOM / provenance → published-image smoke
+```
+
+The [Jenkins publication path](../ci/README.md) replaces the retired release Action. The host
+publisher consumes the collected bytes under [the three-image policy](../ci/publication-policy.json).
+It retains a checksum-bound Delivery record and publication receipt; it never activates the images.
+The old `release-record.v1` generator remains available for historical Actions records only.
 
 Local verification does not publish anything:
 
@@ -61,7 +61,7 @@ node scripts/prepare-application-release.mjs verify-source --repository-root .
 npm run test:deployment
 ```
 
-A successful workflow run is required before documentation may claim published release evidence.
+Successful publication and published-digest consumption are required before claiming release evidence.
 Application activation additionally requires environment rollback smoke and the remaining
 Identity/Gateway gates.
 
